@@ -16,8 +16,14 @@
 
 package objectstorage
 
-import "strings"
+import (
+	"crypto/md5"
+	"encoding/base64"
+	"io"
+	"strings"
+)
 
+// extract bucket from URL
 func url2Bucket(url string) string {
 	splits := strings.SplitN(url, "/", 2)
 	switch len(splits) {
@@ -28,6 +34,7 @@ func url2Bucket(url string) string {
 	}
 }
 
+// find if prefix is case insensitive
 func isPrefixCaseInsensitive(s, pfx string) bool {
 	if len(pfx) > len(s) {
 		return false
@@ -38,4 +45,20 @@ func isPrefixCaseInsensitive(s, pfx string) bool {
 	}
 	shead = strings.ToLower(shead)
 	return shead == pfx || shead == strings.ToLower(pfx)
+}
+
+// calculate md5
+func contentMD5(body io.ReadSeeker, size int64) (string, error) {
+	hasher := md5.New()
+	_, err := io.CopyN(hasher, body, size)
+	if err != nil {
+		return "", err
+	}
+	// seek back
+	_, err = body.Seek(0, 0)
+	if err != nil {
+		return "", err
+	}
+	// encode the md5 checksum in base64 and set the request header.
+	return base64.StdEncoding.EncodeToString(hasher.Sum(nil)), nil
 }

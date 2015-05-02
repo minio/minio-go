@@ -25,7 +25,7 @@ type API interface {
 	PutBucketACL(bucket, acl string) error
 
 	/// Bucket Read Operations
-	ListObjects(bucket string) (ListObjects, error)
+	ListObjects(bucket string, maxkeys int, marker, prefix, delimiter string) (*ListObjects, error)
 	HeadBucket(bucket string) error
 
 	/// Object Read/Write/Stat Operations
@@ -34,5 +34,5 @@ type API interface {
 	HeadObject(bucket, object string) error
 
 	/// Service Operations
-	ListBuckets() (ListBuckets, error)
+	ListBuckets() (*ListBuckets, error)
 }

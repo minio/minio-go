@@ -23,4 +23,11 @@ func main() {
 
 	err = m.HeadBucket("testbucket")
 	fmt.Println(err)
+
+	listBuckets, err := m.ListBuckets()
+	fmt.Println(err)
+	buckets := listBuckets.Buckets
+	for _, bucket := range buckets.Bucket {
+		fmt.Println(bucket)
+	}
 }

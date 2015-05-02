@@ -20,22 +20,24 @@ import "time"
 
 // ListBuckets -
 type ListBuckets struct {
-	Buckets []*Bucket
-	Owner   Owner
+	Buckets struct {
+		Bucket []*Bucket
+	}
+	Owner Owner
+}
+
+// Bucket -
+type Bucket struct {
+	// The name of the bucket.
+	Name string
+	// Date the bucket was created.
+	CreationDate time.Time
 }
 
 // Owner -
 type Owner struct {
 	DisplayName string
 	ID          string
-}
-
-// Bucket -
-type Bucket struct {
-	// Date the bucket was created.
-	CreationDate time.Time
-	// The name of the bucket.
-	Name string
 }
 
 // CommonPrefix -

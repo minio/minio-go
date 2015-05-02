@@ -22,6 +22,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 )
 
@@ -112,6 +113,46 @@ func (a *api) PutBucketACL(bucket, acl string) error {
 	return resp.Body.Close()
 }
 
+func (a *api) listObjectsRequest(bucket string, maxkeys int, marker, prefix, delimiter string) (*Request, error) {
+	type inputResources struct {
+		maxkeys   int
+		marker    string
+		prefix    string
+		delimiter string
+	}
+	var resource inputResources
+	resource.maxkeys = maxkeys
+	resource.marker = marker
+	resource.prefix = prefix
+	resource.delimiter = delimiter
+	// resourceQuery - get resources properly escaped and lined up before
+	// using them in http request
+	resourceQuery := func(input inputResources) string {
+		var maxkeys, marker, prefix, delimiter string
+		maxkeys = fmt.Sprintf("?max-keys=%d", resource.maxkeys)
+		if resource.marker != "" {
+			marker = fmt.Sprintf("&marker=%s", url.QueryEscape(resource.marker))
+		}
+		if resource.prefix != "" {
+			prefix = fmt.Sprintf("&prefix=%s", url.QueryEscape(resource.prefix))
+		}
+		if resource.delimiter != "" {
+			delimiter = fmt.Sprintf("&delimiter=%s", url.QueryEscape(resource.delimiter))
+		}
+		return maxkeys + marker + prefix + delimiter
+	}
+	op := &Operation{
+		HTTPServer: a.config.Endpoint,
+		HTTPMethod: "GET",
+		HTTPPath:   "/" + bucket + resourceQuery(resource),
+	}
+	req, err := NewRequest(op, a.config, nil)
+	if err != nil {
+		return nil, err
+	}
+	return req, nil
+}
+
 /// Bucket Read Operations
 
 // ListObjects - (List Objects) - List some or all (up to 1000) of the objects in a bucket.
@@ -119,12 +160,26 @@ func (a *api) PutBucketACL(bucket, acl string) error {
 // You can use the request parameters as selection criteria to return a subset of the objects in a bucket.
 // request paramters :-
 // ---------
-// ?delimiter - A delimiter is a character you use to group keys.
 // ?marker - Specifies the key to start with when listing objects in a bucket.
-// ?max-keys - Sets the maximum number of keys returned in the response body.
+// ?delimiter - A delimiter is a character you use to group keys.
 // ?prefix - Limits the response to keys that begin with the specified prefix.
-func (a *api) ListObjects(bucket string) (ListObjects, error) {
-	return ListObjects{}, nil
+// ?max-keys - Sets the maximum number of keys returned in the response body.
+func (a *api) ListObjects(bucket string, maxkeys int, marker, prefix, delimiter string) (*ListObjects, error) {
+	req, err := a.listObjectsRequest(bucket, maxkeys, marker, prefix, delimiter)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := req.Do()
+	if err != nil {
+		return nil, err
+	}
+	listobjects := new(ListObjects)
+	decoder := xml.NewDecoder(resp.Body)
+	err = decoder.Decode(listobjects)
+	if err != nil {
+		return nil, err
+	}
+	return listobjects, nil
 }
 
 func (a *api) headBucketRequest(bucket string) (*Request, error) {
@@ -162,10 +217,15 @@ func (a *api) putObjectRequest(bucket, object string, size int64, body io.ReadSe
 		HTTPMethod: "PUT",
 		HTTPPath:   "/" + bucket + "/" + object,
 	}
+	md5Sum, err := contentMD5(body, size)
+	if err != nil {
+		return nil, err
+	}
 	req, err := NewRequest(op, a.config, ioutil.NopCloser(body))
 	if err != nil {
 		return nil, err
 	}
+	req.Set("Content-MD5", md5Sum)
 	req.Set("Content-Length", strconv.FormatInt(size, 10))
 	return req, nil
 }
@@ -200,7 +260,7 @@ func (a *api) getObjectRequest(bucket, object string, offset, length uint64) (*R
 	if err != nil {
 		return nil, err
 	}
-	// TODO fix this to support full - http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html
+	// TODO - fix this to support full - http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html
 	switch {
 	case length > 0:
 		req.Set("Range", fmt.Sprintf("bytes=%d-%d", offset, offset+length-1))
@@ -260,20 +320,20 @@ func (a *api) listBucketsRequest() (*Request, error) {
 }
 
 // ListBuckets - (List Buckets) - list of all buckets owned by the authenticated sender of the request
-func (a *api) ListBuckets() (ListBuckets, error) {
+func (a *api) ListBuckets() (*ListBuckets, error) {
 	req, err := a.listBucketsRequest()
 	if err != nil {
-		return ListBuckets{}, err
+		return nil, err
 	}
 	resp, err := req.Do()
 	if err != nil {
-		return ListBuckets{}, err
+		return nil, err
 	}
-	var listbuckets ListBuckets
+	listbuckets := new(ListBuckets)
 	decoder := xml.NewDecoder(resp.Body)
-	err = decoder.Decode(&listbuckets)
+	err = decoder.Decode(listbuckets)
 	if err != nil {
-		return ListBuckets{}, err
+		return nil, err
 	}
 	return listbuckets, nil
 }
