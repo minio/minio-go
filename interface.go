@@ -18,20 +18,22 @@ package objectstorage
 
 import "io"
 
-// API - minimalist object storage API interface
+// API - object storage API interface
 type API interface {
 	/// Bucket Write Operations
 	PutBucket(bucket string) error
 	PutBucketACL(bucket, acl string) error
+	DeleteBucket(bucket string) error
 
 	/// Bucket Read Operations
 	ListObjects(bucket string, maxkeys int, marker, prefix, delimiter string) (*ListObjects, error)
 	HeadBucket(bucket string) error
 
-	/// Object Read/Write/Stat Operations
+	/// Object Read/Write/Stat/Unlink Operations
 	PutObject(bucket, object string, size int64, body io.ReadSeeker) error
 	GetObject(bucket, object string, offset, length uint64) (io.ReadCloser, error)
 	HeadObject(bucket, object string) error
+	DeleteObject(bucket, object string) error
 
 	/// Service Operations
 	ListBuckets() (*ListBuckets, error)

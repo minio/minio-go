@@ -209,6 +209,29 @@ func (a *api) HeadBucket(bucket string) error {
 	return resp.Body.Close()
 }
 
+func (a *api) deleteBucketRequest(bucket string) (*Request, error) {
+	op := &Operation{
+		HTTPServer: a.config.Endpoint,
+		HTTPMethod: "DELETE",
+		HTTPPath:   "/" + bucket,
+	}
+	return NewRequest(op, a.config, nil)
+}
+
+// DeleteBucket - deletes the bucket named in the URI
+// NOTE: - All objects (including all object versions and delete markers) in the bucket must be deleted
+func (a *api) DeleteBucket(bucket string) error {
+	req, err := a.deleteBucketRequest(bucket)
+	if err != nil {
+		return err
+	}
+	resp, err := req.Do()
+	if err != nil {
+		return err
+	}
+	return resp.Body.Close()
+}
+
 /// Object Read/Write/Stat Operations
 
 func (a *api) putObjectRequest(bucket, object string, size int64, body io.ReadSeeker) (*Request, error) {
@@ -230,7 +253,7 @@ func (a *api) putObjectRequest(bucket, object string, size int64, body io.ReadSe
 	return req, nil
 }
 
-// Put - add an object to a bucket
+// PutObject - add an object to a bucket
 //
 // You must have WRITE permissions on a bucket to add an object to it.
 func (a *api) PutObject(bucket, object string, size int64, body io.ReadSeeker) error {
@@ -270,7 +293,7 @@ func (a *api) getObjectRequest(bucket, object string, offset, length uint64) (*R
 	return req, nil
 }
 
-// Get - retrieve object from Object Storage
+// GetObject - retrieve object from Object Storage
 //
 // Additionally it also takes range arguments to download the specified range bytes of an object.
 // For more information about the HTTP Range header, go to http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35.
@@ -295,9 +318,31 @@ func (a *api) headObjectRequest(bucket, object string) (*Request, error) {
 	return NewRequest(op, a.config, nil)
 }
 
-// Head - retrieves metadata from an object without returning the object itself
+// HeadObject - retrieves metadata from an object without returning the object itself
 func (a *api) HeadObject(bucket, object string) error {
 	req, err := a.headObjectRequest(bucket, object)
+	if err != nil {
+		return err
+	}
+	resp, err := req.Do()
+	if err != nil {
+		return err
+	}
+	return resp.Body.Close()
+}
+
+func (a *api) deleteObjectRequest(bucket, object string) (*Request, error) {
+	op := &Operation{
+		HTTPServer: a.config.Endpoint,
+		HTTPMethod: "DELETE",
+		HTTPPath:   "/" + bucket + "/" + object,
+	}
+	return NewRequest(op, a.config, nil)
+}
+
+// DeleteObject - removes the object
+func (a *api) DeleteObject(bucket, object string) error {
+	req, err := a.deleteObjectRequest(bucket, object)
 	if err != nil {
 		return err
 	}
