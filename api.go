@@ -17,12 +17,12 @@
 package objectstorage
 
 import (
-	"errors"
+	"encoding/xml"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
-
-	"github.com/minio-io/minio/pkg/iodine"
+	"strconv"
 )
 
 type api struct {
@@ -61,27 +61,32 @@ func (a *api) putBucketRequest(bucket string) (*Request, error) {
 func (a *api) PutBucket(bucket string) error {
 	req, err := a.putBucketRequest(bucket)
 	if err != nil {
-		return iodine.New(err, nil)
+		return err
 	}
 	resp, err := req.Do()
 	if err != nil {
-		return iodine.New(err, nil)
+		return err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return iodine.New(ResponseToError(resp), nil)
+			return ResponseToError(resp)
 		}
 	}
 	return resp.Body.Close()
 }
 
-func (a *api) putBucketRequestACL(bucket string) (*Request, error) {
+func (a *api) putBucketRequestACL(bucket, acl string) (*Request, error) {
 	op := &Operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "PUT",
 		HTTPPath:   "/" + bucket + "?acl",
 	}
-	return NewRequest(op, a.config, nil)
+	req, err := NewRequest(op, a.config, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Set("x-amz-acl", acl)
+	return req, nil
 }
 
 // PutBucketACL - set the permissions on an existing bucket using access control lists (ACL)
@@ -91,18 +96,17 @@ func (a *api) putBucketRequestACL(bucket string) (*Request, error) {
 //    - "public-read"
 //    - "public-read-write"
 func (a *api) PutBucketACL(bucket, acl string) error {
-	req, err := a.putBucketRequestACL(bucket)
+	req, err := a.putBucketRequestACL(bucket, acl)
 	if err != nil {
-		return iodine.New(err, nil)
+		return err
 	}
-	req.Set("x-amz-acl", acl)
 	resp, err := req.Do()
 	if err != nil {
-		return iodine.New(err, nil)
+		return err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return iodine.New(ResponseToError(resp), nil)
+			return ResponseToError(resp)
 		}
 	}
 	return resp.Body.Close()
@@ -119,8 +123,8 @@ func (a *api) PutBucketACL(bucket, acl string) error {
 // ?marker - Specifies the key to start with when listing objects in a bucket.
 // ?max-keys - Sets the maximum number of keys returned in the response body.
 // ?prefix - Limits the response to keys that begin with the specified prefix.
-func (a *api) ListObjects(bucket string) (*ListObjects, error) {
-	return nil, iodine.New(APIError{Err: errors.New("Not implemented yet")}, nil)
+func (a *api) ListObjects(bucket string) (ListObjects, error) {
+	return ListObjects{}, nil
 }
 
 func (a *api) headBucketRequest(bucket string) (*Request, error) {
@@ -136,15 +140,15 @@ func (a *api) headBucketRequest(bucket string) (*Request, error) {
 func (a *api) HeadBucket(bucket string) error {
 	req, err := a.headBucketRequest(bucket)
 	if err != nil {
-		return iodine.New(err, nil)
+		return err
 	}
 	resp, err := req.Do()
 	if err != nil {
-		return iodine.New(err, nil)
+		return err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return iodine.New(ResponseToError(resp), nil)
+			return ResponseToError(resp)
 		}
 	}
 	return resp.Body.Close()
@@ -152,43 +156,58 @@ func (a *api) HeadBucket(bucket string) error {
 
 /// Object Read/Write/Stat Operations
 
-func (a *api) putObjectRequest(bucket, object string, body io.ReadCloser) (*Request, error) {
+func (a *api) putObjectRequest(bucket, object string, size int64, body io.ReadSeeker) (*Request, error) {
 	op := &Operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "PUT",
 		HTTPPath:   "/" + bucket + "/" + object,
 	}
-	return NewRequest(op, a.config, body)
+	req, err := NewRequest(op, a.config, ioutil.NopCloser(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Set("Content-Length", strconv.FormatInt(size, 10))
+	return req, nil
 }
 
 // Put - add an object to a bucket
 //
 // You must have WRITE permissions on a bucket to add an object to it.
-func (a *api) PutObject(bucket, object string, size int64, body io.ReadCloser) error {
-	req, err := a.putObjectRequest(bucket, object, body)
+func (a *api) PutObject(bucket, object string, size int64, body io.ReadSeeker) error {
+	req, err := a.putObjectRequest(bucket, object, size, body)
 	if err != nil {
-		return iodine.New(err, nil)
+		return err
 	}
-	req.Set("Content-Type", fmt.Sprintf("%d", size))
 	resp, err := req.Do()
 	if err != nil {
-		return iodine.New(err, nil)
+		return err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return iodine.New(ResponseToError(resp), nil)
+			return ResponseToError(resp)
 		}
 	}
 	return resp.Body.Close()
 }
 
-func (a *api) getObjectRequest(bucket, object string) (*Request, error) {
+func (a *api) getObjectRequest(bucket, object string, offset, length uint64) (*Request, error) {
 	op := &Operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "GET",
 		HTTPPath:   "/" + bucket + "/" + object,
 	}
-	return NewRequest(op, a.config, nil)
+	req, err := NewRequest(op, a.config, nil)
+	if err != nil {
+		return nil, err
+	}
+	// TODO fix this to support full - http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html
+	switch {
+	case length > 0:
+		req.Set("Range", fmt.Sprintf("bytes=%d-%d", offset, offset+length-1))
+	default:
+		req.Set("Range", fmt.Sprintf("bytes=%d-", offset))
+	}
+	return req, nil
 }
 
 // Get - retrieve object from Object Storage
@@ -196,19 +215,13 @@ func (a *api) getObjectRequest(bucket, object string) (*Request, error) {
 // Additionally it also takes range arguments to download the specified range bytes of an object.
 // For more information about the HTTP Range header, go to http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35.
 func (a *api) GetObject(bucket, object string, offset, length uint64) (io.ReadCloser, error) {
-	req, err := a.getObjectRequest(bucket, object)
+	req, err := a.getObjectRequest(bucket, object, offset, length)
 	if err != nil {
-		return nil, iodine.New(err, nil)
-	}
-	switch {
-	case length > 0:
-		req.Set("Range", fmt.Sprintf("bytes=%d-%d", offset, offset+length-1))
-	default:
-		req.Set("Range", fmt.Sprintf("bytes=%d-", offset))
+		return nil, err
 	}
 	resp, err := req.Do()
 	if err != nil {
-		return nil, iodine.New(err, nil)
+		return nil, err
 	}
 	return resp.Body, nil
 }
@@ -226,18 +239,41 @@ func (a *api) headObjectRequest(bucket, object string) (*Request, error) {
 func (a *api) HeadObject(bucket, object string) error {
 	req, err := a.headObjectRequest(bucket, object)
 	if err != nil {
-		return iodine.New(err, nil)
+		return err
 	}
 	resp, err := req.Do()
 	if err != nil {
-		return iodine.New(err, nil)
+		return err
 	}
 	return resp.Body.Close()
 }
 
 /// Service Operations
 
+func (a *api) listBucketsRequest() (*Request, error) {
+	op := &Operation{
+		HTTPServer: a.config.Endpoint,
+		HTTPMethod: "GET",
+		HTTPPath:   "/",
+	}
+	return NewRequest(op, a.config, nil)
+}
+
 // ListBuckets - (List Buckets) - list of all buckets owned by the authenticated sender of the request
-func (a *api) ListBuckets() (*ListBuckets, error) {
-	return nil, iodine.New(APIError{Err: errors.New("Not implemented yet")}, nil)
+func (a *api) ListBuckets() (ListBuckets, error) {
+	req, err := a.listBucketsRequest()
+	if err != nil {
+		return ListBuckets{}, err
+	}
+	resp, err := req.Do()
+	if err != nil {
+		return ListBuckets{}, err
+	}
+	var listbuckets ListBuckets
+	decoder := xml.NewDecoder(resp.Body)
+	err = decoder.Decode(&listbuckets)
+	if err != nil {
+		return ListBuckets{}, err
+	}
+	return listbuckets, nil
 }

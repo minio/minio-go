@@ -25,14 +25,14 @@ type API interface {
 	PutBucketACL(bucket, acl string) error
 
 	/// Bucket Read Operations
-	ListObjects(bucket string) (*ListObjects, error)
+	ListObjects(bucket string) (ListObjects, error)
 	HeadBucket(bucket string) error
 
 	/// Object Read/Write/Stat Operations
-	PutObject(bucket, object string, size int64, body io.ReadCloser) error
+	PutObject(bucket, object string, size int64, body io.ReadSeeker) error
 	GetObject(bucket, object string, offset, length uint64) (io.ReadCloser, error)
 	HeadObject(bucket, object string) error
 
 	/// Service Operations
-	ListBuckets() (*ListBuckets, error)
+	ListBuckets() (ListBuckets, error)
 }

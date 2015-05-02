@@ -19,20 +19,7 @@ package objectstorage
 import (
 	"encoding/xml"
 	"net/http"
-
-	"github.com/minio-io/minio/pkg/iodine"
 )
-
-// APIError - error returned by object API
-type APIError struct {
-	Op      string
-	Err     error
-	Message string
-}
-
-func (e APIError) Error() string {
-	return "Error " + e.Err.Error() + "occurred in operation: " + e.Op + "[Message:" + e.Message + "]"
-}
 
 /* **** SAMPLE ERROR RESPONSE ****
 <?xml version="1.0" encoding="UTF-8"?>
@@ -60,7 +47,7 @@ func ResponseToError(res *http.Response) error {
 	decoder := xml.NewDecoder(res.Body)
 	err := decoder.Decode(&respError)
 	if err != nil {
-		return iodine.New(err, nil)
+		return err
 	}
 	return respError
 }

@@ -28,8 +28,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/minio-io/minio/pkg/iodine"
 )
 
 // Operation - rest operation
@@ -47,11 +45,6 @@ type Request struct {
 
 // NewRequest - instantiate a new request
 func NewRequest(op *Operation, config *Config, body io.ReadCloser) (*Request, error) {
-	errParams := map[string]string{
-		"server": op.HTTPServer,
-		"url":    op.HTTPPath,
-		"method": op.HTTPMethod,
-	}
 	// if no method default to POST
 	method := op.HTTPMethod
 	if method == "" {
@@ -60,17 +53,15 @@ func NewRequest(op *Operation, config *Config, body io.ReadCloser) (*Request, er
 	// get a new HTTP request, for the requested method
 	req, err := http.NewRequest(method, "", nil)
 	if err != nil {
-		return nil, iodine.New(err, errParams)
+		return nil, err
 	}
-
 	// add body
 	req.Body = body
 	// parse URL for the combination of HTTPServer + HTTPPath
 	req.URL, err = url.Parse(op.HTTPServer + op.HTTPPath)
 	if err != nil {
-		return nil, iodine.New(err, errParams)
+		return nil, err
 	}
-
 	// set UserAgent, if available
 	if config.UserAgent != "" {
 		req.Header.Set("User-Agent", config.UserAgent)
@@ -79,12 +70,10 @@ func NewRequest(op *Operation, config *Config, body io.ReadCloser) (*Request, er
 	if config.ContentType != "" {
 		req.Header.Set("Content-Type", config.ContentType)
 	}
-
 	// save for subsequent use
 	r := new(Request)
 	r.config = config
 	r.req = req
-
 	return r, nil
 }
 
