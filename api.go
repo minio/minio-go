@@ -125,18 +125,16 @@ func (a *api) listObjectsRequest(bucket string, maxkeys int, marker, prefix, del
 	resource.marker = marker
 	resource.prefix = prefix
 	resource.delimiter = delimiter
-	// resourceQuery - get resources properly escaped and lined up before
-	// using them in http request
+	// resourceQuery - get resources properly escaped and lined up before using them in http request
 	resourceQuery := func(input inputResources) string {
 		var maxkeys, marker, prefix, delimiter string
 		maxkeys = fmt.Sprintf("?max-keys=%d", resource.maxkeys)
-		if resource.marker != "" {
+		switch {
+		case resource.marker != "":
 			marker = fmt.Sprintf("&marker=%s", url.QueryEscape(resource.marker))
-		}
-		if resource.prefix != "" {
+		case resource.prefix != "":
 			prefix = fmt.Sprintf("&prefix=%s", url.QueryEscape(resource.prefix))
-		}
-		if resource.delimiter != "" {
+		case resource.delimiter != "":
 			delimiter = fmt.Sprintf("&delimiter=%s", url.QueryEscape(resource.delimiter))
 		}
 		return maxkeys + marker + prefix + delimiter
@@ -173,13 +171,16 @@ func (a *api) ListObjects(bucket string, maxkeys int, marker, prefix, delimiter 
 	if err != nil {
 		return nil, err
 	}
+
 	listobjects := new(ListObjects)
 	decoder := xml.NewDecoder(resp.Body)
 	err = decoder.Decode(listobjects)
 	if err != nil {
 		return nil, err
 	}
-	return listobjects, nil
+
+	// close body while returning, along with any error
+	return listobjects, resp.Body.Close()
 }
 
 func (a *api) headBucketRequest(bucket string) (*Request, error) {
@@ -203,7 +204,8 @@ func (a *api) HeadBucket(bucket string) error {
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return ResponseToError(resp)
+			// Head has no response body, handle it
+			return fmt.Errorf("%s", resp.Status)
 		}
 	}
 	return resp.Body.Close()
@@ -306,6 +308,7 @@ func (a *api) GetObject(bucket, object string, offset, length uint64) (io.ReadCl
 	if err != nil {
 		return nil, err
 	}
+	// do not close body here, caller will close
 	return resp.Body, nil
 }
 
@@ -390,5 +393,5 @@ func (a *api) ListBuckets() (*ListBuckets, error) {
 	if err != nil {
 		return nil, err
 	}
-	return listbuckets, nil
+	return listbuckets, resp.Body.Close()
 }

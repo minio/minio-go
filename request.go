@@ -120,7 +120,6 @@ func (r *Request) SignV2() {
 
 	// Set Authorization header
 	r.Set("Authorization", authHeader.String())
-	fmt.Println(r.req)
 }
 
 // From the Amazon docs:

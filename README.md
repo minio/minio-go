@@ -12,6 +12,7 @@
 
 ## Roadmap
 
+- Add multi part API support
 - Add v4 signature support
 - Add s3 multi region support
 
