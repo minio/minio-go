@@ -50,18 +50,18 @@ func NewRequest(op *Operation, config *Config, body io.ReadCloser) (*Request, er
 	if method == "" {
 		method = "POST"
 	}
+	// parse URL for the combination of HTTPServer + HTTPPath
+	u, err := url.Parse(op.HTTPServer + op.HTTPPath)
+	if err != nil {
+		return nil, err
+	}
 	// get a new HTTP request, for the requested method
-	req, err := http.NewRequest(method, "", nil)
+	req, err := http.NewRequest(method, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
 	// add body
 	req.Body = body
-	// parse URL for the combination of HTTPServer + HTTPPath
-	req.URL, err = url.Parse(op.HTTPServer + op.HTTPPath)
-	if err != nil {
-		return nil, err
-	}
 	// set UserAgent, if available
 	if config.UserAgent != "" {
 		req.Header.Set("User-Agent", config.UserAgent)
@@ -105,6 +105,7 @@ func (r *Request) SignV2() {
 	if date := r.Get("Date"); date == "" {
 		r.Set("Date", time.Now().UTC().Format(http.TimeFormat))
 	}
+
 	// calculate HMAC for the secretaccesskey
 	hm := hmac.New(sha1.New, []byte(r.config.SecretAccessKey))
 	ss := r.mustGetStringToSign()
@@ -114,11 +115,12 @@ func (r *Request) SignV2() {
 	authHeader := new(bytes.Buffer)
 	fmt.Fprintf(authHeader, "AWS %s:", r.config.AccessKeyID)
 	encoder := base64.NewEncoder(base64.StdEncoding, authHeader)
-	defer encoder.Close()
 	encoder.Write(hm.Sum(nil))
+	encoder.Close()
 
 	// Set Authorization header
-	r.req.Header.Set("Authorization", authHeader.String())
+	r.Set("Authorization", authHeader.String())
+	fmt.Println(r.req)
 }
 
 // From the Amazon docs:
@@ -216,14 +218,7 @@ var resourceList = []string{
 // 	  [ sub-resource, if present. For example "?acl", "?location", "?logging", or "?torrent"];
 func (r *Request) mustWriteCanonicalizedResource(buf *bytes.Buffer) {
 	requestURL := r.req.URL
-
-	bucket := url2Bucket(requestURL.Path)
-	if bucket != "" {
-		buf.WriteByte('/')
-		buf.WriteString(bucket)
-	}
 	buf.WriteString(requestURL.Path)
-
 	sort.Strings(resourceList)
 	if requestURL.RawQuery != "" {
 		var n int

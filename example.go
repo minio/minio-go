@@ -10,8 +10,11 @@ import (
 
 func main() {
 	config := new(objectstorage.Config)
-	config.Endpoint = "http://localhost:9000"
+	config.Endpoint = "https://s3.amazonaws.com"
+	config.AccessKeyID = "AKIAIA3SEGOYCMTCTF4A"
+	config.SecretAccessKey = "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"
 	m := objectstorage.New(config)
+
 	err := m.PutBucket("testbucket")
 	fmt.Println(err)
 
@@ -24,10 +27,6 @@ func main() {
 	err = m.HeadBucket("testbucket")
 	fmt.Println(err)
 
-	listBuckets, err := m.ListBuckets()
+	_, err = m.ListBuckets()
 	fmt.Println(err)
-	buckets := listBuckets.Buckets
-	for _, bucket := range buckets.Bucket {
-		fmt.Println(bucket)
-	}
 }

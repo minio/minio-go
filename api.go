@@ -328,6 +328,11 @@ func (a *api) HeadObject(bucket, object string) error {
 	if err != nil {
 		return err
 	}
+	if resp != nil {
+		if resp.StatusCode != http.StatusOK {
+			return ResponseToError(resp)
+		}
+	}
 	return resp.Body.Close()
 }
 
@@ -373,6 +378,11 @@ func (a *api) ListBuckets() (*ListBuckets, error) {
 	resp, err := req.Do()
 	if err != nil {
 		return nil, err
+	}
+	if resp != nil {
+		if resp.StatusCode != http.StatusOK {
+			return nil, ResponseToError(resp)
+		}
 	}
 	listbuckets := new(ListBuckets)
 	decoder := xml.NewDecoder(resp.Body)

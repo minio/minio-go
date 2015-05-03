@@ -23,17 +23,6 @@ import (
 	"strings"
 )
 
-// extract bucket from URL
-func url2Bucket(url string) string {
-	splits := strings.SplitN(url, "/", 2)
-	switch len(splits) {
-	case 2:
-		return splits[1]
-	default:
-		return ""
-	}
-}
-
 // find if prefix is case insensitive
 func isPrefixCaseInsensitive(s, pfx string) bool {
 	if len(pfx) > len(s) {
