@@ -23,7 +23,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strconv"
 )
 
 type api struct {
@@ -129,11 +128,11 @@ func (a *api) listObjectsRequest(bucket string, maxkeys int, marker, prefix, del
 		HTTPMethod: "GET",
 		HTTPPath:   "/" + bucket + resourceQuery(),
 	}
-	req, err := NewRequest(op, a.config, nil)
+	r, err := NewRequest(op, a.config, nil)
 	if err != nil {
 		return nil, err
 	}
-	return req, nil
+	return r, nil
 }
 
 /// Bucket Read Operations
@@ -235,12 +234,12 @@ func (a *api) putObjectRequest(bucket, object string, size int64, body io.ReadSe
 	if err != nil {
 		return nil, err
 	}
-	req, err := NewRequest(op, a.config, ioutil.NopCloser(body))
+	r, err := NewRequest(op, a.config, ioutil.NopCloser(body))
 	if err != nil {
 		return nil, err
 	}
-	req.Set("Content-MD5", md5Sum)
-	req.Set("Content-Length", strconv.FormatInt(size, 10))
+	r.Set("Content-MD5", md5Sum)
+	r.req.ContentLength = size
 	return req, nil
 }
 
@@ -271,18 +270,18 @@ func (a *api) getObjectRequest(bucket, object string, offset, length uint64) (*R
 		HTTPMethod: "GET",
 		HTTPPath:   "/" + bucket + "/" + object,
 	}
-	req, err := NewRequest(op, a.config, nil)
+	r, err := NewRequest(op, a.config, nil)
 	if err != nil {
 		return nil, err
 	}
 	// TODO - fix this to support full - http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html
 	switch {
 	case length > 0:
-		req.Set("Range", fmt.Sprintf("bytes=%d-%d", offset, offset+length-1))
+		r.Set("Range", fmt.Sprintf("bytes=%d-%d", offset, offset+length-1))
 	default:
-		req.Set("Range", fmt.Sprintf("bytes=%d-", offset))
+		r.Set("Range", fmt.Sprintf("bytes=%d-", offset))
 	}
-	return req, nil
+	return r, nil
 }
 
 // GetObject - retrieve object from Object Storage
