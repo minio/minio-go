@@ -53,12 +53,12 @@ func main() {
 		log.Println(err)
 	}
 
-	listBuckets, err := m.ListBuckets()
+	listAllMyBucketsResult, err := m.ListBuckets()
 	if err != nil {
 		log.Println(err)
 	}
 	if err == nil {
-		buckets := listBuckets.Buckets
+		buckets := listAllMyBucketsResult.Buckets
 		for _, bucket := range buckets.Bucket {
 			fmt.Println(bucket)
 		}

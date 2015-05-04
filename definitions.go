@@ -18,15 +18,16 @@ package objectstorage
 
 import "time"
 
-// ListBuckets -
-type ListBuckets struct {
+// ListAllMyBucketsResult container for ListBucets response
+type ListAllMyBucketsResult struct {
+	// Container for one or more buckets.
 	Buckets struct {
 		Bucket []*Bucket
 	}
 	Owner Owner
 }
 
-// Bucket -
+// Bucket container for bucket metadata
 type Bucket struct {
 	// The name of the bucket.
 	Name string
@@ -34,41 +35,46 @@ type Bucket struct {
 	CreationDate time.Time
 }
 
-// Owner -
+// Owner container for bucket owner information
 type Owner struct {
 	DisplayName string
 	ID          string
 }
 
-// CommonPrefix -
+// CommonPrefix container for prefix response in ListObjects
 type CommonPrefix struct {
 	Prefix string
 }
 
-// Object -
+// Object container for object metadata
 type Object struct {
 	ETag         string
 	Key          string
 	LastModified time.Time
-	Owner        Owner
 	Size         int64
+
+	Owner Owner
+
 	// The class of storage used to store the object.
 	StorageClass string
 }
 
-// ListObjects -
-type ListObjects struct {
-	CommonPrefixes []*CommonPrefix
-	Contents       []*Object
+// ListBucketResult contaner for ListObjects response
+type ListBucketResult struct {
+	CommonPrefixes []*CommonPrefix // A response can contain CommonPrefixes only if you specify a delimiter
+	Contents       []*Object       // Metadata about each object returned
 	Delimiter      string
+
 	// Encoding type used to encode object keys in the response.
 	EncodingType string
+
 	// A flag that indicates whether or not ListObjects returned all of the results
 	// that satisfied the search criteria.
 	IsTruncated bool
 	Marker      string
 	MaxKeys     int64
 	Name        string
+
 	// When response is truncated (the IsTruncated element value in the response
 	// is true), you can use the key name in this field as marker in the subsequent
 	// request to get next set of objects. Minio lists objects in alphabetical

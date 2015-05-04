@@ -20,21 +20,28 @@ import "io"
 
 // API - object storage API interface
 type API interface {
+	BucketInterface
+	ObjectInterface
+
+	/// Service Operations
+	ListBuckets() (*ListAllMyBucketsResult, error)
+}
+
+type BucketInterface interface {
 	/// Bucket Write Operations
 	PutBucket(bucket string) error
 	PutBucketACL(bucket, acl string) error
 	DeleteBucket(bucket string) error
 
 	/// Bucket Read Operations
-	ListObjects(bucket string, maxkeys int, marker, prefix, delimiter string) (*ListObjects, error)
+	ListObjects(bucket string, maxkeys int, marker, prefix, delimiter string) (*ListBucketResult, error)
 	HeadBucket(bucket string) error
+}
 
+type ObjectInterface interface {
 	/// Object Read/Write/Stat/Unlink Operations
 	PutObject(bucket, object string, size int64, body io.ReadSeeker) error
 	GetObject(bucket, object string, offset, length uint64) (io.ReadCloser, error)
 	HeadObject(bucket, object string) error
 	DeleteObject(bucket, object string) error
-
-	/// Service Operations
-	ListBuckets() (*ListBuckets, error)
 }

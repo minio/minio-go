@@ -44,6 +44,7 @@ func New(config *Config) API {
 	return &api{config}
 }
 
+// putBucketRequest wrapper creates a new PutBucket request
 func (a *api) putBucketRequest(bucket string) (*Request, error) {
 	op := &Operation{
 		HTTPServer: a.config.Endpoint,
@@ -55,7 +56,7 @@ func (a *api) putBucketRequest(bucket string) (*Request, error) {
 
 /// Bucket Write Operations
 
-// PutBucket - create a new bucket
+// PutBucket create a new bucket
 //
 // Requires valid AWS Access Key ID to authenticate requests
 // Anonymous requests are never allowed to create buckets
@@ -76,6 +77,7 @@ func (a *api) PutBucket(bucket string) error {
 	return resp.Body.Close()
 }
 
+// putBucketRequestACL wrapper creates a new PutBucketACL request
 func (a *api) putBucketRequestACL(bucket, acl string) (*Request, error) {
 	op := &Operation{
 		HTTPServer: a.config.Endpoint,
@@ -90,12 +92,7 @@ func (a *api) putBucketRequestACL(bucket, acl string) (*Request, error) {
 	return req, nil
 }
 
-// PutBucketACL - set the permissions on an existing bucket using access control lists (ACL)
-//
-// Currently supported are
-//    - "private"
-//    - "public-read"
-//    - "public-read-write"
+// PutBucketACL set the permissions on an existing bucket using access control lists (ACL)
 func (a *api) PutBucketACL(bucket, acl string) error {
 	req, err := a.putBucketRequestACL(bucket, acl)
 	if err != nil {
@@ -113,36 +110,24 @@ func (a *api) PutBucketACL(bucket, acl string) error {
 	return resp.Body.Close()
 }
 
+// listObjectsRequest wrapper creates a new ListObjects request
 func (a *api) listObjectsRequest(bucket string, maxkeys int, marker, prefix, delimiter string) (*Request, error) {
-	type inputResources struct {
-		maxkeys   int
-		marker    string
-		prefix    string
-		delimiter string
-	}
-	var resource inputResources
-	resource.maxkeys = maxkeys
-	resource.marker = marker
-	resource.prefix = prefix
-	resource.delimiter = delimiter
 	// resourceQuery - get resources properly escaped and lined up before using them in http request
-	resourceQuery := func(input inputResources) string {
-		var maxkeys, marker, prefix, delimiter string
-		maxkeys = fmt.Sprintf("?max-keys=%d", resource.maxkeys)
+	resourceQuery := func() string {
 		switch {
-		case resource.marker != "":
-			marker = fmt.Sprintf("&marker=%s", url.QueryEscape(resource.marker))
-		case resource.prefix != "":
-			prefix = fmt.Sprintf("&prefix=%s", url.QueryEscape(resource.prefix))
-		case resource.delimiter != "":
-			delimiter = fmt.Sprintf("&delimiter=%s", url.QueryEscape(resource.delimiter))
+		case marker != "":
+			marker = fmt.Sprintf("&marker=%s", url.QueryEscape(marker))
+		case prefix != "":
+			prefix = fmt.Sprintf("&prefix=%s", url.QueryEscape(prefix))
+		case delimiter != "":
+			delimiter = fmt.Sprintf("&delimiter=%s", url.QueryEscape(delimiter))
 		}
-		return maxkeys + marker + prefix + delimiter
+		return fmt.Sprintf("?max-keys=%d", maxkeys) + marker + prefix + delimiter
 	}
 	op := &Operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "GET",
-		HTTPPath:   "/" + bucket + resourceQuery(resource),
+		HTTPPath:   "/" + bucket + resourceQuery(),
 	}
 	req, err := NewRequest(op, a.config, nil)
 	if err != nil {
@@ -162,7 +147,7 @@ func (a *api) listObjectsRequest(bucket string, maxkeys int, marker, prefix, del
 // ?delimiter - A delimiter is a character you use to group keys.
 // ?prefix - Limits the response to keys that begin with the specified prefix.
 // ?max-keys - Sets the maximum number of keys returned in the response body.
-func (a *api) ListObjects(bucket string, maxkeys int, marker, prefix, delimiter string) (*ListObjects, error) {
+func (a *api) ListObjects(bucket string, maxkeys int, marker, prefix, delimiter string) (*ListBucketResult, error) {
 	req, err := a.listObjectsRequest(bucket, maxkeys, marker, prefix, delimiter)
 	if err != nil {
 		return nil, err
@@ -172,15 +157,15 @@ func (a *api) ListObjects(bucket string, maxkeys int, marker, prefix, delimiter 
 		return nil, err
 	}
 
-	listobjects := new(ListObjects)
+	listBucketResult := new(ListBucketResult)
 	decoder := xml.NewDecoder(resp.Body)
-	err = decoder.Decode(listobjects)
+	err = decoder.Decode(listBucketResult)
 	if err != nil {
 		return nil, err
 	}
 
 	// close body while returning, along with any error
-	return listobjects, resp.Body.Close()
+	return listBucketResult, resp.Body.Close()
 }
 
 func (a *api) headBucketRequest(bucket string) (*Request, error) {
@@ -211,6 +196,7 @@ func (a *api) HeadBucket(bucket string) error {
 	return resp.Body.Close()
 }
 
+// deleteBucketRequest wrapper creates a new DeleteBucket request
 func (a *api) deleteBucketRequest(bucket string) (*Request, error) {
 	op := &Operation{
 		HTTPServer: a.config.Endpoint,
@@ -221,7 +207,9 @@ func (a *api) deleteBucketRequest(bucket string) (*Request, error) {
 }
 
 // DeleteBucket - deletes the bucket named in the URI
-// NOTE: - All objects (including all object versions and delete markers) in the bucket must be deleted
+// NOTE: -
+//  All objects (including all object versions and delete markers)
+//  in the bucket must be deleted before successfully attempting this request
 func (a *api) DeleteBucket(bucket string) error {
 	req, err := a.deleteBucketRequest(bucket)
 	if err != nil {
@@ -236,6 +224,7 @@ func (a *api) DeleteBucket(bucket string) error {
 
 /// Object Read/Write/Stat Operations
 
+// putObjectRequest wrapper creates a new PutObject request
 func (a *api) putObjectRequest(bucket, object string, size int64, body io.ReadSeeker) (*Request, error) {
 	op := &Operation{
 		HTTPServer: a.config.Endpoint,
@@ -275,6 +264,7 @@ func (a *api) PutObject(bucket, object string, size int64, body io.ReadSeeker) e
 	return resp.Body.Close()
 }
 
+// getObjectRequest wrapper creates a new GetObject request
 func (a *api) getObjectRequest(bucket, object string, offset, length uint64) (*Request, error) {
 	op := &Operation{
 		HTTPServer: a.config.Endpoint,
@@ -312,6 +302,7 @@ func (a *api) GetObject(bucket, object string, offset, length uint64) (io.ReadCl
 	return resp.Body, nil
 }
 
+// headObjectRequest wrapper creates a new HeadObject request
 func (a *api) headObjectRequest(bucket, object string) (*Request, error) {
 	op := &Operation{
 		HTTPServer: a.config.Endpoint,
@@ -339,6 +330,7 @@ func (a *api) HeadObject(bucket, object string) error {
 	return resp.Body.Close()
 }
 
+// deleteObjectRequest wrapper creates a new DeleteObject request
 func (a *api) deleteObjectRequest(bucket, object string) (*Request, error) {
 	op := &Operation{
 		HTTPServer: a.config.Endpoint,
@@ -348,7 +340,7 @@ func (a *api) deleteObjectRequest(bucket, object string) (*Request, error) {
 	return NewRequest(op, a.config, nil)
 }
 
-// DeleteObject - removes the object
+// DeleteObject removes the object
 func (a *api) DeleteObject(bucket, object string) error {
 	req, err := a.deleteObjectRequest(bucket, object)
 	if err != nil {
@@ -363,6 +355,7 @@ func (a *api) DeleteObject(bucket, object string) error {
 
 /// Service Operations
 
+// listBucketRequest wrapper creates a new ListBuckets request
 func (a *api) listBucketsRequest() (*Request, error) {
 	op := &Operation{
 		HTTPServer: a.config.Endpoint,
@@ -372,8 +365,8 @@ func (a *api) listBucketsRequest() (*Request, error) {
 	return NewRequest(op, a.config, nil)
 }
 
-// ListBuckets - (List Buckets) - list of all buckets owned by the authenticated sender of the request
-func (a *api) ListBuckets() (*ListBuckets, error) {
+// ListBuckets list of all buckets owned by the authenticated sender of the request
+func (a *api) ListBuckets() (*ListAllMyBucketsResult, error) {
 	req, err := a.listBucketsRequest()
 	if err != nil {
 		return nil, err
@@ -387,11 +380,11 @@ func (a *api) ListBuckets() (*ListBuckets, error) {
 			return nil, ResponseToError(resp)
 		}
 	}
-	listbuckets := new(ListBuckets)
+	listAllMyBucketsResult := new(ListAllMyBucketsResult)
 	decoder := xml.NewDecoder(resp.Body)
-	err = decoder.Decode(listbuckets)
+	err = decoder.Decode(listAllMyBucketsResult)
 	if err != nil {
 		return nil, err
 	}
-	return listbuckets, resp.Body.Close()
+	return listAllMyBucketsResult, resp.Body.Close()
 }
