@@ -19,8 +19,8 @@
 package main
 
 import (
-	"fmt"
 	"log"
+	"os"
 
 	"github.com/minio-io/objectstorage-go"
 )
@@ -43,24 +43,21 @@ func main() {
 		log.Println(err)
 	}
 
-	err = m.PutBucketACL("testbucket", "invalid")
-	if err != nil {
-		log.Println(err)
-	}
-
 	err = m.HeadBucket("testbucket")
 	if err != nil {
 		log.Println(err)
 	}
 
-	listAllMyBucketsResult, err := m.ListBuckets()
+	object, err := os.Open("testfile")
 	if err != nil {
 		log.Println(err)
 	}
-	if err == nil {
-		buckets := listAllMyBucketsResult.Buckets
-		for _, bucket := range buckets.Bucket {
-			fmt.Println(bucket)
-		}
+	objectInfo, err := object.Stat()
+	if err != nil {
+		log.Println(err)
+	}
+	err = m.PutObject("testbucket", "testfile", objectInfo.Size(), object)
+	if err != nil {
+		log.Println(err)
 	}
 }
