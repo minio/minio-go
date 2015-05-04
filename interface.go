@@ -41,7 +41,7 @@ type BucketInterface interface {
 type ObjectInterface interface {
 	/// Object Read/Write/Stat/Unlink Operations
 	PutObject(bucket, object string, size int64, body io.ReadSeeker) error
-	GetObject(bucket, object string, offset, length uint64) (io.ReadCloser, error)
+	GetObject(bucket, object string, offset, length uint64) (io.ReadCloser, int64, string, error)
 	HeadObject(bucket, object string) error
 	DeleteObject(bucket, object string) error
 }

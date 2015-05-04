@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 type api struct {
@@ -240,7 +241,7 @@ func (a *api) putObjectRequest(bucket, object string, size int64, body io.ReadSe
 	}
 	r.Set("Content-MD5", md5Sum)
 	r.req.ContentLength = size
-	return req, nil
+	return r, nil
 }
 
 // PutObject - add an object to a bucket
@@ -288,17 +289,18 @@ func (a *api) getObjectRequest(bucket, object string, offset, length uint64) (*R
 //
 // Additionally it also takes range arguments to download the specified range bytes of an object.
 // For more information about the HTTP Range header, go to http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35.
-func (a *api) GetObject(bucket, object string, offset, length uint64) (io.ReadCloser, error) {
+func (a *api) GetObject(bucket, object string, offset, length uint64) (io.ReadCloser, int64, string, error) {
 	req, err := a.getObjectRequest(bucket, object, offset, length)
 	if err != nil {
-		return nil, err
+		return nil, 0, "", err
 	}
 	resp, err := req.Do()
 	if err != nil {
-		return nil, err
+		return nil, 0, "", err
 	}
+	md5sum := strings.Trim(resp.Header.Get("ETag"), "\"") // trim off the odd double quotes
 	// do not close body here, caller will close
-	return resp.Body, nil
+	return resp.Body, resp.ContentLength, md5sum, nil
 }
 
 // headObjectRequest wrapper creates a new HeadObject request
