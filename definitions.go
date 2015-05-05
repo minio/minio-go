@@ -59,7 +59,7 @@ type Object struct {
 	StorageClass string
 }
 
-// ListBucketResult contaner for ListObjects response
+// ListBucketResult container for ListObjects response
 type ListBucketResult struct {
 	CommonPrefixes []*CommonPrefix // A response can contain CommonPrefixes only if you specify a delimiter
 	Contents       []*Object       // Metadata about each object returned
@@ -84,4 +84,58 @@ type ListBucketResult struct {
 	// subsequent request to get the next set of object keys.
 	NextMarker string
 	Prefix     string
+}
+
+// Initiator container for who initiated multipart upload
+type Initiator struct {
+	ID          string
+	DisplayName string
+}
+
+// Part container for particular part of an object
+type Part struct {
+	PartNumber   int
+	LastModified time.Time
+	ETag         string
+	Size         int64
+}
+
+// ListPartsResult container for ListParts response
+type ListPartsResult struct {
+	Bucket   string
+	Key      string
+	UploadID string
+
+	Initiator Initiator
+	Owner     Owner
+
+	StorageClass         string
+	PartNumberMarker     int
+	NextPartNumberMarker int
+	MaxParts             int
+
+	IsTruncated bool
+	Part        *[]Part
+
+	EncodingType string
+}
+
+// InitiateMultipartUploadResult container for InitiateMultiPartUpload response
+type InitiateMultipartUploadResult struct {
+	Bucket   string
+	Key      string
+	UploadID string
+}
+
+// CompleteMultipartUploadResult containe for completed multipart upload response
+type CompleteMultipartUploadResult struct {
+	Location string
+	Bucket   string
+	Key      string
+	ETag     string
+}
+
+// CompleteMultipartUpload container for completing multipart upload
+type CompleteMultipartUpload struct {
+	Part *[]Part
 }

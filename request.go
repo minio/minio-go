@@ -60,12 +60,12 @@ func NewRequest(op *Operation, config *Config, body io.ReadCloser) (*Request, er
 	if err != nil {
 		return nil, err
 	}
+
 	// add body
 	req.Body = body
-	// set UserAgent, if available
-	if config.UserAgent != "" {
-		req.Header.Set("User-Agent", config.UserAgent)
-	}
+	// set UserAgent
+	req.Header.Set("User-Agent", LibraryName+" ("+LibraryVersion+")")
+
 	// set ContentType, if available
 	if config.ContentType != "" {
 		req.Header.Set("Content-Type", config.ContentType)

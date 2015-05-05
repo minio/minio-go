@@ -22,11 +22,13 @@ import "io"
 type API interface {
 	BucketInterface
 	ObjectInterface
+	MultiPartInterface
 
 	/// Service Operations
 	ListBuckets() (*ListAllMyBucketsResult, error)
 }
 
+// BucketInterface bucket related API interface
 type BucketInterface interface {
 	/// Bucket Write Operations
 	PutBucket(bucket string) error
@@ -38,10 +40,21 @@ type BucketInterface interface {
 	HeadBucket(bucket string) error
 }
 
+// ObjectInterface object related API interface
 type ObjectInterface interface {
 	/// Object Read/Write/Stat/Unlink Operations
 	PutObject(bucket, object string, size int64, body io.ReadSeeker) error
 	GetObject(bucket, object string, offset, length uint64) (io.ReadCloser, int64, string, error)
 	HeadObject(bucket, object string) error
 	DeleteObject(bucket, object string) error
+}
+
+// MultiPartInterface object related multi part API interface
+type MultiPartInterface interface {
+	/// Object Multipart List/Read/Write Operations
+	InitiateMultipartUpload(bucket, object string) (*InitiateMultipartUploadResult, error)
+	UploadPart(bucket, object, uploadID string, partNumber int, size int64, body io.ReadSeeker) error
+	CompleteMultipartUpload(bucket, object, uploadID string, complete *CompleteMultipartUpload) (*CompleteMultipartUploadResult, error)
+	AbortMultipartUpload(bucket, object, uploadID string) error
+	ListParts(bucket, object, uploadID string) (*ListPartsResult, error)
 }

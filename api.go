@@ -26,6 +26,9 @@ import (
 	"strings"
 )
 
+const LibraryName = "objectstorage-go"
+const LibraryVersion = "0.1"
+
 type api struct {
 	config *Config
 }
@@ -36,7 +39,6 @@ type Config struct {
 	SecretAccessKey string
 	Endpoint        string
 	ContentType     string
-	UserAgent       string
 }
 
 // New - instantiate a new minio api client
@@ -156,7 +158,11 @@ func (a *api) ListObjects(bucket string, maxkeys int, marker, prefix, delimiter 
 	if err != nil {
 		return nil, err
 	}
-
+	if resp != nil {
+		if resp.StatusCode != http.StatusOK {
+			return nil, ResponseToError(resp)
+		}
+	}
 	listBucketResult := new(ListBucketResult)
 	decoder := xml.NewDecoder(resp.Body)
 	err = decoder.Decode(listBucketResult)
@@ -297,6 +303,14 @@ func (a *api) GetObject(bucket, object string, offset, length uint64) (io.ReadCl
 	resp, err := req.Do()
 	if err != nil {
 		return nil, 0, "", err
+	}
+	if resp != nil {
+		switch resp.StatusCode {
+		case http.StatusOK:
+		case http.StatusPartialContent:
+		default:
+			return nil, 0, "", ResponseToError(resp)
+		}
 	}
 	md5sum := strings.Trim(resp.Header.Get("ETag"), "\"") // trim off the odd double quotes
 	// do not close body here, caller will close
