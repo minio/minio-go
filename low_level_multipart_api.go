@@ -11,17 +11,17 @@ import (
 )
 
 // initiateMultipartRequest wrapper creates a new InitiateMultiPart request
-func (a *api) initiateMultipartRequest(bucket, object string) (*Request, error) {
-	op := &Operation{
+func (a *lowLevelAPI) initiateMultipartRequest(bucket, object string) (*request, error) {
+	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "GET",
 		HTTPPath:   "/" + bucket + "/" + object + "?uploads",
 	}
-	return NewRequest(op, a.config, nil)
+	return newRequest(op, a.config, nil)
 }
 
 // InitiateMultipartUpload initiates a multipart upload and returns an upload ID
-func (a *api) InitiateMultipartUpload(bucket, object string) (*InitiateMultipartUploadResult, error) {
+func (a *lowLevelAPI) initiateMultipartUpload(bucket, object string) (*initiateMultipartUploadResult, error) {
 	req, err := a.initiateMultipartRequest(bucket, object)
 	if err != nil {
 		return nil, err
@@ -32,10 +32,10 @@ func (a *api) InitiateMultipartUpload(bucket, object string) (*InitiateMultipart
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return nil, ResponseToError(resp)
+			return nil, responseToError(resp)
 		}
 	}
-	initiateMultipartUploadResult := new(InitiateMultipartUploadResult)
+	initiateMultipartUploadResult := new(initiateMultipartUploadResult)
 	decoder := xml.NewDecoder(resp.Body)
 	err = decoder.Decode(initiateMultipartUploadResult)
 	if err != nil {
@@ -45,8 +45,8 @@ func (a *api) InitiateMultipartUpload(bucket, object string) (*InitiateMultipart
 }
 
 // complteMultipartUploadRequest wrapper creates a new CompleteMultipartUpload request
-func (a *api) completeMultipartUploadRequest(bucket, object, uploadID string, complete *CompleteMultipartUpload) (*Request, error) {
-	op := &Operation{
+func (a *lowLevelAPI) completeMultipartUploadRequest(bucket, object, uploadID string, complete *completeMultipartUpload) (*request, error) {
+	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "POST",
 		HTTPPath:   "/" + bucket + "/" + object + "?uploadId=" + uploadID,
@@ -56,7 +56,7 @@ func (a *api) completeMultipartUploadRequest(bucket, object, uploadID string, co
 		return nil, err
 	}
 	completeMultipartUploadBuffer := bytes.NewBuffer(completeMultipartUploadBytes)
-	r, err := NewRequest(op, a.config, ioutil.NopCloser(completeMultipartUploadBuffer))
+	r, err := newRequest(op, a.config, ioutil.NopCloser(completeMultipartUploadBuffer))
 	if err != nil {
 		return nil, err
 	}
@@ -64,9 +64,9 @@ func (a *api) completeMultipartUploadRequest(bucket, object, uploadID string, co
 	return r, nil
 }
 
-// CompleteMultipartUpload completes a multipart upload by assembling previously uploaded parts.
-func (a *api) CompleteMultipartUpload(bucket, object, uploadID string, complete *CompleteMultipartUpload) (*CompleteMultipartUploadResult, error) {
-	req, err := a.completeMultipartUploadRequest(bucket, object, uploadID, complete)
+// completeMultipartUpload completes a multipart upload by assembling previously uploaded parts.
+func (a *lowLevelAPI) completeMultipartUpload(bucket, object, uploadID string, c *completeMultipartUpload) (*completeMultipartUploadResult, error) {
+	req, err := a.completeMultipartUploadRequest(bucket, object, uploadID, c)
 	if err != nil {
 		return nil, err
 	}
@@ -76,10 +76,10 @@ func (a *api) CompleteMultipartUpload(bucket, object, uploadID string, complete 
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return nil, ResponseToError(resp)
+			return nil, responseToError(resp)
 		}
 	}
-	completeMultipartUploadResult := new(CompleteMultipartUploadResult)
+	completeMultipartUploadResult := new(completeMultipartUploadResult)
 	decoder := xml.NewDecoder(resp.Body)
 	err = decoder.Decode(completeMultipartUploadResult)
 	if err != nil {
@@ -89,17 +89,17 @@ func (a *api) CompleteMultipartUpload(bucket, object, uploadID string, complete 
 }
 
 // abortMultipartUploadRequest wrapper creates a new AbortMultipartUpload request
-func (a *api) abortMultipartUploadRequest(bucket, object, uploadID string) (*Request, error) {
-	op := &Operation{
+func (a *lowLevelAPI) abortMultipartUploadRequest(bucket, object, uploadID string) (*request, error) {
+	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "DELETE",
 		HTTPPath:   "/" + bucket + "/" + object + "?uploadId=" + uploadID,
 	}
-	return NewRequest(op, a.config, nil)
+	return newRequest(op, a.config, nil)
 }
 
-// AbortMultipartUpload aborts a multipart upload for the given uploadID, all parts are deleted
-func (a *api) AbortMultipartUpload(bucket, object, uploadID string) error {
+// abortMultipartUpload aborts a multipart upload for the given uploadID, all parts are deleted
+func (a *lowLevelAPI) abortMultipartUpload(bucket, object, uploadID string) error {
 	req, err := a.abortMultipartUploadRequest(bucket, object, uploadID)
 	if err != nil {
 		return err
@@ -118,17 +118,17 @@ func (a *api) AbortMultipartUpload(bucket, object, uploadID string) error {
 }
 
 // listPartsRequest wrapper creates a new ListParts request
-func (a *api) listPartsRequest(bucket, object, uploadID string) (*Request, error) {
-	op := &Operation{
+func (a *lowLevelAPI) listPartsRequest(bucket, object, uploadID string) (*request, error) {
+	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "GET",
 		HTTPPath:   "/" + bucket + "/" + object + "?uploadId=" + uploadID,
 	}
-	return NewRequest(op, a.config, nil)
+	return newRequest(op, a.config, nil)
 }
 
-// ListParts lists the parts that have been uploaded for a specific multipart upload.
-func (a *api) ListParts(bucket, object, uploadID string) (*ListPartsResult, error) {
+// listParts lists the parts that have been uploaded for a specific multipart upload.
+func (a *lowLevelAPI) listParts(bucket, object, uploadID string) (*listPartsResult, error) {
 	req, err := a.listPartsRequest(bucket, object, uploadID)
 	if err != nil {
 		return nil, err
@@ -139,10 +139,10 @@ func (a *api) ListParts(bucket, object, uploadID string) (*ListPartsResult, erro
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return nil, ResponseToError(resp)
+			return nil, responseToError(resp)
 		}
 	}
-	listPartsResult := new(ListPartsResult)
+	listPartsResult := new(listPartsResult)
 	decoder := xml.NewDecoder(resp.Body)
 	err = decoder.Decode(listPartsResult)
 	if err != nil {
@@ -152,8 +152,8 @@ func (a *api) ListParts(bucket, object, uploadID string) (*ListPartsResult, erro
 }
 
 // uploadPartRequest wrapper creates a new UploadPart request
-func (a *api) uploadPartRequest(bucket, object, uploadID string, partNumber int, size int64, body io.ReadSeeker) (*Request, error) {
-	op := &Operation{
+func (a *lowLevelAPI) uploadPartRequest(bucket, object, uploadID string, partNumber int, size int64, body io.ReadSeeker) (*request, error) {
+	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "PUT",
 		HTTPPath:   "/" + bucket + "/" + object + "?partNumber=" + strconv.Itoa(partNumber) + "&uploadId=" + uploadID,
@@ -162,7 +162,7 @@ func (a *api) uploadPartRequest(bucket, object, uploadID string, partNumber int,
 	if err != nil {
 		return nil, err
 	}
-	r, err := NewRequest(op, a.config, ioutil.NopCloser(body))
+	r, err := newRequest(op, a.config, ioutil.NopCloser(body))
 	if err != nil {
 		return nil, err
 	}
@@ -171,8 +171,8 @@ func (a *api) uploadPartRequest(bucket, object, uploadID string, partNumber int,
 	return r, nil
 }
 
-// UploadPart uploads a part in a multipart upload.
-func (a *api) UploadPart(bucket, object, uploadID string, partNumber int, size int64, body io.ReadSeeker) error {
+// uploadPart uploads a part in a multipart upload.
+func (a *lowLevelAPI) uploadPart(bucket, object, uploadID string, partNumber int, size int64, body io.ReadSeeker) error {
 	req, err := a.uploadPartRequest(bucket, object, uploadID, partNumber, size, body)
 	if err != nil {
 		return err
@@ -183,7 +183,7 @@ func (a *api) UploadPart(bucket, object, uploadID string, partNumber int, size i
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return ResponseToError(resp)
+			return responseToError(resp)
 		}
 	}
 	return resp.Body.Close()

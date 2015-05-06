@@ -32,8 +32,8 @@ import (
 </Error>
 */
 
-// ErrorResponse is the type returned by some API operations.
-type ErrorResponse struct {
+// errorResponse is the type returned by some API operations.
+type errorResponse struct {
 	Code      string
 	Message   string
 	Resource  string
@@ -41,9 +41,9 @@ type ErrorResponse struct {
 	HostID    string
 }
 
-// ResponseToError returns a new encoded ErrorResponse structure
-func ResponseToError(res *http.Response) error {
-	var respError ErrorResponse
+// responseToError returns a new encoded ErrorResponse structure
+func responseToError(res *http.Response) error {
+	var respError errorResponse
 	decoder := xml.NewDecoder(res.Body)
 	err := decoder.Decode(&respError)
 	if err != nil {
@@ -53,6 +53,6 @@ func ResponseToError(res *http.Response) error {
 }
 
 // Error formats HTTP error string
-func (e ErrorResponse) Error() string {
+func (e errorResponse) Error() string {
 	return e.Message
 }

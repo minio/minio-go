@@ -26,43 +26,27 @@ import (
 	"strings"
 )
 
-const LibraryName = "objectstorage-go"
-const LibraryVersion = "0.1"
-
-type api struct {
+type lowLevelAPI struct {
 	config *Config
 }
 
-// Config - main configuration struct used by all to set endpoint, credentials, and other options for requests.
-type Config struct {
-	AccessKeyID     string
-	SecretAccessKey string
-	Endpoint        string
-	ContentType     string
-}
-
-// New - instantiate a new minio api client
-func New(config *Config) API {
-	return &api{config}
-}
-
 // putBucketRequest wrapper creates a new PutBucket request
-func (a *api) putBucketRequest(bucket string) (*Request, error) {
-	op := &Operation{
+func (a *lowLevelAPI) putBucketRequest(bucket string) (*request, error) {
+	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "PUT",
 		HTTPPath:   "/" + bucket,
 	}
-	return NewRequest(op, a.config, nil)
+	return newRequest(op, a.config, nil)
 }
 
 /// Bucket Write Operations
 
-// PutBucket create a new bucket
+// putBucket create a new bucket
 //
 // Requires valid AWS Access Key ID to authenticate requests
 // Anonymous requests are never allowed to create buckets
-func (a *api) PutBucket(bucket string) error {
+func (a *lowLevelAPI) putBucket(bucket string) error {
 	req, err := a.putBucketRequest(bucket)
 	if err != nil {
 		return err
@@ -73,20 +57,20 @@ func (a *api) PutBucket(bucket string) error {
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return ResponseToError(resp)
+			return responseToError(resp)
 		}
 	}
 	return resp.Body.Close()
 }
 
 // putBucketRequestACL wrapper creates a new PutBucketACL request
-func (a *api) putBucketRequestACL(bucket, acl string) (*Request, error) {
-	op := &Operation{
+func (a *lowLevelAPI) putBucketRequestACL(bucket, acl string) (*request, error) {
+	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "PUT",
 		HTTPPath:   "/" + bucket + "?acl",
 	}
-	req, err := NewRequest(op, a.config, nil)
+	req, err := newRequest(op, a.config, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -94,8 +78,8 @@ func (a *api) putBucketRequestACL(bucket, acl string) (*Request, error) {
 	return req, nil
 }
 
-// PutBucketACL set the permissions on an existing bucket using access control lists (ACL)
-func (a *api) PutBucketACL(bucket, acl string) error {
+// putBucketACL set the permissions on an existing bucket using access control lists (ACL)
+func (a *lowLevelAPI) putBucketACL(bucket, acl string) error {
 	req, err := a.putBucketRequestACL(bucket, acl)
 	if err != nil {
 		return err
@@ -106,14 +90,14 @@ func (a *api) PutBucketACL(bucket, acl string) error {
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return ResponseToError(resp)
+			return responseToError(resp)
 		}
 	}
 	return resp.Body.Close()
 }
 
 // listObjectsRequest wrapper creates a new ListObjects request
-func (a *api) listObjectsRequest(bucket string, maxkeys int, marker, prefix, delimiter string) (*Request, error) {
+func (a *lowLevelAPI) listObjectsRequest(bucket string, maxkeys int, marker, prefix, delimiter string) (*request, error) {
 	// resourceQuery - get resources properly escaped and lined up before using them in http request
 	resourceQuery := func() string {
 		switch {
@@ -126,12 +110,12 @@ func (a *api) listObjectsRequest(bucket string, maxkeys int, marker, prefix, del
 		}
 		return fmt.Sprintf("?max-keys=%d", maxkeys) + marker + prefix + delimiter
 	}
-	op := &Operation{
+	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "GET",
 		HTTPPath:   "/" + bucket + resourceQuery(),
 	}
-	r, err := NewRequest(op, a.config, nil)
+	r, err := newRequest(op, a.config, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +124,7 @@ func (a *api) listObjectsRequest(bucket string, maxkeys int, marker, prefix, del
 
 /// Bucket Read Operations
 
-// ListObjects - (List Objects) - List some or all (up to 1000) of the objects in a bucket.
+// listObjects - (List Objects) - List some or all (up to 1000) of the objects in a bucket.
 //
 // You can use the request parameters as selection criteria to return a subset of the objects in a bucket.
 // request paramters :-
@@ -149,7 +133,7 @@ func (a *api) listObjectsRequest(bucket string, maxkeys int, marker, prefix, del
 // ?delimiter - A delimiter is a character you use to group keys.
 // ?prefix - Limits the response to keys that begin with the specified prefix.
 // ?max-keys - Sets the maximum number of keys returned in the response body.
-func (a *api) ListObjects(bucket string, maxkeys int, marker, prefix, delimiter string) (*ListBucketResult, error) {
+func (a *lowLevelAPI) listObjects(bucket string, maxkeys int, marker, prefix, delimiter string) (*listBucketResult, error) {
 	req, err := a.listObjectsRequest(bucket, maxkeys, marker, prefix, delimiter)
 	if err != nil {
 		return nil, err
@@ -160,10 +144,10 @@ func (a *api) ListObjects(bucket string, maxkeys int, marker, prefix, delimiter 
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return nil, ResponseToError(resp)
+			return nil, responseToError(resp)
 		}
 	}
-	listBucketResult := new(ListBucketResult)
+	listBucketResult := new(listBucketResult)
 	decoder := xml.NewDecoder(resp.Body)
 	err = decoder.Decode(listBucketResult)
 	if err != nil {
@@ -174,17 +158,17 @@ func (a *api) ListObjects(bucket string, maxkeys int, marker, prefix, delimiter 
 	return listBucketResult, resp.Body.Close()
 }
 
-func (a *api) headBucketRequest(bucket string) (*Request, error) {
-	op := &Operation{
+func (a *lowLevelAPI) headBucketRequest(bucket string) (*request, error) {
+	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "HEAD",
 		HTTPPath:   "/" + bucket,
 	}
-	return NewRequest(op, a.config, nil)
+	return newRequest(op, a.config, nil)
 }
 
-// HeadBucket - useful to determine if a bucket exists and you have permission to access it.
-func (a *api) HeadBucket(bucket string) error {
+// headBucket - useful to determine if a bucket exists and you have permission to access it.
+func (a *lowLevelAPI) headBucket(bucket string) error {
 	req, err := a.headBucketRequest(bucket)
 	if err != nil {
 		return err
@@ -203,20 +187,20 @@ func (a *api) HeadBucket(bucket string) error {
 }
 
 // deleteBucketRequest wrapper creates a new DeleteBucket request
-func (a *api) deleteBucketRequest(bucket string) (*Request, error) {
-	op := &Operation{
+func (a *lowLevelAPI) deleteBucketRequest(bucket string) (*request, error) {
+	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "DELETE",
 		HTTPPath:   "/" + bucket,
 	}
-	return NewRequest(op, a.config, nil)
+	return newRequest(op, a.config, nil)
 }
 
-// DeleteBucket - deletes the bucket named in the URI
+// deleteBucket - deletes the bucket named in the URI
 // NOTE: -
 //  All objects (including all object versions and delete markers)
 //  in the bucket must be deleted before successfully attempting this request
-func (a *api) DeleteBucket(bucket string) error {
+func (a *lowLevelAPI) deleteBucket(bucket string) error {
 	req, err := a.deleteBucketRequest(bucket)
 	if err != nil {
 		return err
@@ -231,8 +215,8 @@ func (a *api) DeleteBucket(bucket string) error {
 /// Object Read/Write/Stat Operations
 
 // putObjectRequest wrapper creates a new PutObject request
-func (a *api) putObjectRequest(bucket, object string, size int64, body io.ReadSeeker) (*Request, error) {
-	op := &Operation{
+func (a *lowLevelAPI) putObjectRequest(bucket, object string, size int64, body io.ReadSeeker) (*request, error) {
+	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "PUT",
 		HTTPPath:   "/" + bucket + "/" + object,
@@ -241,7 +225,7 @@ func (a *api) putObjectRequest(bucket, object string, size int64, body io.ReadSe
 	if err != nil {
 		return nil, err
 	}
-	r, err := NewRequest(op, a.config, ioutil.NopCloser(body))
+	r, err := newRequest(op, a.config, ioutil.NopCloser(body))
 	if err != nil {
 		return nil, err
 	}
@@ -250,10 +234,10 @@ func (a *api) putObjectRequest(bucket, object string, size int64, body io.ReadSe
 	return r, nil
 }
 
-// PutObject - add an object to a bucket
+// putObject - add an object to a bucket
 //
 // You must have WRITE permissions on a bucket to add an object to it.
-func (a *api) PutObject(bucket, object string, size int64, body io.ReadSeeker) error {
+func (a *lowLevelAPI) putObject(bucket, object string, size int64, body io.ReadSeeker) error {
 	req, err := a.putObjectRequest(bucket, object, size, body)
 	if err != nil {
 		return err
@@ -264,20 +248,20 @@ func (a *api) PutObject(bucket, object string, size int64, body io.ReadSeeker) e
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return ResponseToError(resp)
+			return responseToError(resp)
 		}
 	}
 	return resp.Body.Close()
 }
 
 // getObjectRequest wrapper creates a new GetObject request
-func (a *api) getObjectRequest(bucket, object string, offset, length uint64) (*Request, error) {
-	op := &Operation{
+func (a *lowLevelAPI) getObjectRequest(bucket, object string, offset, length uint64) (*request, error) {
+	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "GET",
 		HTTPPath:   "/" + bucket + "/" + object,
 	}
-	r, err := NewRequest(op, a.config, nil)
+	r, err := newRequest(op, a.config, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -291,11 +275,11 @@ func (a *api) getObjectRequest(bucket, object string, offset, length uint64) (*R
 	return r, nil
 }
 
-// GetObject - retrieve object from Object Storage
+// getObject - retrieve object from Object Storage
 //
 // Additionally it also takes range arguments to download the specified range bytes of an object.
 // For more information about the HTTP Range header, go to http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35.
-func (a *api) GetObject(bucket, object string, offset, length uint64) (io.ReadCloser, int64, string, error) {
+func (a *lowLevelAPI) getObject(bucket, object string, offset, length uint64) (io.ReadCloser, int64, string, error) {
 	req, err := a.getObjectRequest(bucket, object, offset, length)
 	if err != nil {
 		return nil, 0, "", err
@@ -309,7 +293,7 @@ func (a *api) GetObject(bucket, object string, offset, length uint64) (io.ReadCl
 		case http.StatusOK:
 		case http.StatusPartialContent:
 		default:
-			return nil, 0, "", ResponseToError(resp)
+			return nil, 0, "", responseToError(resp)
 		}
 	}
 	md5sum := strings.Trim(resp.Header.Get("ETag"), "\"") // trim off the odd double quotes
@@ -318,17 +302,17 @@ func (a *api) GetObject(bucket, object string, offset, length uint64) (io.ReadCl
 }
 
 // headObjectRequest wrapper creates a new HeadObject request
-func (a *api) headObjectRequest(bucket, object string) (*Request, error) {
-	op := &Operation{
+func (a *lowLevelAPI) headObjectRequest(bucket, object string) (*request, error) {
+	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "HEAD",
 		HTTPPath:   "/" + bucket + "/" + object,
 	}
-	return NewRequest(op, a.config, nil)
+	return newRequest(op, a.config, nil)
 }
 
-// HeadObject - retrieves metadata from an object without returning the object itself
-func (a *api) HeadObject(bucket, object string) error {
+// headObject - retrieves metadata from an object without returning the object itself
+func (a *lowLevelAPI) headObject(bucket, object string) error {
 	req, err := a.headObjectRequest(bucket, object)
 	if err != nil {
 		return err
@@ -339,24 +323,24 @@ func (a *api) HeadObject(bucket, object string) error {
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return ResponseToError(resp)
+			return responseToError(resp)
 		}
 	}
 	return resp.Body.Close()
 }
 
 // deleteObjectRequest wrapper creates a new DeleteObject request
-func (a *api) deleteObjectRequest(bucket, object string) (*Request, error) {
-	op := &Operation{
+func (a *lowLevelAPI) deleteObjectRequest(bucket, object string) (*request, error) {
+	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "DELETE",
 		HTTPPath:   "/" + bucket + "/" + object,
 	}
-	return NewRequest(op, a.config, nil)
+	return newRequest(op, a.config, nil)
 }
 
-// DeleteObject removes the object
-func (a *api) DeleteObject(bucket, object string) error {
+// deleteObject removes the object
+func (a *lowLevelAPI) deleteObject(bucket, object string) error {
 	req, err := a.deleteObjectRequest(bucket, object)
 	if err != nil {
 		return err
@@ -371,17 +355,17 @@ func (a *api) DeleteObject(bucket, object string) error {
 /// Service Operations
 
 // listBucketRequest wrapper creates a new ListBuckets request
-func (a *api) listBucketsRequest() (*Request, error) {
-	op := &Operation{
+func (a *lowLevelAPI) listBucketsRequest() (*request, error) {
+	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "GET",
 		HTTPPath:   "/",
 	}
-	return NewRequest(op, a.config, nil)
+	return newRequest(op, a.config, nil)
 }
 
-// ListBuckets list of all buckets owned by the authenticated sender of the request
-func (a *api) ListBuckets() (*ListAllMyBucketsResult, error) {
+// listBuckets list of all buckets owned by the authenticated sender of the request
+func (a *lowLevelAPI) listBuckets() (*listAllMyBucketsResult, error) {
 	req, err := a.listBucketsRequest()
 	if err != nil {
 		return nil, err
@@ -392,10 +376,10 @@ func (a *api) ListBuckets() (*ListAllMyBucketsResult, error) {
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return nil, ResponseToError(resp)
+			return nil, responseToError(resp)
 		}
 	}
-	listAllMyBucketsResult := new(ListAllMyBucketsResult)
+	listAllMyBucketsResult := new(listAllMyBucketsResult)
 	decoder := xml.NewDecoder(resp.Body)
 	err = decoder.Decode(listAllMyBucketsResult)
 	if err != nil {
