@@ -40,13 +40,18 @@ type lowLevelAPI struct {
 }
 
 // putBucketRequest wrapper creates a new PutBucket request
-func (a *lowLevelAPI) putBucketRequest(bucket string) (*request, error) {
+func (a *lowLevelAPI) putBucketRequest(bucket, acl string) (*request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "PUT",
 		HTTPPath:   "/" + bucket,
 	}
-	return newRequest(op, a.config, nil)
+	req, err := newRequest(op, a.config, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Set("x-amz-acl", acl)
+	return req, nil
 }
 
 /// Bucket Write Operations
@@ -55,8 +60,8 @@ func (a *lowLevelAPI) putBucketRequest(bucket string) (*request, error) {
 //
 // Requires valid AWS Access Key ID to authenticate requests
 // Anonymous requests are never allowed to create buckets
-func (a *lowLevelAPI) putBucket(bucket string) error {
-	req, err := a.putBucketRequest(bucket)
+func (a *lowLevelAPI) putBucket(bucket, acl string) error {
+	req, err := a.putBucketRequest(bucket, acl)
 	if err != nil {
 		return err
 	}

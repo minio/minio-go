@@ -32,13 +32,15 @@ type API interface {
 }
 
 type ObjectAPI interface {
-	Get(bucket, object string, offset, length int64) (io.ReadCloser, error)
-	Put(bucket, object string, size int64, multipart bool) (io.WriteCloser, error)
-	Stat(bucket, object string) (*ObjectMetadata, error)
+	GetObject(bucket, object string, offset, length int64) (io.ReadCloser, error)
+	CreateObject(bucket, object string, size int64, multipart bool) (io.WriteCloser, error)
+	StatObject(bucket, object string) (*ObjectMetadata, error)
 }
 
 type BucketAPI interface {
-	MakeBucket(acl string) error
+	CreateBucket(bucket, acl string) error
+	SetBucketACL(bucket, acl string) error
+	StatBucket(bucket string) error
 	ListObjects(bucket, prefix string, recursive bool) <-chan ObjectOnChannel
 	ListBuckets() <-chan BucketOnChannel
 }
@@ -71,16 +73,50 @@ func New(accesskeyid, secretaccesskey, endpoint, contenttype string) API {
 	return &api{&lowLevelAPI{config}}
 }
 
-func (a *api) Get(bucket, object string, offset, length int64) (io.ReadCloser, error) {
+/// Object operations
+
+// GetObject retrieve object
+//
+// Additionally it also takes range arguments to download the specified range bytes of an object.
+// For more information about the HTTP Range header, go to http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35.
+func (a *api) GetObject(bucket, object string, offset, length int64) (io.ReadCloser, error) {
 	return nil, errors.New("API Not Implemented")
 }
 
-func (a *api) Put(bucket, object string, size int64, multipart bool) (io.WriteCloser, error) {
+// CreateObject create an object in a bucket
+//
+// You must have WRITE permissions on a bucket to create an object
+func (a *api) CreateObject(bucket, object string, size int64, multipart bool) (io.WriteCloser, error) {
 	return nil, errors.New("API Not Implemented")
 }
 
-func (a *api) Stat(bucket, object string) (*ObjectMetadata, error) {
+// StatObject verify if object exists and you have permission to access it
+func (a *api) StatObject(bucket, object string) (*ObjectMetadata, error) {
 	return nil, errors.New("API Not Implemented")
+}
+
+/// Bucket operations
+
+// CreateBucket create a new bucket
+func (a *api) CreateBucket(bucket, acl string) error {
+	return a.putBucket(bucket, acl)
+}
+
+// SetBucketACL set the permissions on an existing bucket using access control lists (ACL)
+//
+// Currently supported are:
+// ------------------
+// private - owner gets full access
+// public-read - owner gets full access, others get read access
+// public-read-write - owner gets full access, others get full access too
+// ------------------
+func (a *api) SetBucketACL(bucket, acl string) error {
+	return a.putBucketACL(bucket, acl)
+}
+
+// StatBucket verify if bucket exists and you have permission to access it
+func (a *api) StatBucket(bucket string) error {
+	return a.headBucket(bucket)
 }
 
 // listObjectsInRoutine is an internal goroutine function called for listing objects
@@ -140,8 +176,6 @@ func (a *api) listObjectsInRoutine(bucket, prefix string, recursive bool, ch cha
 		}
 	}
 }
-
-/// Bucket operations
 
 // ListObjects - (List Objects) - List some objects or all recursively
 //
