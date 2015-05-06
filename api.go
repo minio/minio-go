@@ -27,14 +27,20 @@ type API interface {
 	// Object Read/Write/Stat operations
 	ObjectAPI
 
-	ListObjects(bucket, prefix string, recursive bool) <-chan ObjectOnChannel
-	ListBuckets() <-chan BucketOnChannel
+	// Bucket Read/Write/Stat operations
+	BucketAPI
 }
 
 type ObjectAPI interface {
 	Get(bucket, object string, offset, length int64) (io.ReadCloser, error)
 	Put(bucket, object string, size int64, multipart bool) (io.WriteCloser, error)
 	Stat(bucket, object string) (*ObjectMetadata, error)
+}
+
+type BucketAPI interface {
+	MakeBucket(acl string) error
+	ListObjects(bucket, prefix string, recursive bool) <-chan ObjectOnChannel
+	ListBuckets() <-chan BucketOnChannel
 }
 
 type ObjectOnChannel struct {
@@ -80,6 +86,7 @@ func (a *api) Stat(bucket, object string) (*ObjectMetadata, error) {
 // listObjectsInRoutine is an internal goroutine function called for listing objects
 // This function feeds data into channel
 func (a *api) listObjectsInRoutine(bucket, prefix string, recursive bool, ch chan ObjectOnChannel) {
+	defer close(ch)
 	switch {
 	case recursive == true:
 		listBucketResult, err := a.listObjects(bucket, 1000, "", prefix, "")
@@ -96,8 +103,11 @@ func (a *api) listObjectsInRoutine(bucket, prefix string, recursive bool, ch cha
 				Err:  nil,
 			}
 		}
-		for listBucketResult.IsTruncated {
-			listBucketResult, err := a.listObjects(bucket, 1000, listBucketResult.Marker, prefix, "")
+		for {
+			if !listBucketResult.IsTruncated {
+				break
+			}
+			listBucketResult, err = a.listObjects(bucket, 1000, listBucketResult.Marker, prefix, "")
 			if err != nil {
 				ch <- ObjectOnChannel{
 					Data: nil,
@@ -110,6 +120,7 @@ func (a *api) listObjectsInRoutine(bucket, prefix string, recursive bool, ch cha
 					Data: object,
 					Err:  nil,
 				}
+				listBucketResult.Marker = object.Key
 			}
 		}
 	default:
@@ -156,12 +167,14 @@ func (a *api) ListObjects(bucket string, prefix string, recursive bool) <-chan O
 // listBucketsInRoutine is an internal go routine function called for listing buckets
 // This function feeds data into channel
 func (a *api) listBucketsInRoutine(ch chan BucketOnChannel) {
+	defer close(ch)
 	listAllMyBucketListResults, err := a.listBuckets()
 	if err != nil {
 		ch <- BucketOnChannel{
 			Data: nil,
 			Err:  err,
 		}
+		return
 	}
 	for _, bucket := range listAllMyBucketListResults.Buckets.Bucket {
 		ch <- BucketOnChannel{

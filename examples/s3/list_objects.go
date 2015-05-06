@@ -26,7 +26,7 @@ import (
 
 func main() {
 	m := objectstorage.New("", "", "https://s3.amazonaws.com", "")
-	for message := range m.ListBuckets() {
+	for message := range m.ListObjects("public-bucket", "", true) {
 		if message.Err != nil {
 			log.Fatal(message.Err)
 		}
