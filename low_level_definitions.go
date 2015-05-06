@@ -18,51 +18,51 @@ package objectstorage
 
 import "time"
 
-// ListAllMyBucketsResult container for ListBucets response
-type ListAllMyBucketsResult struct {
+// listAllMyBucketsResult container for ListBucets response
+type listAllMyBucketsResult struct {
 	// Container for one or more buckets.
 	Buckets struct {
-		Bucket []*Bucket
+		Bucket []*bucket
 	}
-	Owner Owner
+	Owner owner
 }
 
-// Bucket container for bucket metadata
-type Bucket struct {
+// bucket container for bucket metadata
+type bucket struct {
 	// The name of the bucket.
 	Name string
 	// Date the bucket was created.
 	CreationDate time.Time
 }
 
-// Owner container for bucket owner information
-type Owner struct {
+// owner container for bucket owner information
+type owner struct {
 	DisplayName string
 	ID          string
 }
 
-// CommonPrefix container for prefix response in ListObjects
-type CommonPrefix struct {
+// commonPrefix container for prefix response in ListObjects
+type commonPrefix struct {
 	Prefix string
 }
 
-// Object container for object metadata
-type Object struct {
+// object container for object metadata
+type object struct {
 	ETag         string
 	Key          string
 	LastModified time.Time
 	Size         int64
 
-	Owner Owner
+	Owner owner
 
 	// The class of storage used to store the object.
 	StorageClass string
 }
 
-// ListBucketResult container for ListObjects response
-type ListBucketResult struct {
-	CommonPrefixes []*CommonPrefix // A response can contain CommonPrefixes only if you specify a delimiter
-	Contents       []*Object       // Metadata about each object returned
+// listBucketResult container for ListObjects response
+type listBucketResult struct {
+	CommonPrefixes []*commonPrefix // A response can contain CommonPrefixes only if you specify a delimiter
+	Contents       []*object       // Metadata about each object returned
 	Delimiter      string
 
 	// Encoding type used to encode object keys in the response.
@@ -86,28 +86,28 @@ type ListBucketResult struct {
 	Prefix     string
 }
 
-// Initiator container for who initiated multipart upload
-type Initiator struct {
+// initiator container for who initiated multipart upload
+type initiator struct {
 	ID          string
 	DisplayName string
 }
 
-// Part container for particular part of an object
-type Part struct {
+// part container for particular part of an object
+type part struct {
 	PartNumber   int
 	LastModified time.Time
 	ETag         string
 	Size         int64
 }
 
-// ListPartsResult container for ListParts response
-type ListPartsResult struct {
+// listPartsResult container for ListParts response
+type listPartsResult struct {
 	Bucket   string
 	Key      string
 	UploadID string
 
-	Initiator Initiator
-	Owner     Owner
+	Initiator initiator
+	Owner     owner
 
 	StorageClass         string
 	PartNumberMarker     int
@@ -115,27 +115,27 @@ type ListPartsResult struct {
 	MaxParts             int
 
 	IsTruncated bool
-	Part        *[]Part
+	Part        *[]part
 
 	EncodingType string
 }
 
-// InitiateMultipartUploadResult container for InitiateMultiPartUpload response
-type InitiateMultipartUploadResult struct {
+// initiateMultipartUploadResult container for InitiateMultiPartUpload response
+type initiateMultipartUploadResult struct {
 	Bucket   string
 	Key      string
 	UploadID string
 }
 
-// CompleteMultipartUploadResult containe for completed multipart upload response
-type CompleteMultipartUploadResult struct {
+// completeMultipartUploadResult containe for completed multipart upload response
+type completeMultipartUploadResult struct {
 	Location string
 	Bucket   string
 	Key      string
 	ETag     string
 }
 
-// CompleteMultipartUpload container for completing multipart upload
-type CompleteMultipartUpload struct {
-	Part *[]Part
+// completeMultipartUpload container for completing multipart upload
+type completeMultipartUpload struct {
+	Part *[]part
 }

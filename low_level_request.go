@@ -30,21 +30,21 @@ import (
 	"time"
 )
 
-// Operation - rest operation
-type Operation struct {
+// operation - rest operation
+type operation struct {
 	HTTPServer string
 	HTTPMethod string
 	HTTPPath   string
 }
 
-// Request - a http request
-type Request struct {
+// request - a http request
+type request struct {
 	req    *http.Request
 	config *Config
 }
 
-// NewRequest - instantiate a new request
-func NewRequest(op *Operation, config *Config, body io.ReadCloser) (*Request, error) {
+// newRequest - instantiate a new request
+func newRequest(op *operation, config *Config, body io.ReadCloser) (*request, error) {
 	// if no method default to POST
 	method := op.HTTPMethod
 	if method == "" {
@@ -71,36 +71,36 @@ func NewRequest(op *Operation, config *Config, body io.ReadCloser) (*Request, er
 		req.Header.Set("Content-Type", config.ContentType)
 	}
 	// save for subsequent use
-	r := new(Request)
+	r := new(request)
 	r.config = config
 	r.req = req
 	return r, nil
 }
 
 // Do - start the request
-func (r *Request) Do() (resp *http.Response, err error) {
+func (r *request) Do() (resp *http.Response, err error) {
 	r.SignV2()
 	client := &http.Client{}
 	return client.Do(r.req)
 }
 
 // Set - set additional headers if any
-func (r *Request) Set(key, value string) {
+func (r *request) Set(key, value string) {
 	r.req.Header.Set(key, value)
 }
 
 // Get - get header values
-func (r *Request) Get(key string) string {
+func (r *request) Get(key string) string {
 	return r.req.Header.Get(key)
 }
 
 // SignV4 the request before Do() (version 4.0)
-func (r *Request) SignV4() {
+func (r *request) SignV4() {
 	// TODO
 }
 
 // SignV2 the request before Do() (version 2.0)
-func (r *Request) SignV2() {
+func (r *request) SignV2() {
 	// Add date if not present
 	if date := r.Get("Date"); date == "" {
 		r.Set("Date", time.Now().UTC().Format(http.TimeFormat))
@@ -130,7 +130,7 @@ func (r *Request) SignV2() {
 //	 Date + "\n" +
 //	 CanonicalizedAmzHeaders +
 //	 CanonicalizedResource;
-func (r *Request) mustGetStringToSign() string {
+func (r *request) mustGetStringToSign() string {
 	buf := new(bytes.Buffer)
 	// write standard headers
 	r.mustWriteDefaultHeaders(buf)
@@ -141,7 +141,7 @@ func (r *Request) mustGetStringToSign() string {
 	return buf.String()
 }
 
-func (r *Request) mustWriteDefaultHeaders(buf *bytes.Buffer) {
+func (r *request) mustWriteDefaultHeaders(buf *bytes.Buffer) {
 	buf.WriteString(r.req.Method)
 	buf.WriteByte('\n')
 	buf.WriteString(r.req.Header.Get("Content-MD5"))
@@ -152,7 +152,7 @@ func (r *Request) mustWriteDefaultHeaders(buf *bytes.Buffer) {
 	buf.WriteByte('\n')
 }
 
-func (r *Request) mustWriteCanonicalizedAmzHeaders(buf *bytes.Buffer) {
+func (r *request) mustWriteCanonicalizedAmzHeaders(buf *bytes.Buffer) {
 	var amzHeaders []string
 	vals := make(map[string][]string)
 	for k, vv := range r.req.Header {
@@ -215,7 +215,7 @@ var resourceList = []string{
 // CanonicalizedResource = [ "/" + Bucket ] +
 // 	  <HTTP-Request-URI, from the protocol name up to the query string> +
 // 	  [ sub-resource, if present. For example "?acl", "?location", "?logging", or "?torrent"];
-func (r *Request) mustWriteCanonicalizedResource(buf *bytes.Buffer) {
+func (r *request) mustWriteCanonicalizedResource(buf *bytes.Buffer) {
 	requestURL := r.req.URL
 	buf.WriteString(requestURL.Path)
 	sort.Strings(resourceList)
