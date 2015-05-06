@@ -40,11 +40,11 @@ type operation struct {
 // request - a http request
 type request struct {
 	req    *http.Request
-	config *Config
+	config *config
 }
 
 // newRequest - instantiate a new request
-func newRequest(op *operation, config *Config, body io.ReadCloser) (*request, error) {
+func newRequest(op *operation, config *config, body io.ReadCloser) (*request, error) {
 	// if no method default to POST
 	method := op.HTTPMethod
 	if method == "" {
@@ -64,7 +64,7 @@ func newRequest(op *operation, config *Config, body io.ReadCloser) (*request, er
 	// add body
 	req.Body = body
 	// set UserAgent
-	req.Header.Set("User-Agent", LibraryName+" ("+LibraryVersion+")")
+	req.Header.Set("User-Agent", config.UserAgent)
 
 	// set ContentType, if available
 	if config.ContentType != "" {
