@@ -26,8 +26,17 @@ import (
 	"strings"
 )
 
+// config - main configuration struct used by all to set endpoint, credentials, and other options for requests.
+type config struct {
+	AccessKeyID     string
+	SecretAccessKey string
+	Endpoint        string
+	ContentType     string
+	UserAgent       string
+}
+
 type lowLevelAPI struct {
-	config *Config
+	config *config
 }
 
 // putBucketRequest wrapper creates a new PutBucket request
@@ -133,7 +142,7 @@ func (a *lowLevelAPI) listObjectsRequest(bucket string, maxkeys int, marker, pre
 // ?delimiter - A delimiter is a character you use to group keys.
 // ?prefix - Limits the response to keys that begin with the specified prefix.
 // ?max-keys - Sets the maximum number of keys returned in the response body.
-func (a *lowLevelAPI) listObjects(bucket string, maxkeys int, marker, prefix, delimiter string) (*listBucketResult, error) {
+func (a *lowLevelAPI) listObjects(bucket string, maxkeys int, marker, prefix, delimiter string) (*ListBucketResult, error) {
 	req, err := a.listObjectsRequest(bucket, maxkeys, marker, prefix, delimiter)
 	if err != nil {
 		return nil, err
@@ -147,7 +156,7 @@ func (a *lowLevelAPI) listObjects(bucket string, maxkeys int, marker, prefix, de
 			return nil, responseToError(resp)
 		}
 	}
-	listBucketResult := new(listBucketResult)
+	listBucketResult := new(ListBucketResult)
 	decoder := xml.NewDecoder(resp.Body)
 	err = decoder.Decode(listBucketResult)
 	if err != nil {
@@ -365,7 +374,7 @@ func (a *lowLevelAPI) listBucketsRequest() (*request, error) {
 }
 
 // listBuckets list of all buckets owned by the authenticated sender of the request
-func (a *lowLevelAPI) listBuckets() (*listAllMyBucketsResult, error) {
+func (a *lowLevelAPI) listBuckets() (*ListAllMyBucketsResult, error) {
 	req, err := a.listBucketsRequest()
 	if err != nil {
 		return nil, err
@@ -379,7 +388,7 @@ func (a *lowLevelAPI) listBuckets() (*listAllMyBucketsResult, error) {
 			return nil, responseToError(resp)
 		}
 	}
-	listAllMyBucketsResult := new(listAllMyBucketsResult)
+	listAllMyBucketsResult := new(ListAllMyBucketsResult)
 	decoder := xml.NewDecoder(resp.Body)
 	err = decoder.Decode(listAllMyBucketsResult)
 	if err != nil {

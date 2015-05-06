@@ -21,7 +21,7 @@ func (a *lowLevelAPI) initiateMultipartRequest(bucket, object string) (*request,
 }
 
 // InitiateMultipartUpload initiates a multipart upload and returns an upload ID
-func (a *lowLevelAPI) initiateMultipartUpload(bucket, object string) (*initiateMultipartUploadResult, error) {
+func (a *lowLevelAPI) initiateMultipartUpload(bucket, object string) (*InitiateMultipartUploadResult, error) {
 	req, err := a.initiateMultipartRequest(bucket, object)
 	if err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func (a *lowLevelAPI) initiateMultipartUpload(bucket, object string) (*initiateM
 			return nil, responseToError(resp)
 		}
 	}
-	initiateMultipartUploadResult := new(initiateMultipartUploadResult)
+	initiateMultipartUploadResult := new(InitiateMultipartUploadResult)
 	decoder := xml.NewDecoder(resp.Body)
 	err = decoder.Decode(initiateMultipartUploadResult)
 	if err != nil {
@@ -45,7 +45,7 @@ func (a *lowLevelAPI) initiateMultipartUpload(bucket, object string) (*initiateM
 }
 
 // complteMultipartUploadRequest wrapper creates a new CompleteMultipartUpload request
-func (a *lowLevelAPI) completeMultipartUploadRequest(bucket, object, uploadID string, complete *completeMultipartUpload) (*request, error) {
+func (a *lowLevelAPI) completeMultipartUploadRequest(bucket, object, uploadID string, complete *CompleteMultipartUpload) (*request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "POST",
@@ -65,7 +65,7 @@ func (a *lowLevelAPI) completeMultipartUploadRequest(bucket, object, uploadID st
 }
 
 // completeMultipartUpload completes a multipart upload by assembling previously uploaded parts.
-func (a *lowLevelAPI) completeMultipartUpload(bucket, object, uploadID string, c *completeMultipartUpload) (*completeMultipartUploadResult, error) {
+func (a *lowLevelAPI) completeMultipartUpload(bucket, object, uploadID string, c *CompleteMultipartUpload) (*CompleteMultipartUploadResult, error) {
 	req, err := a.completeMultipartUploadRequest(bucket, object, uploadID, c)
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func (a *lowLevelAPI) completeMultipartUpload(bucket, object, uploadID string, c
 			return nil, responseToError(resp)
 		}
 	}
-	completeMultipartUploadResult := new(completeMultipartUploadResult)
+	completeMultipartUploadResult := new(CompleteMultipartUploadResult)
 	decoder := xml.NewDecoder(resp.Body)
 	err = decoder.Decode(completeMultipartUploadResult)
 	if err != nil {
@@ -117,8 +117,8 @@ func (a *lowLevelAPI) abortMultipartUpload(bucket, object, uploadID string) erro
 	return resp.Body.Close()
 }
 
-// listPartsRequest wrapper creates a new ListParts request
-func (a *lowLevelAPI) listPartsRequest(bucket, object, uploadID string) (*request, error) {
+// listObjectPartsRequest wrapper creates a new ListObjectParts request
+func (a *lowLevelAPI) listObjectPartsRequest(bucket, object, uploadID string) (*request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "GET",
@@ -127,9 +127,9 @@ func (a *lowLevelAPI) listPartsRequest(bucket, object, uploadID string) (*reques
 	return newRequest(op, a.config, nil)
 }
 
-// listParts lists the parts that have been uploaded for a specific multipart upload.
-func (a *lowLevelAPI) listParts(bucket, object, uploadID string) (*listPartsResult, error) {
-	req, err := a.listPartsRequest(bucket, object, uploadID)
+// listObjectParts lists the parts that have been uploaded for a specific multipart upload.
+func (a *lowLevelAPI) listObjectParts(bucket, object, uploadID string) (*ListObjectPartsResult, error) {
+	req, err := a.listObjectPartsRequest(bucket, object, uploadID)
 	if err != nil {
 		return nil, err
 	}
@@ -142,13 +142,13 @@ func (a *lowLevelAPI) listParts(bucket, object, uploadID string) (*listPartsResu
 			return nil, responseToError(resp)
 		}
 	}
-	listPartsResult := new(listPartsResult)
+	listObjectPartsResult := new(ListObjectPartsResult)
 	decoder := xml.NewDecoder(resp.Body)
-	err = decoder.Decode(listPartsResult)
+	err = decoder.Decode(listObjectPartsResult)
 	if err != nil {
 		return nil, err
 	}
-	return listPartsResult, resp.Body.Close()
+	return listObjectPartsResult, resp.Body.Close()
 }
 
 // uploadPartRequest wrapper creates a new UploadPart request
