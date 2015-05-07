@@ -19,7 +19,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/minio-io/objectstorage-go"
@@ -27,40 +26,15 @@ import (
 
 func main() {
 	config := new(objectstorage.Config)
-	config.Endpoint = "https://s3.amazonaws.com"
 	config.AccessKeyID = ""
 	config.SecretAccessKey = ""
-	config.UserAgent = "Minio"
+	config.Endpoint = "http://play.minio.io:9000"
+	config.ContentType = ""
 	m := objectstorage.New(config)
-
-	err := m.PutBucket("testbucket")
-	if err != nil {
-		log.Println(err)
-	}
-
-	err = m.PutBucketACL("testbucket", "public-read")
-	if err != nil {
-		log.Println(err)
-	}
-
-	err = m.PutBucketACL("testbucket", "invalid")
-	if err != nil {
-		log.Println(err)
-	}
-
-	err = m.HeadBucket("testbucket")
-	if err != nil {
-		log.Println(err)
-	}
-
-	listAllMyBucketsResult, err := m.ListBuckets()
-	if err != nil {
-		log.Println(err)
-	}
-	if err == nil {
-		buckets := listAllMyBucketsResult.Buckets
-		for _, bucket := range buckets.Bucket {
-			fmt.Println(bucket)
+	for message := range m.ListBuckets() {
+		if message.Err != nil {
+			log.Fatal(message.Err)
 		}
+		log.Println(message.Data)
 	}
 }

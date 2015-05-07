@@ -20,7 +20,6 @@ package main
 
 import (
 	"log"
-	"os"
 
 	"github.com/minio-io/objectstorage-go"
 )
@@ -32,20 +31,10 @@ func main() {
 	config.Endpoint = "http://play.minio.io:9000"
 	config.ContentType = ""
 	m := objectstorage.New(config)
-	object, err := os.Open("testfile")
-	if err != nil {
-		log.Fatalln(err)
+	for message := range m.ListObjects("public-bucket", "", true) {
+		if message.Err != nil {
+			log.Fatal(message.Err)
+		}
+		log.Println(message.Data)
 	}
-	objectInfo, err := object.Stat()
-	if err != nil {
-		object.Close()
-		log.Fatalln(err)
-	}
-	uploadID, err := m.CreateObject("testbucket", "testfile", uint64(objectInfo.Size()), object)
-	if err != nil {
-		object.Close()
-		log.Fatalln(err)
-	}
-	object.Close()
-	log.Println(uploadID)
 }
