@@ -44,7 +44,6 @@ func Parts(reader io.Reader, chunkSize uint64) <-chan Message {
 
 func partsInRoutine(reader io.Reader, chunkSize uint64, ch chan Message) {
 	defer close(ch)
-
 	packet := make([]byte, chunkSize)
 	n, err := io.ReadFull(reader, packet)
 	if err == io.EOF || err == io.ErrUnexpectedEOF { // short read, only single part return
@@ -74,8 +73,9 @@ func partsInRoutine(reader io.Reader, chunkSize uint64, ch chan Message) {
 		Num:  num,
 	}
 	for err == nil {
+		var n int
 		packet := make([]byte, chunkSize)
-		n, err := io.ReadFull(reader, packet)
+		n, err = io.ReadFull(reader, packet)
 		if err != nil {
 			if err != io.EOF && err != io.ErrUnexpectedEOF {
 				ch <- Message{

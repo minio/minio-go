@@ -32,7 +32,7 @@ type BucketMetadata struct {
 	// The name of the bucket.
 	Name string
 	// Date the bucket was created.
-	CreationDate time.Time
+	CreationDate time.Time `type:"timestamp" timestampFormat:"iso8601"`
 }
 
 // Owner container for bucket owner information
@@ -50,7 +50,7 @@ type CommonPrefix struct {
 type ObjectMetadata struct {
 	ETag         string
 	Key          string
-	LastModified time.Time
+	LastModified time.Time `type:"timestamp" timestampFormat:"iso8601"`
 	Size         int64
 
 	Owner Owner
@@ -95,7 +95,7 @@ type Initiator struct {
 // Part container for particular part of an object
 type Part struct {
 	PartNumber   int
-	LastModified time.Time
+	LastModified time.Time `type:"timestamp" timestampFormat:"iso8601"`
 	ETag         string
 	Size         int64
 }
@@ -104,7 +104,7 @@ type Part struct {
 type ListObjectPartsResult struct {
 	Bucket   string
 	Key      string
-	UploadID string
+	UploadID string `xml:"UploadId"`
 
 	Initiator Initiator
 	Owner     Owner
@@ -114,6 +114,7 @@ type ListObjectPartsResult struct {
 	NextPartNumberMarker int
 	MaxParts             int
 
+	// Indicates whether the returned list of parts is truncated.
 	IsTruncated bool
 	Part        []*Part
 
@@ -124,7 +125,7 @@ type ListObjectPartsResult struct {
 type InitiateMultipartUploadResult struct {
 	Bucket   string
 	Key      string
-	UploadID string
+	UploadID string `xml:"UploadId"`
 }
 
 // CompleteMultipartUploadResult containe for completed multipart upload response
@@ -135,6 +136,7 @@ type CompleteMultipartUploadResult struct {
 	ETag     string
 }
 
+//
 type CompletePart struct {
 	PartNumber int
 	ETag       string
