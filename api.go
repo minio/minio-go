@@ -153,7 +153,7 @@ func (a *api) CreateObject(bucket, object string, size uint64, data io.Reader) (
 	switch {
 	case size < DefaultPartSize:
 		// Single Part use case, use PutObject directly
-		for part := range Parts(data, DefaultPartSize) {
+		for part := range MultiPart(data, DefaultPartSize) {
 			if part.Err != nil {
 				return "", part.Err
 			}
@@ -166,7 +166,7 @@ func (a *api) CreateObject(bucket, object string, size uint64, data io.Reader) (
 		}
 		uploadID := initiateMultipartUploadResult.UploadID
 		completeMultipartUpload := new(completeMultipartUpload)
-		for part := range Parts(data, DefaultPartSize) {
+		for part := range MultiPart(data, DefaultPartSize) {
 			if part.Err != nil {
 				return "", part.Err
 			}
