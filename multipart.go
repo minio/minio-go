@@ -21,33 +21,32 @@ import (
 	"io"
 )
 
-// Message - message structure for results from the Stream goroutine
-type Message struct {
+// Part - message structure for results from the MultiPart
+type Part struct {
 	Data io.ReadSeeker
 	Err  error
 	Len  int64
 	Num  int // part number
 }
 
-// Parts reads from io.Reader, partitions the data into chunks of given chunksize, and sends
+// MultiPart reads from io.Reader, partitions the data into chunks of given chunksize, and sends
 // each chunk as io.ReadSeeker to the caller over a channel
 //
 // This method runs until an EOF or error occurs. If an error occurs,
 // the method sends the error over the channel and returns.
 // Before returning, the channel is always closed.
-//
-func Parts(reader io.Reader, chunkSize uint64) <-chan Message {
-	ch := make(chan Message)
-	go partsInRoutine(reader, chunkSize, ch)
+func MultiPart(reader io.Reader, chunkSize uint64) <-chan Part {
+	ch := make(chan Part)
+	go multiPartInRoutine(reader, chunkSize, ch)
 	return ch
 }
 
-func partsInRoutine(reader io.Reader, chunkSize uint64, ch chan Message) {
+func multiPartInRoutine(reader io.Reader, chunkSize uint64, ch chan Part) {
 	defer close(ch)
 	packet := make([]byte, chunkSize)
 	n, err := io.ReadFull(reader, packet)
 	if err == io.EOF || err == io.ErrUnexpectedEOF { // short read, only single part return
-		ch <- Message{
+		ch <- Part{
 			Data: bytes.NewReader(packet[0:n]),
 			Err:  nil,
 			Len:  int64(n),
@@ -57,7 +56,7 @@ func partsInRoutine(reader io.Reader, chunkSize uint64, ch chan Message) {
 	}
 	// catastrophic error send error and return
 	if err != nil {
-		ch <- Message{
+		ch <- Part{
 			Data: nil,
 			Err:  err,
 			Num:  0,
@@ -66,7 +65,7 @@ func partsInRoutine(reader io.Reader, chunkSize uint64, ch chan Message) {
 	}
 	// send the first part
 	var num = 1
-	ch <- Message{
+	ch <- Part{
 		Data: bytes.NewReader(packet),
 		Err:  nil,
 		Len:  int64(n),
@@ -78,7 +77,7 @@ func partsInRoutine(reader io.Reader, chunkSize uint64, ch chan Message) {
 		n, err = io.ReadFull(reader, packet)
 		if err != nil {
 			if err != io.EOF && err != io.ErrUnexpectedEOF {
-				ch <- Message{
+				ch <- Part{
 					Data: nil,
 					Err:  err,
 					Num:  0,
@@ -87,7 +86,7 @@ func partsInRoutine(reader io.Reader, chunkSize uint64, ch chan Message) {
 			}
 		}
 		num++
-		ch <- Message{
+		ch <- Part{
 			Data: bytes.NewReader(packet[0:n]),
 			Err:  nil,
 			Len:  int64(n),
