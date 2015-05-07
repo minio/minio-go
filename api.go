@@ -37,6 +37,7 @@ type ObjectAPI interface {
 	GetObject(bucket, object string, offset, length uint64) (io.ReadCloser, *ObjectMetadata, error)
 	CreateObject(bucket, object string, size uint64, data io.Reader) (string, error)
 	StatObject(bucket, object string) (*ObjectMetadata, error)
+	DeleteObject(bucket, object string) error
 }
 
 // BucketAPI - bucket specific Read/Write/Stat interface
@@ -44,6 +45,8 @@ type BucketAPI interface {
 	CreateBucket(bucket, acl string) error
 	SetBucketACL(bucket, acl string) error
 	StatBucket(bucket string) error
+	DeleteBucket(bucket string) error
+
 	ListObjects(bucket, prefix string, recursive bool) <-chan ObjectOnChannel
 	ListBuckets() <-chan BucketOnChannel
 }
@@ -163,6 +166,11 @@ func (a *api) StatObject(bucket, object string) (*ObjectMetadata, error) {
 	return a.headObject(bucket, object)
 }
 
+// DeleteObject remove the object from a bucket
+func (a *api) DeleteObject(bucket, object string) error {
+	return a.deleteObject(bucket, object)
+}
+
 /// Bucket operations
 
 // CreateBucket create a new bucket
@@ -185,6 +193,14 @@ func (a *api) SetBucketACL(bucket, acl string) error {
 // StatBucket verify if bucket exists and you have permission to access it
 func (a *api) StatBucket(bucket string) error {
 	return a.headBucket(bucket)
+}
+
+// DeleteBucket deletes the bucket named in the URI
+// NOTE: -
+//  All objects (including all object versions and delete markers)
+//  in the bucket must be deleted before successfully attempting this request
+func (a *api) DeleteBucket(bucket string) error {
+	return a.deleteBucket(bucket)
 }
 
 // listObjectsInRoutine is an internal goroutine function called for listing objects

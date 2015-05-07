@@ -136,7 +136,7 @@ type CompleteMultipartUploadResult struct {
 	ETag     string
 }
 
-//
+// CompletePart sub container lists individual part numbers and their md5sum, part of CompleteMultipartUpload
 type CompletePart struct {
 	PartNumber int
 	ETag       string
