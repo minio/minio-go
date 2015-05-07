@@ -32,8 +32,8 @@ type API interface {
 }
 
 type ObjectAPI interface {
-	GetObject(bucket, object string, offset, length int64) (io.ReadCloser, error)
-	CreateObject(bucket, object string, size int64, multipart bool) (io.WriteCloser, error)
+	GetObject(bucket, object string, offset, length uint64) (io.ReadCloser, *ObjectMetadata, error)
+	CreateObject(bucket, object string, size uint64, multipart bool) (io.WriteCloser, error)
 	StatObject(bucket, object string) (*ObjectMetadata, error)
 }
 
@@ -79,20 +79,27 @@ func New(accesskeyid, secretaccesskey, endpoint, contenttype string) API {
 //
 // Additionally it also takes range arguments to download the specified range bytes of an object.
 // For more information about the HTTP Range header, go to http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35.
-func (a *api) GetObject(bucket, object string, offset, length int64) (io.ReadCloser, error) {
-	return nil, errors.New("API Not Implemented")
+func (a *api) GetObject(bucket, object string, offset, length uint64) (io.ReadCloser, *ObjectMetadata, error) {
+	// get the the object
+	// NOTE : returned md5sum could be the md5sum of the partial object itself
+	// not the whole object depending on if offset range was requested or not
+	body, objectMetadata, err := a.getObject(bucket, object, offset, length)
+	if err != nil {
+		return nil, nil, err
+	}
+	return body, objectMetadata, nil
 }
 
 // CreateObject create an object in a bucket
 //
 // You must have WRITE permissions on a bucket to create an object
-func (a *api) CreateObject(bucket, object string, size int64, multipart bool) (io.WriteCloser, error) {
+func (a *api) CreateObject(bucket, object string, size uint64, multipart bool) (io.WriteCloser, error) {
 	return nil, errors.New("API Not Implemented")
 }
 
 // StatObject verify if object exists and you have permission to access it
 func (a *api) StatObject(bucket, object string) (*ObjectMetadata, error) {
-	return nil, errors.New("API Not Implemented")
+	return a.headObject(bucket, object)
 }
 
 /// Bucket operations
