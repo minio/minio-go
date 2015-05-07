@@ -18,12 +18,15 @@ package objectstorage
 
 import (
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // config - main configuration struct used by all to set endpoint, credentials, and other options for requests.
@@ -293,26 +296,39 @@ func (a *lowLevelAPI) getObjectRequest(bucket, object string, offset, length uin
 //
 // Additionally it also takes range arguments to download the specified range bytes of an object.
 // For more information about the HTTP Range header, go to http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35.
-func (a *lowLevelAPI) getObject(bucket, object string, offset, length uint64) (io.ReadCloser, int64, string, error) {
+func (a *lowLevelAPI) getObject(bucket, object string, offset, length uint64) (io.ReadCloser, *ObjectMetadata, error) {
 	req, err := a.getObjectRequest(bucket, object, offset, length)
 	if err != nil {
-		return nil, 0, "", err
+		return nil, nil, err
 	}
 	resp, err := req.Do()
 	if err != nil {
-		return nil, 0, "", err
+		return nil, nil, err
 	}
 	if resp != nil {
 		switch resp.StatusCode {
 		case http.StatusOK:
 		case http.StatusPartialContent:
 		default:
-			return nil, 0, "", responseToError(resp)
+			return nil, nil, responseToError(resp)
 		}
 	}
 	md5sum := strings.Trim(resp.Header.Get("ETag"), "\"") // trim off the odd double quotes
+	if md5sum == "" {
+		return nil, nil, errors.New("missing ETag")
+	}
+	date, err := time.Parse(time.RFC1123, resp.Header.Get("Last-Modified"))
+	if err != nil {
+		return nil, nil, err
+	}
+	objectmetadata := new(ObjectMetadata)
+	objectmetadata.ETag = md5sum
+	objectmetadata.Key = object
+	objectmetadata.Size = resp.ContentLength
+	objectmetadata.LastModified = date
+
 	// do not close body here, caller will close
-	return resp.Body, resp.ContentLength, md5sum, nil
+	return resp.Body, objectmetadata, nil
 }
 
 // headObjectRequest wrapper creates a new HeadObject request
@@ -326,21 +342,38 @@ func (a *lowLevelAPI) headObjectRequest(bucket, object string) (*request, error)
 }
 
 // headObject - retrieves metadata from an object without returning the object itself
-func (a *lowLevelAPI) headObject(bucket, object string) error {
+func (a *lowLevelAPI) headObject(bucket, object string) (*ObjectMetadata, error) {
 	req, err := a.headObjectRequest(bucket, object)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	resp, err := req.Do()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return responseToError(resp)
+			return nil, responseToError(resp)
 		}
 	}
-	return resp.Body.Close()
+	md5sum := strings.Trim(resp.Header.Get("ETag"), "\"") // trim off the odd double quotes
+	if md5sum == "" {
+		return nil, errors.New("missing ETag")
+	}
+	size, err := strconv.ParseInt(resp.Header.Get("Content-Length"), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	date, err := time.Parse(time.RFC1123, resp.Header.Get("Last-Modified"))
+	if err != nil {
+		return nil, err
+	}
+	objectmetadata := new(ObjectMetadata)
+	objectmetadata.ETag = md5sum
+	objectmetadata.Key = object
+	objectmetadata.Size = size
+	objectmetadata.LastModified = date
+	return objectmetadata, nil
 }
 
 // deleteObjectRequest wrapper creates a new DeleteObject request
