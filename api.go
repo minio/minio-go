@@ -20,6 +20,7 @@ import (
 	"errors"
 	"io"
 	"runtime"
+	"sort"
 )
 
 // API - object storage API interface
@@ -33,7 +34,7 @@ type API interface {
 
 type ObjectAPI interface {
 	GetObject(bucket, object string, offset, length uint64) (io.ReadCloser, *ObjectMetadata, error)
-	CreateObject(bucket, object string, size uint64, multipart bool) (io.WriteCloser, error)
+	CreateObject(bucket, object string, size uint64, data io.Reader) (string, error)
 	StatObject(bucket, object string) (*ObjectMetadata, error)
 }
 
@@ -90,11 +91,57 @@ func (a *api) GetObject(bucket, object string, offset, length uint64) (io.ReadCl
 	return body, objectMetadata, nil
 }
 
+// completedParts is a wrapper to make parts sortable by their part number
+// multi part completion requires list of multi parts to be sorted
+type completedParts []*CompletePart
+
+func (a completedParts) Len() int           { return len(a) }
+func (a completedParts) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a completedParts) Less(i, j int) bool { return a[i].PartNumber < a[j].PartNumber }
+
+var DefaultPartSize uint64 = 1024 * 1024 * 5
+
 // CreateObject create an object in a bucket
 //
 // You must have WRITE permissions on a bucket to create an object
-func (a *api) CreateObject(bucket, object string, size uint64, multipart bool) (io.WriteCloser, error) {
-	return nil, errors.New("API Not Implemented")
+//
+// This version of CreateObject automatically does multipart for more than 5MB worth of data
+func (a *api) CreateObject(bucket, object string, size uint64, data io.Reader) (string, error) {
+	switch {
+	case size < DefaultPartSize:
+		// Single Part use case, use PutObject directly
+		for part := range Parts(data, DefaultPartSize) {
+			if part.Err != nil {
+				return "", part.Err
+			}
+			return "", a.putObject(bucket, object, part.Len, part.Data)
+		}
+	default:
+		initiateMultipartUploadResult, err := a.initiateMultipartUpload(bucket, object)
+		if err != nil {
+			return "", err
+		}
+		uploadID := initiateMultipartUploadResult.UploadID
+
+		completeMultipartUpload := new(CompleteMultipartUpload)
+		for part := range Parts(data, DefaultPartSize) {
+			if part.Err != nil {
+				return "", part.Err
+			}
+			completePart, err := a.uploadPart(bucket, object, uploadID, part.Num, part.Len, part.Data)
+			if err != nil {
+				return "", a.abortMultipartUpload(bucket, object, uploadID)
+			}
+			completeMultipartUpload.Part = append(completeMultipartUpload.Part, completePart)
+		}
+		sort.Sort(completedParts(completeMultipartUpload.Part))
+		completeMultipartUploadResult, err := a.completeMultipartUpload(bucket, object, uploadID, completeMultipartUpload)
+		if err != nil {
+			return "", a.abortMultipartUpload(bucket, object, uploadID)
+		}
+		return completeMultipartUploadResult.ETag, nil
+	}
+	return "", errors.New("Unexpected control flow")
 }
 
 // StatObject verify if object exists and you have permission to access it
