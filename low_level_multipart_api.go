@@ -22,8 +22,8 @@ func (a *lowLevelAPI) initiateMultipartRequest(bucket, object string) (*request,
 	return newRequest(op, a.config, nil)
 }
 
-// InitiateMultipartUpload initiates a multipart upload and returns an upload ID
-func (a *lowLevelAPI) initiateMultipartUpload(bucket, object string) (*InitiateMultipartUploadResult, error) {
+// initiateMultipartUpload initiates a multipart upload and returns an upload ID
+func (a *lowLevelAPI) initiateMultipartUpload(bucket, object string) (*initiateMultipartUploadResult, error) {
 	req, err := a.initiateMultipartRequest(bucket, object)
 	if err != nil {
 		return nil, err
@@ -37,7 +37,7 @@ func (a *lowLevelAPI) initiateMultipartUpload(bucket, object string) (*InitiateM
 			return nil, responseToError(resp)
 		}
 	}
-	initiateMultipartUploadResult := new(InitiateMultipartUploadResult)
+	initiateMultipartUploadResult := new(initiateMultipartUploadResult)
 	decoder := xml.NewDecoder(resp.Body)
 	err = decoder.Decode(initiateMultipartUploadResult)
 	if err != nil {
@@ -46,8 +46,8 @@ func (a *lowLevelAPI) initiateMultipartUpload(bucket, object string) (*InitiateM
 	return initiateMultipartUploadResult, resp.Body.Close()
 }
 
-// complteMultipartUploadRequest wrapper creates a new CompleteMultipartUpload request
-func (a *lowLevelAPI) completeMultipartUploadRequest(bucket, object, uploadID string, complete *CompleteMultipartUpload) (*request, error) {
+// completeMultipartUploadRequest wrapper creates a new CompleteMultipartUpload request
+func (a *lowLevelAPI) completeMultipartUploadRequest(bucket, object, uploadID string, complete *completeMultipartUpload) (*request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "POST",
@@ -67,7 +67,7 @@ func (a *lowLevelAPI) completeMultipartUploadRequest(bucket, object, uploadID st
 }
 
 // completeMultipartUpload completes a multipart upload by assembling previously uploaded parts.
-func (a *lowLevelAPI) completeMultipartUpload(bucket, object, uploadID string, c *CompleteMultipartUpload) (*CompleteMultipartUploadResult, error) {
+func (a *lowLevelAPI) completeMultipartUpload(bucket, object, uploadID string, c *completeMultipartUpload) (*completeMultipartUploadResult, error) {
 	req, err := a.completeMultipartUploadRequest(bucket, object, uploadID, c)
 	if err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func (a *lowLevelAPI) completeMultipartUpload(bucket, object, uploadID string, c
 			return nil, responseToError(resp)
 		}
 	}
-	completeMultipartUploadResult := new(CompleteMultipartUploadResult)
+	completeMultipartUploadResult := new(completeMultipartUploadResult)
 	decoder := xml.NewDecoder(resp.Body)
 	err = decoder.Decode(completeMultipartUploadResult)
 	if err != nil {
@@ -130,7 +130,7 @@ func (a *lowLevelAPI) listObjectPartsRequest(bucket, object, uploadID string) (*
 }
 
 // listObjectParts lists the parts that have been uploaded for a specific multipart upload.
-func (a *lowLevelAPI) listObjectParts(bucket, object, uploadID string) (*ListObjectPartsResult, error) {
+func (a *lowLevelAPI) listObjectParts(bucket, object, uploadID string) (*listObjectPartsResult, error) {
 	req, err := a.listObjectPartsRequest(bucket, object, uploadID)
 	if err != nil {
 		return nil, err
@@ -144,7 +144,7 @@ func (a *lowLevelAPI) listObjectParts(bucket, object, uploadID string) (*ListObj
 			return nil, responseToError(resp)
 		}
 	}
-	listObjectPartsResult := new(ListObjectPartsResult)
+	listObjectPartsResult := new(listObjectPartsResult)
 	decoder := xml.NewDecoder(resp.Body)
 	err = decoder.Decode(listObjectPartsResult)
 	if err != nil {
@@ -174,7 +174,7 @@ func (a *lowLevelAPI) uploadPartRequest(bucket, object, uploadID string, partNum
 }
 
 // uploadPart uploads a part in a multipart upload.
-func (a *lowLevelAPI) uploadPart(bucket, object, uploadID string, partNumber int, size int64, body io.ReadSeeker) (*CompletePart, error) {
+func (a *lowLevelAPI) uploadPart(bucket, object, uploadID string, partNumber int, size int64, body io.ReadSeeker) (*completePart, error) {
 	req, err := a.uploadPartRequest(bucket, object, uploadID, partNumber, size, body)
 	if err != nil {
 		return nil, err
@@ -184,7 +184,7 @@ func (a *lowLevelAPI) uploadPart(bucket, object, uploadID string, partNumber int
 	if err != nil {
 		return nil, err
 	}
-	completePart := new(CompletePart)
+	completePart := new(completePart)
 	completePart.PartNumber = partNumber
 	completePart.ETag = "\"" + hex.EncodeToString(md5SumBytes) + "\""
 

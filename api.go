@@ -21,23 +21,16 @@ import (
 	"io"
 	"runtime"
 	"sort"
+	"time"
 )
 
 // API - object storage API interface
 type API interface {
-	// Object Read/Write/Stat operations
-	ObjectAPI
-
 	// Bucket Read/Write/Stat operations
 	BucketAPI
-}
 
-// ObjectAPI - object specific Read/Write/Stat interface
-type ObjectAPI interface {
-	GetObject(bucket, object string, offset, length uint64) (io.ReadCloser, *ObjectMetadata, error)
-	CreateObject(bucket, object string, size uint64, data io.Reader) (string, error)
-	StatObject(bucket, object string) (*ObjectMetadata, error)
-	DeleteObject(bucket, object string) error
+	// Object Read/Write/Stat operations
+	ObjectAPI
 }
 
 // BucketAPI - bucket specific Read/Write/Stat interface
@@ -51,16 +44,48 @@ type BucketAPI interface {
 	ListBuckets() <-chan BucketOnChannel
 }
 
-// ObjectOnChannel - object metadata over read channel
-type ObjectOnChannel struct {
-	Data *ObjectMetadata
-	Err  error
+// ObjectAPI - object specific Read/Write/Stat interface
+type ObjectAPI interface {
+	GetObject(bucket, object string, offset, length uint64) (io.ReadCloser, *ObjectMetadata, error)
+	CreateObject(bucket, object string, size uint64, data io.Reader) (string, error)
+	StatObject(bucket, object string) (*ObjectMetadata, error)
+	DeleteObject(bucket, object string) error
 }
 
 // BucketOnChannel - bucket metadata over read channel
 type BucketOnChannel struct {
 	Data *BucketMetadata
 	Err  error
+}
+
+// ObjectOnChannel - object metadata over read channel
+type ObjectOnChannel struct {
+	Data *ObjectMetadata
+	Err  error
+}
+
+// BucketMetadata container for bucket metadata
+type BucketMetadata struct {
+	// The name of the bucket.
+	Name string
+	// Date the bucket was created.
+	CreationDate time.Time
+}
+
+// ObjectMetadata container for object metadata
+type ObjectMetadata struct {
+	ETag         string
+	Key          string
+	LastModified time.Time
+	Size         int64
+
+	Owner struct {
+		DisplayName string
+		ID          string
+	}
+
+	// The class of storage used to store the object.
+	StorageClass string
 }
 
 type api struct {
@@ -109,7 +134,7 @@ func (a *api) GetObject(bucket, object string, offset, length uint64) (io.ReadCl
 
 // completedParts is a wrapper to make parts sortable by their part number
 // multi part completion requires list of multi parts to be sorted
-type completedParts []*CompletePart
+type completedParts []*completePart
 
 func (a completedParts) Len() int           { return len(a) }
 func (a completedParts) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
@@ -140,7 +165,7 @@ func (a *api) CreateObject(bucket, object string, size uint64, data io.Reader) (
 			return "", err
 		}
 		uploadID := initiateMultipartUploadResult.UploadID
-		completeMultipartUpload := new(CompleteMultipartUpload)
+		completeMultipartUpload := new(completeMultipartUpload)
 		for part := range Parts(data, DefaultPartSize) {
 			if part.Err != nil {
 				return "", part.Err

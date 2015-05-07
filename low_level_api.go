@@ -141,7 +141,7 @@ func (a *lowLevelAPI) listObjectsRequest(bucket string, maxkeys int, marker, pre
 // ?delimiter - A delimiter is a character you use to group keys.
 // ?prefix - Limits the response to keys that begin with the specified prefix.
 // ?max-keys - Sets the maximum number of keys returned in the response body.
-func (a *lowLevelAPI) listObjects(bucket string, maxkeys int, marker, prefix, delimiter string) (*ListBucketResult, error) {
+func (a *lowLevelAPI) listObjects(bucket string, maxkeys int, marker, prefix, delimiter string) (*listBucketResult, error) {
 	req, err := a.listObjectsRequest(bucket, maxkeys, marker, prefix, delimiter)
 	if err != nil {
 		return nil, err
@@ -155,7 +155,7 @@ func (a *lowLevelAPI) listObjects(bucket string, maxkeys int, marker, prefix, de
 			return nil, responseToError(resp)
 		}
 	}
-	listBucketResult := new(ListBucketResult)
+	listBucketResult := new(listBucketResult)
 	decoder := xml.NewDecoder(resp.Body)
 	err = decoder.Decode(listBucketResult)
 	if err != nil {
@@ -403,7 +403,7 @@ func (a *lowLevelAPI) listBucketsRequest() (*request, error) {
 }
 
 // listBuckets list of all buckets owned by the authenticated sender of the request
-func (a *lowLevelAPI) listBuckets() (*ListAllMyBucketsResult, error) {
+func (a *lowLevelAPI) listBuckets() (*listAllMyBucketsResult, error) {
 	req, err := a.listBucketsRequest()
 	if err != nil {
 		return nil, err
@@ -417,7 +417,7 @@ func (a *lowLevelAPI) listBuckets() (*ListAllMyBucketsResult, error) {
 			return nil, responseToError(resp)
 		}
 	}
-	listAllMyBucketsResult := new(ListAllMyBucketsResult)
+	listAllMyBucketsResult := new(listAllMyBucketsResult)
 	decoder := xml.NewDecoder(resp.Body)
 	err = decoder.Decode(listAllMyBucketsResult)
 	if err != nil {

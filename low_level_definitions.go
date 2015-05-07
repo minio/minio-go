@@ -18,50 +18,29 @@ package objectstorage
 
 import "time"
 
-// ListAllMyBucketsResult container for ListBucets response
-type ListAllMyBucketsResult struct {
+// listAllMyBucketsResult container for ListBucets response
+type listAllMyBucketsResult struct {
 	// Container for one or more buckets.
 	Buckets struct {
 		Bucket []*BucketMetadata
 	}
-	Owner Owner
+	Owner owner
 }
 
-// BucketMetadata container for bucket metadata
-type BucketMetadata struct {
-	// The name of the bucket.
-	Name string
-	// Date the bucket was created.
-	CreationDate time.Time `type:"timestamp" timestampFormat:"iso8601"`
-}
-
-// Owner container for bucket owner information
-type Owner struct {
+// owner container for bucket owner information
+type owner struct {
 	DisplayName string
 	ID          string
 }
 
-// CommonPrefix container for prefix response in ListObjects
-type CommonPrefix struct {
+// commonPrefix container for prefix response in ListObjects
+type commonPrefix struct {
 	Prefix string
 }
 
-// ObjectMetadata container for object metadata
-type ObjectMetadata struct {
-	ETag         string
-	Key          string
-	LastModified time.Time `type:"timestamp" timestampFormat:"iso8601"`
-	Size         int64
-
-	Owner Owner
-
-	// The class of storage used to store the object.
-	StorageClass string
-}
-
-// ListBucketResult container for ListObjects response
-type ListBucketResult struct {
-	CommonPrefixes []*CommonPrefix   // A response can contain CommonPrefixes only if you specify a delimiter
+// listBucketResult container for ListObjects response
+type listBucketResult struct {
+	CommonPrefixes []*commonPrefix   // A response can contain CommonPrefixes only if you specify a delimiter
 	Contents       []*ObjectMetadata // Metadata about each object returned
 	Delimiter      string
 
@@ -86,28 +65,28 @@ type ListBucketResult struct {
 	Prefix     string
 }
 
-// Initiator container for who initiated multipart upload
-type Initiator struct {
+// initiator container for who initiated multipart upload
+type initiator struct {
 	ID          string
 	DisplayName string
 }
 
-// Part container for particular part of an object
-type Part struct {
+// part container for particular part of an object
+type part struct {
 	PartNumber   int
 	LastModified time.Time `type:"timestamp" timestampFormat:"iso8601"`
 	ETag         string
 	Size         int64
 }
 
-// ListObjectPartsResult container for ListObjectParts response
-type ListObjectPartsResult struct {
+// listObjectPartsResult container for ListObjectParts response
+type listObjectPartsResult struct {
 	Bucket   string
 	Key      string
 	UploadID string `xml:"UploadId"`
 
-	Initiator Initiator
-	Owner     Owner
+	Initiator initiator
+	Owner     owner
 
 	StorageClass         string
 	PartNumberMarker     int
@@ -116,33 +95,33 @@ type ListObjectPartsResult struct {
 
 	// Indicates whether the returned list of parts is truncated.
 	IsTruncated bool
-	Part        []*Part
+	Part        []*part
 
 	EncodingType string
 }
 
-// InitiateMultipartUploadResult container for InitiateMultiPartUpload response
-type InitiateMultipartUploadResult struct {
+// initiateMultipartUploadResult container for InitiateMultiPartUpload response
+type initiateMultipartUploadResult struct {
 	Bucket   string
 	Key      string
 	UploadID string `xml:"UploadId"`
 }
 
-// CompleteMultipartUploadResult containe for completed multipart upload response
-type CompleteMultipartUploadResult struct {
+// completeMultipartUploadResult containe for completed multipart upload response
+type completeMultipartUploadResult struct {
 	Location string
 	Bucket   string
 	Key      string
 	ETag     string
 }
 
-// CompletePart sub container lists individual part numbers and their md5sum, part of CompleteMultipartUpload
-type CompletePart struct {
+// completePart sub container lists individual part numbers and their md5sum, part of CompleteMultipartUpload
+type completePart struct {
 	PartNumber int
 	ETag       string
 }
 
-// CompleteMultipartUpload container for completing multipart upload
-type CompleteMultipartUpload struct {
-	Part []*CompletePart
+// completeMultipartUpload container for completing multipart upload
+type completeMultipartUpload struct {
+	Part []*completePart
 }
