@@ -2,6 +2,8 @@ package objectstorage
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -172,19 +174,29 @@ func (a *lowLevelAPI) uploadPartRequest(bucket, object, uploadID string, partNum
 }
 
 // uploadPart uploads a part in a multipart upload.
-func (a *lowLevelAPI) uploadPart(bucket, object, uploadID string, partNumber int, size int64, body io.ReadSeeker) error {
+func (a *lowLevelAPI) uploadPart(bucket, object, uploadID string, partNumber int, size int64, body io.ReadSeeker) (*CompletePart, error) {
 	req, err := a.uploadPartRequest(bucket, object, uploadID, partNumber, size, body)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	// get hex encoding for md5sum in base64
+	md5SumBytes, err := base64.StdEncoding.DecodeString(req.Get("Content-MD5"))
+	if err != nil {
+		return nil, err
+	}
+	completePart := new(CompletePart)
+	completePart.PartNumber = partNumber
+	completePart.ETag = "\"" + hex.EncodeToString(md5SumBytes) + "\""
+
+	// initiate the request
 	resp, err := req.Do()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return responseToError(resp)
+			return nil, responseToError(resp)
 		}
 	}
-	return resp.Body.Close()
+	return completePart, resp.Body.Close()
 }

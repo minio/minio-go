@@ -115,7 +115,7 @@ type ListObjectPartsResult struct {
 	MaxParts             int
 
 	IsTruncated bool
-	Part        *[]Part
+	Part        []*Part
 
 	EncodingType string
 }
@@ -135,7 +135,12 @@ type CompleteMultipartUploadResult struct {
 	ETag     string
 }
 
+type CompletePart struct {
+	PartNumber int
+	ETag       string
+}
+
 // CompleteMultipartUpload container for completing multipart upload
 type CompleteMultipartUpload struct {
-	Part *[]Part
+	Part []*CompletePart
 }
