@@ -29,17 +29,8 @@ import (
 	"time"
 )
 
-// config - main configuration struct used by all to set endpoint, credentials, and other options for requests.
-type config struct {
-	AccessKeyID     string
-	SecretAccessKey string
-	Endpoint        string
-	ContentType     string
-	UserAgent       string
-}
-
 type lowLevelAPI struct {
-	config *config
+	config *Config
 }
 
 // putBucketRequest wrapper creates a new PutBucket request

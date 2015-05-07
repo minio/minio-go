@@ -25,7 +25,12 @@ import (
 )
 
 func main() {
-	m := objectstorage.New("", "", "https://s3.amazonaws.com", "")
+	config := new(objectstorage.Config)
+	config.AccessKeyID = ""
+	config.SecretAccessKey = ""
+	config.Endpoint = "https://s3.amazonaws.com"
+	config.ContentType = ""
+	m := objectstorage.New(config)
 	for message := range m.ListObjects("public-bucket", "", true) {
 		if message.Err != nil {
 			log.Fatal(message.Err)

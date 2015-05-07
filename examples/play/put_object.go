@@ -27,37 +27,25 @@ import (
 
 func main() {
 	config := new(objectstorage.Config)
-	config.Endpoint = "http://play.minio.io:9000"
 	config.AccessKeyID = ""
 	config.SecretAccessKey = ""
-	config.UserAgent = "Minio"
+	config.Endpoint = "http://play.minio.io:9000"
+	config.ContentType = ""
 	m := objectstorage.New(config)
-
-	err := m.PutBucket("testbucket")
-	if err != nil {
-		log.Println(err)
-	}
-
-	err = m.PutBucketACL("testbucket", "public-read")
-	if err != nil {
-		log.Println(err)
-	}
-
-	err = m.HeadBucket("testbucket")
-	if err != nil {
-		log.Println(err)
-	}
-
 	object, err := os.Open("testfile")
 	if err != nil {
-		log.Println(err)
+		log.Fatalln(err)
 	}
 	objectInfo, err := object.Stat()
 	if err != nil {
-		log.Println(err)
+		object.Close()
+		log.Fatalln(err)
 	}
-	err = m.PutObject("testbucket", "testfile", objectInfo.Size(), object)
+	uploadID, err := m.CreateObject("testbucket", "testfile", uint64(objectInfo.Size()), object)
 	if err != nil {
-		log.Println(err)
+		object.Close()
+		log.Fatalln(err)
 	}
+	object.Close()
+	log.Println(uploadID)
 }

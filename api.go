@@ -32,12 +32,14 @@ type API interface {
 	BucketAPI
 }
 
+// ObjectAPI - object specific Read/Write/Stat interface
 type ObjectAPI interface {
 	GetObject(bucket, object string, offset, length uint64) (io.ReadCloser, *ObjectMetadata, error)
 	CreateObject(bucket, object string, size uint64, data io.Reader) (string, error)
 	StatObject(bucket, object string) (*ObjectMetadata, error)
 }
 
+// BucketAPI - bucket specific Read/Write/Stat interface
 type BucketAPI interface {
 	CreateBucket(bucket, acl string) error
 	SetBucketACL(bucket, acl string) error
@@ -46,11 +48,13 @@ type BucketAPI interface {
 	ListBuckets() <-chan BucketOnChannel
 }
 
+// ObjectOnChannel - object metadata over read channel
 type ObjectOnChannel struct {
 	Data *ObjectMetadata
 	Err  error
 }
 
+// BucketOnChannel - bucket metadata over read channel
 type BucketOnChannel struct {
 	Data *BucketMetadata
 	Err  error
@@ -60,17 +64,26 @@ type api struct {
 	*lowLevelAPI
 }
 
-const LibraryName = "objectstorage-go/"
-const LibraryVersion = "0.1"
+// Config - main configuration struct used by all to set endpoint, credentials, and other options for requests.
+type Config struct {
+	AccessKeyID     string
+	SecretAccessKey string
+	Endpoint        string
+	ContentType     string
+	// not exported internal usage only
+	userAgent string
+}
+
+// Global constants
+const (
+	LibraryName    = "objectstorage-go/"
+	LibraryVersion = "0.1"
+)
 
 // New - instantiate a new minio api client
-func New(accesskeyid, secretaccesskey, endpoint, contenttype string) API {
-	config := new(config)
-	config.AccessKeyID = accesskeyid
-	config.SecretAccessKey = secretaccesskey
-	config.Endpoint = endpoint
-	config.ContentType = contenttype
-	config.UserAgent = LibraryName + " (" + LibraryVersion + "; " + runtime.GOOS + "; " + runtime.GOARCH + ")"
+func New(config *Config) API {
+	// Not configurable at the moment, but we will relook on this in future
+	config.userAgent = LibraryName + " (" + LibraryVersion + "; " + runtime.GOOS + "; " + runtime.GOARCH + ")"
 	return &api{&lowLevelAPI{config}}
 }
 
@@ -99,6 +112,7 @@ func (a completedParts) Len() int           { return len(a) }
 func (a completedParts) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a completedParts) Less(i, j int) bool { return a[i].PartNumber < a[j].PartNumber }
 
+// DefaultPartSize - default size per object after which PutObject becomes multipart
 var DefaultPartSize uint64 = 1024 * 1024 * 5
 
 // CreateObject create an object in a bucket
@@ -106,6 +120,7 @@ var DefaultPartSize uint64 = 1024 * 1024 * 5
 // You must have WRITE permissions on a bucket to create an object
 //
 // This version of CreateObject automatically does multipart for more than 5MB worth of data
+// This default part size is not configurable currently but can be configurable in future
 func (a *api) CreateObject(bucket, object string, size uint64, data io.Reader) (string, error) {
 	switch {
 	case size < DefaultPartSize:
@@ -122,7 +137,6 @@ func (a *api) CreateObject(bucket, object string, size uint64, data io.Reader) (
 			return "", err
 		}
 		uploadID := initiateMultipartUploadResult.UploadID
-
 		completeMultipartUpload := new(CompleteMultipartUpload)
 		for part := range Parts(data, DefaultPartSize) {
 			if part.Err != nil {

@@ -16,7 +16,7 @@ import (
 func (a *lowLevelAPI) initiateMultipartRequest(bucket, object string) (*request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
-		HTTPMethod: "GET",
+		HTTPMethod: "POST",
 		HTTPPath:   "/" + bucket + "/" + object + "?uploads",
 	}
 	return newRequest(op, a.config, nil)

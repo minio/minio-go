@@ -28,10 +28,10 @@ func main() {
 	config := new(objectstorage.Config)
 	config.AccessKeyID = ""
 	config.SecretAccessKey = ""
-	config.Endpoint = "https://s3.amazonaws.com"
+	config.Endpoint = "http://play.minio.io:9000"
 	config.ContentType = ""
 	m := objectstorage.New(config)
-	for message := range m.ListBuckets() {
+	for message := range m.ListObjects("public-bucket", "", true) {
 		if message.Err != nil {
 			log.Fatal(message.Err)
 		}
