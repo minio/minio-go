@@ -33,22 +33,6 @@ func main() {
 	config.Endpoint = "https://s3.amazonaws.com"
 	config.ContentType = ""
 	m := objectstorage.New(config)
-
-	err := m.CreateBucket("testbucket", "private")
-	if err != nil {
-		log.Println(err)
-	}
-
-	err = m.SetBucketACL("testbucket", "public-read")
-	if err != nil {
-		log.Println(err)
-	}
-
-	err = m.StatBucket("testbucket")
-	if err != nil {
-		log.Println(err)
-	}
-
 	reader, size, _, err := m.GetObject("testbucket", "testfile", 0, 0)
 	if err != nil {
 		log.Println(err)
