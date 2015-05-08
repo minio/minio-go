@@ -84,6 +84,7 @@ func multiPartInRoutine(reader io.Reader, chunkSize uint64, ch chan Part) {
 				}
 				return
 			}
+			break
 		}
 		num++
 		ch <- Part{
