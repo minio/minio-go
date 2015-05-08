@@ -76,7 +76,7 @@ func multiPartInRoutine(reader io.Reader, chunkSize uint64, ch chan Part) {
 		part := make([]byte, chunkSize)
 		n, err = io.ReadFull(reader, part)
 		if err != nil {
-			if err != io.EOF && err != io.ErrUnexpectedEOF {
+			if err != io.EOF && err != io.ErrUnexpectedEOF { // catastrophic error
 				ch <- Part{
 					Data: nil,
 					Err:  err,
@@ -84,7 +84,6 @@ func multiPartInRoutine(reader io.Reader, chunkSize uint64, ch chan Part) {
 				}
 				return
 			}
-			break
 		}
 		num++
 		ch <- Part{
