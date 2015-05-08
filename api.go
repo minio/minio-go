@@ -18,6 +18,7 @@ package objectstorage
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"runtime"
 	"sort"
@@ -186,6 +187,7 @@ func (a *api) CreateObject(bucket, object string, size uint64, data io.Reader) (
 				return "", part.Err
 			}
 			completePart, err := a.uploadPart(bucket, object, uploadID, part.Num, part.Len, part.Data)
+			fmt.Println(err)
 			if err != nil {
 				return "", a.abortMultipartUpload(bucket, object, uploadID)
 			}

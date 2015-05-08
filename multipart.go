@@ -43,11 +43,11 @@ func MultiPart(reader io.Reader, chunkSize uint64) <-chan Part {
 
 func multiPartInRoutine(reader io.Reader, chunkSize uint64, ch chan Part) {
 	defer close(ch)
-	packet := make([]byte, chunkSize)
-	n, err := io.ReadFull(reader, packet)
+	part := make([]byte, chunkSize)
+	n, err := io.ReadFull(reader, part)
 	if err == io.EOF || err == io.ErrUnexpectedEOF { // short read, only single part return
 		ch <- Part{
-			Data: bytes.NewReader(packet[0:n]),
+			Data: bytes.NewReader(part[0:n]),
 			Err:  nil,
 			Len:  int64(n),
 			Num:  1,
@@ -66,15 +66,15 @@ func multiPartInRoutine(reader io.Reader, chunkSize uint64, ch chan Part) {
 	// send the first part
 	var num = 1
 	ch <- Part{
-		Data: bytes.NewReader(packet),
+		Data: bytes.NewReader(part),
 		Err:  nil,
 		Len:  int64(n),
 		Num:  num,
 	}
 	for err == nil {
 		var n int
-		packet := make([]byte, chunkSize)
-		n, err = io.ReadFull(reader, packet)
+		part := make([]byte, chunkSize)
+		n, err = io.ReadFull(reader, part)
 		if err != nil {
 			if err != io.EOF && err != io.ErrUnexpectedEOF {
 				ch <- Part{
@@ -88,7 +88,7 @@ func multiPartInRoutine(reader io.Reader, chunkSize uint64, ch chan Part) {
 		}
 		num++
 		ch <- Part{
-			Data: bytes.NewReader(packet[0:n]),
+			Data: bytes.NewReader(part[0:n]),
 			Err:  nil,
 			Len:  int64(n),
 			Num:  num,
