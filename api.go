@@ -35,7 +35,7 @@ type API interface {
 
 // BucketAPI - bucket specific Read/Write/Stat interface
 type BucketAPI interface {
-	CreateBucket(bucket, acl string) error
+	CreateBucket(bucket, acl, location string) error
 	SetBucketACL(bucket, acl string) error
 	StatBucket(bucket string) error
 	DeleteBucket(bucket string) error
@@ -86,6 +86,21 @@ type ObjectMetadata struct {
 
 	// The class of storage used to store the object.
 	StorageClass string
+}
+
+// Regions s3 region map used by bucket location constraint
+var Regions = map[string]string{
+	"us-gov-west-1":  "https://s3-fips-us-gov-west-1.amazonaws.com",
+	"us-east-1":      "https://s3.amazonaws.com",
+	"us-west-1":      "https://s3-us-west-1.amazonaws.com",
+	"us-west-2":      "https://s3-us-west-2.amazonaws.com",
+	"eu-west-1":      "https://s3-eu-west-1.amazonaws.com",
+	"eu-central-1":   "https://s3-eu-central-1.amazonaws.com",
+	"ap-southeast-1": "https://s3-ap-southeast-1.amazonaws.com",
+	"ap-southeast-2": "https://s3-ap-southeast-2.amazonaws.com",
+	"ap-northeast-1": "https://s3-ap-northeast-1.amazonaws.com",
+	"sa-east-1":      "https://s3-sa-east-1.amazonaws.com",
+	"cn-north-1":     "https://s3.cn-north-1.amazonaws.com.cn",
 }
 
 type api struct {
@@ -199,8 +214,24 @@ func (a *api) DeleteObject(bucket, object string) error {
 /// Bucket operations
 
 // CreateBucket create a new bucket
-func (a *api) CreateBucket(bucket, acl string) error {
-	return a.putBucket(bucket, acl)
+//
+// optional arguments are acl and location - by default all buckets are created
+// with ``private`` acl and location set to US Standard if one wishes to set
+// different ACLs and Location one can set them properly.
+//
+// ACL valid values
+// ------------------
+// private - owner gets full access [DEFAULT]
+// public-read - owner gets full access, others get read access
+// public-read-write - owner gets full access, others get full access too
+// ------------------
+//
+// Location valid values
+// ------------------
+// [ us-west-1 | us-west-2 | eu-west-1 | eu-central-1 | ap-southeast-1 | ap-northeast-1 | ap-southeast-2 | sa-east-1 ]
+// Default - US standard
+func (a *api) CreateBucket(bucket, acl, location string) error {
+	return a.putBucket(bucket, acl, location)
 }
 
 // SetBucketACL set the permissions on an existing bucket using access control lists (ACL)
