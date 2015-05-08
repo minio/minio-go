@@ -103,7 +103,7 @@ func (r *request) SignV4() {
 func (r *request) SignV2() {
 	// Add date if not present
 	if date := r.Get("Date"); date == "" {
-		r.Set("Date", time.Now().UTC().Format(http.TimeFormat))
+		r.Set("X-Amz-Date", time.Now().UTC().Format(http.TimeFormat))
 	}
 
 	// calculate HMAC for the secretaccesskey
@@ -148,7 +148,9 @@ func (r *request) mustWriteDefaultHeaders(buf *bytes.Buffer) {
 	buf.WriteByte('\n')
 	buf.WriteString(r.req.Header.Get("Content-Type"))
 	buf.WriteByte('\n')
-	buf.WriteString(r.req.Header.Get("Date"))
+	if r.req.Header.Get("X-Amz-Date") == "" {
+		buf.WriteString(r.req.Header.Get("Date"))
+	}
 	buf.WriteByte('\n')
 }
 
