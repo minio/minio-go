@@ -108,7 +108,7 @@ func (a *lowLevelAPI) putBucket(bucket, acl, location string) error {
 	return resp.Body.Close()
 }
 
-// putBucketRequestACL wrapper creates a new PutBucketACL request
+// putBucketRequestACL wrapper creates a new putBucketACL request
 func (a *lowLevelAPI) putBucketRequestACL(bucket, acl string) (*request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
@@ -139,6 +139,44 @@ func (a *lowLevelAPI) putBucketACL(bucket, acl string) error {
 		}
 	}
 	return resp.Body.Close()
+}
+
+// getBucketLocationRequest wrapper creates a new getBucketLocation request
+func (a *lowLevelAPI) getBucketLocationRequest(bucket string) (*request, error) {
+	op := &operation{
+		HTTPServer: a.config.Endpoint,
+		HTTPMethod: "GET",
+		HTTPPath:   "/" + bucket + "?location",
+	}
+	req, err := newRequest(op, a.config, nil)
+	if err != nil {
+		return nil, err
+	}
+	return req, nil
+}
+
+// getBucketLocation uses location subresource to return a bucket's region
+func (a *lowLevelAPI) getBucketLocation(bucket string) (string, error) {
+	req, err := a.getBucketLocationRequest(bucket)
+	if err != nil {
+		return "", err
+	}
+	resp, err := req.Do()
+	if err != nil {
+		return "", err
+	}
+	if resp != nil {
+		if resp.StatusCode != http.StatusOK {
+			return "", responseToError(resp)
+		}
+	}
+	var locationConstraint string
+	decoder := xml.NewDecoder(resp.Body)
+	err = decoder.Decode(&locationConstraint)
+	if err != nil {
+		return "", err
+	}
+	return locationConstraint, resp.Body.Close()
 }
 
 // listObjectsRequest wrapper creates a new ListObjects request
