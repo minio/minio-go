@@ -17,6 +17,7 @@
 package objectstorage
 
 import (
+	"bytes"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -34,18 +35,38 @@ type lowLevelAPI struct {
 }
 
 // putBucketRequest wrapper creates a new PutBucket request
-func (a *lowLevelAPI) putBucketRequest(bucket, acl string) (*request, error) {
+func (a *lowLevelAPI) putBucketRequest(bucket, acl, location string) (*request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "PUT",
 		HTTPPath:   "/" + bucket,
 	}
-	req, err := newRequest(op, a.config, nil)
+	r, err := newRequest(op, a.config, nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Set("x-amz-acl", acl)
-	return req, nil
+	// by default bucket is private
+	switch {
+	case acl != "":
+		r.Set("x-amz-acl", acl)
+	default:
+		r.Set("x-amz-acl", "private")
+	}
+
+	// If location is set use it and create proper bucket configuration
+	switch {
+	case location != "":
+		createBucketConfig := new(createBucketConfiguration)
+		createBucketConfig.Location = location
+		createBucketConfigBytes, err := xml.Marshal(createBucketConfig)
+		if err != nil {
+			return nil, err
+		}
+		createBucketConfigBuffer := bytes.NewBuffer(createBucketConfigBytes)
+		r.req.Body = ioutil.NopCloser(createBucketConfigBuffer)
+		r.req.ContentLength = int64(createBucketConfigBuffer.Len())
+	}
+	return r, nil
 }
 
 /// Bucket Write Operations
@@ -54,8 +75,24 @@ func (a *lowLevelAPI) putBucketRequest(bucket, acl string) (*request, error) {
 //
 // Requires valid AWS Access Key ID to authenticate requests
 // Anonymous requests are never allowed to create buckets
-func (a *lowLevelAPI) putBucket(bucket, acl string) error {
-	req, err := a.putBucketRequest(bucket, acl)
+//
+// optional arguments are acl and location - by default all buckets are created
+// with ``private`` acl and location set to US Standard if one wishes to set
+// different ACLs and Location one can set them properly.
+//
+// ACL valid values
+// ------------------
+// private - owner gets full access [DEFAULT]
+// public-read - owner gets full access, others get read access
+// public-read-write - owner gets full access, others get full access too
+// ------------------
+//
+// Location valid values
+// ------------------
+// [ us-west-1 | us-west-2 | eu-west-1 | eu-central-1 | ap-southeast-1 | ap-northeast-1 | ap-southeast-2 | sa-east-1 ]
+// Default - US standard
+func (a *lowLevelAPI) putBucket(bucket, acl, location string) error {
+	req, err := a.putBucketRequest(bucket, acl, location)
 	if err != nil {
 		return err
 	}
@@ -71,7 +108,7 @@ func (a *lowLevelAPI) putBucket(bucket, acl string) error {
 	return resp.Body.Close()
 }
 
-// putBucketRequestACL wrapper creates a new PutBucketACL request
+// putBucketRequestACL wrapper creates a new putBucketACL request
 func (a *lowLevelAPI) putBucketRequestACL(bucket, acl string) (*request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
@@ -102,6 +139,44 @@ func (a *lowLevelAPI) putBucketACL(bucket, acl string) error {
 		}
 	}
 	return resp.Body.Close()
+}
+
+// getBucketLocationRequest wrapper creates a new getBucketLocation request
+func (a *lowLevelAPI) getBucketLocationRequest(bucket string) (*request, error) {
+	op := &operation{
+		HTTPServer: a.config.Endpoint,
+		HTTPMethod: "GET",
+		HTTPPath:   "/" + bucket + "?location",
+	}
+	req, err := newRequest(op, a.config, nil)
+	if err != nil {
+		return nil, err
+	}
+	return req, nil
+}
+
+// getBucketLocation uses location subresource to return a bucket's region
+func (a *lowLevelAPI) getBucketLocation(bucket string) (string, error) {
+	req, err := a.getBucketLocationRequest(bucket)
+	if err != nil {
+		return "", err
+	}
+	resp, err := req.Do()
+	if err != nil {
+		return "", err
+	}
+	if resp != nil {
+		if resp.StatusCode != http.StatusOK {
+			return "", responseToError(resp)
+		}
+	}
+	var locationConstraint string
+	decoder := xml.NewDecoder(resp.Body)
+	err = decoder.Decode(&locationConstraint)
+	if err != nil {
+		return "", err
+	}
+	return locationConstraint, resp.Body.Close()
 }
 
 // listObjectsRequest wrapper creates a new ListObjects request

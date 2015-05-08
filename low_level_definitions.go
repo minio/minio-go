@@ -125,3 +125,8 @@ type completePart struct {
 type completeMultipartUpload struct {
 	Part []*completePart
 }
+
+// createBucketConfiguration container for bucket configuration
+type createBucketConfiguration struct {
+	Location string `xml:"LocationConstraint"`
+}
