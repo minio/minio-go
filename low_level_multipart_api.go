@@ -7,7 +7,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 )
@@ -57,8 +56,8 @@ func (a *lowLevelAPI) completeMultipartUploadRequest(bucket, object, uploadID st
 	if err != nil {
 		return nil, err
 	}
-	completeMultipartUploadBuffer := bytes.NewBuffer(completeMultipartUploadBytes)
-	r, err := newRequest(op, a.config, ioutil.NopCloser(completeMultipartUploadBuffer))
+	completeMultipartUploadBuffer := bytes.NewReader(completeMultipartUploadBytes)
+	r, err := newRequest(op, a.config, completeMultipartUploadBuffer)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +163,7 @@ func (a *lowLevelAPI) uploadPartRequest(bucket, object, uploadID string, partNum
 	if err != nil {
 		return nil, err
 	}
-	r, err := newRequest(op, a.config, ioutil.NopCloser(body))
+	r, err := newRequest(op, a.config, body)
 	if err != nil {
 		return nil, err
 	}

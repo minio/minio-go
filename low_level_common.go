@@ -17,23 +17,45 @@
 package objectstorage
 
 import (
+	"crypto/hmac"
 	"crypto/md5"
+	"crypto/sha256"
 	"encoding/base64"
 	"io"
-	"strings"
 )
 
-// find if prefix is case insensitive
-func isPrefixCaseInsensitive(s, pfx string) bool {
-	if len(pfx) > len(s) {
-		return false
+func Sum256Reader(reader io.ReadSeeker) ([]byte, error) {
+	h := sha256.New()
+	var err error
+
+	start, _ := reader.Seek(0, 1)
+	defer reader.Seek(start, 0)
+
+	for err == nil {
+		length := 0
+		byteBuffer := make([]byte, 1024*1024)
+		length, err = reader.Read(byteBuffer)
+		byteBuffer = byteBuffer[0:length]
+		h.Write(byteBuffer)
 	}
-	shead := s[:len(pfx)]
-	if shead == pfx {
-		return true
+
+	if err != io.EOF {
+		return nil, err
 	}
-	shead = strings.ToLower(shead)
-	return shead == pfx || shead == strings.ToLower(pfx)
+
+	return h.Sum(nil), nil
+}
+
+func Sum256(data []byte) []byte {
+	hash := sha256.New()
+	hash.Write(data)
+	return hash.Sum(nil)
+}
+
+func SumHMAC(key []byte, data []byte) []byte {
+	hash := hmac.New(sha256.New, key)
+	hash.Write(data)
+	return hash.Sum(nil)
 }
 
 // calculate md5

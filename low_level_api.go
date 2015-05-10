@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -41,18 +40,7 @@ func (a *lowLevelAPI) putBucketRequest(bucket, acl, location string) (*request, 
 		HTTPMethod: "PUT",
 		HTTPPath:   "/" + bucket,
 	}
-	r, err := newRequest(op, a.config, nil)
-	if err != nil {
-		return nil, err
-	}
-	// by default bucket is private
-	switch {
-	case acl != "":
-		r.Set("x-amz-acl", acl)
-	default:
-		r.Set("x-amz-acl", "private")
-	}
-
+	var createBucketConfigBuffer *bytes.Reader
 	// If location is set use it and create proper bucket configuration
 	switch {
 	case location != "":
@@ -62,10 +50,22 @@ func (a *lowLevelAPI) putBucketRequest(bucket, acl, location string) (*request, 
 		if err != nil {
 			return nil, err
 		}
-		createBucketConfigBuffer := bytes.NewBuffer(createBucketConfigBytes)
-		r.req.Body = ioutil.NopCloser(createBucketConfigBuffer)
-		r.req.ContentLength = int64(createBucketConfigBuffer.Len())
+		createBucketConfigBuffer = bytes.NewReader(createBucketConfigBytes)
 	}
+	r, err := newRequest(op, a.config, createBucketConfigBuffer)
+	if err != nil {
+		return nil, err
+	}
+	r.req.ContentLength = int64(createBucketConfigBuffer.Len())
+
+	// by default bucket is private
+	switch {
+	case acl != "":
+		r.Set("x-amz-acl", acl)
+	default:
+		r.Set("x-amz-acl", "private")
+	}
+
 	return r, nil
 }
 
@@ -308,7 +308,7 @@ func (a *lowLevelAPI) putObjectRequest(bucket, object string, size int64, body i
 	if err != nil {
 		return nil, err
 	}
-	r, err := newRequest(op, a.config, ioutil.NopCloser(body))
+	r, err := newRequest(op, a.config, body)
 	if err != nil {
 		return nil, err
 	}
