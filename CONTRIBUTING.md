@@ -1,5 +1,5 @@
 ### Setup your objectstorage-go Github Repository
-Fork [objectstorage-go upstream](https://github.com/minio-io/objectstorage-go/fork) source repository to your own personal repository.
+Fork [objectstorage-go upstream](https://github.com/minio/objectstorage-go/fork) source repository to your own personal repository.
 ```sh
 $ git clone https://github.com/$USER_ID/objectstorage-go
 $ cd objectstorage-go
