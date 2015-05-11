@@ -103,7 +103,9 @@ func newRequest(op *operation, config *Config, body io.ReadSeeker) (*request, er
 
 // Do - start the request
 func (r *request) Do() (resp *http.Response, err error) {
-	r.SignV4()
+	if r.config.AccessKeyID != "" && r.config.SecretAccessKey != "" {
+		r.SignV4()
+	}
 	client := &http.Client{}
 	return client.Do(r.req)
 }
