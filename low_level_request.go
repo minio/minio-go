@@ -129,9 +129,9 @@ func (r *request) SignV4() {
 	hash := func() string {
 		switch {
 		case r.body == nil:
-			return hex.EncodeToString(Sum256([]byte{}))
+			return hex.EncodeToString(sum256([]byte{}))
 		default:
-			sum256Bytes, _ := Sum256Reader(r.body)
+			sum256Bytes, _ := sum256Reader(r.body)
 			return hex.EncodeToString(sum256Bytes)
 		}
 	}
@@ -208,21 +208,21 @@ func (r *request) SignV4() {
 	stringToSign := func() string {
 		stringToSign := authHeaderPrefix + "\n" + t.Format(iso8601Format) + "\n"
 		stringToSign = stringToSign + scope + "\n"
-		stringToSign = stringToSign + hex.EncodeToString(Sum256([]byte(canonicalRequest())))
+		stringToSign = stringToSign + hex.EncodeToString(sum256([]byte(canonicalRequest())))
 		return stringToSign
 	}
 
 	signingKey := func() []byte {
 		secret := r.config.SecretAccessKey
-		date := SumHMAC([]byte("AWS4"+secret), []byte(t.Format(yyyymmdd)))
-		region := SumHMAC(date, []byte("us-east-1"))
-		service := SumHMAC(region, []byte("s3"))
-		signingKey := SumHMAC(service, []byte("aws4_request"))
+		date := sumHMAC([]byte("AWS4"+secret), []byte(t.Format(yyyymmdd)))
+		region := sumHMAC(date, []byte("us-east-1"))
+		service := sumHMAC(region, []byte("s3"))
+		signingKey := sumHMAC(service, []byte("aws4_request"))
 		return signingKey
 	}
 
 	signature := func() string {
-		return hex.EncodeToString(SumHMAC(signingKey(), []byte(stringToSign())))
+		return hex.EncodeToString(sumHMAC(signingKey(), []byte(stringToSign())))
 	}
 
 	parts := []string{authHeaderPrefix + " Credential=" + r.config.AccessKeyID + "/" + scope,
