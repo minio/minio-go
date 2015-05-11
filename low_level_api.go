@@ -52,12 +52,21 @@ func (a *lowLevelAPI) putBucketRequest(bucket, acl, location string) (*request, 
 		}
 		createBucketConfigBuffer = bytes.NewReader(createBucketConfigBytes)
 	}
-	r, err := newRequest(op, a.config, createBucketConfigBuffer)
-	if err != nil {
-		return nil, err
+	var r *request
+	var err error
+	switch {
+	case createBucketConfigBuffer == nil:
+		r, err = newRequest(op, a.config, nil)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		r, err = newRequest(op, a.config, createBucketConfigBuffer)
+		if err != nil {
+			return nil, err
+		}
+		r.req.ContentLength = int64(createBucketConfigBuffer.Len())
 	}
-	r.req.ContentLength = int64(createBucketConfigBuffer.Len())
-
 	// by default bucket is private
 	switch {
 	case acl != "":

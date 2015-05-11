@@ -40,6 +40,7 @@ type request struct {
 	req    *http.Request
 	config *Config
 	body   io.ReadSeeker
+	region string
 }
 
 const (
@@ -62,11 +63,13 @@ func newRequest(op *operation, config *Config, body io.ReadSeeker) (*request, er
 	if method == "" {
 		method = "POST"
 	}
+
 	// parse URL for the combination of HTTPServer + HTTPPath
 	u, err := url.Parse(op.HTTPServer + op.HTTPPath)
 	if err != nil {
 		return nil, err
 	}
+
 	// get a new HTTP request, for the requested method
 	req, err := http.NewRequest(method, u.String(), nil)
 	if err != nil {
