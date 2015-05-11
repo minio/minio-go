@@ -23,7 +23,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/minio-io/objectstorage-go"
+	"github.com/minio/objectstorage-go"
 )
 
 func main() {

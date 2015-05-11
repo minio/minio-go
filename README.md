@@ -3,12 +3,12 @@
 ## Install
 
 ```go
-# go get github.com/minio-io/objectstorage-go
+# go get github.com/minio/objectstorage-go
 ```
 
 ## Documentation
 
-[Objectstorage library in Go](http://godoc.org/github.com/minio-io/objectstorage-go)
+[Objectstorage library in Go](http://godoc.org/github.com/minio/objectstorage-go)
 
 ## Join Community
 * Community hangout on Gitter    [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/Minio-io/minio?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
