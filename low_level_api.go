@@ -18,6 +18,7 @@ package objectstorage
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -313,7 +314,7 @@ func (a *lowLevelAPI) putObjectRequest(bucket, object string, size int64, body i
 		HTTPMethod: "PUT",
 		HTTPPath:   "/" + bucket + "/" + object,
 	}
-	md5Sum, err := contentMD5(body, size)
+	md5SumBytes, err := sumMD5Reader(body, size)
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +322,8 @@ func (a *lowLevelAPI) putObjectRequest(bucket, object string, size int64, body i
 	if err != nil {
 		return nil, err
 	}
-	r.Set("Content-MD5", md5Sum)
+	// set Content-MD5 as base64 encoded md5
+	r.Set("Content-MD5", base64.StdEncoding.EncodeToString(md5SumBytes))
 	r.req.ContentLength = size
 	return r, nil
 }

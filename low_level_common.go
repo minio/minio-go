@@ -20,11 +20,11 @@ import (
 	"crypto/hmac"
 	"crypto/md5"
 	"crypto/sha256"
-	"encoding/base64"
 	"io"
 )
 
-func Sum256Reader(reader io.ReadSeeker) ([]byte, error) {
+// sum256Reader calculate sha256 sum for an input reader
+func sum256Reader(reader io.ReadSeeker) ([]byte, error) {
 	h := sha256.New()
 	var err error
 
@@ -46,30 +46,32 @@ func Sum256Reader(reader io.ReadSeeker) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-func Sum256(data []byte) []byte {
+// sum256 calculate sha256 sum for an input byte array
+func sum256(data []byte) []byte {
 	hash := sha256.New()
 	hash.Write(data)
 	return hash.Sum(nil)
 }
 
-func SumHMAC(key []byte, data []byte) []byte {
+// sumHMAC calculate hmac between two input byte array
+func sumHMAC(key []byte, data []byte) []byte {
 	hash := hmac.New(sha256.New, key)
 	hash.Write(data)
 	return hash.Sum(nil)
 }
 
-// calculate md5
-func contentMD5(body io.ReadSeeker, size int64) (string, error) {
+// sumMD5Reader calculate md5 for an input reader of a given size
+func sumMD5Reader(body io.ReadSeeker, size int64) ([]byte, error) {
 	hasher := md5.New()
 	_, err := io.CopyN(hasher, body, size)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	// seek back
 	_, err = body.Seek(0, 0)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	// encode the md5 checksum in base64 and set the request header.
-	return base64.StdEncoding.EncodeToString(hasher.Sum(nil)), nil
+	// encode the md5 checksum in base64
+	return hasher.Sum(nil), nil
 }
