@@ -134,7 +134,8 @@ func (c *Config) MustGetEndpoint() string {
 	}
 	// if valid region provided override user provided endpoint
 	if endpoint := getEndpoint(strings.TrimSpace(c.Region)); endpoint != "" {
-		return endpoint
+		c.Endpoint = endpoint
+		return c.Endpoint
 	}
 	// fall back if region is set and not found, go through US-standard
 	c.Region = "us-east-1"
