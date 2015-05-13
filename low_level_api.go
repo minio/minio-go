@@ -37,7 +37,7 @@ type lowLevelAPI struct {
 // putBucketRequest wrapper creates a new PutBucket request
 func (a *lowLevelAPI) putBucketRequest(bucket, acl, location string) (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.Endpoint,
+		HTTPServer: a.config.MustGetEndpoint(),
 		HTTPMethod: "PUT",
 		HTTPPath:   "/" + bucket,
 	}
@@ -121,7 +121,7 @@ func (a *lowLevelAPI) putBucket(bucket, acl, location string) error {
 // putBucketRequestACL wrapper creates a new putBucketACL request
 func (a *lowLevelAPI) putBucketRequestACL(bucket, acl string) (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.Endpoint,
+		HTTPServer: a.config.MustGetEndpoint(),
 		HTTPMethod: "PUT",
 		HTTPPath:   "/" + bucket + "?acl",
 	}
@@ -154,7 +154,7 @@ func (a *lowLevelAPI) putBucketACL(bucket, acl string) error {
 // getBucketLocationRequest wrapper creates a new getBucketLocation request
 func (a *lowLevelAPI) getBucketLocationRequest(bucket string) (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.Endpoint,
+		HTTPServer: a.config.MustGetEndpoint(),
 		HTTPMethod: "GET",
 		HTTPPath:   "/" + bucket + "?location",
 	}
@@ -204,7 +204,7 @@ func (a *lowLevelAPI) listObjectsRequest(bucket string, maxkeys int, marker, pre
 		return fmt.Sprintf("?max-keys=%d", maxkeys) + marker + prefix + delimiter
 	}
 	op := &operation{
-		HTTPServer: a.config.Endpoint,
+		HTTPServer: a.config.MustGetEndpoint(),
 		HTTPMethod: "GET",
 		HTTPPath:   "/" + bucket + resourceQuery(),
 	}
@@ -253,7 +253,7 @@ func (a *lowLevelAPI) listObjects(bucket string, maxkeys int, marker, prefix, de
 
 func (a *lowLevelAPI) headBucketRequest(bucket string) (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.Endpoint,
+		HTTPServer: a.config.MustGetEndpoint(),
 		HTTPMethod: "HEAD",
 		HTTPPath:   "/" + bucket,
 	}
@@ -282,7 +282,7 @@ func (a *lowLevelAPI) headBucket(bucket string) error {
 // deleteBucketRequest wrapper creates a new DeleteBucket request
 func (a *lowLevelAPI) deleteBucketRequest(bucket string) (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.Endpoint,
+		HTTPServer: a.config.MustGetEndpoint(),
 		HTTPMethod: "DELETE",
 		HTTPPath:   "/" + bucket,
 	}
@@ -310,7 +310,7 @@ func (a *lowLevelAPI) deleteBucket(bucket string) error {
 // putObjectRequest wrapper creates a new PutObject request
 func (a *lowLevelAPI) putObjectRequest(bucket, object string, size int64, body io.ReadSeeker) (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.Endpoint,
+		HTTPServer: a.config.MustGetEndpoint(),
 		HTTPMethod: "PUT",
 		HTTPPath:   "/" + bucket + "/" + object,
 	}
@@ -351,7 +351,7 @@ func (a *lowLevelAPI) putObject(bucket, object string, size int64, body io.ReadS
 // getObjectRequest wrapper creates a new GetObject request
 func (a *lowLevelAPI) getObjectRequest(bucket, object string, offset, length uint64) (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.Endpoint,
+		HTTPServer: a.config.MustGetEndpoint(),
 		HTTPMethod: "GET",
 		HTTPPath:   "/" + bucket + "/" + object,
 	}
@@ -411,7 +411,7 @@ func (a *lowLevelAPI) getObject(bucket, object string, offset, length uint64) (i
 // headObjectRequest wrapper creates a new HeadObject request
 func (a *lowLevelAPI) headObjectRequest(bucket, object string) (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.Endpoint,
+		HTTPServer: a.config.MustGetEndpoint(),
 		HTTPMethod: "HEAD",
 		HTTPPath:   "/" + bucket + "/" + object,
 	}
@@ -456,7 +456,7 @@ func (a *lowLevelAPI) headObject(bucket, object string) (*ObjectMetadata, error)
 // deleteObjectRequest wrapper creates a new DeleteObject request
 func (a *lowLevelAPI) deleteObjectRequest(bucket, object string) (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.Endpoint,
+		HTTPServer: a.config.MustGetEndpoint(),
 		HTTPMethod: "DELETE",
 		HTTPPath:   "/" + bucket + "/" + object,
 	}
@@ -481,7 +481,7 @@ func (a *lowLevelAPI) deleteObject(bucket, object string) error {
 // listBucketRequest wrapper creates a new ListBuckets request
 func (a *lowLevelAPI) listBucketsRequest() (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.Endpoint,
+		HTTPServer: a.config.MustGetEndpoint(),
 		HTTPMethod: "GET",
 		HTTPPath:   "/",
 	}

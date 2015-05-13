@@ -40,7 +40,6 @@ type request struct {
 	req    *http.Request
 	config *Config
 	body   io.ReadSeeker
-	region string
 }
 
 const (
@@ -79,9 +78,9 @@ func newRequest(op *operation, config *Config, body io.ReadSeeker) (*request, er
 	// set UserAgent
 	req.Header.Set("User-Agent", config.userAgent)
 
-	// set ContentType, if available
+	// set Accept header for ContentType, if available
 	if config.ContentType != "" {
-		req.Header.Set("Content-Type", config.ContentType)
+		req.Header.Set("Accept", config.ContentType)
 	}
 
 	// add body
@@ -202,7 +201,7 @@ func (r *request) SignV4() {
 
 	scope := strings.Join([]string{
 		t.Format(yyyymmdd),
-		"us-east-1",
+		r.config.Region,
 		"s3",
 		"aws4_request",
 	}, "/")
@@ -217,7 +216,7 @@ func (r *request) SignV4() {
 	signingKey := func() []byte {
 		secret := r.config.SecretAccessKey
 		date := sumHMAC([]byte("AWS4"+secret), []byte(t.Format(yyyymmdd)))
-		region := sumHMAC(date, []byte("us-east-1"))
+		region := sumHMAC(date, []byte(r.config.Region))
 		service := sumHMAC(region, []byte("s3"))
 		signingKey := sumHMAC(service, []byte("aws4_request"))
 		return signingKey

@@ -14,7 +14,7 @@ import (
 // initiateMultipartRequest wrapper creates a new InitiateMultiPart request
 func (a *lowLevelAPI) initiateMultipartRequest(bucket, object string) (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.Endpoint,
+		HTTPServer: a.config.MustGetEndpoint(),
 		HTTPMethod: "POST",
 		HTTPPath:   "/" + bucket + "/" + object + "?uploads",
 	}
@@ -48,7 +48,7 @@ func (a *lowLevelAPI) initiateMultipartUpload(bucket, object string) (*initiateM
 // completeMultipartUploadRequest wrapper creates a new CompleteMultipartUpload request
 func (a *lowLevelAPI) completeMultipartUploadRequest(bucket, object, uploadID string, complete *completeMultipartUpload) (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.Endpoint,
+		HTTPServer: a.config.MustGetEndpoint(),
 		HTTPMethod: "POST",
 		HTTPPath:   "/" + bucket + "/" + object + "?uploadId=" + uploadID,
 	}
@@ -92,7 +92,7 @@ func (a *lowLevelAPI) completeMultipartUpload(bucket, object, uploadID string, c
 // abortMultipartUploadRequest wrapper creates a new AbortMultipartUpload request
 func (a *lowLevelAPI) abortMultipartUploadRequest(bucket, object, uploadID string) (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.Endpoint,
+		HTTPServer: a.config.MustGetEndpoint(),
 		HTTPMethod: "DELETE",
 		HTTPPath:   "/" + bucket + "/" + object + "?uploadId=" + uploadID,
 	}
@@ -121,7 +121,7 @@ func (a *lowLevelAPI) abortMultipartUpload(bucket, object, uploadID string) erro
 // listObjectPartsRequest wrapper creates a new ListObjectParts request
 func (a *lowLevelAPI) listObjectPartsRequest(bucket, object, uploadID string) (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.Endpoint,
+		HTTPServer: a.config.MustGetEndpoint(),
 		HTTPMethod: "GET",
 		HTTPPath:   "/" + bucket + "/" + object + "?uploadId=" + uploadID,
 	}
@@ -155,7 +155,7 @@ func (a *lowLevelAPI) listObjectParts(bucket, object, uploadID string) (*listObj
 // uploadPartRequest wrapper creates a new UploadPart request
 func (a *lowLevelAPI) uploadPartRequest(bucket, object, uploadID string, partNumber int, size int64, body io.ReadSeeker) (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.Endpoint,
+		HTTPServer: a.config.MustGetEndpoint(),
 		HTTPMethod: "PUT",
 		HTTPPath:   "/" + bucket + "/" + object + "?partNumber=" + strconv.Itoa(partNumber) + "&uploadId=" + uploadID,
 	}
