@@ -29,7 +29,7 @@ func main() {
 	config.AccessKeyID = ""
 	config.SecretAccessKey = ""
 	config.Endpoint = "https://s3.amazonaws.com"
-	config.ContentType = ""
+	config.AcceptType = ""
 	m := objectstorage.New(config)
 	for message := range m.ListBuckets() {
 		if message.Err != nil {

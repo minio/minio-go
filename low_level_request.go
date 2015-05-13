@@ -78,9 +78,9 @@ func newRequest(op *operation, config *Config, body io.ReadSeeker) (*request, er
 	// set UserAgent
 	req.Header.Set("User-Agent", config.UserAgent)
 
-	// set Accept header for ContentType, if available
-	if config.ContentType != "" {
-		req.Header.Set("Accept", config.ContentType)
+	// set Accept header for response encoding style, if available
+	if config.AcceptType != "" {
+		req.Header.Set("Accept", config.AcceptType)
 	}
 
 	// add body
@@ -106,6 +106,9 @@ func (r *request) Do() (resp *http.Response, err error) {
 		r.SignV4()
 	}
 	client := &http.Client{}
+	if r.config.Transport != nil {
+		client.Transport = r.config.Transport
+	}
 	return client.Do(r.req)
 }
 

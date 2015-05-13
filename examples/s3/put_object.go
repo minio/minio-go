@@ -30,7 +30,7 @@ func main() {
 	config.AccessKeyID = ""
 	config.SecretAccessKey = ""
 	config.Endpoint = "https://s3.amazonaws.com"
-	config.ContentType = ""
+	config.AcceptType = ""
 	m := objectstorage.New(config)
 	object, err := os.Open("testfile")
 	if err != nil {
