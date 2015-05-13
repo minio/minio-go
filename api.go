@@ -19,6 +19,7 @@ package objectstorage
 import (
 	"errors"
 	"io"
+	"net/http"
 	"runtime"
 	"sort"
 	"strings"
@@ -115,12 +116,16 @@ type api struct {
 
 // Config - main configuration struct used by all to set endpoint, credentials, and other options for requests.
 type Config struct {
+	// Standard options
 	AccessKeyID     string
 	SecretAccessKey string
-	Endpoint        string
 	Region          string
-	ContentType     string
-	UserAgent       string
+	Endpoint        string
+
+	// Advanced options
+	AcceptType string          // specify this to get server response in non XML style if server supports it
+	UserAgent  string          // user override useful when objectstorage-go is used with in your application
+	Transport  *http.Transport // custom transport usually for debugging, by default its nil
 }
 
 // MustGetEndpoint makes sure that a valid endpoint is provided all the time, even with false regions it will fall
@@ -149,8 +154,10 @@ const (
 
 // New - instantiate a new minio api client
 func New(config *Config) API {
-	// Not configurable at the moment, but we will relook on this in future
-	config.UserAgent = LibraryName + " (" + LibraryVersion + "; " + runtime.GOOS + "; " + runtime.GOARCH + ")"
+	// if not UserAgent provided set it to default
+	if strings.TrimSpace(config.UserAgent) == "" {
+		config.UserAgent = LibraryName + " (" + LibraryVersion + "; " + runtime.GOOS + "; " + runtime.GOARCH + ")"
+	}
 	return &api{&lowLevelAPI{config}}
 }
 

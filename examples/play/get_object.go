@@ -31,7 +31,7 @@ func main() {
 	config.AccessKeyID = ""
 	config.SecretAccessKey = ""
 	config.Endpoint = "http://play.minio.io:9000"
-	config.ContentType = ""
+	config.AcceptType = ""
 	m := objectstorage.New(config)
 	reader, size, _, err := m.GetObject("testbucket", "testfile", 0, 0)
 	if err != nil {

@@ -29,7 +29,7 @@ func main() {
 	config.AccessKeyID = ""
 	config.SecretAccessKey = ""
 	config.Endpoint = "http://play.minio.io:9000"
-	config.ContentType = ""
+	config.AcceptType = ""
 	m := objectstorage.New(config)
 	for message := range m.ListObjects("public-bucket", "", true) {
 		if message.Err != nil {
