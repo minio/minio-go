@@ -21,6 +21,7 @@ import (
 	"io"
 	"runtime"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -103,6 +104,11 @@ var Regions = map[string]string{
 	"cn-north-1":     "https://s3.cn-north-1.amazonaws.com.cn",
 }
 
+// getEndpoint fetches an endpoint based on region through the S3 Regions map
+func getEndpoint(region string) string {
+	return Regions[region]
+}
+
 type api struct {
 	*lowLevelAPI
 }
@@ -112,9 +118,27 @@ type Config struct {
 	AccessKeyID     string
 	SecretAccessKey string
 	Endpoint        string
+	Region          string
 	ContentType     string
 	// not exported internal usage only
 	userAgent string
+}
+
+// MustGetEndpoint makes sure that a valid endpoint is provided all the time, even with false regions it will fall
+// back to default, for no regions specified it chooses to default to "milkyway" and use endpoint as is
+func (c *Config) MustGetEndpoint() string {
+	// for custom domains, there are no regions default to 'milkyway'
+	if strings.TrimSpace(c.Region) == "" && strings.TrimSpace(c.Endpoint) != "" {
+		c.Region = "milkyway"
+		return c.Endpoint
+	}
+	// if valid region provided override user provided endpoint
+	if endpoint := getEndpoint(strings.TrimSpace(c.Region)); endpoint != "" {
+		return endpoint
+	}
+	// fall back if region is set and not found, go through US-standard
+	c.Region = "us-east-1"
+	return getEndpoint(c.Region)
 }
 
 // Global constants
@@ -156,6 +180,7 @@ func (a completedParts) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a completedParts) Less(i, j int) bool { return a[i].PartNumber < a[j].PartNumber }
 
 // DefaultPartSize - default size per object after which PutObject becomes multipart
+// one can change this value during a library import
 var DefaultPartSize uint64 = 1024 * 1024 * 5
 
 // CreateObject create an object in a bucket
@@ -163,7 +188,6 @@ var DefaultPartSize uint64 = 1024 * 1024 * 5
 // You must have WRITE permissions on a bucket to create an object
 //
 // This version of CreateObject automatically does multipart for more than 5MB worth of data
-// This default part size is not configurable currently but can be configurable in future
 func (a *api) CreateObject(bucket, object string, size uint64, data io.Reader) (string, error) {
 	switch {
 	case size < DefaultPartSize:
