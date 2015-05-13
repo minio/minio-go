@@ -120,8 +120,7 @@ type Config struct {
 	Endpoint        string
 	Region          string
 	ContentType     string
-	// not exported internal usage only
-	userAgent string
+	UserAgent       string
 }
 
 // MustGetEndpoint makes sure that a valid endpoint is provided all the time, even with false regions it will fall
@@ -151,7 +150,7 @@ const (
 // New - instantiate a new minio api client
 func New(config *Config) API {
 	// Not configurable at the moment, but we will relook on this in future
-	config.userAgent = LibraryName + " (" + LibraryVersion + "; " + runtime.GOOS + "; " + runtime.GOARCH + ")"
+	config.UserAgent = LibraryName + " (" + LibraryVersion + "; " + runtime.GOOS + "; " + runtime.GOARCH + ")"
 	return &api{&lowLevelAPI{config}}
 }
 
