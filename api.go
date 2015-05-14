@@ -123,9 +123,9 @@ type Config struct {
 	Endpoint        string
 
 	// Advanced options
-	AcceptType string          // specify this to get server response in non XML style if server supports it
-	UserAgent  string          // user override useful when objectstorage-go is used with in your application
-	Transport  *http.Transport // custom transport usually for debugging, by default its nil
+	AcceptType string            // specify this to get server response in non XML style if server supports it
+	UserAgent  string            // user override useful when objectstorage-go is used with in your application
+	Transport  http.RoundTripper // custom transport usually for debugging, by default its nil
 }
 
 // MustGetEndpoint makes sure that a valid endpoint is provided all the time, even with false regions it will fall
