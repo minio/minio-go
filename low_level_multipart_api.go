@@ -186,18 +186,32 @@ func (a *lowLevelAPI) abortMultipartUpload(bucket, object, uploadID string) erro
 }
 
 // listObjectPartsRequest wrapper creates a new ListObjectParts request
-func (a *lowLevelAPI) listObjectPartsRequest(bucket, object, uploadID string) (*request, error) {
+func (a *lowLevelAPI) listObjectPartsRequest(bucket, object, uploadID string, partNumberMarker, maxParts int) (*request, error) {
+	// resourceQuery - get resources properly escaped and lined up before using them in http request
+	resourceQuery := func() string {
+		var partNumberMarkerStr string
+		switch {
+		case partNumberMarker != 0:
+			partNumberMarkerStr = fmt.Sprintf("&part-number-marker=%d", partNumberMarker)
+		}
+		return fmt.Sprintf("?uploadsId=%s&max-parts=%d", uploadID, maxParts) + partNumberMarkerStr
+	}
 	op := &operation{
 		HTTPServer: a.config.MustGetEndpoint(),
 		HTTPMethod: "GET",
-		HTTPPath:   "/" + bucket + "/" + object + "?uploadId=" + uploadID,
+		HTTPPath:   "/" + bucket + "/" + object + resourceQuery(),
 	}
 	return newRequest(op, a.config, nil)
 }
 
-// listObjectParts lists the parts that have been uploaded for a specific multipart upload.
-func (a *lowLevelAPI) listObjectParts(bucket, object, uploadID string) (*listObjectPartsResult, error) {
-	req, err := a.listObjectPartsRequest(bucket, object, uploadID)
+// listObjectParts (List Parts) - lists some or all (up to 1000) parts that have been uploaded for a specific multipart upload
+//
+// You can use the request parameters as selection criteria to return a subset of the uploads in a bucket.
+// request paramters :-
+// ---------
+// ?part-number-marker - Specifies the part after which listing should begin.
+func (a *lowLevelAPI) listObjectParts(bucket, object, uploadID string, partNumberMarker, maxParts int) (*listObjectPartsResult, error) {
+	req, err := a.listObjectPartsRequest(bucket, object, uploadID, partNumberMarker, maxParts)
 	if err != nil {
 		return nil, err
 	}
