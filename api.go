@@ -141,7 +141,7 @@ func (c *Config) MustGetEndpoint() string {
 		c.Region = "milkyway"
 		return c.Endpoint
 	// if valid region provided override user provided endpoint
-	case strings.TrimSpace(c.Endpoint) != "" && strings.TrimSpace(c.Region) != "":
+	case strings.TrimSpace(c.Region) != "":
 		if endpoint := getEndpoint(strings.TrimSpace(c.Region)); endpoint != "" {
 			c.Endpoint = endpoint
 			return c.Endpoint
