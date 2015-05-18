@@ -167,7 +167,7 @@ func (c *Config) MustGetEndpoint() string {
 
 // Global constants
 const (
-	LibraryName    = "objectstorage-go/"
+	LibraryName    = "objectstorage-go"
 	LibraryVersion = "0.1"
 )
 
@@ -179,7 +179,7 @@ func (c *Config) AddUserAgent(name string, version string, comments ...string) {
 
 // New - instantiate a new minio api client
 func New(config *Config) API {
-	config.userAgent = LibraryName + " (" + LibraryVersion + ", " + runtime.GOOS + ", " + runtime.GOARCH + ") "
+	config.userAgent = LibraryName + "/" + LibraryVersion + " (" + runtime.GOOS + ", " + runtime.GOARCH + ") "
 	return &api{&lowLevelAPI{config}}
 }
 
