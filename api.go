@@ -20,7 +20,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -165,21 +164,22 @@ func (c *Config) MustGetEndpoint() string {
 	return getEndpoint(c.Region)
 }
 
+// AddUserAgent - append to a default user agent
+func (c *Config) AddUserAgent(name string, version string, comments ...string) {
+	if name != "" && version != "" {
+		newUserAgent := name + "/" + version + " (" + strings.Join(comments, ", ") + ") "
+		c.userAgent = c.userAgent + " " + newUserAgent
+	}
+}
+
 // Global constants
 const (
 	LibraryName    = "objectstorage-go"
 	LibraryVersion = "0.1"
 )
 
-// AddUserAgent - append to a default user agent
-func (c *Config) AddUserAgent(name string, version string, comments ...string) {
-	newUserAgent := name + "/" + version + " (" + strings.Join(comments, ", ") + ") "
-	c.userAgent = c.userAgent + " " + newUserAgent
-}
-
 // New - instantiate a new minio api client
 func New(config *Config) API {
-	config.userAgent = LibraryName + "/" + LibraryVersion + " (" + runtime.GOOS + ", " + runtime.GOARCH + ") "
 	return &api{&lowLevelAPI{config}}
 }
 

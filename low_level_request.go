@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -76,6 +77,7 @@ func newRequest(op *operation, config *Config, body io.ReadSeeker) (*request, er
 	}
 
 	// set UserAgent
+	config.userAgent = config.userAgent + LibraryName + "/" + LibraryVersion + " (" + runtime.GOOS + ", " + runtime.GOARCH + ") "
 	req.Header.Set("User-Agent", config.userAgent)
 
 	// set Accept header for response encoding style, if available
