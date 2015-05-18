@@ -76,7 +76,7 @@ func newRequest(op *operation, config *Config, body io.ReadSeeker) (*request, er
 	}
 
 	// set UserAgent
-	req.Header.Set("User-Agent", config.UserAgent)
+	req.Header.Set("User-Agent", config.userAgent)
 
 	// set Accept header for response encoding style, if available
 	if config.AcceptType != "" {
