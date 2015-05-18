@@ -133,8 +133,10 @@ type Config struct {
 
 	// Advanced options
 	AcceptType string            // specify this to get server response in non XML style if server supports it
-	UserAgent  string            // user override useful when objectstorage-go is used with in your application
 	Transport  http.RoundTripper // custom transport usually for debugging, by default its nil
+	// internal
+	// use AddUserAgent append to default, useful when objectstorage-go is used with in your application
+	userAgent string
 }
 
 // MustGetEndpoint makes sure that a valid endpoint is provided all the time, even with false regions it will fall
@@ -169,12 +171,15 @@ const (
 	LibraryVersion = "0.1"
 )
 
+// AddUserAgent - append to a default user agent
+func (c *Config) AddUserAgent(name string, version string, comments ...string) {
+	newUserAgent := name + "/" + version + " (" + strings.Join(comments, ", ") + ") "
+	c.userAgent = c.userAgent + " " + newUserAgent
+}
+
 // New - instantiate a new minio api client
 func New(config *Config) API {
-	// if not UserAgent provided set it to default
-	if strings.TrimSpace(config.UserAgent) == "" {
-		config.UserAgent = LibraryName + " (" + LibraryVersion + "; " + runtime.GOOS + "; " + runtime.GOARCH + ")"
-	}
+	config.userAgent = LibraryName + " (" + LibraryVersion + ", " + runtime.GOOS + ", " + runtime.GOARCH + ") "
 	return &api{&lowLevelAPI{config}}
 }
 
