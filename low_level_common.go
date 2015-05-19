@@ -51,8 +51,10 @@ func urlEncodeName(objectName string) (string, error) {
 			}
 			u := make([]byte, len)
 			utf8.EncodeRune(u, s)
-			uHex := hex.EncodeToString(u)
-			encodedObjectName = encodedObjectName + "%" + uHex
+			for _, r := range u {
+				hex := hex.EncodeToString([]byte{r})
+				encodedObjectName = encodedObjectName + "%" + hex
+			}
 		}
 	}
 	return encodedObjectName, nil
