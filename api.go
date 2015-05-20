@@ -119,10 +119,6 @@ func getEndpoint(region string) string {
 	return Regions[region]
 }
 
-type api struct {
-	*lowLevelAPI
-}
-
 // Config - main configuration struct used by all to set endpoint, credentials, and other options for requests.
 type Config struct {
 	// Standard options
@@ -179,6 +175,10 @@ const (
 	LibraryVersion = "0.1"
 )
 
+type api struct {
+	*lowLevelAPI
+}
+
 // New - instantiate a new minio api client
 func New(config *Config) API {
 	return &api{&lowLevelAPI{config}}
@@ -226,7 +226,7 @@ func (a *api) newObjectUpload(bucket, object string, data io.Reader) error {
 	}
 	uploadID := initiateMultipartUploadResult.UploadID
 	completeMultipartUpload := new(completeMultipartUpload)
-	for part := range MultiPart(data, DefaultPartSize, nil) {
+	for part := range multiPart(data, DefaultPartSize, nil) {
 		if part.Err != nil {
 			return part.Err
 		}
@@ -302,7 +302,7 @@ func (a *api) continueObjectUpload(bucket, object, uploadID string, data io.Read
 		completeMultipartUpload.Part = append(completeMultipartUpload.Part, completedPart)
 		skipParts = append(skipParts, part.Data.PartNumber)
 	}
-	for part := range MultiPart(data, DefaultPartSize, skipParts) {
+	for part := range multiPart(data, DefaultPartSize, skipParts) {
 		if part.Err != nil {
 			return part.Err
 		}
@@ -384,7 +384,7 @@ func (a *api) PutObject(bucket, object string, size uint64, data io.Reader) erro
 	switch {
 	case size < DefaultPartSize:
 		// Single Part use case, use PutObject directly
-		for part := range MultiPart(data, DefaultPartSize, nil) {
+		for part := range multiPart(data, DefaultPartSize, nil) {
 			if part.Err != nil {
 				return part.Err
 			}
