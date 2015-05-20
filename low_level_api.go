@@ -326,7 +326,14 @@ func (a *lowLevelAPI) deleteBucket(bucket string) error {
 	if err != nil {
 		return err
 	}
-	return resp.Body.Close()
+	defer resp.Body.Close()
+	if resp != nil {
+		if resp.StatusCode != http.StatusOK {
+			// Head has no response body, handle it
+			return fmt.Errorf("%s", resp.Status)
+		}
+	}
+	return nil
 }
 
 /// Object Read/Write/Stat Operations
