@@ -24,6 +24,7 @@ import (
 	"errors"
 	"io"
 	"regexp"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -53,7 +54,7 @@ func urlEncodeName(objectName string) (string, error) {
 			utf8.EncodeRune(u, s)
 			for _, r := range u {
 				hex := hex.EncodeToString([]byte{r})
-				encodedObjectName = encodedObjectName + "%" + hex
+				encodedObjectName = encodedObjectName + "%" + strings.ToUpper(hex)
 			}
 		}
 	}
