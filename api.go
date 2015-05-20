@@ -225,23 +225,22 @@ var maxParts = uint64(10000)
 // maxPartSize - unexported right now
 var maxPartSize uint64 = 1024 * 1024 * 1024 * 5
 
-// GetPartSize - calculate the optimal part size for the given objectSize, binomially increases
+// GetPartSize - calculate the optimal part size for the given objectSize
+// NOTE: Assumption here is that for any given object upload to a S3 compatible object
+// storage it will have the following parameters as constants
+// ---------
+// maxParts
+// maximumPartSize
+// minimumPartSize
+// ---------
+//
+// if a the partSize after division with maxParts is greater than MinimumPartSize
+// then choose that to be the new part size, if not return MinimumPartSize
+//
+// special case where it happens to be that partSize is indeed bigger than the
+// maximum part size just return maxPartSize back
 func GetPartSize(objectSize uint64) uint64 {
-	partSize := (objectSize / maxParts)
-
-	// NOTE: Assumption here is that for any given object upload to a S3 compatible object
-	// storage it will have the following parameters as constants
-	// ---------
-	// maxParts
-	// maximumPartSize
-	// minimumPartSize
-	// ---------
-	//
-	// if a the partSize after division with maxParts is greater than MinimumPartSize
-	// then choose that to be the new part size, if not return MinimumPartSize
-	//
-	// special case where it happens to be that partSize is indeed bigger than the
-	// maximum part size just return maxPartSize back
+	partSize := (objectSize / (maxParts - 1)) // make sure last part has enough buffer and handle this poperly
 	{
 		if partSize > MinimumPartSize {
 			if partSize > maxPartSize {
