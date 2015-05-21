@@ -17,11 +17,21 @@
 package objectstorage
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
 )
+
+func ExampleGetPartSize() {
+	fmt.Println(GetPartSize(5000000000))
+	// Output: 5242880
+}
+func ExampleGetPartSize_second() {
+	fmt.Println(GetPartSize(50000000000000000))
+	// Output: 5368709120
+}
 
 // bucketHandler is an http.Handler that verifies bucket responses and validates incoming requests
 type bucketHandler struct {
