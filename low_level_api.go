@@ -551,6 +551,10 @@ func (a *lowLevelAPI) listBuckets() (*listAllMyBucketsResult, error) {
 	}
 	defer resp.Body.Close()
 	if resp != nil {
+		// for un-authenticated requests, amazon sends a redirect handle it
+		if resp.StatusCode == http.StatusTemporaryRedirect {
+			return nil, fmt.Errorf("%s", resp.Status)
+		}
 		if resp.StatusCode != http.StatusOK {
 			return nil, responseToError(resp)
 		}
