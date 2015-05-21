@@ -53,7 +53,7 @@ func (h bucketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case r.URL.Path == h.resource:
 			_, ok := r.URL.Query()["acl"]
 			if ok {
-				if r.Header.Get("x-amz-acl") != "public" {
+				if r.Header.Get("x-amz-acl") != "public-read-write" {
 					w.WriteHeader(http.StatusNotImplemented)
 				}
 			}
@@ -105,7 +105,7 @@ func TestBucketOperations(t *testing.T) {
 		t.Errorf("Error")
 	}
 
-	err = a.SetBucketACL("bucket", "public")
+	err = a.SetBucketACL("bucket", "public-read-write")
 	if err != nil {
 		t.Errorf("Error")
 	}
