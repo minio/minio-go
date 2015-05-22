@@ -72,8 +72,12 @@ func newRequest(op *operation, config *Config, body io.ReadSeeker) (*request, er
 		return nil, err
 	}
 
+	// if userAgent empty do not set it
+	if config.userAgent != "" {
+		config.userAgent = LibraryName + "/" + LibraryVersion + " (" + runtime.GOOS + ", " + runtime.GOARCH + ") "
+	}
+
 	// set UserAgent
-	config.userAgent = config.userAgent + LibraryName + "/" + LibraryVersion + " (" + runtime.GOOS + ", " + runtime.GOARCH + ") "
 	req.Header.Set("User-Agent", config.userAgent)
 
 	// set Accept header for response encoding style, if available
