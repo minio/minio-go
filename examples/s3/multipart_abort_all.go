@@ -21,16 +21,16 @@ package main
 import (
 	"log"
 
-	"github.com/minio/objectstorage-go"
+	s3 "github.com/minio/minio-go"
 )
 
 func main() {
-	config := new(objectstorage.Config)
+	config := new(s3.Config)
 	config.AccessKeyID = ""
 	config.SecretAccessKey = ""
 	config.Region = "us-east-1"
 	config.AcceptType = ""
-	m := objectstorage.New(config)
+	m := s3.New(config)
 	for err := range m.MultipartAbortAll("testbucket") {
 		if err != nil {
 			log.Fatal(err)

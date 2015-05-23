@@ -22,16 +22,16 @@ import (
 	"log"
 	"os"
 
-	"github.com/minio/objectstorage-go"
+	s3 "github.com/minio/minio-go"
 )
 
 func main() {
-	config := new(objectstorage.Config)
+	config := new(s3.Config)
 	config.AccessKeyID = ""
 	config.SecretAccessKey = ""
 	config.Endpoint = "https://s3.amazonaws.com"
 	config.AcceptType = ""
-	m := objectstorage.New(config)
+	m := s3.New(config)
 	object, err := os.Open("testfile")
 	if err != nil {
 		log.Fatalln(err)
