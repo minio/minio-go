@@ -22,16 +22,16 @@ import (
 	"log"
 	"os"
 
-	"github.com/minio/objectstorage-go"
+	play "github.com/minio/minio-go"
 )
 
 func main() {
-	config := new(objectstorage.Config)
+	config := new(play.Config)
 	config.AccessKeyID = ""
 	config.SecretAccessKey = ""
 	config.Endpoint = "http://play.minio.io:9000"
 	config.AcceptType = ""
-	m := objectstorage.New(config)
+	m := play.New(config)
 	object, err := os.Open("testfile")
 	if err != nil {
 		log.Fatalln(err)
