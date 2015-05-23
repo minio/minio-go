@@ -210,6 +210,8 @@ func (r *request) getSignedHeaders() string {
 func (r *request) getCanonicalRequest(hashedPayload string) string {
 	r.req.URL.RawQuery = strings.Replace(r.req.URL.Query().Encode(), "+", "%20", -1)
 	encodedPath, _ := urlEncodeName(r.req.URL.Path)
+	// convert any space strings back to "+"
+	encodedPath = strings.Replace(encodedPath, "+", "%20", -1)
 	canonicalRequest := strings.Join([]string{
 		r.req.Method,
 		encodedPath,
