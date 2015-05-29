@@ -540,21 +540,29 @@ func (a *api) GetBucketACL(bucket string) (BucketACL, error) {
 	if policy.AccessControlList.Grant == nil {
 		return "", fmt.Errorf("%s", "Unexpected error")
 	}
+	grants := policy.AccessControlList.Grant
 	switch {
-	case policy.AccessControlList.Grant.Grantee.URI == "http://acs.amazonaws.com/groups/global/AllUsers" &&
-		policy.AccessControlList.Grant.Permission == "WRITE":
-		return BucketACL("public-read-write"), nil
-	case policy.AccessControlList.Grant.Grantee.URI == "http://acs.amazonaws.com/groups/global/AllUsers" &&
-		policy.AccessControlList.Grant.Permission == "READ":
-		return BucketACL("public-read"), nil
-	case policy.AccessControlList.Grant.Grantee.URI == "http://acs.amazonaws.com/groups/global/AuthenticatedUsers" &&
-		policy.AccessControlList.Grant.Permission == "READ":
-		return BucketACL("authenticated-read"), nil
-	case policy.AccessControlList.Grant.Grantee.URI == "" &&
-		policy.AccessControlList.Grant.Permission == "FULL_CONTROL":
-		return BucketACL("private"), nil
+	case len(grants) == 1:
+		if grants[0].Grantee.URI == "" && grants[0].Permission == "FULL_CONTROL" {
+			return BucketACL("private"), nil
+		}
+	case len(grants) == 2:
+		for _, g := range grants {
+			if g.Grantee.URI == "http://acs.amazonaws.com/groups/global/AuthenticatedUsers" && g.Permission == "READ" {
+				return BucketACL("authenticated-read"), nil
+			}
+			if g.Grantee.URI == "http://acs.amazonaws.com/groups/global/AllUsers" && g.Permission == "READ" {
+				return BucketACL("public-read"), nil
+			}
+		}
+	case len(grants) == 3:
+		for _, g := range grants {
+			if g.Grantee.URI == "http://acs.amazonaws.com/groups/global/AllUsers" && g.Permission == "WRITE" {
+				return BucketACL("public-read-write"), nil
+			}
+		}
 	}
-	return "", nil
+	return "", fmt.Errorf("Cannot verify access control policy")
 }
 
 // BucketExists verify if bucket exists and you have permission to access it
