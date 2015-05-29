@@ -87,12 +87,12 @@ func TestBucketOperations(t *testing.T) {
 		t.Errorf("Error")
 	}
 
-	err = a.StatBucket("bucket")
+	err = a.BucketExists("bucket")
 	if err != nil {
 		t.Errorf("Error")
 	}
 
-	err = a.StatBucket("bucket1")
+	err = a.BucketExists("bucket1")
 	if err == nil {
 		t.Errorf("Error")
 	}
@@ -123,12 +123,12 @@ func TestBucketOperations(t *testing.T) {
 		}
 	}
 
-	err = a.DeleteBucket("bucket")
+	err = a.RemoveBucket("bucket")
 	if err != nil {
 		t.Errorf("Error")
 	}
 
-	err = a.DeleteBucket("bucket1")
+	err = a.RemoveBucket("bucket1")
 	if err == nil {
 		t.Fatalf("Error")
 	}
@@ -179,7 +179,7 @@ func TestObjectOperations(t *testing.T) {
 		t.Fatalf("Error")
 	}
 
-	err = a.DeleteObject("bucket", "object")
+	err = a.RemoveObject("bucket", "object")
 	if err != nil {
 		t.Fatalf("Error")
 	}
