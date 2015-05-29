@@ -18,6 +18,7 @@ package client
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"runtime"
@@ -495,6 +496,14 @@ func (a *api) DeleteObject(bucket, object string) error {
 //  [ us-west-1 | us-west-2 | eu-west-1 | eu-central-1 | ap-southeast-1 | ap-northeast-1 | ap-southeast-2 | sa-east-1 ]
 //  Default - US standard
 func (a *api) MakeBucket(bucket string, acl BucketACL, location string) error {
+	if !acl.isValidBucketACL() {
+		return fmt.Errorf("%s", "Invalid bucket ACL")
+	}
+	if _, ok := Regions[location]; !ok {
+		if location != "" {
+			return fmt.Errorf("%s", "Invalid bucket Location")
+		}
+	}
 	return a.putBucket(bucket, string(acl), location)
 }
 
@@ -508,6 +517,9 @@ func (a *api) MakeBucket(bucket string, acl BucketACL, location string) error {
 //  authenticated-read - owner gets full access, authenticated users get read access
 //
 func (a *api) SetBucketACL(bucket string, acl BucketACL) error {
+	if !acl.isValidBucketACL() {
+		return fmt.Errorf("%s", "Invalid bucket ACL")
+	}
 	return a.putBucketACL(bucket, string(acl))
 }
 
@@ -524,6 +536,9 @@ func (a *api) GetBucketACL(bucket string) (BucketACL, error) {
 	policy, err := a.getBucketACL(bucket)
 	if err != nil {
 		return "", err
+	}
+	if policy.AccessControlList.Grant == nil {
+		return "", fmt.Errorf("%s", "Unexpected error")
 	}
 	switch {
 	case policy.AccessControlList.Grant.Grantee.URI == "http://acs.amazonaws.com/groups/global/AllUsers" &&

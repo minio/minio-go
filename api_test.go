@@ -34,6 +34,21 @@ func ExampleGetPartSize_second() {
 	// Output: 5368709120
 }
 
+func TestACLTypes(t *testing.T) {
+	want := map[string]bool{
+		"private":            true,
+		"public-read":        true,
+		"public-read-write":  true,
+		"authenticated-read": true,
+		"invalid":            false,
+	}
+	for acl, ok := range want {
+		if BucketACL(acl).isValidBucketACL() != ok {
+			t.Fatal("Error")
+		}
+	}
+}
+
 func TestMustGetEndpoint(t *testing.T) {
 	conf := new(Config)
 	conf.Region = "us-east-1"
@@ -103,6 +118,14 @@ func TestBucketOperations(t *testing.T) {
 	err = a.SetBucketACL("bucket", "public-read-write")
 	if err != nil {
 		t.Errorf("Error")
+	}
+
+	acl, err := a.GetBucketACL("bucket")
+	if err != nil {
+		t.Errorf("Error")
+	}
+	if !acl.isPrivate() {
+		t.Fatalf("Error")
 	}
 
 	for b := range a.ListBuckets() {
