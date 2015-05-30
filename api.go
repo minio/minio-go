@@ -448,11 +448,6 @@ func (a *api) PutObject(bucket, object string, size uint64, data io.Reader) erro
 	return errors.New("Unexpected control flow")
 }
 
-// RemoveObject deletes an object from a bucket
-func (a *api) RemoveObject(bucket, object string) error {
-	return a.deleteObject(bucket, object)
-}
-
 // StatObject verify if object exists and you have permission to access it
 func (a *api) StatObject(bucket, object string) (*ObjectStat, error) {
 	if strings.TrimSpace(object) == "" {
@@ -464,8 +459,8 @@ func (a *api) StatObject(bucket, object string) (*ObjectStat, error) {
 	return a.headObject(bucket, object)
 }
 
-// DeleteObject remove the object from a bucket
-func (a *api) DeleteObject(bucket, object string) error {
+// RemoveObject remove the object from a bucket
+func (a *api) RemoveObject(bucket, object string) error {
 	if strings.TrimSpace(object) == "" {
 		return errors.New("object name cannot be empty")
 	}
