@@ -33,10 +33,10 @@ func main() {
 
 	client := s3.New(&config)
 
-	for message := range client.ListBuckets() {
+	for message := range client.ListObjects("mybucket", "", true) {
 		if message.Err != nil {
 			log.Fatalln(message.Err)
 		}
-		log.Println(message.Data)
+		log.Println(message.Stat)
 	}
 }

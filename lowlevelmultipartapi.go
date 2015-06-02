@@ -12,7 +12,7 @@ import (
 )
 
 // listMultipartUploadsRequest wrapper creates a new listMultipartUploads request
-func (a lowLevelAPI) listMultipartUploadsRequest(bucket, keymarker, uploadIDMarker, prefix, delimiter string, maxuploads int) (request, error) {
+func (a lowLevelAPI) listMultipartUploadsRequest(bucket, keymarker, uploadIDMarker, prefix, delimiter string, maxuploads int) (*request, error) {
 	// resourceQuery - get resources properly escaped and lined up before using them in http request
 	resourceQuery := func() (string, error) {
 		var err error
@@ -53,9 +53,9 @@ func (a lowLevelAPI) listMultipartUploadsRequest(bucket, keymarker, uploadIDMark
 		return nil, err
 	}
 	op := &operation{
-		HTTPServer: a.config.MustGetEndpoint(),
+		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "GET",
-		HTTPPath:   "/" + bucket + *query,
+		HTTPPath:   "/" + bucket + query,
 	}
 	r, err := newRequest(op, a.config, nil)
 	if err != nil {
@@ -74,28 +74,27 @@ func (a lowLevelAPI) listMultipartUploadsRequest(bucket, keymarker, uploadIDMark
 // ?delimiter - A delimiter is a character you use to group keys.
 // ?prefix - Limits the response to keys that begin with the specified prefix.
 // ?max-uploads - Sets the maximum number of multipart uploads returned in the response body.
-func (a lowLevelAPI) listMultipartUploads(bucket, keymarker, uploadIDMarker, prefix, delimiter string, maxuploads int) (*listMultipartUploadsResult, error) {
+func (a lowLevelAPI) listMultipartUploads(bucket, keymarker, uploadIDMarker, prefix, delimiter string, maxuploads int) (listMultipartUploadsResult, error) {
 	req, err := a.listMultipartUploadsRequest(bucket, keymarker, uploadIDMarker, prefix, delimiter, maxuploads)
 	if err != nil {
-		return nil, err
+		return listMultipartUploadsResult{}, err
 	}
 	resp, err := req.Do()
 	if err != nil {
-		return nil, err
+		return listMultipartUploadsResult{}, err
 	}
 	defer resp.Body.Close()
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return nil, responseToError(resp.Body)
+			return listMultipartUploadsResult{}, responseToError(resp.Body)
 		}
 	}
-	listMultipartUploadsResult := new(listMultipartUploadsResult)
+	listMultipartUploadsResult := listMultipartUploadsResult{}
 	decoder := xml.NewDecoder(resp.Body)
-	err = decoder.Decode(listMultipartUploadsResult)
+	err = decoder.Decode(&listMultipartUploadsResult)
 	if err != nil {
-		return nil, err
+		return listMultipartUploadsResult, err
 	}
-
 	// close body while returning, along with any error
 	return listMultipartUploadsResult, nil
 }
@@ -107,7 +106,7 @@ func (a lowLevelAPI) initiateMultipartRequest(bucket, object string) (*request, 
 		return nil, err
 	}
 	op := &operation{
-		HTTPServer: a.config.MustGetEndpoint(),
+		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "POST",
 		HTTPPath:   "/" + bucket + "/" + encodedObject + "?uploads",
 	}
@@ -115,38 +114,38 @@ func (a lowLevelAPI) initiateMultipartRequest(bucket, object string) (*request, 
 }
 
 // initiateMultipartUpload initiates a multipart upload and returns an upload ID
-func (a lowLevelAPI) initiateMultipartUpload(bucket, object string) (*initiateMultipartUploadResult, error) {
+func (a lowLevelAPI) initiateMultipartUpload(bucket, object string) (initiateMultipartUploadResult, error) {
 	req, err := a.initiateMultipartRequest(bucket, object)
 	if err != nil {
-		return nil, err
+		return initiateMultipartUploadResult{}, err
 	}
 	resp, err := req.Do()
 	if err != nil {
-		return nil, err
+		return initiateMultipartUploadResult{}, err
 	}
 	defer resp.Body.Close()
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return nil, responseToError(resp.Body)
+			return initiateMultipartUploadResult{}, responseToError(resp.Body)
 		}
 	}
-	initiateMultipartUploadResult := new(initiateMultipartUploadResult)
+	initiateMultipartUploadResult := initiateMultipartUploadResult{}
 	decoder := xml.NewDecoder(resp.Body)
-	err = decoder.Decode(initiateMultipartUploadResult)
+	err = decoder.Decode(&initiateMultipartUploadResult)
 	if err != nil {
-		return nil, err
+		return initiateMultipartUploadResult, err
 	}
 	return initiateMultipartUploadResult, nil
 }
 
 // completeMultipartUploadRequest wrapper creates a new CompleteMultipartUpload request
-func (a lowLevelAPI) completeMultipartUploadRequest(bucket, object, uploadID string, complete completeMultipartUpload) (request, error) {
+func (a lowLevelAPI) completeMultipartUploadRequest(bucket, object, uploadID string, complete completeMultipartUpload) (*request, error) {
 	encodedObject, err := urlEncodeName(object)
 	if err != nil {
 		return nil, err
 	}
 	op := &operation{
-		HTTPServer: a.config.MustGetEndpoint(),
+		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "POST",
 		HTTPPath:   "/" + bucket + "/" + encodedObject + "?uploadId=" + uploadID,
 	}
@@ -167,35 +166,35 @@ func (a lowLevelAPI) completeMultipartUploadRequest(bucket, object, uploadID str
 func (a lowLevelAPI) completeMultipartUpload(bucket, object, uploadID string, c completeMultipartUpload) (completeMultipartUploadResult, error) {
 	req, err := a.completeMultipartUploadRequest(bucket, object, uploadID, c)
 	if err != nil {
-		return nil, err
+		return completeMultipartUploadResult{}, err
 	}
 	resp, err := req.Do()
 	if err != nil {
-		return nil, err
+		return completeMultipartUploadResult{}, err
 	}
 	defer resp.Body.Close()
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return nil, responseToError(resp.Body)
+			return completeMultipartUploadResult{}, responseToError(resp.Body)
 		}
 	}
-	completeMultipartUploadResult := new(completeMultipartUploadResult)
+	completeMultipartUploadResult := completeMultipartUploadResult{}
 	decoder := xml.NewDecoder(resp.Body)
-	err = decoder.Decode(completeMultipartUploadResult)
+	err = decoder.Decode(&completeMultipartUploadResult)
 	if err != nil {
-		return nil, err
+		return completeMultipartUploadResult, err
 	}
 	return completeMultipartUploadResult, nil
 }
 
 // abortMultipartUploadRequest wrapper creates a new AbortMultipartUpload request
-func (a lowLevelAPI) abortMultipartUploadRequest(bucket, object, uploadID string) (request, error) {
+func (a lowLevelAPI) abortMultipartUploadRequest(bucket, object, uploadID string) (*request, error) {
 	encodedObject, err := urlEncodeName(object)
 	if err != nil {
 		return nil, err
 	}
 	op := &operation{
-		HTTPServer: a.config.MustGetEndpoint(),
+		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "DELETE",
 		HTTPPath:   "/" + bucket + "/" + encodedObject + "?uploadId=" + uploadID,
 	}
@@ -222,7 +221,7 @@ func (a lowLevelAPI) abortMultipartUpload(bucket, object, uploadID string) error
 }
 
 // listObjectPartsRequest wrapper creates a new ListObjectParts request
-func (a lowLevelAPI) listObjectPartsRequest(bucket, object, uploadID string, partNumberMarker, maxParts int) (request, error) {
+func (a lowLevelAPI) listObjectPartsRequest(bucket, object, uploadID string, partNumberMarker, maxParts int) (*request, error) {
 	encodedObject, err := urlEncodeName(object)
 	if err != nil {
 		return nil, err
@@ -237,7 +236,7 @@ func (a lowLevelAPI) listObjectPartsRequest(bucket, object, uploadID string, par
 		return fmt.Sprintf("?uploadId=%s&max-parts=%d", uploadID, maxParts) + partNumberMarkerStr
 	}
 	op := &operation{
-		HTTPServer: a.config.MustGetEndpoint(),
+		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "GET",
 		HTTPPath:   "/" + bucket + "/" + encodedObject + resourceQuery(),
 	}
@@ -253,23 +252,23 @@ func (a lowLevelAPI) listObjectPartsRequest(bucket, object, uploadID string, par
 func (a lowLevelAPI) listObjectParts(bucket, object, uploadID string, partNumberMarker, maxParts int) (listObjectPartsResult, error) {
 	req, err := a.listObjectPartsRequest(bucket, object, uploadID, partNumberMarker, maxParts)
 	if err != nil {
-		return nil, err
+		return listObjectPartsResult{}, err
 	}
 	resp, err := req.Do()
 	if err != nil {
-		return nil, err
+		return listObjectPartsResult{}, err
 	}
 	defer resp.Body.Close()
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return nil, responseToError(resp.Body)
+			return listObjectPartsResult{}, responseToError(resp.Body)
 		}
 	}
-	listObjectPartsResult := new(listObjectPartsResult)
+	listObjectPartsResult := listObjectPartsResult{}
 	decoder := xml.NewDecoder(resp.Body)
-	err = decoder.Decode(listObjectPartsResult)
+	err = decoder.Decode(&listObjectPartsResult)
 	if err != nil {
-		return nil, err
+		return listObjectPartsResult, err
 	}
 	return listObjectPartsResult, nil
 }
@@ -281,7 +280,7 @@ func (a lowLevelAPI) uploadPartRequest(bucket, object, uploadID string, partNumb
 		return nil, err
 	}
 	op := &operation{
-		HTTPServer: a.config.MustGetEndpoint(),
+		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "PUT",
 		HTTPPath:   "/" + bucket + "/" + encodedObject + "?partNumber=" + strconv.Itoa(partNumber) + "&uploadId=" + uploadID,
 	}
@@ -303,27 +302,27 @@ func (a lowLevelAPI) uploadPartRequest(bucket, object, uploadID string, partNumb
 func (a lowLevelAPI) uploadPart(bucket, object, uploadID string, partNumber int, size int64, body io.ReadSeeker) (completePart, error) {
 	req, err := a.uploadPartRequest(bucket, object, uploadID, partNumber, size, body)
 	if err != nil {
-		return nil, err
+		return completePart{}, err
 	}
 	// get hex encoding for md5sum in base64
 	md5SumBytes, err := base64.StdEncoding.DecodeString(req.Get("Content-MD5"))
 	if err != nil {
-		return nil, err
+		return completePart{}, err
 	}
-	completePart := new(completePart)
-	completePart.PartNumber = partNumber
-	completePart.ETag = "\"" + hex.EncodeToString(md5SumBytes) + "\""
+	cPart := completePart{}
+	cPart.PartNumber = partNumber
+	cPart.ETag = "\"" + hex.EncodeToString(md5SumBytes) + "\""
 
 	// initiate the request
 	resp, err := req.Do()
 	if err != nil {
-		return nil, err
+		return completePart{}, err
 	}
 	defer resp.Body.Close()
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return nil, responseToError(resp.Body)
+			return completePart{}, responseToError(resp.Body)
 		}
 	}
-	return completePart, nil
+	return cPart, nil
 }

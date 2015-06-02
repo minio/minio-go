@@ -36,7 +36,7 @@ type lowLevelAPI struct {
 // putBucketRequest wrapper creates a new PutBucket request
 func (a lowLevelAPI) putBucketRequest(bucket, acl, location string) (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.MustGetEndpoint(),
+		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "PUT",
 		HTTPPath:   "/" + bucket,
 	}
@@ -121,7 +121,7 @@ func (a lowLevelAPI) putBucket(bucket, acl, location string) error {
 // putBucketRequestACL wrapper creates a new putBucketACL request
 func (a lowLevelAPI) putBucketRequestACL(bucket, acl string) (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.MustGetEndpoint(),
+		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "PUT",
 		HTTPPath:   "/" + bucket + "?acl",
 	}
@@ -155,7 +155,7 @@ func (a lowLevelAPI) putBucketACL(bucket, acl string) error {
 // getBucketACLRequest wrapper creates a new getBucketACL request
 func (a lowLevelAPI) getBucketRequestACL(bucket string) (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.MustGetEndpoint(),
+		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "GET",
 		HTTPPath:   "/" + bucket + "?acl",
 	}
@@ -167,26 +167,26 @@ func (a lowLevelAPI) getBucketRequestACL(bucket string) (*request, error) {
 }
 
 // getBucketACL get the acl information on an existing bucket
-func (a lowLevelAPI) getBucketACL(bucket string) (*accessControlPolicy, error) {
+func (a lowLevelAPI) getBucketACL(bucket string) (accessControlPolicy, error) {
 	req, err := a.getBucketRequestACL(bucket)
 	if err != nil {
-		return nil, err
+		return accessControlPolicy{}, err
 	}
 	resp, err := req.Do()
 	if err != nil {
-		return nil, err
+		return accessControlPolicy{}, err
 	}
 	defer resp.Body.Close()
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return nil, responseToError(resp.Body)
+			return accessControlPolicy{}, responseToError(resp.Body)
 		}
 	}
-	policy := new(accessControlPolicy)
+	policy := accessControlPolicy{}
 	decoder := xml.NewDecoder(resp.Body)
-	err = decoder.Decode(policy)
+	err = decoder.Decode(&policy)
 	if err != nil {
-		return nil, err
+		return accessControlPolicy{}, err
 	}
 	return policy, nil
 }
@@ -194,7 +194,7 @@ func (a lowLevelAPI) getBucketACL(bucket string) (*accessControlPolicy, error) {
 // getBucketLocationRequest wrapper creates a new getBucketLocation request
 func (a lowLevelAPI) getBucketLocationRequest(bucket string) (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.MustGetEndpoint(),
+		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "GET",
 		HTTPPath:   "/" + bucket + "?location",
 	}
@@ -265,7 +265,7 @@ func (a lowLevelAPI) listObjectsRequest(bucket, marker, prefix, delimiter string
 		return nil, err
 	}
 	op := &operation{
-		HTTPServer: a.config.MustGetEndpoint(),
+		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "GET",
 		HTTPPath:   "/" + bucket + *query,
 	}
@@ -287,35 +287,34 @@ func (a lowLevelAPI) listObjectsRequest(bucket, marker, prefix, delimiter string
 // ?delimiter - A delimiter is a character you use to group keys.
 // ?prefix - Limits the response to keys that begin with the specified prefix.
 // ?max-keys - Sets the maximum number of keys returned in the response body.
-func (a lowLevelAPI) listObjects(bucket, marker, prefix, delimiter string, maxkeys int) (*listBucketResult, error) {
+func (a lowLevelAPI) listObjects(bucket, marker, prefix, delimiter string, maxkeys int) (listBucketResult, error) {
 	req, err := a.listObjectsRequest(bucket, marker, prefix, delimiter, maxkeys)
 	if err != nil {
-		return nil, err
+		return listBucketResult{}, err
 	}
 	resp, err := req.Do()
 	if err != nil {
-		return nil, err
+		return listBucketResult{}, err
 	}
 	defer resp.Body.Close()
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return nil, responseToError(resp.Body)
+			return listBucketResult{}, responseToError(resp.Body)
 		}
 	}
-	listBucketResult := new(listBucketResult)
+	listBucketResult := listBucketResult{}
 	decoder := xml.NewDecoder(resp.Body)
-	err = decoder.Decode(listBucketResult)
+	err = decoder.Decode(&listBucketResult)
 	if err != nil {
-		return nil, err
+		return listBucketResult, err
 	}
-
 	// close body while returning, along with any error
 	return listBucketResult, nil
 }
 
 func (a lowLevelAPI) headBucketRequest(bucket string) (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.MustGetEndpoint(),
+		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "HEAD",
 		HTTPPath:   "/" + bucket,
 	}
@@ -345,7 +344,7 @@ func (a lowLevelAPI) headBucket(bucket string) error {
 // deleteBucketRequest wrapper creates a new DeleteBucket request
 func (a lowLevelAPI) deleteBucketRequest(bucket string) (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.MustGetEndpoint(),
+		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "DELETE",
 		HTTPPath:   "/" + bucket,
 	}
@@ -384,7 +383,7 @@ func (a lowLevelAPI) putObjectRequest(bucket, object string, size int64, body io
 		return nil, err
 	}
 	op := &operation{
-		HTTPServer: a.config.MustGetEndpoint(),
+		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "PUT",
 		HTTPPath:   "/" + bucket + "/" + encodedObject,
 	}
@@ -408,16 +407,16 @@ func (a lowLevelAPI) putObjectRequest(bucket, object string, size int64, body io
 func (a lowLevelAPI) putObject(bucket, object string, size int64, body io.ReadSeeker) (ObjectStat, error) {
 	req, err := a.putObjectRequest(bucket, object, size, body)
 	if err != nil {
-		return nil, err
+		return ObjectStat{}, err
 	}
 	resp, err := req.Do()
 	if err != nil {
-		return nil, err
+		return ObjectStat{}, err
 	}
 	defer resp.Body.Close()
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return nil, responseToError(resp.Body)
+			return ObjectStat{}, responseToError(resp.Body)
 		}
 	}
 	var metadata ObjectStat
@@ -432,7 +431,7 @@ func (a lowLevelAPI) getObjectRequest(bucket, object string, offset, length uint
 		return nil, err
 	}
 	op := &operation{
-		HTTPServer: a.config.MustGetEndpoint(),
+		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "GET",
 		HTTPPath:   "/" + bucket + "/" + encodedObject,
 	}
@@ -458,27 +457,27 @@ func (a lowLevelAPI) getObjectRequest(bucket, object string, offset, length uint
 func (a lowLevelAPI) getObject(bucket, object string, offset, length uint64) (io.ReadCloser, ObjectStat, error) {
 	req, err := a.getObjectRequest(bucket, object, offset, length)
 	if err != nil {
-		return nil, nil, err
+		return nil, ObjectStat{}, err
 	}
 	resp, err := req.Do()
 	if err != nil {
-		return nil, nil, err
+		return nil, ObjectStat{}, err
 	}
 	if resp != nil {
 		switch resp.StatusCode {
 		case http.StatusOK:
 		case http.StatusPartialContent:
 		default:
-			return nil, nil, responseToError(resp.Body)
+			return nil, ObjectStat{}, responseToError(resp.Body)
 		}
 	}
 	md5sum := strings.Trim(resp.Header.Get("ETag"), "\"") // trim off the odd double quotes
 	if md5sum == "" {
-		return nil, nil, errors.New("missing ETag")
+		return nil, ObjectStat{}, errors.New("missing ETag")
 	}
 	date, err := time.Parse(http.TimeFormat, resp.Header.Get("Last-Modified"))
 	if err != nil {
-		return nil, nil, err
+		return nil, ObjectStat{}, err
 	}
 	var objectstat ObjectStat
 	objectstat.ETag = md5sum
@@ -497,7 +496,7 @@ func (a lowLevelAPI) deleteObjectRequest(bucket, object string) (*request, error
 		return nil, err
 	}
 	op := &operation{
-		HTTPServer: a.config.MustGetEndpoint(),
+		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "DELETE",
 		HTTPPath:   "/" + bucket + "/" + encodedObject,
 	}
@@ -530,7 +529,7 @@ func (a lowLevelAPI) headObjectRequest(bucket, object string) (*request, error) 
 		return nil, err
 	}
 	op := &operation{
-		HTTPServer: a.config.MustGetEndpoint(),
+		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "HEAD",
 		HTTPPath:   "/" + bucket + "/" + encodedObject,
 	}
@@ -541,29 +540,29 @@ func (a lowLevelAPI) headObjectRequest(bucket, object string) (*request, error) 
 func (a lowLevelAPI) headObject(bucket, object string) (ObjectStat, error) {
 	req, err := a.headObjectRequest(bucket, object)
 	if err != nil {
-		return nil, err
+		return ObjectStat{}, err
 	}
 	resp, err := req.Do()
 	if err != nil {
-		return nil, err
+		return ObjectStat{}, err
 	}
 	defer resp.Body.Close()
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("%s", resp.Status)
+			return ObjectStat{}, fmt.Errorf("%s", resp.Status)
 		}
 	}
 	md5sum := strings.Trim(resp.Header.Get("ETag"), "\"") // trim off the odd double quotes
 	if md5sum == "" {
-		return nil, errors.New("missing ETag")
+		return ObjectStat{}, errors.New("missing ETag")
 	}
 	size, err := strconv.ParseInt(resp.Header.Get("Content-Length"), 10, 64)
 	if err != nil {
-		return nil, err
+		return ObjectStat{}, err
 	}
 	date, err := time.Parse(http.TimeFormat, resp.Header.Get("Last-Modified"))
 	if err != nil {
-		return nil, err
+		return ObjectStat{}, err
 	}
 	var objectstat ObjectStat
 	objectstat.ETag = md5sum
@@ -578,7 +577,7 @@ func (a lowLevelAPI) headObject(bucket, object string) (ObjectStat, error) {
 // listBucketRequest wrapper creates a new ListBuckets request
 func (a lowLevelAPI) listBucketsRequest() (*request, error) {
 	op := &operation{
-		HTTPServer: a.config.MustGetEndpoint(),
+		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "GET",
 		HTTPPath:   "/",
 	}
@@ -586,30 +585,30 @@ func (a lowLevelAPI) listBucketsRequest() (*request, error) {
 }
 
 // listBuckets list of all buckets owned by the authenticated sender of the request
-func (a lowLevelAPI) listBuckets() (*listAllMyBucketsResult, error) {
+func (a lowLevelAPI) listBuckets() (listAllMyBucketsResult, error) {
 	req, err := a.listBucketsRequest()
 	if err != nil {
-		return nil, err
+		return listAllMyBucketsResult{}, err
 	}
 	resp, err := req.Do()
 	if err != nil {
-		return nil, err
+		return listAllMyBucketsResult{}, err
 	}
 	defer resp.Body.Close()
 	if resp != nil {
 		// for un-authenticated requests, amazon sends a redirect handle it
 		if resp.StatusCode == http.StatusTemporaryRedirect {
-			return nil, fmt.Errorf("%s", resp.Status)
+			return listAllMyBucketsResult{}, fmt.Errorf("%s", resp.Status)
 		}
 		if resp.StatusCode != http.StatusOK {
-			return nil, responseToError(resp.Body)
+			return listAllMyBucketsResult{}, responseToError(resp.Body)
 		}
 	}
-	listAllMyBucketsResult := new(listAllMyBucketsResult)
+	listAllMyBucketsResult := listAllMyBucketsResult{}
 	decoder := xml.NewDecoder(resp.Body)
-	err = decoder.Decode(listAllMyBucketsResult)
+	err = decoder.Decode(&listAllMyBucketsResult)
 	if err != nil {
-		return nil, err
+		return listAllMyBucketsResult, err
 	}
 	return listAllMyBucketsResult, nil
 }
