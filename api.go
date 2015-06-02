@@ -100,26 +100,26 @@ type ObjectStat struct {
 	StorageClass string
 }
 
+// Regions s3 region map used by bucket location constraint
+var regions = map[string]string{
+	"s3-fips-us-gov-west-1.amazonaws.com": "us-gov-west-1",
+	"s3.amazonaws.com":                    "us-east-1",
+	"s3-us-west-1.amazonaws.com":          "us-west-1",
+	"s3-us-west-2.amazonaws.com":          "us-west-2",
+	"s3-eu-west-1.amazonaws.com":          "eu-west-1",
+	"s3-eu-central-1.amazonaws.com":       "eu-central-1",
+	"s3-ap-southeast-1.amazonaws.com":     "ap-southeast-1",
+	"s3-ap-southeast-2.amazonaws.com":     "ap-southeast-2",
+	"s3-ap-northeast-1.amazonaws.com":     "ap-northeast-1",
+	"s3-sa-east-1.amazonaws.com":          "sa-east-1",
+	"s3.cn-north-1.amazonaws.com.cn":      "cn-north-1",
+}
+
 // getRegion returns a region based on its endpoint mapping.
 func getRegion(endPoint string) (region string, err error) {
 	u, err := url.Parse(endPoint)
 	if err != nil {
 		return "", err
-	}
-
-	// Regions s3 region map used by bucket location constraint
-	var regions = map[string]string{
-		"s3-fips-us-gov-west-1.amazonaws.com": "us-gov-west-1",
-		"s3.amazonaws.com":                    "us-east-1",
-		"s3-us-west-1.amazonaws.com":          "us-west-1",
-		"s3-us-west-2.amazonaws.com":          "us-west-2",
-		"s3-eu-west-1.amazonaws.com":          "eu-west-1",
-		"s3-eu-central-1.amazonaws.com":       "eu-central-1",
-		"s3-ap-southeast-1.amazonaws.com":     "ap-southeast-1",
-		"s3-ap-southeast-2.amazonaws.com":     "ap-southeast-2",
-		"s3-ap-northeast-1.amazonaws.com":     "ap-northeast-1",
-		"s3-sa-east-1.amazonaws.com":          "sa-east-1",
-		"s3.cn-north-1.amazonaws.com.cn":      "cn-north-1",
 	}
 
 	if regions[u.Host] != "" {
@@ -147,23 +147,19 @@ type Config struct {
 	userAgent string
 }
 
-// SetUserAgent - append to a default user agent
-func (c *Config) SetUserAgent(name string, version string, comments ...string) {
-	if c.userAgent == "" {
-		c.SetUserAgent(LibraryName, LibraryVersion, runtime.GOOS, runtime.GOARCH)
-		return
-	}
-	// if no name and version is set we do not add new user agents
-	if name != "" && version != "" {
-		c.userAgent = c.userAgent + " " + name + "/" + version + " (" + strings.Join(comments, ", ") + ") "
-	}
-}
-
 // Global constants
 const (
 	LibraryName    = "minio-go"
 	LibraryVersion = "0.1"
 )
+
+// SetUserAgent - append to a default user agent
+func (c *Config) SetUserAgent(name string, version string, comments ...string) {
+	// if no name and version is set we do not add new user agents
+	if name != "" && version != "" {
+		c.userAgent = c.userAgent + " " + name + "/" + version + " (" + strings.Join(comments, ", ") + ") "
+	}
+}
 
 type api struct {
 	lowLevelAPI
@@ -172,12 +168,13 @@ type api struct {
 // New - instantiate a new minio api client
 func New(config Config) (API, error) {
 	if config.Region == "" {
-		if region, err := getRegion(config.Endpoint); err != nil {
-			config.Region = region
-		} else {
+		region, err := getRegion(config.Endpoint)
+		if err != nil {
 			return api{}, err
 		}
+		config.Region = region
 	}
+	config.SetUserAgent(LibraryName, LibraryVersion, runtime.GOOS, runtime.GOARCH)
 	return api{lowLevelAPI{&config}}, nil
 }
 
@@ -254,7 +251,7 @@ func (a api) newObjectUpload(bucket, object string, size uint64, data io.Reader)
 		return err
 	}
 	uploadID := initiateMultipartUploadResult.UploadID
-	completeMultipartUpload := new(completeMultipartUpload)
+	completeMultipartUpload := completeMultipartUpload{}
 	for part := range multiPart(data, GetPartSize(size), nil) {
 		if part.Err != nil {
 			return part.Err
@@ -384,7 +381,7 @@ func (a api) listMultipartUploadsRecursiveInRoutine(bucket, prefix string, ch ch
 			listMultipartUploadsResult.NextKeyMarker, listMultipartUploadsResult.NextUploadIDMarker, prefix, "", 1000)
 		if err != nil {
 			ch <- multiPartUploadCh{
-				Metadata: nil,
+				Metadata: upload{},
 				Err:      err,
 			}
 			return
@@ -447,10 +444,10 @@ func (a api) PutObject(bucket, object string, size uint64, data io.Reader) error
 // StatObject verify if object exists and you have permission to access it
 func (a api) StatObject(bucket, object string) (ObjectStat, error) {
 	if strings.TrimSpace(object) == "" {
-		return nil, errors.New("object name cannot be empty")
+		return ObjectStat{}, errors.New("object name cannot be empty")
 	}
 	if !utf8.ValidString(object) {
-		return nil, errors.New("invalid object name, should be utf-8")
+		return ObjectStat{}, errors.New("invalid object name, should be utf-8")
 	}
 	return a.headObject(bucket, object)
 }
@@ -481,7 +478,6 @@ func (a api) RemoveObject(bucket, object string) error {
 //  public-read-write - owner gets full access, all others get full access too
 //  authenticated-read - owner gets full access, authenticated users get read access
 //
-//
 // Location valid values
 //
 //  [ us-west-1 | us-west-2 | eu-west-1 | eu-central-1 | ap-southeast-1 | ap-northeast-1 | ap-southeast-2 | sa-east-1 ]
@@ -490,7 +486,7 @@ func (a api) MakeBucket(bucket string, acl BucketACL, location string) error {
 	if !acl.isValidBucketACL() {
 		return fmt.Errorf("%s", "Invalid bucket ACL")
 	}
-	if _, ok := Regions[location]; !ok {
+	if _, ok := regions[location]; !ok {
 		if location != "" {
 			return fmt.Errorf("%s", "Invalid bucket Location")
 		}
@@ -578,7 +574,7 @@ func (a api) listObjectsInRoutine(bucket, prefix string, recursive bool, ch chan
 		listBucketResult, err := a.listObjects(bucket, "", prefix, "", 1000)
 		if err != nil {
 			ch <- ObjectStatCh{
-				Stat: nil,
+				Stat: ObjectStat{},
 				Err:  err,
 			}
 			return
@@ -596,7 +592,7 @@ func (a api) listObjectsInRoutine(bucket, prefix string, recursive bool, ch chan
 			listBucketResult, err = a.listObjects(bucket, listBucketResult.Marker, prefix, "", 1000)
 			if err != nil {
 				ch <- ObjectStatCh{
-					Stat: nil,
+					Stat: ObjectStat{},
 					Err:  err,
 				}
 				return
@@ -613,7 +609,7 @@ func (a api) listObjectsInRoutine(bucket, prefix string, recursive bool, ch chan
 		listBucketResult, err := a.listObjects(bucket, "", prefix, "/", 1000)
 		if err != nil {
 			ch <- ObjectStatCh{
-				Stat: nil,
+				Stat: ObjectStat{},
 				Err:  err,
 			}
 			return
@@ -625,7 +621,7 @@ func (a api) listObjectsInRoutine(bucket, prefix string, recursive bool, ch chan
 			}
 		}
 		for _, prefix := range listBucketResult.CommonPrefixes {
-			object := new(ObjectStat)
+			object := ObjectStat{}
 			object.Key = prefix.Prefix
 			object.Size = 0
 			ch <- ObjectStatCh{
@@ -664,7 +660,7 @@ func (a api) listBucketsInRoutine(ch chan BucketStatCh) {
 	listAllMyBucketListResults, err := a.listBuckets()
 	if err != nil {
 		ch <- BucketStatCh{
-			Stat: nil,
+			Stat: BucketStat{},
 			Err:  err,
 		}
 		return
