@@ -32,8 +32,10 @@ func main() {
 		SecretAccessKey: "YOUR-PASSWORD-HERE",
 		Endpoint:        "https://s3.amazonaws.com",
 	}
-
-	client := s3.New(&config)
+	client, err := s3.New(config)
+	if err != nil {
+		log.Fatalln(err)
+	}
 	reader, stat, err := client.GetObject("mybucket", "myobject", 0, 0)
 	if err != nil {
 		log.Fatalln(err)

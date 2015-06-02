@@ -30,9 +30,10 @@ func main() {
 		SecretAccessKey: "",
 		Endpoint:        "https://play.minio.io:9000",
 	}
-
-	client := minio.New(&config)
-
+	client, err := minio.New(config)
+	if err != nil {
+		log.Fatalln(err)
+	}
 	for message := range client.ListBuckets() {
 		if message.Err != nil {
 			log.Fatalln(message.Err)

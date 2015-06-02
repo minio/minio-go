@@ -31,9 +31,10 @@ func main() {
 		SecretAccessKey: "",
 		Endpoint:        "https://play.minio.io:9000",
 	}
-
-	client := minio.New(&config)
-
+	client, err := minio.New(config)
+	if err != nil {
+		log.Fatalln(err)
+	}
 	object, err := os.Open("testfile")
 	if err != nil {
 		log.Fatalln(err)
