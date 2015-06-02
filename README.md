@@ -5,11 +5,31 @@
 ```sh
 $ go get github.com/minio/minio-go
 ```
-## Simple Example
+## Example
+
+```go
+package main
+
+import (
+  s3 "github.com/minio/minio-go"
+)
+
+func main() {
+	config := s3.Config{
+		AccessKeyID:     "YOUR-ACCESS-KEY-HERE",
+		SecretAccessKey: "YOUR-PASSWORD-HERE",
+		Endpoint:        "https://s3.amazonaws.com",
+	}
+	client, err := s3.New(config)
+	if err != nil {
+	    panic(err)
+	}
+}
+```
 
 ## Documentation
 
-* API reference 
+* API reference [![GoDoc](http://img.shields.io/badge/go-documentation-blue.svg?style=flat-square)](http://godoc.org/github.com/minio/minio-go)
 * Complete example.
 
 ## Join The Community
