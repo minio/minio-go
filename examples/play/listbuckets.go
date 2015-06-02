@@ -25,16 +25,18 @@ import (
 )
 
 func main() {
-	config := new(play.Config)
-	config.AccessKeyID = ""
-	config.SecretAccessKey = ""
-	config.Endpoint = "http://play.minio.io:9000"
-	config.AcceptType = ""
-	m := play.New(config)
-	for message := range m.ListObjects("public-bucket", "", true) {
+	config := play.Config{
+		AccessKeyID:     "",
+		SecretAccessKey: "",
+		Endpoint:        "https://play.minio.io:9000",
+	}
+
+	client := play.New(&config)
+
+	for message := range client.ListBuckets() {
 		if message.Err != nil {
-			log.Fatal(message.Err)
+			log.Fatalln(message.Err)
 		}
-		log.Println(message.Data)
+		log.Println(message.Stat)
 	}
 }
