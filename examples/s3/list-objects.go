@@ -25,15 +25,17 @@ import (
 )
 
 func main() {
-	config := new(s3.Config)
-	config.AccessKeyID = ""
-	config.SecretAccessKey = ""
-	config.Endpoint = "https://s3.amazonaws.com"
-	config.AcceptType = ""
-	m := s3.New(config)
-	for message := range m.ListBuckets() {
+	config := s3.Config{
+		AccessKeyID:     "YOUR-ACCESS-KEY-HERE",
+		SecretAccessKey: "YOUR-PASSWORD-HERE",
+		Endpoint:        "https://s3.amazonaws.com",
+	}
+
+	client := s3.New(&config)
+
+	for message := range client.ListObjects("mybucket", "", true) {
 		if message.Err != nil {
-			log.Fatal(message.Err)
+			log.Fatalln(message.Err)
 		}
 		log.Println(message.Data)
 	}
