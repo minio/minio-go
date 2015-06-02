@@ -23,10 +23,10 @@ import (
 
 // part - message structure for results from the MultiPart
 type part struct {
-	Data io.ReadSeeker
-	Err  error
-	Len  int64
-	Num  int // part number
+	ReadSeeker io.ReadSeeker
+	Err        error
+	Len        int64
+	Num        int // part number
 }
 
 // multiPart reads from io.Reader, partitions the data into chunks of given chunksize, and sends
