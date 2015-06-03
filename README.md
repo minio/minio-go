@@ -11,6 +11,8 @@ $ go get github.com/minio/minio-go
 package main
 
 import (
+	"log"
+	
 	"github.com/minio/minio-go"
 )
 
@@ -22,7 +24,13 @@ func main() {
 	}
 	s3Client, err := minio.New(config)
 	if err != nil {
-	    panic(err)
+	    log.Fatalln(err)
+	}
+	for bucket := range s3Client.ListBuckets() {
+		if bucket.Err != nil {
+			log.Fatalln(bucket.Err)
+		}
+		log.Println(bucket.Stat)
 	}
 }
 ```
