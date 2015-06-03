@@ -22,16 +22,16 @@ import (
 	"log"
 	"os"
 
-	s3 "github.com/minio/minio-go"
+	"github.com/minio/minio-go"
 )
 
 func main() {
-	config := s3.Config{
+	config := minio.Config{
 		AccessKeyID:     "YOUR-ACCESS-KEY-HERE",
 		SecretAccessKey: "YOUR-PASSWORD-HERE",
 		Endpoint:        "https://s3.amazonaws.com",
 	}
-	client, err := s3.New(config)
+	s3Client, err := minio.New(config)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -39,15 +39,16 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	defer object.Close()
 	objectInfo, err := object.Stat()
 	if err != nil {
 		object.Close()
 		log.Fatalln(err)
 	}
 
-	err = client.PutObject("mybucket", "myobject", uint64(objectInfo.Size()), object)
+	err = s3Client.PutObject("mybucket", "myobject", uint64(objectInfo.Size()), object)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	defer object.Close()
+
 }
