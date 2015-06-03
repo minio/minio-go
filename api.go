@@ -232,7 +232,7 @@ var maxPartSize uint64 = 1024 * 1024 * 1024 * 5
 //
 // special case where it happens to be that partSize is indeed bigger than the
 // maximum part size just return maxPartSize back
-func GetPartSize(objectSize uint64) uint64 {
+func getPartSize(objectSize uint64) uint64 {
 	partSize := (objectSize / (maxParts - 1)) // make sure last part has enough buffer and handle this poperly
 	{
 		if partSize > MinimumPartSize {
@@ -252,7 +252,7 @@ func (a api) newObjectUpload(bucket, object string, size uint64, data io.Reader)
 	}
 	uploadID := initiateMultipartUploadResult.UploadID
 	completeMultipartUpload := completeMultipartUpload{}
-	for part := range multiPart(data, GetPartSize(size), nil) {
+	for part := range multiPart(data, getPartSize(size), nil) {
 		if part.Err != nil {
 			return part.Err
 		}
@@ -328,7 +328,7 @@ func (a api) continueObjectUpload(bucket, object, uploadID string, size uint64, 
 		completeMultipartUpload.Part = append(completeMultipartUpload.Part, completedPart)
 		skipParts = append(skipParts, part.Metadata.PartNumber)
 	}
-	for part := range multiPart(data, GetPartSize(size), skipParts) {
+	for part := range multiPart(data, getPartSize(size), skipParts) {
 		if part.Err != nil {
 			return part.Err
 		}
