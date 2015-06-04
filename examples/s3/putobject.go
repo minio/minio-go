@@ -46,7 +46,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	err = s3Client.PutObject("mybucket", "myobject", uint64(objectInfo.Size()), object)
+	err = s3Client.PutObject("mybucket", "myobject", objectInfo.Size(), object)
 	if err != nil {
 		log.Fatalln(err)
 	}

@@ -47,7 +47,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	err = playClient.PutObject("mybucket", "myobject", uint64(objectInfo.Size()), object)
+	err = playClient.PutObject("mybucket", "myobject", objectInfo.Size(), object)
 	if err != nil {
 		log.Fatalln(err)
 	}
