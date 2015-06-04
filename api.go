@@ -17,6 +17,7 @@
 package minio
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -256,7 +257,7 @@ func (a api) newObjectUpload(bucket, object string, size uint64, data io.Reader)
 		if part.Err != nil {
 			return part.Err
 		}
-		completePart, err := a.uploadPart(bucket, object, uploadID, part.Num, part.Len, part.ReadSeeker)
+		completePart, err := a.uploadPart(bucket, object, uploadID, part.Md5Sum, part.Num, part.Len, part.ReadSeeker)
 		if err != nil {
 			return err
 		}
@@ -318,21 +319,36 @@ func (a api) listObjectPartsRecursiveInRoutine(bucket, object, uploadID string, 
 	}
 }
 
+type skipPart struct {
+	md5sum     []byte
+	partNumber int
+}
+
 func (a api) continueObjectUpload(bucket, object, uploadID string, size uint64, data io.Reader) error {
-	var skipParts []int
+	var skipParts []skipPart
 	completeMultipartUpload := completeMultipartUpload{}
 	for part := range a.listObjectPartsRecursive(bucket, object, uploadID) {
+		if part.Err != nil {
+			return part.Err
+		}
 		var completedPart completePart
 		completedPart.PartNumber = part.Metadata.PartNumber
 		completedPart.ETag = part.Metadata.ETag
 		completeMultipartUpload.Part = append(completeMultipartUpload.Part, completedPart)
-		skipParts = append(skipParts, part.Metadata.PartNumber)
+		md5SumBytes, err := hex.DecodeString(strings.Trim(part.Metadata.ETag, "\"")) // trim off the odd double quotes
+		if err != nil {
+			return err
+		}
+		skipParts = append(skipParts, skipPart{
+			md5sum:     md5SumBytes,
+			partNumber: part.Metadata.PartNumber,
+		})
 	}
 	for part := range multiPart(data, getPartSize(size), skipParts) {
 		if part.Err != nil {
 			return part.Err
 		}
-		completedPart, err := a.uploadPart(bucket, object, uploadID, part.Num, part.Len, part.ReadSeeker)
+		completedPart, err := a.uploadPart(bucket, object, uploadID, part.Md5Sum, part.Num, part.Len, part.ReadSeeker)
 		if err != nil {
 			return err
 		}
@@ -414,7 +430,7 @@ func (a api) PutObject(bucket, object string, size uint64, data io.Reader) error
 			if part.Err != nil {
 				return part.Err
 			}
-			_, err := a.putObject(bucket, object, part.Len, part.ReadSeeker)
+			_, err := a.putObject(bucket, object, part.Md5Sum, part.Len, part.ReadSeeker)
 			if err != nil {
 				return err
 			}

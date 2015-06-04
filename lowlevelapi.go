@@ -377,7 +377,7 @@ func (a lowLevelAPI) deleteBucket(bucket string) error {
 /// Object Read/Write/Stat Operations
 
 // putObjectRequest wrapper creates a new PutObject request
-func (a lowLevelAPI) putObjectRequest(bucket, object string, size int64, body io.ReadSeeker) (*request, error) {
+func (a lowLevelAPI) putObjectRequest(bucket, object string, md5SumBytes []byte, size int64, body io.ReadSeeker) (*request, error) {
 	encodedObject, err := urlEncodeName(object)
 	if err != nil {
 		return nil, err
@@ -386,10 +386,6 @@ func (a lowLevelAPI) putObjectRequest(bucket, object string, size int64, body io
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "PUT",
 		HTTPPath:   "/" + bucket + "/" + encodedObject,
-	}
-	md5SumBytes, err := sumMD5Reader(body, size)
-	if err != nil {
-		return nil, err
 	}
 	r, err := newRequest(op, a.config, body)
 	if err != nil {
@@ -404,8 +400,8 @@ func (a lowLevelAPI) putObjectRequest(bucket, object string, size int64, body io
 // putObject - add an object to a bucket
 //
 // You must have WRITE permissions on a bucket to add an object to it.
-func (a lowLevelAPI) putObject(bucket, object string, size int64, body io.ReadSeeker) (ObjectStat, error) {
-	req, err := a.putObjectRequest(bucket, object, size, body)
+func (a lowLevelAPI) putObject(bucket, object string, md5SumBytes []byte, size int64, body io.ReadSeeker) (ObjectStat, error) {
+	req, err := a.putObjectRequest(bucket, object, md5SumBytes, size, body)
 	if err != nil {
 		return ObjectStat{}, err
 	}
