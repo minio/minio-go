@@ -39,13 +39,13 @@ type part struct {
 // Before returning, the channel is always closed.
 //
 // additionally this function also skips list of parts if provided
-func multiPart(reader io.Reader, chunkSize uint64, skipParts []skipPart) <-chan part {
+func multiPart(reader io.Reader, chunkSize int64, skipParts []skipPart) <-chan part {
 	ch := make(chan part)
 	go multiPartInRoutine(reader, chunkSize, skipParts, ch)
 	return ch
 }
 
-func multiPartInRoutine(reader io.Reader, chunkSize uint64, skipParts []skipPart, ch chan part) {
+func multiPartInRoutine(reader io.Reader, chunkSize int64, skipParts []skipPart, ch chan part) {
 	defer close(ch)
 	p := make([]byte, chunkSize)
 	n, err := io.ReadFull(reader, p)

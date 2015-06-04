@@ -151,7 +151,7 @@ func TestObjectOperations(t *testing.T) {
 		t.Fatalf("Error")
 	}
 	data := []byte("Hello, World")
-	err = a.PutObject("bucket", "object", uint64(len(data)), bytes.NewReader(data))
+	err = a.PutObject("bucket", "object", int64(len(data)), bytes.NewReader(data))
 	if err != nil {
 		t.Fatalf("Error")
 	}
@@ -197,7 +197,7 @@ func TestObjectOperations(t *testing.T) {
 }
 
 func TestPartSize(t *testing.T) {
-	var maxPartSize uint64 = 1024 * 1024 * 1024 * 5
+	var maxPartSize int64 = 1024 * 1024 * 1024 * 5
 	partSize := getPartSize(5000000000000000000)
 	if partSize > MinimumPartSize {
 		if partSize > maxPartSize {

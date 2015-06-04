@@ -421,7 +421,7 @@ func (a lowLevelAPI) putObject(bucket, object string, md5SumBytes []byte, size i
 }
 
 // getObjectRequest wrapper creates a new GetObject request
-func (a lowLevelAPI) getObjectRequest(bucket, object string, offset, length uint64) (*request, error) {
+func (a lowLevelAPI) getObjectRequest(bucket, object string, offset, length int64) (*request, error) {
 	encodedObject, err := urlEncodeName(object)
 	if err != nil {
 		return nil, err
@@ -450,7 +450,7 @@ func (a lowLevelAPI) getObjectRequest(bucket, object string, offset, length uint
 //
 // Additionally it also takes range arguments to download the specified range bytes of an object.
 // For more information about the HTTP Range header, go to http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35.
-func (a lowLevelAPI) getObject(bucket, object string, offset, length uint64) (io.ReadCloser, ObjectStat, error) {
+func (a lowLevelAPI) getObject(bucket, object string, offset, length int64) (io.ReadCloser, ObjectStat, error) {
 	req, err := a.getObjectRequest(bucket, object, offset, length)
 	if err != nil {
 		return nil, ObjectStat{}, err
