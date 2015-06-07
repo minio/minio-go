@@ -38,7 +38,10 @@ func main() {
 ## Documentation
 
 * API reference [![GoDoc](http://img.shields.io/badge/go-documentation-blue.svg?style=flat-square)](http://godoc.org/github.com/minio/minio-go)
-* Complete example. [putobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/putobject.go)
+* Other examples 
+  * [putobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/putobject.go)
+  * [getobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/getobject.go)
+  * [listobjects.go](https://github.com/minio/minio-go/blob/master/examples/listobjects.go)
 
 ## Join The Community
 * Community hangout on Gitter    [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/minio/minio?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
