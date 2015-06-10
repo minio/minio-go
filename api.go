@@ -152,14 +152,14 @@ type Config struct {
 // Global constants
 const (
 	LibraryName    = "minio-go"
-	LibraryVersion = "0.1"
+	LibraryVersion = "0.1.0"
 )
 
 // SetUserAgent - append to a default user agent
 func (c *Config) SetUserAgent(name string, version string, comments ...string) {
 	// if no name and version is set we do not add new user agents
 	if name != "" && version != "" {
-		c.userAgent = c.userAgent + " " + name + "/" + version + " (" + strings.Join(comments, ", ") + ") "
+		c.userAgent = c.userAgent + " " + name + "/" + version + " (" + strings.Join(comments, "; ") + ") "
 	}
 }
 
