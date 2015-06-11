@@ -56,7 +56,7 @@ type BucketAPI interface {
 type ObjectAPI interface {
 	GetObject(bucket, object string) (io.ReadCloser, ObjectStat, error)
 	GetPartialObject(bucket, object string, offset, length int64) (io.ReadCloser, ObjectStat, error)
-	PutObject(bucket, object string, size int64, data io.Reader) error
+	PutObject(bucket, object, contentType string, size int64, data io.Reader) error
 	StatObject(bucket, object string) (ObjectStat, error)
 	RemoveObject(bucket, object string) error
 
@@ -244,7 +244,7 @@ func getPartSize(objectSize int64) int64 {
 	}
 }
 
-func (a api) newObjectUpload(bucket, object string, size int64, data io.Reader) error {
+func (a api) newObjectUpload(bucket, object, contentType string, size int64, data io.Reader) error {
 	initiateMultipartUploadResult, err := a.initiateMultipartUpload(bucket, object)
 	if err != nil {
 		return err
@@ -414,7 +414,7 @@ func (a api) listMultipartUploadsRecursiveInRoutine(bucket, prefix string, ch ch
 // You must have WRITE permissions on a bucket to create an object
 //
 // This version of PutObject automatically does multipart for more than 5MB worth of data
-func (a api) PutObject(bucket, object string, size int64, data io.Reader) error {
+func (a api) PutObject(bucket, object, contentType string, size int64, data io.Reader) error {
 	if err := invalidArgumentToError(object); err != nil {
 		return err
 	}
@@ -425,7 +425,7 @@ func (a api) PutObject(bucket, object string, size int64, data io.Reader) error 
 			if part.Err != nil {
 				return part.Err
 			}
-			_, err := a.putObject(bucket, object, part.Md5Sum, part.Len, part.ReadSeeker)
+			_, err := a.putObject(bucket, object, contentType, part.Md5Sum, part.Len, part.ReadSeeker)
 			if err != nil {
 				return err
 			}
@@ -445,7 +445,7 @@ func (a api) PutObject(bucket, object string, size int64, data io.Reader) error 
 			}
 		}
 		if !inProgress {
-			return a.newObjectUpload(bucket, object, size, data)
+			return a.newObjectUpload(bucket, object, contentType, size, data)
 		}
 		return a.continueObjectUpload(bucket, object, inProgressUploadID, size, data)
 	}

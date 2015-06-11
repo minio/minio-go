@@ -151,7 +151,7 @@ func TestObjectOperations(t *testing.T) {
 		t.Fatalf("Error")
 	}
 	data := []byte("Hello, World")
-	err = a.PutObject("bucket", "object", int64(len(data)), bytes.NewReader(data))
+	err = a.PutObject("bucket", "object", "", int64(len(data)), bytes.NewReader(data))
 	if err != nil {
 		t.Fatalf("Error")
 	}
