@@ -140,9 +140,27 @@ type Config struct {
 	Endpoint        string
 
 	// Advanced options
-	AcceptType string            // specify this to get server response in non XML style if server supports it
-	Transport  http.RoundTripper // custom transport usually for debugging, by default its nil
-	Region     string            // Optional field. If empty, region is determined automatically.
+	// Specify this to get server response in non XML style if server supports it
+	AcceptType string
+	// Optional field. If empty, region is determined automatically.
+	Region string
+
+	// Expert options
+	//
+	// Set this to override default transport ``http.DefaultTransport``
+	//
+	// This transport is usually needed for debugging OR to add your own
+	// custom TLS certificates on the client transport, for custom CA's and
+	// certs which are not part of standard certificate authority
+	//
+	// For example :-
+	//
+	//  tr := &http.Transport{
+	//          TLSClientConfig:    &tls.Config{RootCAs: pool},
+	//          DisableCompression: true,
+	//  }
+	//
+	Transport http.RoundTripper
 
 	// internal
 	// use SetUserAgent append to default, useful when minio-go is used with in your application
