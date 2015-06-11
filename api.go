@@ -61,7 +61,7 @@ type ObjectAPI interface {
 	RemoveObject(bucket, object string) error
 
 	// Drop all incomplete uploads for a given prefix
-	DropIncompleteUploads(bucket, prefix string) <-chan error
+	DropIncompleteUploads(bucket, object string) <-chan error
 }
 
 // BucketStatCh - bucket metadata over read channel
