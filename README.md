@@ -38,7 +38,7 @@ func main() {
 ## Documentation
 
 * [PutObject(string, string, int64, io.Reader) error](examples/s3/putobject.go)
-* [GetObject(string, string, int64, int64](examples/s3/getobject.go)
+* [GetObject(string, string](examples/s3/getobject.go)
 * [ListObjects(string, string, bool) <-chan](examples/s3/listobjects.go)
 * [ListBuckets() <-chan](examples/s3/listbuckets.go)
 
