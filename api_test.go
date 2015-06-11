@@ -199,14 +199,14 @@ func TestObjectOperations(t *testing.T) {
 func TestPartSize(t *testing.T) {
 	var maxPartSize int64 = 1024 * 1024 * 1024 * 5
 	partSize := getPartSize(5000000000000000000)
-	if partSize > MinimumPartSize {
+	if partSize > minimumPartSize {
 		if partSize > maxPartSize {
-			t.Fatal("invalid result, cannot be bigger than MaxPartSize 5GB")
+			t.Fatal("invalid result, cannot be bigger than maxPartSize 5GB")
 		}
 	}
 	partSize = getPartSize(50000000000)
-	if partSize > MinimumPartSize {
-		t.Fatal("invalid result, cannot be bigger than MinimumPartSize 5MB")
+	if partSize > minimumPartSize {
+		t.Fatal("invalid result, cannot be bigger than minimumPartSize 5MB")
 	}
 }
 
