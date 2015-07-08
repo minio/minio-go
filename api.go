@@ -634,6 +634,7 @@ func (a api) listObjectsInRoutine(bucket, prefix string, recursive bool, ch chan
 				}
 				return
 			}
+			marker = result.NextMarker
 			for _, object := range result.Contents {
 				ch <- ObjectStatCh{
 					Stat: object,
@@ -652,7 +653,6 @@ func (a api) listObjectsInRoutine(bucket, prefix string, recursive bool, ch chan
 			if !result.IsTruncated {
 				break
 			}
-			marker = result.NextMarker
 		}
 	}
 }
