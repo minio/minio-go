@@ -624,28 +624,35 @@ func (a api) listObjectsInRoutine(bucket, prefix string, recursive bool, ch chan
 			}
 		}
 	default:
-		result, err := a.listObjects(bucket, "", prefix, "/", 1000)
-		if err != nil {
-			ch <- ObjectStatCh{
-				Stat: ObjectStat{},
-				Err:  err,
+		var marker string
+		for {
+			result, err := a.listObjects(bucket, marker, prefix, "/", 1000)
+			if err != nil {
+				ch <- ObjectStatCh{
+					Stat: ObjectStat{},
+					Err:  err,
+				}
+				return
 			}
-			return
-		}
-		for _, object := range result.Contents {
-			ch <- ObjectStatCh{
-				Stat: object,
-				Err:  nil,
+			for _, object := range result.Contents {
+				ch <- ObjectStatCh{
+					Stat: object,
+					Err:  nil,
+				}
 			}
-		}
-		for _, prefix := range result.CommonPrefixes {
-			object := ObjectStat{}
-			object.Key = prefix.Prefix
-			object.Size = 0
-			ch <- ObjectStatCh{
-				Stat: object,
-				Err:  nil,
+			for _, prefix := range result.CommonPrefixes {
+				object := ObjectStat{}
+				object.Key = prefix.Prefix
+				object.Size = 0
+				ch <- ObjectStatCh{
+					Stat: object,
+					Err:  nil,
+				}
 			}
+			if !result.IsTruncated {
+				break
+			}
+			marker = result.NextMarker
 		}
 	}
 }
