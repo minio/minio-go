@@ -111,6 +111,19 @@ func invalidBucketToError(bucket string) error {
 	return nil
 }
 
+func invalidObjectToError(object string) error {
+	if strings.TrimSpace(object) == "" || object == "" {
+		// no resource since object name is empty
+		errorResponse := ErrorResponse{
+			Code:      "NoSuchKey",
+			Message:   "The specified key does not exist.",
+			RequestID: "minio",
+		}
+		return errorResponse
+	}
+	return nil
+}
+
 func invalidArgumentToError(arg string) error {
 	errorResponse := ErrorResponse{
 		Code:      "InvalidArgument",
