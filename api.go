@@ -659,6 +659,7 @@ func (a api) RemoveBucket(bucket string) error {
 // listObjectsInRoutine is an internal goroutine function called for listing objects
 // This function feeds data into channel
 func (a api) listObjectsInRoutine(bucket, prefix string, recursive bool, ch chan ObjectStatCh) {
+	defer close(ch)
 	if err := invalidBucketToError(bucket); err != nil {
 		ch <- ObjectStatCh{
 			Stat: ObjectStat{},
@@ -666,7 +667,6 @@ func (a api) listObjectsInRoutine(bucket, prefix string, recursive bool, ch chan
 		}
 		return
 	}
-	defer close(ch)
 	switch {
 	case recursive == true:
 		var marker string
