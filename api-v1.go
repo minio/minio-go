@@ -385,7 +385,7 @@ func (a apiV1) headBucket(bucket string) error {
 			default:
 				errorResponse = ErrorResponse{
 					Code:      resp.Status,
-					Message:   "",
+					Message:   resp.Status,
 					Resource:  "/" + bucket,
 					RequestID: resp.Header.Get("x-amz-request-id"),
 				}
@@ -445,7 +445,7 @@ func (a apiV1) deleteBucket(bucket string) error {
 			default:
 				errorResponse = ErrorResponse{
 					Code:      resp.Status,
-					Message:   "",
+					Message:   resp.Status,
 					Resource:  "/" + bucket,
 					RequestID: resp.Header.Get("x-amz-request-id"),
 				}
@@ -642,7 +642,7 @@ func (a apiV1) deleteObject(bucket, object string) error {
 			default:
 				errorResponse = ErrorResponse{
 					Code:      resp.Status,
-					Message:   "",
+					Message:   resp.Status,
 					Resource:  "/" + bucket + "/" + object,
 					RequestID: resp.Header.Get("x-amz-request-id"),
 				}
@@ -705,7 +705,7 @@ func (a apiV1) headObject(bucket, object string) (ObjectStat, error) {
 			default:
 				errorResponse = ErrorResponse{
 					Code:      resp.Status,
-					Message:   "",
+					Message:   resp.Status,
 					Resource:  "/" + bucket + "/" + object,
 					RequestID: resp.Header.Get("x-amz-request-id"),
 				}
