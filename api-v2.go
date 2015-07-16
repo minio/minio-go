@@ -800,7 +800,6 @@ func (a apiV2) dropIncompleteUploadsInRoutine(bucket, object string, errorCh cha
 		}
 
 	}
-	errorCh <- nil
 }
 
 //
@@ -853,7 +852,6 @@ func (a apiV2) dropAllIncompleteUploadsInRoutine(bucket string, errorCh chan err
 		}
 
 	}
-	errorCh <- nil
 }
 
 // DropAllIncompleteUploads - abort all inprogress active multipart uploads
