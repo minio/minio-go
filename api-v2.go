@@ -289,14 +289,24 @@ func (a apiV2) newObjectUpload(bucket, object, contentType string, size int64, d
 	}
 	uploadID := initiateMultipartUploadResult.UploadID
 	completeMultipartUpload := completeMultipartUpload{}
+	var totalLength int64
 	for part := range chopper(data, getPartSize(size), nil) {
 		if part.Err != nil {
 			return part.Err
+		}
+		if part.Len < minimumPartSize {
+			if (size - totalLength) != part.Len {
+				return ErrorResponse{
+					Code:    "IncompleteBody",
+					Message: "IncompleteBody",
+				}
+			}
 		}
 		completePart, err := a.uploadPart(bucket, object, uploadID, part.Md5Sum, part.Num, part.Len, part.ReadSeeker)
 		if err != nil {
 			return err
 		}
+		totalLength += part.Len
 		completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, completePart)
 	}
 	sort.Sort(completedParts(completeMultipartUpload.Parts))
@@ -358,6 +368,7 @@ func (a apiV2) listObjectPartsRecursiveInRoutine(bucket, object, uploadID string
 func (a apiV2) continueObjectUpload(bucket, object, uploadID string, size int64, data io.Reader) error {
 	var skipParts []skipPart
 	completeMultipartUpload := completeMultipartUpload{}
+	var totalLength int64
 	for part := range a.listObjectPartsRecursive(bucket, object, uploadID) {
 		if part.Err != nil {
 			return part.Err
@@ -370,6 +381,7 @@ func (a apiV2) continueObjectUpload(bucket, object, uploadID string, size int64,
 		if err != nil {
 			return err
 		}
+		totalLength += part.Metadata.Size
 		skipParts = append(skipParts, skipPart{
 			md5sum:     md5SumBytes,
 			partNumber: part.Metadata.PartNumber,
@@ -378,6 +390,14 @@ func (a apiV2) continueObjectUpload(bucket, object, uploadID string, size int64,
 	for part := range chopper(data, getPartSize(size), skipParts) {
 		if part.Err != nil {
 			return part.Err
+		}
+		if part.Len < minimumPartSize {
+			if (size - totalLength) != part.Len {
+				return ErrorResponse{
+					Code:    "IncompleteBody",
+					Message: "IncompleteBody",
+				}
+			}
 		}
 		completedPart, err := a.uploadPart(bucket, object, uploadID, part.Md5Sum, part.Num, part.Len, part.ReadSeeker)
 		if err != nil {
@@ -460,6 +480,12 @@ func (a apiV2) PutObject(bucket, object, contentType string, size int64, data io
 		for part := range chopper(data, minimumPartSize, nil) {
 			if part.Err != nil {
 				return part.Err
+			}
+			if part.Len != size {
+				return ErrorResponse{
+					Code:    "IncompleteBody",
+					Message: "IncompleteBody",
+				}
 			}
 			_, err := a.putObject(bucket, object, contentType, part.Md5Sum, part.Len, part.ReadSeeker)
 			if err != nil {
