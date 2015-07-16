@@ -289,7 +289,6 @@ func (a apiV2) newObjectUpload(bucket, object, contentType string, size int64, d
 	}
 	uploadID := initiateMultipartUploadResult.UploadID
 	completeMultipartUpload := completeMultipartUpload{}
-	var totalLength int64
 	for part := range chopper(data, getPartSize(size), nil) {
 		if part.Err != nil {
 			return part.Err
@@ -298,18 +297,9 @@ func (a apiV2) newObjectUpload(bucket, object, contentType string, size int64, d
 		if err != nil {
 			return err
 		}
-		totalLength += part.Len
 		completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, completePart)
 	}
 	sort.Sort(completedParts(completeMultipartUpload.Parts))
-	if totalLength != size {
-		return ErrorResponse{
-			Code:      "IncompleteBody",
-			Message:   "You did not provide the number of bytes specified by the Content-Length HTTP header",
-			Resource:  "/" + bucket + "/" + object,
-			RequestID: "",
-		}
-	}
 	_, err = a.completeMultipartUpload(bucket, object, uploadID, completeMultipartUpload)
 	if err != nil {
 		return err
@@ -368,7 +358,6 @@ func (a apiV2) listObjectPartsRecursiveInRoutine(bucket, object, uploadID string
 func (a apiV2) continueObjectUpload(bucket, object, uploadID string, size int64, data io.Reader) error {
 	var skipParts []skipPart
 	completeMultipartUpload := completeMultipartUpload{}
-	var totalLength int64
 	for part := range a.listObjectPartsRecursive(bucket, object, uploadID) {
 		if part.Err != nil {
 			return part.Err
@@ -381,7 +370,6 @@ func (a apiV2) continueObjectUpload(bucket, object, uploadID string, size int64,
 		if err != nil {
 			return err
 		}
-		totalLength += part.Metadata.Size
 		skipParts = append(skipParts, skipPart{
 			md5sum:     md5SumBytes,
 			partNumber: part.Metadata.PartNumber,
@@ -395,18 +383,9 @@ func (a apiV2) continueObjectUpload(bucket, object, uploadID string, size int64,
 		if err != nil {
 			return err
 		}
-		totalLength += part.Len
 		completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, completedPart)
 	}
 	sort.Sort(completedParts(completeMultipartUpload.Parts))
-	if totalLength != size {
-		return ErrorResponse{
-			Code:      "IncompleteBody",
-			Message:   "You did not provide the number of bytes specified by the Content-Length HTTP header",
-			Resource:  "/" + bucket + "/" + object,
-			RequestID: "",
-		}
-	}
 	_, err := a.completeMultipartUpload(bucket, object, uploadID, completeMultipartUpload)
 	if err != nil {
 		return err
@@ -481,14 +460,6 @@ func (a apiV2) PutObject(bucket, object, contentType string, size int64, data io
 		for part := range chopper(data, minimumPartSize, nil) {
 			if part.Err != nil {
 				return part.Err
-			}
-			if part.Len != size {
-				return ErrorResponse{
-					Code:      "IncompleteBody",
-					Message:   "You did not provide the number of bytes specified by the Content-Length HTTP header",
-					Resource:  "/" + bucket + "/" + object,
-					RequestID: "",
-				}
 			}
 			_, err := a.putObject(bucket, object, contentType, part.Md5Sum, part.Len, part.ReadSeeker)
 			if err != nil {
