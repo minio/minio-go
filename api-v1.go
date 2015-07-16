@@ -576,15 +576,20 @@ func (a apiV1) getObject(bucket, object string, offset, length int64) (io.ReadCl
 	if err != nil {
 		return nil, ObjectStat{}, ErrorResponse{
 			Code:      "InternalError",
-			Message:   "Content-Length unrecognized, please report this issue at https://github.com/minio/minio-go/issues",
+			Message:   "Content-Length not recognized, please report this issue at https://github.com/minio/minio-go/issues",
 			RequestID: resp.Header.Get("x-amz-request-id"),
 		}
+	}
+	contentType := strings.TrimSpace(resp.Header.Get("Content-Type"))
+	if contentType == "" {
+		contentType = "application/octet-stream"
 	}
 	var objectstat ObjectStat
 	objectstat.ETag = md5sum
 	objectstat.Key = object
 	objectstat.Size = resp.ContentLength
 	objectstat.LastModified = date
+	objectstat.ContentType = contentType
 
 	// do not close body here, caller will close
 	return resp.Body, objectstat, nil
@@ -726,7 +731,7 @@ func (a apiV1) headObject(bucket, object string) (ObjectStat, error) {
 	if err != nil {
 		return ObjectStat{}, ErrorResponse{
 			Code:      "InternalError",
-			Message:   "Content-Length unrecognized, please report this issue at https://github.com/minio/minio-go/issues",
+			Message:   "Content-Length not recognized, please report this issue at https://github.com/minio/minio-go/issues",
 			RequestID: resp.Header.Get("x-amz-request-id"),
 		}
 	}
@@ -734,15 +739,21 @@ func (a apiV1) headObject(bucket, object string) (ObjectStat, error) {
 	if err != nil {
 		return ObjectStat{}, ErrorResponse{
 			Code:      "InternalError",
-			Message:   "Last-Modified time format unrecognized, please report this issue at https://github.com/minio/minio-go/issues",
+			Message:   "Last-Modified time format not recognized, please report this issue at https://github.com/minio/minio-go/issues",
 			RequestID: resp.Header.Get("x-amz-request-id"),
 		}
 	}
+	contentType := strings.TrimSpace(resp.Header.Get("Content-Type"))
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
 	var objectstat ObjectStat
 	objectstat.ETag = md5sum
 	objectstat.Key = object
 	objectstat.Size = size
 	objectstat.LastModified = date
+	objectstat.ContentType = contentType
 	return objectstat, nil
 }
 
