@@ -90,6 +90,7 @@ type ObjectStat struct {
 	Key          string
 	LastModified time.Time
 	Size         int64
+	ContentType  string
 
 	Owner struct {
 		DisplayName string
