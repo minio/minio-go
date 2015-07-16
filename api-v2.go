@@ -481,6 +481,14 @@ func (a apiV2) PutObject(bucket, object, contentType string, size int64, data io
 			if part.Err != nil {
 				return part.Err
 			}
+			if part.Len != size {
+				return ErrorResponse{
+					Code:      "IncompleteBody",
+					Message:   "You did not provide the number of bytes specified by the Content-Length HTTP header",
+					Resource:  "/" + bucket + "/" + object,
+					RequestID: "",
+				}
+			}
 			_, err := a.putObject(bucket, object, contentType, part.Md5Sum, part.Len, part.ReadSeeker)
 			if err != nil {
 				return err
