@@ -1,5 +1,21 @@
 // +build ignore
 
+/*
+ * Minimal object storage library (C) 2015 Minio, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package minio
 
 import (
@@ -367,7 +383,7 @@ func TestPutSmallObjectWithUnicode3(t *testing.T) {
 
 func TestPutLargeTextFile(t *testing.T) {
 	key := "large/text_file"
-	fileName := "/home/fkautz/11m_text"
+	fileName := "/tmp/11m_text"
 	file, err := os.Open(fileName)
 	defer file.Close()
 	if err != nil {
@@ -389,7 +405,7 @@ func TestPutLargeTextFile(t *testing.T) {
 
 func TestPutLargeBinaryFile(t *testing.T) {
 	key := "large/binary_file"
-	fileName := "/home/fkautz/11m_binary"
+	fileName := "/tmp/11m_binary"
 	file, err := os.Open(fileName)
 	defer file.Close()
 	if err != nil {
@@ -411,7 +427,7 @@ func TestPutLargeBinaryFile(t *testing.T) {
 
 func TestPutLargeSizeTooSmall(t *testing.T) {
 	key := "large/toosmall"
-	fileName := "/home/fkautz/11m_binary"
+	fileName := "/tmp/11m_binary"
 	file, err := os.Open(fileName)
 	defer file.Close()
 	if err != nil {
@@ -424,12 +440,11 @@ func TestPutLargeSizeTooSmall(t *testing.T) {
 	if err = client.PutObject(bucket, key, "", fileStat.Size()-1, file); err == nil {
 		t.Error("Should fail when length is too large")
 	}
-	t.Error(err)
 }
 
 func TestPutLargeSizeTooLarge(t *testing.T) {
 	key := "large/toolarge"
-	fileName := "/home/fkautz/11m_binary"
+	fileName := "/tmp/11m_binary"
 	file, err := os.Open(fileName)
 	defer file.Close()
 	if err != nil {
@@ -442,12 +457,11 @@ func TestPutLargeSizeTooLarge(t *testing.T) {
 	if err = client.PutObject(bucket, key, "", fileStat.Size()+1, file); err == nil {
 		t.Error("Should fail when length is too large")
 	}
-	t.Error(err)
 }
 
 func TestPutLargeBinaryFileContentType(t *testing.T) {
 	key := "large/text_plain"
-	fileName := "/home/fkautz/11m_text"
+	fileName := "/tmp/11m_text"
 	file, err := os.Open(fileName)
 	defer file.Close()
 	if err != nil {
@@ -469,7 +483,7 @@ func TestPutLargeBinaryFileContentType(t *testing.T) {
 
 func TestPutLargeBinaryFileWithQuestionMark(t *testing.T) {
 	key := "large/obj?ect"
-	fileName := "/home/fkautz/11m_binary"
+	fileName := "/tmp/11m_binary"
 	file, err := os.Open(fileName)
 	defer file.Close()
 	if err != nil {
@@ -491,7 +505,7 @@ func TestPutLargeBinaryFileWithQuestionMark(t *testing.T) {
 
 func TestPutLargeBinaryFileWithHashMark(t *testing.T) {
 	key := "large/obj#ect"
-	fileName := "/home/fkautz/11m_binary"
+	fileName := "/tmp/11m_binary"
 	file, err := os.Open(fileName)
 	defer file.Close()
 	if err != nil {
@@ -513,7 +527,7 @@ func TestPutLargeBinaryFileWithHashMark(t *testing.T) {
 
 func TestPutLargeBinaryFileWithUnicode1(t *testing.T) {
 	key := "large/世界"
-	fileName := "/home/fkautz/11m_binary"
+	fileName := "/tmp/11m_binary"
 	file, err := os.Open(fileName)
 	defer file.Close()
 	if err != nil {
@@ -535,7 +549,7 @@ func TestPutLargeBinaryFileWithUnicode1(t *testing.T) {
 
 func TestPutLargeBinaryFileWithUnicode2(t *testing.T) {
 	key := "large/世界世"
-	fileName := "/home/fkautz/11m_binary"
+	fileName := "/tmp/11m_binary"
 	file, err := os.Open(fileName)
 	defer file.Close()
 	if err != nil {
@@ -561,7 +575,7 @@ func TestPutLargeBinaryFileWithUnicode3(t *testing.T) {
 		t.Error(e)
 	}
 	key := "large/世界世界"
-	fileName := "/home/fkautz/11m_binary"
+	fileName := "/tmp/11m_binary"
 	file, err := os.Open(fileName)
 	defer file.Close()
 	if err != nil {
@@ -584,7 +598,7 @@ func TestPutLargeBinaryFileWithUnicode3(t *testing.T) {
 
 func TestPutLargeBinaryFileWithUnicode4(t *testing.T) {
 	key := "large/4世界世界世"
-	fileName := "/home/fkautz/11m_binary"
+	fileName := "/tmp/11m_binary"
 	file, err := os.Open(fileName)
 	defer file.Close()
 	if err != nil {
@@ -601,7 +615,7 @@ func TestPutLargeBinaryFileWithUnicode4(t *testing.T) {
 
 func TestPutLargeBinaryFileWithUnicode5(t *testing.T) {
 	key := "large/5世界世界世界"
-	fileName := "/home/fkautz/11m_binary"
+	fileName := "/tmp/11m_binary"
 	file, err := os.Open(fileName)
 	defer file.Close()
 	if err != nil {
@@ -618,7 +632,7 @@ func TestPutLargeBinaryFileWithUnicode5(t *testing.T) {
 
 func TestPutLargeBinaryFileWithUnicode6(t *testing.T) {
 	key := "large/6世界世界世界世"
-	fileName := "/home/fkautz/11m_binary"
+	fileName := "/tmp/11m_binary"
 	file, err := os.Open(fileName)
 	defer file.Close()
 	if err != nil {
