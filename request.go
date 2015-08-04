@@ -22,7 +22,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -144,45 +143,6 @@ func (op *operation) getRequestURL(config Config) (url string) {
 	return
 }
 
-func httpNewRequest(method, urlStr string, body io.Reader) (*http.Request, error) {
-	u, err := url.Parse(urlStr)
-	if err != nil {
-		return nil, err
-	}
-	// make sure to encode properly, url.Parse in golang is buggy and creates erroneous encoding
-	uEncoded := u
-	bucketName, objectName := path2BucketAndObject(uEncoded.Path)
-	if objectName != "" {
-		encodeObjectName, _ := urlEncodeName(objectName)
-		uEncoded.Path = separator + bucketName + separator + encodeObjectName
-	}
-	rc, ok := body.(io.ReadCloser)
-	if !ok && body != nil {
-		rc = ioutil.NopCloser(body)
-	}
-	req := &http.Request{
-		Method:     method,
-		URL:        uEncoded,
-		Proto:      "HTTP/1.1",
-		ProtoMajor: 1,
-		ProtoMinor: 1,
-		Header:     make(http.Header),
-		Body:       rc,
-		Host:       uEncoded.Host,
-	}
-	if body != nil {
-		switch v := body.(type) {
-		case *bytes.Buffer:
-			req.ContentLength = int64(v.Len())
-		case *bytes.Reader:
-			req.ContentLength = int64(v.Len())
-		case *strings.Reader:
-			req.ContentLength = int64(v.Len())
-		}
-	}
-	return req, nil
-}
-
 // newRequest - instantiate a new request
 func newRequest(op *operation, config *Config, body io.ReadSeeker) (*request, error) {
 	// if no method default to POST
@@ -194,7 +154,7 @@ func newRequest(op *operation, config *Config, body io.ReadSeeker) (*request, er
 	u := op.getRequestURL(*config)
 
 	// get a new HTTP request, for the requested method
-	req, err := httpNewRequest(method, u, nil)
+	req, err := http.NewRequest(method, u, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -334,6 +294,7 @@ func (r *request) getCanonicalRequest(hashedPayload string) string {
 	encodedPath, _ := urlEncodeName(r.req.URL.Path)
 	// convert any space strings back to "+"
 	encodedPath = strings.Replace(encodedPath, "+", "%20", -1)
+	encodedPath = strings.Replace(encodedPath, "%2B", "+", -1)
 	canonicalRequest := strings.Join([]string{
 		r.req.Method,
 		encodedPath,
