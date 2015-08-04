@@ -22,6 +22,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -82,6 +83,23 @@ var ignoredHeaders = map[string]bool{
 	"User-Agent":     true,
 }
 
+func path2BucketAndObject(path string) (bucketName, objectName string) {
+	pathSplits := strings.SplitN(path, "?", 2)
+	splits := strings.SplitN(pathSplits[0], separator, 3)
+	switch len(splits) {
+	case 0, 1:
+		bucketName = ""
+		objectName = ""
+	case 2:
+		bucketName = splits[1]
+		objectName = ""
+	case 3:
+		bucketName = splits[1]
+		objectName = splits[2]
+	}
+	return bucketName, objectName
+}
+
 // path2Object gives objectName from URL path
 func path2Object(path string) (objectName string) {
 	pathSplits := strings.SplitN(path, "?", 2)
@@ -126,6 +144,45 @@ func (op *operation) getRequestURL(config Config) (url string) {
 	return
 }
 
+func httpNewRequest(method, urlStr string, body io.Reader) (*http.Request, error) {
+	u, err := url.Parse(urlStr)
+	if err != nil {
+		return nil, err
+	}
+	// make sure to encode properly, url.Parse in golang is buggy and creates erroneous encoding
+	uEncoded := u
+	bucketName, objectName := path2BucketAndObject(uEncoded.Path)
+	if objectName != "" {
+		encodeObjectName, _ := urlEncodeName(objectName)
+		uEncoded.Path = separator + bucketName + separator + encodeObjectName
+	}
+	rc, ok := body.(io.ReadCloser)
+	if !ok && body != nil {
+		rc = ioutil.NopCloser(body)
+	}
+	req := &http.Request{
+		Method:     method,
+		URL:        uEncoded,
+		Proto:      "HTTP/1.1",
+		ProtoMajor: 1,
+		ProtoMinor: 1,
+		Header:     make(http.Header),
+		Body:       rc,
+		Host:       uEncoded.Host,
+	}
+	if body != nil {
+		switch v := body.(type) {
+		case *bytes.Buffer:
+			req.ContentLength = int64(v.Len())
+		case *bytes.Reader:
+			req.ContentLength = int64(v.Len())
+		case *strings.Reader:
+			req.ContentLength = int64(v.Len())
+		}
+	}
+	return req, nil
+}
+
 // newRequest - instantiate a new request
 func newRequest(op *operation, config *Config, body io.ReadSeeker) (*request, error) {
 	// if no method default to POST
@@ -137,7 +194,7 @@ func newRequest(op *operation, config *Config, body io.ReadSeeker) (*request, er
 	u := op.getRequestURL(*config)
 
 	// get a new HTTP request, for the requested method
-	req, err := http.NewRequest(method, u, nil)
+	req, err := httpNewRequest(method, u, nil)
 	if err != nil {
 		return nil, err
 	}
