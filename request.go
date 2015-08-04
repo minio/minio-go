@@ -153,8 +153,13 @@ func httpNewRequest(method, urlStr string, body io.Reader) (*http.Request, error
 	uEncoded := u
 	bucketName, objectName := path2BucketAndObject(uEncoded.Path)
 	if objectName != "" {
-		encodeObjectName, _ := urlEncodeName(objectName)
-		uEncoded.Path = separator + bucketName + separator + encodeObjectName
+		encodedObjectName, err := urlEncodeName(objectName)
+		if err != nil {
+			return nil, err
+		}
+		uEncoded.Opaque = separator + bucketName + separator + encodedObjectName
+	} else {
+		uEncoded.Opaque = separator + bucketName
 	}
 	rc, ok := body.(io.ReadCloser)
 	if !ok && body != nil {
@@ -331,12 +336,9 @@ func (r *request) getSignedHeaders() string {
 //
 func (r *request) getCanonicalRequest(hashedPayload string) string {
 	r.req.URL.RawQuery = strings.Replace(r.req.URL.Query().Encode(), "+", "%20", -1)
-	encodedPath, _ := urlEncodeName(r.req.URL.Path)
-	// convert any space strings back to "+"
-	encodedPath = strings.Replace(encodedPath, "%20", "+", -1)
 	canonicalRequest := strings.Join([]string{
 		r.req.Method,
-		encodedPath,
+		r.req.URL.Opaque,
 		r.req.URL.RawQuery,
 		r.getCanonicalHeaders(),
 		r.getSignedHeaders(),
