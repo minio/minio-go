@@ -22,6 +22,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestACLTypes(t *testing.T) {
@@ -294,6 +295,56 @@ func TestURLEncoding(t *testing.T) {
 		if u.encodedName != encodedName {
 			t.Errorf("Error")
 		}
+	}
+}
+
+func TestPresignedURL(t *testing.T) {
+	object := objectHandler(objectHandler{
+		resource: "/bucket/object",
+		data:     []byte("Hello, World"),
+	})
+	server := httptest.NewServer(object)
+	defer server.Close()
+
+	a, err := New(Config{Endpoint: server.URL})
+	if err != nil {
+		t.Fatalf("Error")
+	}
+	// should error out for invalid access keys
+	_, err = a.PresignedGetObject("bucket", "object", time.Duration(1000)*time.Second)
+	if err == nil {
+		t.Fatalf("Error")
+	}
+
+	a, err = New(Config{
+		Endpoint:        server.URL,
+		AccessKeyID:     "accessKey",
+		SecretAccessKey: "secretKey",
+	})
+	if err != nil {
+		t.Fatalf("Error")
+	}
+	url, err := a.PresignedGetObject("bucket", "object", time.Duration(1000)*time.Second)
+	if err != nil {
+		t.Fatalf("Error")
+	}
+	if url == "" {
+		t.Fatalf("Error")
+	}
+	url, err = a.PresignedGetPartialObject("bucket", "object", time.Duration(1000)*time.Second, 5, 11)
+	if err != nil {
+		t.Fatalf("Error")
+	}
+	if url == "" {
+		t.Fatalf("Error")
+	}
+	_, err = a.PresignedGetObject("bucket", "object", time.Duration(0)*time.Second)
+	if err == nil {
+		t.Fatalf("Error")
+	}
+	_, err = a.PresignedGetObject("bucket", "object", time.Duration(604801)*time.Second)
+	if err == nil {
+		t.Fatalf("Error")
 	}
 }
 

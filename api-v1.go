@@ -557,7 +557,7 @@ func (a apiV1) presignedGetObject(bucket, object string, expires, offset, length
 	if err != nil {
 		return "", err
 	}
-	return req.PreSignV4(), nil
+	return req.PreSignV4()
 }
 
 // getObjectRequest wrapper creates a new getObject request
