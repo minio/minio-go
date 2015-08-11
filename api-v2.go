@@ -835,9 +835,12 @@ func (a apiV2) dropIncompleteUploadsInRoutine(bucket, object string, errorCh cha
 		return
 	}
 	for _, multiPartUpload := range listMultipartUploadsResult.Uploads {
-		err := a.abortMultipartUpload(bucket, multiPartUpload.Key, multiPartUpload.UploadID)
-		if err != nil {
-			errorCh <- err
+		if object == multiPartUpload.Key {
+			err := a.abortMultipartUpload(bucket, multiPartUpload.Key, multiPartUpload.UploadID)
+			if err != nil {
+				errorCh <- err
+				return
+			}
 			return
 		}
 	}
@@ -852,9 +855,12 @@ func (a apiV2) dropIncompleteUploadsInRoutine(bucket, object string, errorCh cha
 			return
 		}
 		for _, multiPartUpload := range listMultipartUploadsResult.Uploads {
-			err := a.abortMultipartUpload(bucket, multiPartUpload.Key, multiPartUpload.UploadID)
-			if err != nil {
-				errorCh <- err
+			if object == multiPartUpload.Key {
+				err := a.abortMultipartUpload(bucket, multiPartUpload.Key, multiPartUpload.UploadID)
+				if err != nil {
+					errorCh <- err
+					return
+				}
 				return
 			}
 		}
