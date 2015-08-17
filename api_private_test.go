@@ -63,13 +63,13 @@ func TestGetRegion(t *testing.T) {
 
 func TestPartSize(t *testing.T) {
 	var maxPartSize int64 = 1024 * 1024 * 1024 * 5
-	partSize := getPartSize(5000000000000000000)
+	partSize := calculatePartSize(5000000000000000000)
 	if partSize > minimumPartSize {
 		if partSize > maxPartSize {
 			t.Fatal("invalid result, cannot be bigger than maxPartSize 5GB")
 		}
 	}
-	partSize = getPartSize(50000000000)
+	partSize = calculatePartSize(50000000000)
 	if partSize > minimumPartSize {
 		t.Fatal("invalid result, cannot be bigger than minimumPartSize 5MB")
 	}
