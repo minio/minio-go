@@ -328,11 +328,14 @@ func (a apiV2) newObjectUpload(bucket, object, contentType string, size int64, d
 		if part.Err != nil {
 			return part.Err
 		}
-		if part.Len < minimumPartSize {
+		// This check is primarily for last part
+		// This verifies if the part.Len was an unexpected read i.e if we lost few bytes
+		if part.Len < getPartSize(size) {
 			if (size - totalLength) != part.Len {
 				return ErrorResponse{
-					Code:    "IncompleteBody",
-					Message: "IncompleteBody",
+					Code:     "MethodUnexpectedEOF",
+					Message:  "Data read is less than the requested size",
+					Resource: separator + bucket + separator + object,
 				}
 			}
 		}
@@ -425,11 +428,14 @@ func (a apiV2) continueObjectUpload(bucket, object, uploadID string, size int64,
 		if part.Err != nil {
 			return part.Err
 		}
-		if part.Len < minimumPartSize {
+		// This check is primarily for last part
+		// This verifies if the part.Len was an unexpected read i.e if we lost few bytes
+		if part.Len < getPartSize(size) {
 			if (size - totalLength) != part.Len {
 				return ErrorResponse{
-					Code:    "IncompleteBody",
-					Message: "IncompleteBody",
+					Code:     "MethodUnexpectedEOF",
+					Message:  "Data read is less than the requested size",
+					Resource: separator + bucket + separator + object,
 				}
 			}
 		}
@@ -515,10 +521,12 @@ func (a apiV2) PutObject(bucket, object, contentType string, size int64, data io
 			if part.Err != nil {
 				return part.Err
 			}
+			// This verifies if the part.Len was an unexpected read i.e if we lost few bytes
 			if part.Len != size {
 				return ErrorResponse{
-					Code:    "IncompleteBody",
-					Message: "IncompleteBody",
+					Code:     "MethodUnexpectedEOF",
+					Message:  "Data read is less than the requested size",
+					Resource: separator + bucket + separator + object,
 				}
 			}
 			_, err := a.putObject(bucket, object, contentType, part.MD5Sum, part.Len, part.ReadSeeker)
