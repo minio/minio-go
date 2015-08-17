@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -289,7 +290,7 @@ var maxParts = int64(10000)
 // maxPartSize - unexported right now
 var maxPartSize int64 = 1024 * 1024 * 1024 * 5
 
-// GetPartSize - calculate the optimal part size for the given objectSize
+// calculatePartSize - calculate the optimal part size for the given objectSize
 //
 // NOTE: Assumption here is that for any given object upload to a S3 compatible object
 // storage it will have the following parameters as constants
@@ -303,17 +304,16 @@ var maxPartSize int64 = 1024 * 1024 * 1024 * 5
 //
 // special case where it happens to be that partSize is indeed bigger than the
 // maximum part size just return maxPartSize back
-func getPartSize(objectSize int64) int64 {
-	partSize := (objectSize / (maxParts - 1)) // make sure last part has enough buffer and handle this poperly
-	{
-		if partSize > minimumPartSize {
-			if partSize > maxPartSize {
-				return maxPartSize
-			}
-			return partSize
+func calculatePartSize(objectSize int64) int64 {
+	// make sure last part has enough buffer and handle this poperly
+	partSize := (objectSize / (maxParts - 1))
+	if partSize > minimumPartSize {
+		if partSize > maxPartSize {
+			return maxPartSize
 		}
-		return minimumPartSize
+		return partSize
 	}
+	return minimumPartSize
 }
 
 func (a apiV2) newObjectUpload(bucket, object, contentType string, size int64, data io.Reader) error {
@@ -324,17 +324,20 @@ func (a apiV2) newObjectUpload(bucket, object, contentType string, size int64, d
 	uploadID := initiateMultipartUploadResult.UploadID
 	completeMultipartUpload := completeMultipartUpload{}
 	var totalLength int64
-	for part := range chopper(data, getPartSize(size), nil) {
+
+	partSize := calculatePartSize(size)
+	for part := range chopper(data, partSize, nil) {
 		if part.Err != nil {
 			return part.Err
 		}
 		// This check is primarily for last part
 		// This verifies if the part.Len was an unexpected read i.e if we lost few bytes
-		if part.Len < getPartSize(size) {
-			if (size - totalLength) != part.Len {
+		if part.Len < partSize {
+			expectedPartLen := size - totalLength
+			if expectedPartLen != part.Len {
 				return ErrorResponse{
-					Code:     "MethodUnexpectedEOF",
-					Message:  "Data read is less than the requested size",
+					Code:     "UnexpectedShortRead",
+					Message:  "Data read ‘" + strconv.FormatInt(expectedPartLen, 10) + "’ is less than the expected size ‘" + strconv.FormatInt(part.Len, 10) + "’",
 					Resource: separator + bucket + separator + object,
 				}
 			}
@@ -424,17 +427,19 @@ func (a apiV2) continueObjectUpload(bucket, object, uploadID string, size int64,
 			partNumber: part.Metadata.PartNumber,
 		})
 	}
-	for part := range chopper(data, getPartSize(size), skipParts) {
+	partSize := calculatePartSize(size)
+	for part := range chopper(data, partSize, skipParts) {
 		if part.Err != nil {
 			return part.Err
 		}
 		// This check is primarily for last part
 		// This verifies if the part.Len was an unexpected read i.e if we lost few bytes
-		if part.Len < getPartSize(size) {
-			if (size - totalLength) != part.Len {
+		if part.Len < partSize {
+			expectedPartLen := size - totalLength
+			if expectedPartLen != part.Len {
 				return ErrorResponse{
-					Code:     "MethodUnexpectedEOF",
-					Message:  "Data read is less than the requested size",
+					Code:     "UnexpectedShortRead",
+					Message:  "Data read ‘" + strconv.FormatInt(expectedPartLen, 10) + "’ is less than the expected size ‘" + strconv.FormatInt(part.Len, 10) + "’",
 					Resource: separator + bucket + separator + object,
 				}
 			}
