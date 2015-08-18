@@ -178,7 +178,7 @@ type Config struct {
 // Global constants
 const (
 	LibraryName    = "minio-go"
-	LibraryVersion = "0.2.1"
+	LibraryVersion = "0.2.2"
 )
 
 // SetUserAgent - append to a default user agent
