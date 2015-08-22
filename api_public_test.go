@@ -238,13 +238,6 @@ func TestPresignedURL(t *testing.T) {
 	if url == "" {
 		t.Fatalf("Error")
 	}
-	url, err = a.PresignedGetPartialObject("bucket", "object", time.Duration(1000)*time.Second, 5, 11)
-	if err != nil {
-		t.Fatalf("Error")
-	}
-	if url == "" {
-		t.Fatalf("Error")
-	}
 	_, err = a.PresignedGetObject("bucket", "object", time.Duration(0)*time.Second)
 	if err == nil {
 		t.Fatalf("Error")
