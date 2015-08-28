@@ -128,13 +128,13 @@ var regions = map[string]string{
 }
 
 // getRegion returns a region based on its endpoint mapping.
-func getRegion(host string) (region string, err error) {
-	if regions[host] != "" {
-		return regions[host], nil
+func getRegion(host string) (region string) {
+	if _, ok := regions[host]; ok {
+		return regions[host]
 	}
 	// Region cannot be empty according to Amazon S3.
 	// So we address all the four quadrants of our galaxy.
-	return "milkyway", nil
+	return "milkyway"
 }
 
 // Config - main configuration struct used by all to set endpoint, credentials, and other options for requests.
@@ -199,7 +199,7 @@ type apiV2 struct {
 
 // New - instantiate a new minio api client
 func New(config Config) (API, error) {
-	if config.Region == "" {
+	if strings.TrimSpace(config.Region) == "" || len(config.Region) == 0 {
 		u, err := url.Parse(config.Endpoint)
 		if err != nil {
 			return apiV2{}, err
@@ -210,11 +210,7 @@ func New(config Config) (API, error) {
 			hostSplits := strings.SplitN(u.Host, ".", 2)
 			u.Host = hostSplits[1]
 		}
-		region, err := getRegion(u.Host)
-		if err != nil {
-			return apiV2{}, err
-		}
-		config.Region = region
+		config.Region = getRegion(u.Host)
 	}
 	config.SetUserAgent(LibraryName, LibraryVersion, runtime.GOOS, runtime.GOARCH)
 	config.isUserAgentSet = false // default
@@ -613,7 +609,7 @@ func (a apiV2) MakeBucket(bucket string, acl BucketACL) error {
 	if !acl.isValidBucketACL() {
 		return invalidArgumentError("")
 	}
-	location, _ := getRegion(a.config.Endpoint)
+	location := a.config.Region
 	if location == "milkyway" {
 		location = ""
 	}
