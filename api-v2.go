@@ -510,6 +510,19 @@ func (a apiV2) PutObject(bucket, object, contentType string, size int64, data io
 	if err := invalidArgumentError(object); err != nil {
 		return err
 	}
+	// for un-authenticated requests do not initiated multipart operation
+	//
+	// NOTE: this behavior is only kept valid for S3, since S3 doesn't
+	// allow unauthenticated multipart requests
+	if a.config.Region != "milkyway" {
+		if a.config.AccessKeyID == "" || a.config.SecretAccessKey == "" {
+			_, err := a.putObjectUnAuthenticated(bucket, object, contentType, size, data)
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+	}
 	switch {
 	case size < minimumPartSize:
 		// Single Part use case, use PutObject directly
