@@ -1,6 +1,6 @@
 language: go
 go:
-- 1.4.2
+- 1.5.1
 script:
 - go vet ./...
 - go test -race -v ./...
