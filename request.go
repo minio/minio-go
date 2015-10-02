@@ -467,7 +467,7 @@ func (r *request) PreSignV4() (string, error) {
 		return "", errors.New("presign requires accesskey and secretkey")
 	}
 	r.SignV4()
-	return r.req.URL.String(), nil
+	return r.req.URL.Scheme + "://" + r.req.URL.Host + r.req.URL.Path + "?" + r.req.URL.RawQuery, nil
 }
 
 // SignV4 the request before Do(), in accordance with - http://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html
