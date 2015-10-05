@@ -422,38 +422,12 @@ func (r *request) getCanonicalRequest(hashedPayload string) string {
 	return canonicalRequest
 }
 
-// getScope generate a string of a specific date, an AWS region, and a service
-func (r *request) getScope(t time.Time) string {
-	scope := strings.Join([]string{
-		t.Format(yyyymmdd),
-		r.config.Region,
-		"s3",
-		"aws4_request",
-	}, "/")
-	return scope
-}
-
 // getStringToSign a string based on selected query values
 func (r *request) getStringToSign(canonicalRequest string, t time.Time) string {
 	stringToSign := authHeader + "\n" + t.Format(iso8601Format) + "\n"
-	stringToSign = stringToSign + r.getScope(t) + "\n"
+	stringToSign = stringToSign + getScope(r.config.Region, t) + "\n"
 	stringToSign = stringToSign + hex.EncodeToString(sum256([]byte(canonicalRequest)))
 	return stringToSign
-}
-
-// getSigningKey hmac seed to calculate final signature
-func (r *request) getSigningKey(t time.Time) []byte {
-	secret := r.config.SecretAccessKey
-	date := sumHMAC([]byte("AWS4"+secret), []byte(t.Format(yyyymmdd)))
-	region := sumHMAC(date, []byte(r.config.Region))
-	service := sumHMAC(region, []byte("s3"))
-	signingKey := sumHMAC(service, []byte("aws4_request"))
-	return signingKey
-}
-
-// getSignature final signature in hexadecimal form
-func (r *request) getSignature(signingKey []byte, stringToSign string) string {
-	return hex.EncodeToString(sumHMAC(signingKey, []byte(stringToSign)))
 }
 
 // Presign the request, in accordance with - http://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html
@@ -485,15 +459,15 @@ func (r *request) SignV4() {
 	if r.expires != "" {
 		query.Set("X-Amz-SignedHeaders", signedHeaders)
 	}
-	scope := r.getScope(t)
+	scope := getScope(r.config.Region, t)
 	if r.expires != "" {
 		query.Set("X-Amz-Credential", r.config.AccessKeyID+"/"+scope)
 		r.req.URL.RawQuery = query.Encode()
 	}
 	canonicalRequest := r.getCanonicalRequest(hashedPayload)
 	stringToSign := r.getStringToSign(canonicalRequest, t)
-	signingKey := r.getSigningKey(t)
-	signature := r.getSignature(signingKey, stringToSign)
+	signingKey := getSigningKey(r.config.SecretAccessKey, r.config.Region, t)
+	signature := getSignature(signingKey, stringToSign)
 
 	if r.expires != "" {
 		r.req.URL.RawQuery += "&X-Amz-Signature=" + signature
