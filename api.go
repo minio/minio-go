@@ -73,7 +73,7 @@ type ObjectAPI interface {
 // PresignedAPI - object specific for now
 type PresignedAPI interface {
 	PresignedGetObject(bucket, object string, expires time.Duration) (string, error)
-	PresignedPostPolicy(PolicyConditions) (map[string]string, error)
+	PresignedPostPolicy(*PostPolicy) (map[string]string, error)
 }
 
 // BucketStatCh - bucket metadata over read channel
@@ -556,50 +556,32 @@ func (a api) listMultipartUploadsRecursiveInRoutine(bucket, object string, ch ch
 	}
 }
 
-func (a api) PresignedPostPolicy(cond PolicyConditions) (map[string]string, error) {
-	if cond.Expires == 0 {
-		return nil, errors.New("Expires is 0")
+// PresignedPostPolicy return POST form data that can be used for object upload
+func (a api) PresignedPostPolicy(p *PostPolicy) (map[string]string, error) {
+	if p.expiration.IsZero() {
+		return nil, errors.New("Expiration time must be specified")
 	}
-	if len(cond.Bucket) == 0 {
-		return nil, errors.New("Bucket not specified")
+	if _, ok := p.formData["key"]; !ok {
+		return nil, errors.New("object key must be specified")
 	}
-	if len(cond.Object) == 0 {
-		return nil, errors.New("Object not specified")
+	if _, ok := p.formData["bucket"]; !ok {
+		return nil, errors.New("bucket name must be specified")
 	}
 
 	t := time.Now().UTC()
-	policy := PostPolicyForm{}
-	policy.Expiration = t.Add(time.Duration(cond.Expires) * time.Second)
-	policy.Policies = make([]Policy, 0)
+	p.policies = append(p.policies, policy{"eq", "$x-amz-date", t.Format(iso8601Format)})
+	p.policies = append(p.policies, policy{"eq", "$x-amz-algorithm", authHeader})
+	p.policies = append(p.policies, policy{"eq", "$x-amz-credential", a.config.AccessKeyID + "/" + getScope(a.config.Region, t)})
 
-	if len(cond.ContentType) > 0 {
-		policy.Policies = append(policy.Policies, Policy{"eq", "$Content-Type", cond.ContentType})
-	}
-	if cond.ObjectPrefix {
-		policy.Policies = append(policy.Policies, Policy{"starts-with", "$key", cond.Object})
-	} else {
-		policy.Policies = append(policy.Policies, Policy{"eq", "$key", cond.Object})
-	}
-	policy.Policies = append(policy.Policies, Policy{"eq", "$bucket", cond.Bucket})
-	policy.Policies = append(policy.Policies, Policy{"eq", "$x-amz-date", t.Format(iso8601Format)})
-	policy.Policies = append(policy.Policies, Policy{"eq", "$x-amz-algorithm", authHeader})
-	policy.Policies = append(policy.Policies, Policy{"eq", "$x-amz-credential", a.config.AccessKeyID + "/" + getScope(a.config.Region, t)})
-
-	policybase64, err := policy.Base64()
-	if err != nil {
-		return nil, err
-	}
+	policybase64 := p.base64()
 	signingkey := getSigningKey(a.config.SecretAccessKey, a.config.Region, t)
 	signature := getSignature(signingkey, policybase64)
-	m := make(map[string]string)
-	m["bucket"] = cond.Bucket
-	m["key"] = cond.Object
-	m["policy"] = policybase64
-	m["x-amz-algorithm"] = authHeader
-	m["x-amz-credential"] = a.config.AccessKeyID + "/" + getScope(a.config.Region, t)
-	m["x-amz-date"] = t.Format(iso8601Format)
-	m["x-amz-signature"] = signature
-	return m, nil
+	p.formData["policy"] = policybase64
+	p.formData["x-amz-algorithm"] = authHeader
+	p.formData["x-amz-credential"] = a.config.AccessKeyID + "/" + getScope(a.config.Region, t)
+	p.formData["x-amz-date"] = t.Format(iso8601Format)
+	p.formData["x-amz-signature"] = signature
+	return p.formData, nil
 }
 
 // PutObject create an object in a bucket
