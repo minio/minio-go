@@ -8,7 +8,8 @@ import (
 	"time"
 )
 
-const expirationFormat = "2006-01-02T15:04:05.999Z"
+// expirationDateFormat date format for expiration key in json policy
+const expirationDateFormat = "2006-01-02T15:04:05.999Z"
 
 // contentLengthRange - min and max size of content
 type contentLengthRange struct {
@@ -41,6 +42,7 @@ type PostPolicy struct {
 	formData map[string]string
 }
 
+// NewPostPolicy instantiate new post policy
 func NewPostPolicy() *PostPolicy {
 	p := &PostPolicy{}
 	p.policies = make([]policy, 0)
@@ -59,7 +61,7 @@ func (p *PostPolicy) SetExpires(t time.Time) error {
 
 // SetKey Object name
 func (p *PostPolicy) SetKey(key string) error {
-	if len(key) == 0 {
+	if strings.TrimSpace(key) == "" || key == "" {
 		return errors.New("key invalid")
 	}
 	policy := policy{"eq", "$key", key}
@@ -70,7 +72,7 @@ func (p *PostPolicy) SetKey(key string) error {
 
 // SetKeyStartsWith Object name that can start with
 func (p *PostPolicy) SetKeyStartsWith(keyStartsWith string) error {
-	if len(keyStartsWith) == 0 {
+	if strings.TrimSpace(keyStartsWith) == "" || keyStartsWith == "" {
 		return errors.New("key-starts-with invalid")
 	}
 	policy := policy{"starts-with", "$key", keyStartsWith}
@@ -81,7 +83,7 @@ func (p *PostPolicy) SetKeyStartsWith(keyStartsWith string) error {
 
 // SetBucket bucket name
 func (p *PostPolicy) SetBucket(bucket string) error {
-	if len(bucket) == 0 {
+	if strings.TrimSpace(bucket) == "" || bucket == "" {
 		return errors.New("bucket invalid")
 	}
 	policy := policy{"eq", "$bucket", bucket}
@@ -92,7 +94,7 @@ func (p *PostPolicy) SetBucket(bucket string) error {
 
 // SetContentType content-type
 func (p *PostPolicy) SetContentType(contentType string) error {
-	if len(contentType) == 0 {
+	if strings.TrimSpace(contentType) == "" || contentType == "" {
 		return errors.New("contentType invalid")
 	}
 	policy := policy{"eq", "$Content-Type", contentType}
@@ -101,13 +103,13 @@ func (p *PostPolicy) SetContentType(contentType string) error {
 	return nil
 }
 
-// MarshalJSON provides Marshalled JSON
+// marshalJSON provides Marshalled JSON
 func (p PostPolicy) marshalJSON() []byte {
-	expirationstr := ""
+	var expirationStr string
 	if p.expiration.IsZero() == false {
-		expirationstr = `"expiration":"` + p.expiration.Format(expirationFormat) + `"`
+		expirationStr = `"expiration":"` + p.expiration.Format(expirationDateFormat) + `"`
 	}
-	policiesstr := ""
+	var policiesStr string
 	policies := []string{}
 	for _, policy := range p.policies {
 		policies = append(policies, policy.marshalJSON())
@@ -116,21 +118,20 @@ func (p PostPolicy) marshalJSON() []byte {
 		policies = append(policies, p.contentLengthRange.marshalJSON())
 	}
 	if len(policies) > 0 {
-		policiesstr = `"conditions":[` + strings.Join(policies, ",") + "]"
+		policiesStr = `"conditions":[` + strings.Join(policies, ",") + "]"
 	}
-	retstr := "{"
-	if len(expirationstr) > 0 {
-		retstr = retstr + expirationstr + ","
+	retStr := "{"
+	if len(expirationStr) > 0 {
+		retStr = retStr + expirationStr + ","
 	}
-	if len(policiesstr) > 0 {
-		retstr = retstr + policiesstr
+	if len(policiesStr) > 0 {
+		retStr = retStr + policiesStr
 	}
-	retstr = retstr + "}"
-	return []byte(retstr)
+	retStr = retStr + "}"
+	return []byte(retStr)
 }
 
-// Base64 Base64() of PostPolicy's Marshalled json
+// base64 produces base64 of PostPolicy's Marshalled json
 func (p PostPolicy) base64() string {
-	b := p.marshalJSON()
-	return base64.StdEncoding.EncodeToString(b)
+	return base64.StdEncoding.EncodeToString(p.marshalJSON())
 }

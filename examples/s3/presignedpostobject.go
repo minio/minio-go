@@ -30,7 +30,7 @@ func main() {
 	config := minio.Config{
 		AccessKeyID:     "YOUR-ACCESS-KEY-HERE",
 		SecretAccessKey: "YOUR-PASSWORD-HERE",
-		Endpoint:        "https://s3-us-west-2.amazonaws.com",
+		Endpoint:        "https://s3.amazonaws.com",
 	}
 	s3Client, err := minio.New(config)
 	if err != nil {
