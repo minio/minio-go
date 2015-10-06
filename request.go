@@ -46,9 +46,9 @@ type request struct {
 }
 
 const (
-	authHeader    = "AWS4-HMAC-SHA256"
-	iso8601Format = "20060102T150405Z"
-	yyyymmdd      = "20060102"
+	authHeader        = "AWS4-HMAC-SHA256"
+	iso8601DateFormat = "20060102T150405Z"
+	yyyymmdd          = "20060102"
 )
 
 ///
@@ -424,7 +424,7 @@ func (r *request) getCanonicalRequest(hashedPayload string) string {
 
 // getStringToSign a string based on selected query values
 func (r *request) getStringToSign(canonicalRequest string, t time.Time) string {
-	stringToSign := authHeader + "\n" + t.Format(iso8601Format) + "\n"
+	stringToSign := authHeader + "\n" + t.Format(iso8601DateFormat) + "\n"
 	stringToSign = stringToSign + getScope(r.config.Region, t) + "\n"
 	stringToSign = stringToSign + hex.EncodeToString(sum256([]byte(canonicalRequest)))
 	return stringToSign
@@ -439,6 +439,12 @@ func (r *request) PreSignV4() (string, error) {
 	return r.req.URL.String(), nil
 }
 
+func (r *request) PostPresignSignature(policyBase64 string, t time.Time) string {
+	signingkey := getSigningKey(r.config.SecretAccessKey, r.config.Region, t)
+	signature := getSignature(signingkey, policyBase64)
+	return signature
+}
+
 // SignV4 the request before Do(), in accordance with - http://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html
 func (r *request) SignV4() {
 	query := r.req.URL.Query()
@@ -448,10 +454,10 @@ func (r *request) SignV4() {
 	t := time.Now().UTC()
 	// Add date if not present
 	if r.expires != "" {
-		query.Set("X-Amz-Date", t.Format(iso8601Format))
+		query.Set("X-Amz-Date", t.Format(iso8601DateFormat))
 		query.Set("X-Amz-Expires", r.expires)
 	} else {
-		r.Set("X-Amz-Date", t.Format(iso8601Format))
+		r.Set("X-Amz-Date", t.Format(iso8601DateFormat))
 	}
 
 	hashedPayload := r.getHashedPayload()

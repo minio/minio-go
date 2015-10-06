@@ -567,21 +567,7 @@ func (a api) PresignedPostPolicy(p *PostPolicy) (map[string]string, error) {
 	if _, ok := p.formData["bucket"]; !ok {
 		return nil, errors.New("bucket name must be specified")
 	}
-
-	t := time.Now().UTC()
-	p.policies = append(p.policies, policy{"eq", "$x-amz-date", t.Format(iso8601Format)})
-	p.policies = append(p.policies, policy{"eq", "$x-amz-algorithm", authHeader})
-	p.policies = append(p.policies, policy{"eq", "$x-amz-credential", a.config.AccessKeyID + "/" + getScope(a.config.Region, t)})
-
-	policybase64 := p.base64()
-	signingkey := getSigningKey(a.config.SecretAccessKey, a.config.Region, t)
-	signature := getSignature(signingkey, policybase64)
-	p.formData["policy"] = policybase64
-	p.formData["x-amz-algorithm"] = authHeader
-	p.formData["x-amz-credential"] = a.config.AccessKeyID + "/" + getScope(a.config.Region, t)
-	p.formData["x-amz-date"] = t.Format(iso8601Format)
-	p.formData["x-amz-signature"] = signature
-	return p.formData, nil
+	return a.presignedPostPolicy(p), nil
 }
 
 // PutObject create an object in a bucket
