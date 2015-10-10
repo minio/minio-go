@@ -578,6 +578,19 @@ func (a apiCore) presignedPostPolicy(p *PostPolicy) map[string]string {
 	return p.formData
 }
 
+func (a apiCore) presignedPutObject(bucket, object string, expires int64) (string, error) {
+	op := &operation{
+		HTTPServer: a.config.Endpoint,
+		HTTPMethod: "PUT",
+		HTTPPath:   separator + bucket + separator + object,
+	}
+	r, err := newPresignedRequest(op, a.config, strconv.FormatInt(expires, 10))
+	if err != nil {
+		return "", err
+	}
+	return r.PreSignV4()
+}
+
 func (a apiCore) presignedGetObjectRequest(bucket, object string, expires, offset, length int64) (*request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
