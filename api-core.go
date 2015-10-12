@@ -266,10 +266,10 @@ func (a apiCore) listObjectsRequest(bucket, marker, prefix, delimiter string, ma
 	resourceQuery := func() (*string, error) {
 		switch {
 		case marker != "":
-			marker = fmt.Sprintf("&marker=%s", marker)
+			marker = fmt.Sprintf("&marker=%s", getURLEncodedPath(marker))
 			fallthrough
 		case prefix != "":
-			prefix = fmt.Sprintf("&prefix=%s", prefix)
+			prefix = fmt.Sprintf("&prefix=%s", getURLEncodedPath(prefix))
 			fallthrough
 		case delimiter != "":
 			delimiter = fmt.Sprintf("&delimiter=%s", delimiter)
