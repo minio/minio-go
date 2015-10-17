@@ -708,7 +708,7 @@ func (a apiCore) deleteObject(bucket, object string) error {
 		return err
 	}
 	if resp != nil {
-		if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode != http.StatusNoContent {
 			var errorResponse ErrorResponse
 			switch resp.StatusCode {
 			case http.StatusNotFound:

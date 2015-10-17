@@ -165,6 +165,6 @@ func (h objectHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		h.resource = ""
 		h.data = nil
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
