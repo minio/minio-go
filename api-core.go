@@ -439,6 +439,14 @@ func (a apiCore) deleteBucket(bucket string) error {
 					RequestID: resp.Header.Get("x-amz-request-id"),
 					HostID:    resp.Header.Get("x-amz-id-2"),
 				}
+			case http.StatusConflict:
+				errorResponse = ErrorResponse{
+					Code:      "Conflict",
+					Message:   "Bucket not empty",
+					Resource:  separator + bucket,
+					RequestID: resp.Header.Get("x-amz-request-id"),
+					HostID:    resp.Header.Get("x-amz-id-2"),
+				}
 			default:
 				errorResponse = ErrorResponse{
 					Code:      resp.Status,
