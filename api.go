@@ -54,9 +54,6 @@ type BucketAPI interface {
 	ListBuckets() <-chan BucketStatCh
 	ListObjects(bucket, prefix string, recursive bool) <-chan ObjectStatCh
 	ListIncompleteUploads(bucket, prefix string, recursive bool) <-chan ObjectMultipartStatCh
-
-	// Drop all incomplete uploads
-	DropAllIncompleteUploads(bucket string) <-chan error
 }
 
 // ObjectAPI - object specific Read/Write/Stat interface
@@ -1109,61 +1106,10 @@ func (a api) dropIncompleteUploadInRoutine(bucket, object string, errorCh chan e
 	}
 }
 
-//
-//
-// NOTE:
-//   These set of calls require explicit authentication, no anonymous
-//   requests are allowed for multipart API
-
 // DropIncompleteUpload - abort a specific in progress active multipart upload
+//   requires explicit authentication, no anonymous requests are allowed for multipart API
 func (a api) DropIncompleteUpload(bucket, object string) <-chan error {
 	errorCh := make(chan error)
 	go a.dropIncompleteUploadInRoutine(bucket, object, errorCh)
-	return errorCh
-}
-
-func (a api) dropAllIncompleteUploadsInRoutine(bucket string, errorCh chan error) {
-	defer close(errorCh)
-	if err := invalidBucketError(bucket); err != nil {
-		errorCh <- err
-		return
-	}
-	listMultipartUplResult, err := a.listMultipartUploads(bucket, "", "", "", "", 1000)
-	if err != nil {
-		errorCh <- err
-		return
-	}
-	for _, multiPartUpload := range listMultipartUplResult.Uploads {
-		err := a.abortMultipartUpload(bucket, multiPartUpload.Key, multiPartUpload.UploadID)
-		if err != nil {
-			errorCh <- err
-			return
-		}
-	}
-	for {
-		if !listMultipartUplResult.IsTruncated {
-			break
-		}
-		listMultipartUplResult, err = a.listMultipartUploads(bucket,
-			listMultipartUplResult.NextKeyMarker, listMultipartUplResult.NextUploadIDMarker, "", "", 1000)
-		if err != nil {
-			errorCh <- err
-			return
-		}
-		for _, multiPartUpload := range listMultipartUplResult.Uploads {
-			err := a.abortMultipartUpload(bucket, multiPartUpload.Key, multiPartUpload.UploadID)
-			if err != nil {
-				errorCh <- err
-				return
-			}
-		}
-
-	}
-}
-
-// DropAllIncompleteUploads - abort all inprogress active multipart uploads
-func (a api) DropAllIncompleteUploads(bucket string) <-chan error {
-	errorCh := make(chan error)
-	go a.dropAllIncompleteUploadsInRoutine(bucket, errorCh)
 	return errorCh
 }
