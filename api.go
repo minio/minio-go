@@ -53,7 +53,7 @@ type BucketAPI interface {
 
 	ListBuckets() <-chan BucketStatCh
 	ListObjects(bucket, prefix string, recursive bool) <-chan ObjectStatCh
-	ListMultipartObjects(bucket, prefix string, recursive bool) <-chan ObjectMultipartStatCh
+	ListIncompleteUploads(bucket, prefix string, recursive bool) <-chan ObjectMultipartStatCh
 
 	// Drop all incomplete uploads
 	DropAllIncompleteUploads(bucket string) <-chan error
@@ -826,9 +826,9 @@ func (a api) listMultipartUploadsRecursiveInRoutine(bucket, object string, ch ch
 	}
 }
 
-// listMultipartObjectsInRoutine is an internal goroutine function called for listing objects
+// listIncompleteUploadsInRoutine is an internal goroutine function called for listing objects
 // This function feeds data into channel
-func (a api) listMultipartObjectsInRoutine(bucket, prefix string, recursive bool, ch chan ObjectMultipartStatCh) {
+func (a api) listIncompleteUploadsInRoutine(bucket, prefix string, recursive bool, ch chan ObjectMultipartStatCh) {
 	defer close(ch)
 	if err := invalidBucketError(bucket); err != nil {
 		ch <- ObjectMultipartStatCh{
@@ -912,9 +912,9 @@ func (a api) listMultipartObjectsInRoutine(bucket, prefix string, recursive bool
 	}
 }
 
-// ListMultipartObjects - (List Multipart Objects) - List some multipart objects or all recursively
+// ListIncompleteUploads - (List incompletely uploaded multipart objects) - List some multipart objects or all recursively
 //
-// ListMultipartObjects is a channel based API implemented to facilitate ease of usage of S3 API ListMultipartUploads()
+// ListIncompleteUploads is a channel based API implemented to facilitate ease of usage of S3 API ListMultipartUploads()
 // by automatically recursively traversing all multipart objects on a given bucket if specified.
 //
 // Your input paramters are just bucket, prefix and recursive
@@ -923,13 +923,13 @@ func (a api) listMultipartObjectsInRoutine(bucket, prefix string, recursive bool
 //
 //  eg:-
 //         api := client.New(....)
-//         for message := range api.ListMultipartObjects("mytestbucket", "starthere", true) {
+//         for message := range api.ListIncompleteUploads("mytestbucket", "starthere", true) {
 //                 fmt.Println(message.Stat)
 //         }
 //
-func (a api) ListMultipartObjects(bucket, prefix string, recursive bool) <-chan ObjectMultipartStatCh {
+func (a api) ListIncompleteUploads(bucket, prefix string, recursive bool) <-chan ObjectMultipartStatCh {
 	ch := make(chan ObjectMultipartStatCh, 1000)
-	go a.listMultipartObjectsInRoutine(bucket, prefix, recursive, ch)
+	go a.listIncompleteUploadsInRoutine(bucket, prefix, recursive, ch)
 	return ch
 }
 
