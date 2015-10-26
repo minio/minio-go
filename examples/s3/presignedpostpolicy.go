@@ -51,5 +51,4 @@ func main() {
 		fmt.Printf("-F %s=%s ", k, v)
 	}
 	fmt.Printf("-F file=@/etc/passwd ")
-	fmt.Printf(config.Endpoint + "/mybucket\n")
 }
