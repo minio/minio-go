@@ -553,16 +553,16 @@ func (a apiCore) presignedPostPolicy(p *PostPolicy) map[string]string {
 	r := new(request)
 	r.config = a.config
 	credential := getCredential(r.config.AccessKeyID, r.config.Region, t)
-	p.addNewPolicy(policy{"eq", "$x-amz-date", t.Format(iso8601DateFormat)})
-	p.addNewPolicy(policy{"eq", "$x-amz-algorithm", authHeader})
-	p.addNewPolicy(policy{"eq", "$x-amz-credential", credential})
+
+	p.setAlgorithm(authHeader)
+	p.setCredential(credential)
+	p.setDate(t)
 
 	policyBase64 := p.base64()
-	p.formData["policy"] = policyBase64
-	p.formData["x-amz-algorithm"] = authHeader
-	p.formData["x-amz-credential"] = credential
-	p.formData["x-amz-date"] = t.Format(iso8601DateFormat)
-	p.formData["x-amz-signature"] = r.PostPresignSignature(policyBase64, t)
+	signature := r.PostPresignSignature(policyBase64, t)
+
+	p.setPolicy(policyBase64)
+	p.setSignature(signature)
 	return p.formData
 }
 

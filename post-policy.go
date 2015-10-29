@@ -110,6 +110,33 @@ func (p *PostPolicy) SetContentLength(min, max int) error {
 	return nil
 }
 
+func (p *PostPolicy) setAlgorithm(algorithm string) {
+	policy := policy{"eq", "$x-amz-algorithm", algorithm}
+	p.addNewPolicy(policy)
+	p.formData["x-amz-algorithm"] = algorithm
+}
+
+func (p *PostPolicy) setCredential(credential string) {
+	policy := policy{"eq", "$x-amz-credential", credential}
+	p.addNewPolicy(policy)
+	p.formData["x-amz-credential"] = credential
+}
+
+func (p *PostPolicy) setDate(date time.Time) {
+	dateStr := date.Format(iso8601DateFormat)
+	policy := policy{"eq", "$x-amz-date", dateStr}
+	p.addNewPolicy(policy)
+	p.formData["x-amz-date"] = dateStr
+}
+
+func (p *PostPolicy) setPolicy(policyBase64 string) {
+	p.formData["policy"] = policyBase64
+}
+
+func (p *PostPolicy) setSignature(signature string) {
+	p.formData["x-amz-signature"] = signature
+}
+
 // addNewPolicy - internal helper to validate adding new policies
 func (p *PostPolicy) addNewPolicy(po policy) error {
 	if po.matchType == "" || po.key == "" || po.value == "" {
