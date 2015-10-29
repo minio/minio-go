@@ -36,19 +36,19 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	form := minio.NewPostPolicy()
-	form.SetKey("myobject")
-	form.SetBucket("mybucket")
-	form.SetExpires(time.Now().UTC().AddDate(0, 0, 10)) // expires in 10 days
-	m, err := s3Client.PresignedPostPolicy(form)
+	policy := minio.NewPostPolicy()
+	policy.SetKey("myobject")
+	policy.SetBucket("mybucket")
+	policy.SetExpires(time.Now().UTC().AddDate(0, 0, 10)) // expires in 10 days
+	m, err := s3Client.PresignedPostPolicy(policy)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println("Curl command to upload:")
 	fmt.Printf("curl ")
 	for k, v := range m {
 		fmt.Printf("-F %s=%s ", k, v)
 	}
-	fmt.Printf("-F file=@/etc/passwd ")
+	fmt.Printf("-F file=@/etc/bashrc ")
+	fmt.Printf(config.Endpoint + "/mybucket\n")
 }
