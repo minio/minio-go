@@ -473,9 +473,9 @@ func (r *request) SignV4() {
 	if r.expires != "" {
 		query.Set("X-Amz-SignedHeaders", signedHeaders)
 	}
-	scope := getScope(r.config.Region, t)
+	credential := getCredential(r.config.AccessKeyID, r.config.Region, t)
 	if r.expires != "" {
-		query.Set("X-Amz-Credential", r.config.AccessKeyID+"/"+scope)
+		query.Set("X-Amz-Credential", credential)
 		r.req.URL.RawQuery = query.Encode()
 	}
 	canonicalRequest := r.getCanonicalRequest(hashedPayload)
@@ -488,7 +488,7 @@ func (r *request) SignV4() {
 	} else {
 		// final Authorization header
 		parts := []string{
-			authHeader + " Credential=" + r.config.AccessKeyID + "/" + scope,
+			authHeader + " Credential=" + credential,
 			"SignedHeaders=" + signedHeaders,
 			"Signature=" + signature,
 		}

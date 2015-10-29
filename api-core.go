@@ -548,23 +548,19 @@ func (a apiCore) putObject(bucket, object, contentType string, md5SumBytes []byt
 	return metadata, nil
 }
 
-func (a apiCore) presignedPostPolicyRequest(p *PostPolicy) *request {
-	r := new(request)
-	r.config = a.config
-	return r
-}
-
 func (a apiCore) presignedPostPolicy(p *PostPolicy) map[string]string {
 	t := time.Now().UTC()
-	r := a.presignedPostPolicyRequest(p)
-	p.policies = append(p.policies, policy{"eq", "$x-amz-date", t.Format(iso8601DateFormat)})
-	p.policies = append(p.policies, policy{"eq", "$x-amz-algorithm", authHeader})
-	p.policies = append(p.policies, policy{"eq", "$x-amz-credential", r.config.AccessKeyID + "/" + getScope(a.config.Region, t)})
+	r := new(request)
+	r.config = a.config
+	credential := getCredential(r.config.AccessKeyID, r.config.Region, t)
+	p.addNewPolicy(policy{"eq", "$x-amz-date", t.Format(iso8601DateFormat)})
+	p.addNewPolicy(policy{"eq", "$x-amz-algorithm", authHeader})
+	p.addNewPolicy(policy{"eq", "$x-amz-credential", credential})
 
 	policyBase64 := p.base64()
 	p.formData["policy"] = policyBase64
 	p.formData["x-amz-algorithm"] = authHeader
-	p.formData["x-amz-credential"] = a.config.AccessKeyID + "/" + getScope(a.config.Region, t)
+	p.formData["x-amz-credential"] = credential
 	p.formData["x-amz-date"] = t.Format(iso8601DateFormat)
 	p.formData["x-amz-signature"] = r.PostPresignSignature(policyBase64, t)
 	return p.formData
