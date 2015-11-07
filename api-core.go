@@ -642,12 +642,13 @@ func (a apiCore) getObjectRequest(bucket, object string, offset, length int64) (
 		return nil, err
 	}
 	switch {
-	case length > 0 && offset > 0:
+	case length > 0 && offset >= 0:
 		r.Set("Range", fmt.Sprintf("bytes=%d-%d", offset, offset+length-1))
 	case offset > 0 && length == 0:
 		r.Set("Range", fmt.Sprintf("bytes=%d-", offset))
-	case length > 0 && offset == 0:
-		r.Set("Range", fmt.Sprintf("bytes=-%d", length))
+	// The final length bytes
+	case length < 0 && offset == 0:
+		r.Set("Range", fmt.Sprintf("bytes=%d", length))
 	}
 	return r, nil
 }
