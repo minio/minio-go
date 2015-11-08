@@ -637,7 +637,7 @@ func (a api) PutObject(bucket, object, contentType string, size int64, data io.R
 				Resource: separator + bucket + separator + object,
 			}
 		}
-		if _, err := a.putObject(bucket, object, contentType, nil, size, ReadSeekCloser(data)); err != nil {
+		if _, err := a.putObject(bucket, object, contentType, nil, size, NewReadSeekCloser(data)); err != nil {
 			return err
 		}
 		return nil
