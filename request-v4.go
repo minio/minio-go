@@ -70,7 +70,7 @@ var ignoredHeaders = map[string]bool{
 }
 
 // getHashedPayload get the hexadecimal value of the SHA256 hash of the request payload
-func (r *request) getHashedPayload() string {
+func (r *Request) getHashedPayload() string {
 	hash := func() string {
 		switch {
 		case r.expires != 0:
@@ -90,7 +90,7 @@ func (r *request) getHashedPayload() string {
 }
 
 // getCanonicalHeaders generate a list of request headers for signature.
-func (r *request) getCanonicalHeaders() string {
+func (r *Request) getCanonicalHeaders() string {
 	var headers []string
 	vals := make(map[string][]string)
 	for k, vv := range r.req.Header {
@@ -126,7 +126,7 @@ func (r *request) getCanonicalHeaders() string {
 
 // getSignedHeaders generate all signed request headers.
 // i.e alphabetically sorted, semicolon-separated list of lowercase request header names
-func (r *request) getSignedHeaders() string {
+func (r *Request) getSignedHeaders() string {
 	var headers []string
 	for k := range r.req.Header {
 		if _, ok := ignoredHeaders[http.CanonicalHeaderKey(k)]; ok {
@@ -149,7 +149,7 @@ func (r *request) getSignedHeaders() string {
 //  <SignedHeaders>\n
 //  <HashedPayload>
 //
-func (r *request) getCanonicalRequest(hashedPayload string) string {
+func (r *Request) getCanonicalRequest(hashedPayload string) string {
 	r.req.URL.RawQuery = strings.Replace(r.req.URL.Query().Encode(), "+", "%20", -1)
 	canonicalRequest := strings.Join([]string{
 		r.req.Method,
@@ -163,7 +163,7 @@ func (r *request) getCanonicalRequest(hashedPayload string) string {
 }
 
 // getStringToSign a string based on selected query values.
-func (r *request) getStringToSignV4(canonicalRequest string, t time.Time) string {
+func (r *Request) getStringToSignV4(canonicalRequest string, t time.Time) string {
 	stringToSign := authHeader + "\n" + t.Format(iso8601DateFormat) + "\n"
 	stringToSign = stringToSign + getScope(r.config.Region, t) + "\n"
 	stringToSign = stringToSign + hex.EncodeToString(sum256([]byte(canonicalRequest)))
@@ -171,8 +171,8 @@ func (r *request) getStringToSignV4(canonicalRequest string, t time.Time) string
 }
 
 // PreSignV4 presign the request, in accordance with
-//      - http://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html.
-func (r *request) PreSignV4() (string, error) {
+// http://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html.
+func (r *Request) PreSignV4() (string, error) {
 	if r.config.AccessKeyID == "" && r.config.SecretAccessKey == "" {
 		return "", errors.New("presign requires accesskey and secretkey")
 	}
@@ -180,15 +180,16 @@ func (r *request) PreSignV4() (string, error) {
 	return r.req.URL.String(), nil
 }
 
-func (r *request) PostPresignSignatureV4(policyBase64 string, t time.Time) string {
+// PostPresignSignatureV4 - presigned signature for PostPolicy requests.
+func (r *Request) PostPresignSignatureV4(policyBase64 string, t time.Time) string {
 	signingkey := getSigningKey(r.config.SecretAccessKey, r.config.Region, t)
 	signature := getSignature(signingkey, policyBase64)
 	return signature
 }
 
 // SignV4 sign the request before Do(), in accordance with
-//       - http://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html.
-func (r *request) SignV4() {
+// http://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html.
+func (r *Request) SignV4() {
 	query := r.req.URL.Query()
 	if r.expires != 0 {
 		query.Set("X-Amz-Algorithm", authHeader)

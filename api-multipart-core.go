@@ -29,7 +29,7 @@ import (
 )
 
 // listMultipartUploadsRequest wrapper creates a new listMultipartUploads request.
-func (a apiCore) listMultipartUploadsRequest(bucket, keymarker, uploadIDMarker, prefix, delimiter string, maxuploads int) (*request, error) {
+func (a apiCore) listMultipartUploadsRequest(bucket, keymarker, uploadIDMarker, prefix, delimiter string, maxuploads int) (*Request, error) {
 	// resourceQuery get resources properly escaped and lined up before using them in http request.
 	resourceQuery := func() (string, error) {
 		switch {
@@ -100,7 +100,7 @@ func (a apiCore) listMultipartUploads(bucket, keymarker, uploadIDMarker, prefix,
 }
 
 // initiateMultipartRequest wrapper creates a new initiateMultiPart request.
-func (a apiCore) initiateMultipartRequest(bucket, object string) (*request, error) {
+func (a apiCore) initiateMultipartRequest(bucket, object string) (*Request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "POST",
@@ -134,7 +134,7 @@ func (a apiCore) initiateMultipartUpload(bucket, object string) (initiateMultipa
 }
 
 // completeMultipartUploadRequest wrapper creates a new CompleteMultipartUpload request.
-func (a apiCore) completeMultipartUploadRequest(bucket, object, uploadID string, complete completeMultipartUpload) (*request, error) {
+func (a apiCore) completeMultipartUploadRequest(bucket, object, uploadID string, complete completeMultipartUpload) (*Request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "POST",
@@ -187,7 +187,7 @@ func (a apiCore) completeMultipartUpload(bucket, object, uploadID string, c comp
 }
 
 // abortMultipartUploadRequest wrapper creates a new AbortMultipartUpload request.
-func (a apiCore) abortMultipartUploadRequest(bucket, object, uploadID string) (*request, error) {
+func (a apiCore) abortMultipartUploadRequest(bucket, object, uploadID string) (*Request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "DELETE",
@@ -241,7 +241,7 @@ func (a apiCore) abortMultipartUpload(bucket, object, uploadID string) error {
 }
 
 // listObjectPartsRequest wrapper creates a new ListObjectParts request.
-func (a apiCore) listObjectPartsRequest(bucket, object, uploadID string, partNumberMarker, maxParts int) (*request, error) {
+func (a apiCore) listObjectPartsRequest(bucket, object, uploadID string, partNumberMarker, maxParts int) (*Request, error) {
 	// resourceQuery - get resources properly escaped and lined up before using them in http request.
 	resourceQuery := func() string {
 		var partNumberMarkerStr string
@@ -290,11 +290,13 @@ func (a apiCore) listObjectParts(bucket, object, uploadID string, partNumberMark
 }
 
 // uploadPartRequest wrapper creates a new UploadPart request.
-func (a apiCore) uploadPartRequest(bucket, object, uploadID string, md5SumBytes []byte, partNumber int, size int64, body io.ReadSeeker) (*request, error) {
+func (a apiCore) uploadPartRequest(bucket, object, uploadID string,
+	md5SumBytes []byte, partNumber int, size int64, body io.ReadSeeker) (*Request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "PUT",
-		HTTPPath:   separator + bucket + separator + object + "?partNumber=" + strconv.Itoa(partNumber) + "&uploadId=" + uploadID,
+		HTTPPath: separator + bucket + separator + object +
+			"?partNumber=" + strconv.Itoa(partNumber) + "&uploadId=" + uploadID,
 	}
 	r, err := newRequest(op, a.config, body)
 	if err != nil {
@@ -309,7 +311,8 @@ func (a apiCore) uploadPartRequest(bucket, object, uploadID string, md5SumBytes 
 }
 
 // uploadPart uploads a part in a multipart upload.
-func (a apiCore) uploadPart(bucket, object, uploadID string, md5SumBytes []byte, partNumber int, size int64, body io.ReadSeeker) (completePart, error) {
+func (a apiCore) uploadPart(bucket, object, uploadID string,
+	md5SumBytes []byte, partNumber int, size int64, body io.ReadSeeker) (completePart, error) {
 	req, err := a.uploadPartRequest(bucket, object, uploadID, md5SumBytes, partNumber, size, body)
 	if err != nil {
 		return completePart{}, err
