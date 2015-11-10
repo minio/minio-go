@@ -777,7 +777,6 @@ func (a API) BucketExists(bucket string) error {
 
 // RemoveBucket deletes the bucket named in the URI.
 //
-// NOTE: -
 //  All objects (including all object versions and delete markers).
 //  in the bucket must be deleted before successfully attempting this request.
 func (a API) RemoveBucket(bucket string) error {
@@ -929,11 +928,11 @@ func (a API) listIncompleteUploadsInRoutine(bucket, prefix string, recursive boo
 // Your input paramters are just bucket, prefix and recursive.
 // If you enable recursive as 'true' this function will return back all the multipart objects in a given bucket.
 //
-//  eg:-
-//         api := client.New(....)
-//         for message := range api.ListIncompleteUploads("mytestbucket", "starthere", true) {
-//                 fmt.Println(message.Stat)
-//         }
+//   api := client.New(....)
+//   recursive := true
+//   for message := range api.ListIncompleteUploads("mytestbucket", "starthere", recursive) {
+//       fmt.Println(message.Stat)
+//   }
 //
 func (a API) ListIncompleteUploads(bucket, prefix string, recursive bool) <-chan ObjectMultipartStatCh {
 	ch := make(chan ObjectMultipartStatCh, 1000)
@@ -1017,11 +1016,11 @@ func (a API) listObjectsInRoutine(bucket, prefix string, recursive bool, ch chan
 // Your input paramters are just bucket, prefix and recursive.
 // If you enable recursive as 'true' this function will return back all the objects in a given bucket.
 //
-//  eg:-
-//         api := client.New(....)
-//         for message := range api.ListObjects("mytestbucket", "starthere", true) {
-//                 fmt.Println(message.Stat)
-//         }
+//   api := client.New(....)
+//   recursive := true
+//   for message := range api.ListObjects("mytestbucket", "starthere", recursive) {
+//       fmt.Println(message.Stat)
+//   }
 //
 func (a API) ListObjects(bucket string, prefix string, recursive bool) <-chan ObjectStatCh {
 	ch := make(chan ObjectStatCh, 1000)
@@ -1051,15 +1050,13 @@ func (a API) listBucketsInRoutine(ch chan<- BucketStatCh) {
 
 // ListBuckets list of all buckets owned by the authenticated sender of the request.
 //
-// NOTE:
-//     This call requires explicit authentication, no anonymous
-//     requests are allowed for listing buckets
+//   This call requires explicit authentication, no anonymous
+//   requests are allowed for listing buckets
 //
-//  eg:-
-//         api := client.New(....)
-//         for message := range api.ListBuckets() {
-//                 fmt.Println(message.Stat)
-//         }
+//   api := client.New(....)
+//   for message := range api.ListBuckets() {
+//       fmt.Println(message.Stat)
+//   }
 //
 func (a API) ListBuckets() <-chan BucketStatCh {
 	ch := make(chan BucketStatCh, 100)
