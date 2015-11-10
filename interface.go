@@ -24,17 +24,6 @@ import (
 // CloudStorageAPI - Cloud Storage API interface
 type CloudStorageAPI interface {
 	// Bucket Read/Write/Stat operations
-	BucketAPI
-
-	// Object Read/Write/Stat operations
-	ObjectAPI
-
-	// Presigned API
-	PresignedAPI
-}
-
-// BucketAPI - bucket specific Read/Write/Stat interface.
-type BucketAPI interface {
 	MakeBucket(bucket string, cannedACL BucketACL) error
 	BucketExists(bucket string) error
 	RemoveBucket(bucket string) error
@@ -44,21 +33,16 @@ type BucketAPI interface {
 	ListBuckets() <-chan BucketStatCh
 	ListObjects(bucket, prefix string, recursive bool) <-chan ObjectStatCh
 	ListIncompleteUploads(bucket, prefix string, recursive bool) <-chan ObjectMultipartStatCh
-}
 
-// ObjectAPI - object specific Read/Write/Stat interface.
-type ObjectAPI interface {
+	// Object Read/Write/Stat operations
 	GetObject(bucket, object string) (io.ReadCloser, ObjectStat, error)
 	GetPartialObject(bucket, object string, offset, length int64) (io.ReadCloser, ObjectStat, error)
 	PutObject(bucket, object, contentType string, size int64, data io.Reader) error
 	StatObject(bucket, object string) (ObjectStat, error)
 	RemoveObject(bucket, object string) error
-
 	RemoveIncompleteUpload(bucket, object string) <-chan error
-}
 
-// PresignedAPI - Get/Put/Post.
-type PresignedAPI interface {
+	// Presigned operations
 	PresignedGetObject(bucket, object string, expires time.Duration) (string, error)
 	PresignedPutObject(bucket, object string, expires time.Duration) (string, error)
 	PresignedPostPolicy(*PostPolicy) (map[string]string, error)
