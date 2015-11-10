@@ -33,8 +33,8 @@ type operation struct {
 	HTTPPath   string
 }
 
-// request - a http request
-type request struct {
+// Request - a http request
+type Request struct {
 	req     *http.Request
 	config  *Config
 	body    io.ReadSeeker
@@ -42,7 +42,7 @@ type request struct {
 }
 
 // Do - start the request
-func (r *request) Do() (resp *http.Response, err error) {
+func (r *Request) Do() (resp *http.Response, err error) {
 	if r.config.AccessKeyID != "" && r.config.SecretAccessKey != "" {
 		if r.config.Signature.isV2() {
 			r.SignV2()
@@ -67,12 +67,12 @@ func (r *request) Do() (resp *http.Response, err error) {
 }
 
 // Set - set additional headers if any
-func (r *request) Set(key, value string) {
+func (r *Request) Set(key, value string) {
 	r.req.Header.Set(key, value)
 }
 
 // Get - get header values
-func (r *request) Get(key string) string {
+func (r *Request) Get(key string) string {
 	return r.req.Header.Get(key)
 }
 
@@ -184,7 +184,7 @@ func (op *operation) getRequestURL(config Config) (url string) {
 	return
 }
 
-func newPresignedRequest(op *operation, config *Config, expires int64) (*request, error) {
+func newPresignedRequest(op *operation, config *Config, expires int64) (*Request, error) {
 	// if no method default to POST
 	method := op.HTTPMethod
 	if method == "" {
@@ -208,7 +208,7 @@ func newPresignedRequest(op *operation, config *Config, expires int64) (*request
 	}
 
 	// save for subsequent use
-	r := new(request)
+	r := new(Request)
 	r.config = config
 	r.expires = expires
 	r.req = req
@@ -218,7 +218,7 @@ func newPresignedRequest(op *operation, config *Config, expires int64) (*request
 }
 
 // newUnauthenticatedRequest - instantiate a new unauthenticated request
-func newUnauthenticatedRequest(op *operation, config *Config, body io.Reader) (*request, error) {
+func newUnauthenticatedRequest(op *operation, config *Config, body io.Reader) (*Request, error) {
 	// if no method default to POST
 	method := op.HTTPMethod
 	if method == "" {
@@ -250,7 +250,7 @@ func newUnauthenticatedRequest(op *operation, config *Config, body io.Reader) (*
 	}
 
 	// save for subsequent use
-	r := new(request)
+	r := new(Request)
 	r.req = req
 	r.config = config
 
@@ -258,7 +258,7 @@ func newUnauthenticatedRequest(op *operation, config *Config, body io.Reader) (*
 }
 
 // newRequest - instantiate a new request
-func newRequest(op *operation, config *Config, body io.ReadSeeker) (*request, error) {
+func newRequest(op *operation, config *Config, body io.ReadSeeker) (*Request, error) {
 	// if no method default to POST
 	method := op.HTTPMethod
 	if method == "" {
@@ -266,7 +266,6 @@ func newRequest(op *operation, config *Config, body io.ReadSeeker) (*request, er
 	}
 
 	u := op.getRequestURL(*config)
-
 	// get a new HTTP request, for the requested method
 	req, err := http.NewRequest(method, u, nil)
 	if err != nil {
@@ -290,7 +289,7 @@ func newRequest(op *operation, config *Config, body io.ReadSeeker) (*request, er
 	}
 
 	// save for subsequent use
-	r := new(request)
+	r := new(Request)
 	r.config = config
 	r.req = req
 	r.body = body

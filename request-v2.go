@@ -32,8 +32,8 @@ import (
 )
 
 // PreSignV2 - presign the request in following style.
-//  - https://${S3_BUCKET}.s3.amazonaws.com/${S3_OBJECT}?AWSAccessKeyId=${S3_ACCESS_KEY}&Expires=${TIMESTAMP}&Signature=${SIGNATURE}
-func (r *request) PreSignV2() (string, error) {
+// https://${S3_BUCKET}.s3.amazonaws.com/${S3_OBJECT}?AWSAccessKeyId=${S3_ACCESS_KEY}&Expires=${TIMESTAMP}&Signature=${SIGNATURE}
+func (r *Request) PreSignV2() (string, error) {
 	if r.config.AccessKeyID == "" || r.config.SecretAccessKey == "" {
 		return "", errors.New("presign requires accesskey and secretkey")
 	}
@@ -70,7 +70,7 @@ func (r *request) PreSignV2() (string, error) {
 }
 
 // PostPresignSignatureV2 - presigned signature for PostPolicy request
-func (r *request) PostPresignSignatureV2(policyBase64 string) string {
+func (r *Request) PostPresignSignatureV2(policyBase64 string) string {
 	hm := hmac.New(sha1.New, []byte(r.config.SecretAccessKey))
 	hm.Write([]byte(policyBase64))
 	signature := base64.StdEncoding.EncodeToString(hm.Sum(nil))
@@ -94,7 +94,7 @@ func (r *request) PostPresignSignatureV2(policyBase64 string) string {
 // CanonicalizedProtocolHeaders = <described below>
 
 // SignV2 sign the request before Do() (AWS Signature Version 2).
-func (r *request) SignV2() {
+func (r *Request) SignV2() {
 	// Add date if not present.
 	if date := r.Get("Date"); date == "" {
 		r.Set("X-Amz-Date", time.Now().UTC().Format(http.TimeFormat))
@@ -122,7 +122,7 @@ func (r *request) SignV2() {
 //	 Date(X-Amz-Date) + "\n" +
 //	 CanonicalizedProtocolHeaders +
 //	 CanonicalizedResource;
-func (r *request) getStringToSignV2() string {
+func (r *Request) getStringToSignV2() string {
 	buf := new(bytes.Buffer)
 	// write standard headers.
 	r.writeDefaultHeaders(buf)
@@ -134,7 +134,7 @@ func (r *request) getStringToSignV2() string {
 }
 
 // writeDefaultHeader - write all default necessary headers
-func (r *request) writeDefaultHeaders(buf *bytes.Buffer) {
+func (r *Request) writeDefaultHeaders(buf *bytes.Buffer) {
 	buf.WriteString(r.req.Method)
 	buf.WriteByte('\n')
 	buf.WriteString(r.req.Header.Get("Content-MD5"))
@@ -146,7 +146,7 @@ func (r *request) writeDefaultHeaders(buf *bytes.Buffer) {
 }
 
 // writeCanonicalizedHeaders - write canonicalized headers.
-func (r *request) writeCanonicalizedHeaders(buf *bytes.Buffer) {
+func (r *Request) writeCanonicalizedHeaders(buf *bytes.Buffer) {
 	var protoHeaders []string
 	vals := make(map[string][]string)
 	for k, vv := range r.req.Header {
@@ -209,7 +209,7 @@ var resourceList = []string{
 // CanonicalizedResource = [ "/" + Bucket ] +
 // 	  <HTTP-Request-URI, from the protocol name up to the query string> +
 // 	  [ sub-resource, if present. For example "?acl", "?location", "?logging", or "?torrent"];
-func (r *request) writeCanonicalizedResource(buf *bytes.Buffer) error {
+func (r *Request) writeCanonicalizedResource(buf *bytes.Buffer) error {
 	requestURL := r.req.URL
 	if r.config.isVirtualStyle {
 		for k, v := range regions {

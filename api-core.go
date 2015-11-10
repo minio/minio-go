@@ -46,8 +46,8 @@ func closeResp(resp *http.Response) {
 }
 
 // putBucketRequest wrapper creates a new putBucket request.
-func (a apiCore) putBucketRequest(bucket, acl, location string) (*request, error) {
-	var r *request
+func (a apiCore) putBucketRequest(bucket, acl, location string) (*Request, error) {
+	var r *Request
 	var err error
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
@@ -140,7 +140,7 @@ func (a apiCore) putBucket(bucket, acl, location string) error {
 }
 
 // putBucketRequestACL wrapper creates a new putBucketACL request.
-func (a apiCore) putBucketACLRequest(bucket, acl string) (*request, error) {
+func (a apiCore) putBucketACLRequest(bucket, acl string) (*Request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "PUT",
@@ -174,7 +174,7 @@ func (a apiCore) putBucketACL(bucket, acl string) error {
 }
 
 // getBucketACLRequest wrapper creates a new getBucketACL request.
-func (a apiCore) getBucketACLRequest(bucket string) (*request, error) {
+func (a apiCore) getBucketACLRequest(bucket string) (*Request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "GET",
@@ -226,7 +226,7 @@ func (a apiCore) getBucketACL(bucket string) (accessControlPolicy, error) {
 }
 
 // getBucketLocationRequest wrapper creates a new getBucketLocation request.
-func (a apiCore) getBucketLocationRequest(bucket string) (*request, error) {
+func (a apiCore) getBucketLocationRequest(bucket string) (*Request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "GET",
@@ -264,7 +264,7 @@ func (a apiCore) getBucketLocation(bucket string) (string, error) {
 }
 
 // listObjectsRequest wrapper creates a new listObjects request.
-func (a apiCore) listObjectsRequest(bucket, marker, prefix, delimiter string, maxkeys int) (*request, error) {
+func (a apiCore) listObjectsRequest(bucket, marker, prefix, delimiter string, maxkeys int) (*Request, error) {
 	// resourceQuery - get resources properly escaped and lined up before using them in http request.
 	resourceQuery := func() (*string, error) {
 		switch {
@@ -335,7 +335,7 @@ func (a apiCore) listObjects(bucket, marker, prefix, delimiter string, maxkeys i
 }
 
 // headBucketRequest wrapper creates a new headBucket request.
-func (a apiCore) headBucketRequest(bucket string) (*request, error) {
+func (a apiCore) headBucketRequest(bucket string) (*Request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "HEAD",
@@ -395,7 +395,7 @@ func (a apiCore) headBucket(bucket string) error {
 }
 
 // deleteBucketRequest wrapper creates a new deleteBucket request.
-func (a apiCore) deleteBucketRequest(bucket string) (*request, error) {
+func (a apiCore) deleteBucketRequest(bucket string) (*Request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "DELETE",
@@ -468,7 +468,8 @@ func (a apiCore) deleteBucket(bucket string) error {
 /// Object Read/Write/Stat Operations
 
 // putObjectUnAuthenticatedRequest - putObjectUnauthenticated request.
-func (a apiCore) putObjectUnAuthenticatedRequest(bucket, object, contentType string, size int64, body io.Reader) (*request, error) {
+func (a apiCore) putObjectUnAuthenticatedRequest(bucket, object, contentType string,
+	size int64, body io.Reader) (*Request, error) {
 	if strings.TrimSpace(contentType) == "" {
 		contentType = "application/octet-stream"
 	}
@@ -489,7 +490,8 @@ func (a apiCore) putObjectUnAuthenticatedRequest(bucket, object, contentType str
 
 // putObjectUnAuthenticated - add an object to a bucket anonymously.
 // NOTE: You must have WRITE permissions on a bucket to add an object to it. Bucket should have 'public-read-write' ACL.
-func (a apiCore) putObjectUnAuthenticated(bucket, object, contentType string, size int64, body io.Reader) (ObjectStat, error) {
+func (a apiCore) putObjectUnAuthenticated(bucket, object, contentType string,
+	size int64, body io.Reader) (ObjectStat, error) {
 	req, err := a.putObjectUnAuthenticatedRequest(bucket, object, contentType, size, body)
 	if err != nil {
 		return ObjectStat{}, err
@@ -510,7 +512,8 @@ func (a apiCore) putObjectUnAuthenticated(bucket, object, contentType string, si
 }
 
 // putObjectRequest wrapper creates a new PutObject request.
-func (a apiCore) putObjectRequest(bucket, object, contentType string, md5SumBytes []byte, size int64, body io.ReadSeeker) (*request, error) {
+func (a apiCore) putObjectRequest(bucket, object, contentType string,
+	md5SumBytes []byte, size int64, body io.ReadSeeker) (*Request, error) {
 	if strings.TrimSpace(contentType) == "" {
 		contentType = "application/octet-stream"
 	}
@@ -534,7 +537,8 @@ func (a apiCore) putObjectRequest(bucket, object, contentType string, md5SumByte
 
 // putObject - add an object to a bucket.
 // NOTE: You must have WRITE permissions on a bucket to add an object to it.
-func (a apiCore) putObject(bucket, object, contentType string, md5SumBytes []byte, size int64, body io.ReadSeeker) (ObjectStat, error) {
+func (a apiCore) putObject(bucket, object, contentType string,
+	md5SumBytes []byte, size int64, body io.ReadSeeker) (ObjectStat, error) {
 	req, err := a.putObjectRequest(bucket, object, contentType, md5SumBytes, size, body)
 	if err != nil {
 		return ObjectStat{}, err
@@ -557,7 +561,7 @@ func (a apiCore) putObject(bucket, object, contentType string, md5SumBytes []byt
 // presignedPostPolicy - generate post form data.
 func (a apiCore) presignedPostPolicy(p *PostPolicy) map[string]string {
 	t := time.Now().UTC()
-	r := new(request)
+	r := new(Request)
 	r.config = a.config
 	if r.config.Signature.isV2() {
 		policyBase64 := p.base64()
@@ -609,7 +613,7 @@ func (a apiCore) presignedPutObject(bucket, object string, expires int64) (strin
 }
 
 // presignedGetObjectRequest - presigned get object request
-func (a apiCore) presignedGetObjectRequest(bucket, object string, expires, offset, length int64) (*request, error) {
+func (a apiCore) presignedGetObjectRequest(bucket, object string, expires, offset, length int64) (*Request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "GET",
@@ -646,7 +650,7 @@ func (a apiCore) presignedGetObject(bucket, object string, expires, offset, leng
 }
 
 // getObjectRequest wrapper creates a new getObject request.
-func (a apiCore) getObjectRequest(bucket, object string, offset, length int64) (*request, error) {
+func (a apiCore) getObjectRequest(bucket, object string, offset, length int64) (*Request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "GET",
@@ -721,7 +725,7 @@ func (a apiCore) getObject(bucket, object string, offset, length int64) (io.Read
 }
 
 // deleteObjectRequest wrapper creates a new deleteObject request.
-func (a apiCore) deleteObjectRequest(bucket, object string) (*request, error) {
+func (a apiCore) deleteObjectRequest(bucket, object string) (*Request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "DELETE",
@@ -783,7 +787,7 @@ func (a apiCore) deleteObject(bucket, object string) error {
 }
 
 // headObjectRequest wrapper creates a new headObject request.
-func (a apiCore) headObjectRequest(bucket, object string) (*request, error) {
+func (a apiCore) headObjectRequest(bucket, object string) (*Request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "HEAD",
@@ -878,7 +882,7 @@ func (a apiCore) headObject(bucket, object string) (ObjectStat, error) {
 /// Service Operations.
 
 // listBucketRequest wrapper creates a new listBuckets request.
-func (a apiCore) listBucketsRequest() (*request, error) {
+func (a apiCore) listBucketsRequest() (*Request, error) {
 	op := &operation{
 		HTTPServer: a.config.Endpoint,
 		HTTPMethod: "GET",
