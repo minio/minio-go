@@ -27,6 +27,7 @@ import (
 	"time"
 )
 
+// signature and API related constants.
 const (
 	authHeader        = "AWS4-HMAC-SHA256"
 	iso8601DateFormat = "20060102T150405Z"
@@ -34,7 +35,7 @@ const (
 )
 
 ///
-/// Excerpts from @lsegal - https://github.com/aws/aws-sdk-js/issues/659#issuecomment-120477258
+/// Excerpts from @lsegal - https://github.com/aws/aws-sdk-js/issues/659#issuecomment-120477258.
 ///
 ///  User-Agent:
 ///
@@ -88,7 +89,7 @@ func (r *request) getHashedPayload() string {
 	return hashedPayload
 }
 
-// getCanonicalHeaders generate a list of request headers with their values
+// getCanonicalHeaders generate a list of request headers for signature.
 func (r *request) getCanonicalHeaders() string {
 	var headers []string
 	vals := make(map[string][]string)
@@ -123,7 +124,8 @@ func (r *request) getCanonicalHeaders() string {
 	return buf.String()
 }
 
-// getSignedHeaders generate a string i.e alphabetically sorted, semicolon-separated list of lowercase request header names
+// getSignedHeaders generate all signed request headers.
+// i.e alphabetically sorted, semicolon-separated list of lowercase request header names
 func (r *request) getSignedHeaders() string {
 	var headers []string
 	for k := range r.req.Header {
@@ -137,7 +139,7 @@ func (r *request) getSignedHeaders() string {
 	return strings.Join(headers, ";")
 }
 
-// getCanonicalRequest generate a canonical request of style
+// getCanonicalRequest generate a canonical request of style.
 //
 // canonicalRequest =
 //  <HTTPMethod>\n
@@ -160,7 +162,7 @@ func (r *request) getCanonicalRequest(hashedPayload string) string {
 	return canonicalRequest
 }
 
-// getStringToSign a string based on selected query values
+// getStringToSign a string based on selected query values.
 func (r *request) getStringToSignV4(canonicalRequest string, t time.Time) string {
 	stringToSign := authHeader + "\n" + t.Format(iso8601DateFormat) + "\n"
 	stringToSign = stringToSign + getScope(r.config.Region, t) + "\n"
@@ -168,7 +170,8 @@ func (r *request) getStringToSignV4(canonicalRequest string, t time.Time) string
 	return stringToSign
 }
 
-// Presign the request, in accordance with - http://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html
+// PreSignV4 presign the request, in accordance with
+//      - http://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html.
 func (r *request) PreSignV4() (string, error) {
 	if r.config.AccessKeyID == "" && r.config.SecretAccessKey == "" {
 		return "", errors.New("presign requires accesskey and secretkey")
@@ -183,7 +186,8 @@ func (r *request) PostPresignSignatureV4(policyBase64 string, t time.Time) strin
 	return signature
 }
 
-// SignV4 the request before Do(), in accordance with - http://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html
+// SignV4 sign the request before Do(), in accordance with
+//       - http://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html.
 func (r *request) SignV4() {
 	query := r.req.URL.Query()
 	if r.expires != 0 {
