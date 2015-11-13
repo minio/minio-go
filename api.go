@@ -96,7 +96,6 @@ type ObjectMultipartStat struct {
 var regions = map[string]string{
 	"s3-fips-us-gov-west-1.amazonaws.com": "us-gov-west-1",
 	"s3.amazonaws.com":                    "us-east-1",
-	"s3-external-1.amazonaws.com":         "us-east-1",
 	"s3-us-west-1.amazonaws.com":          "us-west-1",
 	"s3-us-west-2.amazonaws.com":          "us-west-2",
 	"s3-eu-west-1.amazonaws.com":          "eu-west-1",
@@ -223,11 +222,7 @@ func New(config Config) (CloudStorageAPI, error) {
 	config.isVirtualHostedStyle = isVirtualHostedStyle(u.Host)
 	// if not region is set, procure it from getBucketRegion if possible.
 	if config.Region == "" {
-		region, err := getBucketRegion(config.Endpoint, config.AccessKeyID, config.SecretAccessKey)
-		if err != nil {
-			return API{}, err
-		}
-		config.Region = region
+		config = setBucketRegion(config)
 	}
 	if config.Region == "google" {
 		config.Signature = SignatureV2 // Google cloud storage is signature V2
@@ -237,64 +232,71 @@ func New(config Config) (CloudStorageAPI, error) {
 	return API{apiCore{&config}}, nil
 }
 
-// getBucketRegion returns the region
-func getBucketRegion(endPoint, accessKeyID, secretAccessKey string) (string, error) {
-	u, err := url.Parse(endPoint)
+// setBucketRegion fetches the region and constructs a proper endpoint
+func setBucketRegion(config Config) Config {
+	u, err := url.Parse(config.Endpoint)
 	if err != nil {
-		return "", err
+		return config
 	}
 
-	if !isVirtualHostedStyle(u.Host) {
-		return getRegion(u.Host), nil
+	if !config.isVirtualHostedStyle {
+		config.Region = getRegion(u.Host)
+		return config
 	}
 
 	var bucket, host string
-	var hostIndex int
-	if strings.Contains(u.Host, "s3.amazonaws.com") {
-		hostIndex = strings.Index(u.Host, "s3")
-	}
-	if strings.Contains(u.Host, "googleapis.com") {
-		hostIndex = strings.Index(u.Host, "storage")
+	hostIndex := strings.Index(u.Host, "s3")
+	if hostIndex == -1 {
+		hostIndex = strings.Index(u.Host, "storage.googleapis.com")
 	}
 	if hostIndex > 0 {
 		host = u.Host[hostIndex:]
 		bucket = u.Host[:hostIndex-1]
 	}
-	if host == "" {
-		host = u.Host
-	}
 
 	genericGoogle, _ := filepath.Match("*.storage.googleapis.com", u.Host)
-	genericS3, _ := filepath.Match("*.s3.amazonaws.com", u.Host)
-	if !genericGoogle && !genericS3 {
-		return getRegion(host), nil
-	}
-
 	if genericGoogle {
 		// returning standard region for google for now, can be changed in future
 		// to query for region in case it is useful
-		return getRegion(host), nil
+		config.Region = getRegion(host)
+		return config
+	}
+	genericS3, _ := filepath.Match("*.s3.amazonaws.com", u.Host)
+	if !genericS3 {
+		config.Region = getRegion(host)
+		return config
 	}
 
 	// query aws s3 for the region for case of bucketName.s3.amazonaws.com
 	u.Host = host
-	config := Config{}
-	config.AccessKeyID = accessKeyID
-	config.SecretAccessKey = secretAccessKey
-	config.Endpoint = u.String()
-	config.Region = getRegion(u.Host)
-	config.isVirtualHostedStyle = false
-	s3api := API{apiCore{&config}}
+	tempConfig := Config{}
+	tempConfig.AccessKeyID = config.AccessKeyID
+	tempConfig.SecretAccessKey = config.SecretAccessKey
+	tempConfig.Endpoint = u.String()
+	tempConfig.Region = getRegion(u.Host)
+	tempConfig.isVirtualHostedStyle = false
+	s3api := API{apiCore{&tempConfig}}
 	region, err := s3api.getBucketLocation(bucket)
 	if err != nil {
-		return "", err
+		config.Region = getRegion(host)
+		return config
 	}
 	if region == "" {
 		if genericS3 || genericGoogle {
 			region = "us-east-1"
 		}
 	}
-	return region, nil
+	config.Region = region
+	for k, v := range regions {
+		if region == v {
+			host = k
+		}
+	}
+	newURL := new(url.URL)
+	newURL.Host = bucket + "." + host
+	newURL.Scheme = u.Scheme
+	config.Endpoint = newURL.String()
+	return config
 }
 
 // PresignedPostPolicy return POST form data that can be used for object upload.
