@@ -23,6 +23,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -41,6 +42,7 @@ type s3API struct {
 // closeResp close non nil response with any response Body.
 func closeResp(resp *http.Response) {
 	if resp != nil && resp.Body != nil {
+		io.Copy(ioutil.Discard, resp.Body)
 		resp.Body.Close()
 	}
 }
