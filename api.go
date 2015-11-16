@@ -120,6 +120,16 @@ func getRegion(host string) (region string) {
 	return "milkyway"
 }
 
+// getEndpoint returns a endpoint based on its region.
+func getEndpoint(region string) (endpoint string) {
+	for h, r := range regions {
+		if r == region {
+			return h
+		}
+	}
+	return "s3.amazonaws.com"
+}
+
 // SignatureType is type of Authorization requested for a given HTTP request.
 type SignatureType int
 
@@ -327,8 +337,8 @@ func (a API) PresignedPostPolicy(p *PostPolicy) (map[string]string, error) {
 
 /// Object operations.
 
-// Expires maximum is 7days - ie. 604800 and minimum is 1.
 // PresignedPutObject get a presigned URL to upload an object.
+// Expires maximum is 7days - ie. 604800 and minimum is 1.
 func (a API) PresignedPutObject(bucket, object string, expires time.Duration) (string, error) {
 	expireSeconds := int64(expires / time.Second)
 	if expireSeconds < 1 || expireSeconds > 604800 {
