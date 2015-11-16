@@ -14,11 +14,12 @@ const expirationDateFormat = "2006-01-02T15:04:05.999Z"
 // policyCondition explanation: http://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-HTTPPOSTConstructPolicy.html
 //
 // Example:
-//  policyCondition {
-//      matchType: "$eq",
-//      key: "$Content-Type",
-//      value: "image/png",
-//  }
+//
+//   policyCondition {
+//       matchType: "$eq",
+//       key: "$Content-Type",
+//       value: "image/png",
+//   }
 //
 type policyCondition struct {
 	matchType string
