@@ -29,17 +29,19 @@ func main() {
 		AccessKeyID:     "YOUR-ACCESS-KEY-HERE",
 		SecretAccessKey: "YOUR-PASSWORD-HERE",
 		Endpoint:        "https://s3.amazonaws.com",
-		Signature:       minio.SignatureV2,
 	}
+
+	// Default is Signature Version 4. To enable Signature Version 2 do the following.
+	// config.Signature = minio.SignatureV2
+
 	s3Client, err := minio.New(config)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	// Recursive
-	for multipartObject := range s3Client.ListIncompleteUploads("mybucket", "myobject", true) {
-		if multipartObject.Err != nil {
-			log.Fatalln(multipartObject.Err)
+	for err := range s3Client.RemoveIncompleteUpload("mybucket", "myobject") {
+		if err != nil {
+			log.Fatalln(err)
 		}
-		log.Println(multipartObject)
 	}
+	log.Println("Success")
 }
