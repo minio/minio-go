@@ -19,7 +19,9 @@
 package main
 
 import (
+	"io"
 	"log"
+	"os"
 
 	"github.com/minio/minio-go"
 )
@@ -29,16 +31,27 @@ func main() {
 		AccessKeyID:     "YOUR-ACCESS-KEY-HERE",
 		SecretAccessKey: "YOUR-PASSWORD-HERE",
 		Endpoint:        "https://s3.amazonaws.com",
-		Signature:       minio.SignatureV2,
 	}
+
+	// Default is Signature Version 4. To enable Signature Version 2 do the following.
+	// config.Signature = minio.SignatureV2
+
 	s3Client, err := minio.New(config)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	for err := range s3Client.RemoveIncompleteUpload("mybucket", "myobject") {
-		if err != nil {
-			log.Fatalln(err)
-		}
+	reader, stat, err := s3Client.GetPartialObject("mybucket", "myobject", 0, 10)
+	if err != nil {
+		log.Fatalln(err)
 	}
-	log.Println("Success")
+
+	localfile, err := os.Create("testfile")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer localfile.Close()
+
+	if _, err = io.CopyN(localfile, reader, stat.Size); err != nil {
+		log.Fatalln(err)
+	}
 }

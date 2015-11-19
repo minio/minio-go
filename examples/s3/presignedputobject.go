@@ -20,6 +20,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/minio/minio-go"
 )
@@ -29,16 +30,18 @@ func main() {
 		AccessKeyID:     "YOUR-ACCESS-KEY-HERE",
 		SecretAccessKey: "YOUR-PASSWORD-HERE",
 		Endpoint:        "https://s3.amazonaws.com",
-		Signature:       minio.SignatureV2,
 	}
+
+	// Default is Signature Version 4. To enable Signature Version 2 do the following.
+	// config.Signature = minio.SignatureV2
+
 	s3Client, err := minio.New(config)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	acl, err := s3Client.GetBucketACL("mybucket")
+	string, err := s3Client.PresignedPutObject("mybucket", "myobject", time.Duration(1000)*time.Second)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Println(acl)
-
+	log.Println(string)
 }
