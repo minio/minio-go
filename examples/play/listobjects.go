@@ -36,6 +36,6 @@ func main() {
 		if object.Err != nil {
 			log.Fatalln(object.Err)
 		}
-		log.Println(object.Stat)
+		log.Println(object)
 	}
 }

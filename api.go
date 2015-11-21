@@ -972,7 +972,7 @@ func (a API) listIncompleteUploadsInRoutine(bucket, prefix string, recursive boo
 //   api := client.New(....)
 //   recursive := true
 //   for message := range api.ListIncompleteUploads("mytestbucket", "starthere", recursive) {
-//       fmt.Println(message.Stat)
+//       fmt.Println(message)
 //   }
 //
 func (a API) ListIncompleteUploads(bucket, prefix string, recursive bool) <-chan ObjectMultipartStat {
@@ -1048,7 +1048,7 @@ func (a API) listObjectsInRoutine(bucket, prefix string, recursive bool, ch chan
 //   api := client.New(....)
 //   recursive := true
 //   for message := range api.ListObjects("mytestbucket", "starthere", recursive) {
-//       fmt.Println(message.Stat)
+//       fmt.Println(message)
 //   }
 //
 func (a API) ListObjects(bucket string, prefix string, recursive bool) <-chan ObjectStat {
@@ -1079,7 +1079,7 @@ func (a API) listBucketsInRoutine(ch chan<- BucketStat) {
 //
 //   api := client.New(....)
 //   for message := range api.ListBuckets() {
-//       fmt.Println(message.Stat)
+//       fmt.Println(message)
 //   }
 //
 func (a API) ListBuckets() <-chan BucketStat {
