@@ -34,7 +34,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	reader, stat, err := s3Client.GetObject("mybucket", "myobject")
+	reader, err := s3Client.GetObject("mybucket", "myobject")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -45,7 +45,7 @@ func main() {
 	}
 	defer localfile.Close()
 
-	if _, err = io.CopyN(localfile, reader, stat.Size); err != nil {
+	if _, err = io.Copy(localfile, reader); err != nil {
 		log.Fatalln(err)
 	}
 }

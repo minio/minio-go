@@ -44,13 +44,8 @@ func main() {
 		log.Fatalln(err)
 	}
 	defer object.Close()
-	objectInfo, err := object.Stat()
-	if err != nil {
-		object.Close()
-		log.Fatalln(err)
-	}
 
-	err = s3Client.PutObject("mybucket", "myobject", "application/octet-stream", objectInfo.Size(), object)
+	err = s3Client.PutObject("mybucket", "myobject", "application/octet-stream", object)
 	if err != nil {
 		log.Fatalln(err)
 	}
