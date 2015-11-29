@@ -34,7 +34,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = s3Client.RemoveObject("mybucket", "myobject")
+	err = s3Client.RemoveObject("bucketName", "objectName")
 	if err != nil {
 		log.Fatalln(err)
 	}

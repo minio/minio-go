@@ -32,7 +32,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = s3Client.BucketExists("mybucket")
+	err = s3Client.BucketExists("bucketName")
 	if err != nil {
 		log.Fatalln(err)
 	}

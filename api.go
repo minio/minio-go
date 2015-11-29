@@ -584,7 +584,7 @@ func (a API) continueObjectUpload(bucket, object, uploadID string, size int64, d
 //
 // For un-authenticated requests S3 doesn't allow multipart upload, so we fall back to single
 // PUT operation.
-func (a API) PutObject(bucket, object, contentType string, data io.ReadSeeker, size int64) error {
+func (a API) PutObject(bucket, object string, data io.ReadSeeker, size int64, contentType string) error {
 	if err := invalidBucketError(bucket); err != nil {
 		return err
 	}

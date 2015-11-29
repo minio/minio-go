@@ -32,7 +32,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = s3Client.SetBucketACL("mybucket", minio.BucketACL("public-read-write"))
+	err = s3Client.SetBucketACL("bucketName", minio.BucketACL("public-read-write"))
 	if err != nil {
 		log.Fatalln(err)
 	}

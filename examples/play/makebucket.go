@@ -32,7 +32,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = s3Client.MakeBucket("mybucket", "")
+	err = s3Client.MakeBucket("bucketName", "us-east-1")
 	if err != nil {
 		log.Fatalln(err)
 	}

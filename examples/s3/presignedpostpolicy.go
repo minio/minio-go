@@ -28,9 +28,9 @@ import (
 
 func main() {
 	config := minio.Config{
+		Endpoint:        "https://s3.amazonaws.com",
 		AccessKeyID:     "YOUR-ACCESS-KEY-HERE",
 		SecretAccessKey: "YOUR-PASSWORD-HERE",
-		Endpoint:        "https://s3.amazonaws.com",
 	}
 
 	// Default is Signature Version 4. To enable Signature Version 2 do the following.
@@ -41,18 +41,17 @@ func main() {
 		log.Fatalln(err)
 	}
 	policy := minio.NewPostPolicy()
-	policy.SetKey("myobject")
-	policy.SetBucket("mybucket")
+	policy.SetKey("objectName")
+	policy.SetBucket("bucketName")
 	policy.SetExpires(time.Now().UTC().AddDate(0, 0, 10)) // expires in 10 days
 	m, err := s3Client.PresignedPostPolicy(policy)
 	if err != nil {
-		fmt.Println(err)
-		return
+		log.Fatalln(err)
 	}
 	fmt.Printf("curl ")
 	for k, v := range m {
 		fmt.Printf("-F %s=%s ", k, v)
 	}
 	fmt.Printf("-F file=@/etc/bashrc ")
-	fmt.Printf(config.Endpoint + "/mybucket\n")
+	fmt.Printf(config.Endpoint + "/bucketName\n")
 }

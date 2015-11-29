@@ -27,9 +27,9 @@ import (
 
 func main() {
 	config := minio.Config{
+		Endpoint:        "https://s3.amazonaws.com",
 		AccessKeyID:     "YOUR-ACCESS-KEY-HERE",
 		SecretAccessKey: "YOUR-PASSWORD-HERE",
-		Endpoint:        "https://s3.amazonaws.com",
 	}
 
 	// Default is Signature Version 4. To enable Signature Version 2 do the following.
@@ -45,7 +45,8 @@ func main() {
 	}
 	defer object.Close()
 
-	err = s3Client.PutObject("mybucket", "myobject", "application/octet-stream", object)
+	st, _ := object.Stat()
+	err = s3Client.PutObject("bucketName", "objectName", object, st.size, "application/octet-stream")
 	if err != nil {
 		log.Fatalln(err)
 	}

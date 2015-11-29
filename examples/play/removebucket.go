@@ -34,7 +34,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = s3Client.RemoveBucket("mybucket")
+	err = s3Client.RemoveBucket("bucketName")
 	if err != nil {
 		log.Fatalln(err)
 	}

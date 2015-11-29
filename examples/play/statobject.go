@@ -32,7 +32,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	stat, err := s3Client.StatObject("mybucket", "myobject")
+	stat, err := s3Client.StatObject("bucketName", "objectName")
 	if err != nil {
 		log.Fatalln(err)
 	}

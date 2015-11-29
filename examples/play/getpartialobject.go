@@ -34,7 +34,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	reader, stat, err := s3Client.GetPartialObject("mybucket", "myobject", 0, 10)
+	reader, stat, err := s3Client.GetPartialObject("bucketName", "objectName", 0, 10)
 	if err != nil {
 		log.Fatalln(err)
 	}
