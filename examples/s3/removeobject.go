@@ -26,15 +26,15 @@ import (
 
 func main() {
 	config := minio.Config{
+		Endpoint:        "https://s3.amazonaws.com",
 		AccessKeyID:     "YOUR-ACCESS-KEY-HERE",
 		SecretAccessKey: "YOUR-PASSWORD-HERE",
-		Endpoint:        "https://s3.amazonaws.com",
 	}
 	s3Client, err := minio.New(config)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = s3Client.RemoveObject("mybucket", "myobject")
+	err = s3Client.RemoveObject("bucketName", "objectName")
 	if err != nil {
 		log.Fatalln(err)
 	}

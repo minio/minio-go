@@ -32,7 +32,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	for object := range s3Client.ListObjects("mybucket", "", true) {
+	for object := range s3Client.ListObjects("bucketName", "", true) {
 		if object.Err != nil {
 			log.Fatalln(object.Err)
 		}

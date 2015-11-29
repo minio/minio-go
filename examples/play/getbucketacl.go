@@ -32,7 +32,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	acl, err := s3Client.GetBucketACL("mybucket")
+	acl, err := s3Client.GetBucketACL("bucketName")
 	if err != nil {
 		log.Fatalln(err)
 	}

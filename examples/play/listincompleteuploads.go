@@ -35,7 +35,7 @@ func main() {
 		log.Fatalln(err)
 	}
 	// Recursive
-	for multipartObject := range s3Client.ListIncompleteUploads("mybucket", "myobject", true) {
+	for multipartObject := range s3Client.ListIncompleteUploads("bucketName", "objectName", true) {
 		if multipartObject.Err != nil {
 			log.Fatalln(multipartObject.Err)
 		}
