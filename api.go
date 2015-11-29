@@ -17,6 +17,7 @@
 package minio
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -657,14 +658,10 @@ func (a API) PutObject(bucket, object, contentType string, data io.ReadSeeker, s
 				Resource: separator + bucket + separator + object,
 			}
 		}
-		// Seek back the data to its original position.
-		if _, err := data.Seek(0, 0); err != nil {
-			return err
-		}
 		putObjMetadata := putObjectMetadata{
 			MD5Sum:      sumMD5(dataBytes),
 			Sha256Sum:   sum256(dataBytes),
-			ReadCloser:  ioutil.NopCloser(data),
+			ReadCloser:  ioutil.NopCloser(bytes.NewReader(dataBytes)),
 			Size:        size,
 			ContentType: contentType,
 		}
