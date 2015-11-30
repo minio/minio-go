@@ -65,7 +65,7 @@ func main() {
 ## Documentation
 
 ### Bucket Operations.
-* [MakeBucket(bucketName, location) error](examples/s3/makebucket.go)
+* [MakeBucket(bucketName, BucketACL) error](examples/s3/makebucket.go)
 * [BucketExists(bucketName) error](examples/s3/bucketexists.go)
 * [RemoveBucket(bucketName) error](examples/s3/removebucket.go)
 * [GetBucketACL(bucketName) (BucketACL, error)](examples/s3/getbucketacl.go)
