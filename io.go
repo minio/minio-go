@@ -23,6 +23,7 @@ import (
 	"sync"
 )
 
+// objectReadSeeker container for io.ReadSeeker.
 type objectReadSeeker struct {
 	// mutex.
 	mutex *sync.Mutex
@@ -77,11 +78,13 @@ func (r *objectReadSeeker) Read(p []byte) (int, error) {
 	}
 	n, err := r.reader.Read(p)
 	if err == io.EOF {
+		// drain any remaining body, discard it before closing the body.
 		io.Copy(ioutil.Discard, r.reader)
 		r.reader.Close()
 		return n, err
 	}
 	if err != nil {
+		// drain any remaining body, discard it before closing the body.
 		io.Copy(ioutil.Discard, r.reader)
 		r.reader.Close()
 		return 0, err
@@ -104,21 +107,23 @@ func (r *objectReadSeeker) Seek(offset int64, whence int) (int64, error) {
 	return offset, nil
 }
 
-// Stat returns the ObjectStat structure describing object. If there is any error it will be of type ErrorResponse.
-func (r *objectReadSeeker) Stat() (ObjectStat, error) {
+// Size returns the size of the object. If there is any error
+// it will be of type ErrorResponse.
+func (r *objectReadSeeker) Size() (int64, error) {
 	objectSt, err := r.s3API.headObject(r.bucketName, r.objectName)
 	r.stat = objectSt
-	return r.stat, err
+	return r.stat.Size, err
 }
 
-// tempFile - temporary file.
+// tempFile - temporary file container.
 type tempFile struct {
 	*os.File
 	mutex *sync.Mutex
 }
 
-// newTemplFile returns a new unused file.
+// newTempFile returns a new unused file.
 func newTempFile(prefix string) (*tempFile, error) {
+	// use platform specific temp directory.
 	file, err := ioutil.TempFile(os.TempDir(), prefix)
 	if err != nil {
 		return nil, err
@@ -129,14 +134,16 @@ func newTempFile(prefix string) (*tempFile, error) {
 	}, nil
 }
 
-// Close - closer.
+// Close - closer wrapper to close and remove temporary file.
 func (t *tempFile) Close() error {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 	if t.File != nil {
+		// Close the file.
 		if err := t.File.Close(); err != nil {
 			return err
 		}
+		// Remove wrapped file.
 		if err := os.Remove(t.File.Name()); err != nil {
 			return err
 		}

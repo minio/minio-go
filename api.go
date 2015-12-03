@@ -21,6 +21,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -34,17 +35,15 @@ import (
 
 // s3 region map used by bucket location constraint if necessary.
 var regions = map[string]string{
-	"s3-fips-us-gov-west-1.amazonaws.com": "us-gov-west-1",
-	"s3.amazonaws.com":                    "us-east-1",
-	"s3-us-west-1.amazonaws.com":          "us-west-1",
-	"s3-us-west-2.amazonaws.com":          "us-west-2",
-	"s3-eu-west-1.amazonaws.com":          "eu-west-1",
-	"s3-eu-central-1.amazonaws.com":       "eu-central-1",
-	"s3-ap-southeast-1.amazonaws.com":     "ap-southeast-1",
-	"s3-ap-southeast-2.amazonaws.com":     "ap-southeast-2",
-	"s3-ap-northeast-1.amazonaws.com":     "ap-northeast-1",
-	"s3-sa-east-1.amazonaws.com":          "sa-east-1",
-	"s3.cn-north-1.amazonaws.com.cn":      "cn-north-1",
+	"s3.amazonaws.com":                "us-east-1",
+	"s3-us-west-1.amazonaws.com":      "us-west-1",
+	"s3-us-west-2.amazonaws.com":      "us-west-2",
+	"s3-eu-west-1.amazonaws.com":      "eu-west-1",
+	"s3-eu-central-1.amazonaws.com":   "eu-central-1",
+	"s3-ap-southeast-1.amazonaws.com": "ap-southeast-1",
+	"s3-ap-southeast-2.amazonaws.com": "ap-southeast-2",
+	"s3-ap-northeast-1.amazonaws.com": "ap-northeast-1",
+	"s3-sa-east-1.amazonaws.com":      "sa-east-1",
 
 	// Add google cloud storage as one of the regions
 	"storage.googleapis.com": "google",
@@ -157,14 +156,14 @@ func (c *Config) setBucketRegion() error {
 		return nil
 	}
 
-	var bucket, host string
+	var bucketName, host string
 	hostIndex := strings.Index(u.Host, "s3")
 	if hostIndex == -1 {
 		hostIndex = strings.Index(u.Host, "storage.googleapis.com")
 	}
 	if hostIndex > 0 {
 		host = u.Host[hostIndex:]
-		bucket = u.Host[:hostIndex-1]
+		bucketName = u.Host[:hostIndex-1]
 	}
 
 	genericGoogle, _ := filepath.Match("*.storage.googleapis.com", u.Host)
@@ -189,7 +188,7 @@ func (c *Config) setBucketRegion() error {
 	tempConfig.Region = getRegion(u.Host)
 	tempConfig.isVirtualHostedStyle = false
 	s3API := API{s3API{&tempConfig}}
-	region, err := s3API.getBucketLocation(bucket)
+	region, err := s3API.getBucketLocation(bucketName)
 	if err != nil {
 		return err
 	}
@@ -201,12 +200,12 @@ func (c *Config) setBucketRegion() error {
 		}
 	}
 	c.Region = region
-	c.setEndpoint(region, bucket, u.Scheme)
+	c.setEndpoint(region, bucketName, u.Scheme)
 	return nil
 }
 
 // setEndpoint - construct final endpoint based on region, bucket and scheme
-func (c *Config) setEndpoint(region, bucket, scheme string) {
+func (c *Config) setEndpoint(region, bucketName, scheme string) {
 	var host string
 	for k, v := range regions {
 		if region == v {
@@ -215,7 +214,7 @@ func (c *Config) setEndpoint(region, bucket, scheme string) {
 	}
 	// construct the new URL endpoint based on the region.
 	newURL := new(url.URL)
-	newURL.Host = bucket + "." + host
+	newURL.Host = bucketName + "." + host
 	newURL.Scheme = scheme
 	c.Endpoint = newURL.String()
 	return
@@ -229,7 +228,7 @@ func (c *Config) SetUserAgent(name string, version string, comments ...string) {
 	}
 	// if no name and version is set we do not add new user agents
 	if name != "" && version != "" {
-		c.userAgent = c.userAgent + " " + name + "/" + version + " (" + strings.Join(comments, "; ") + ") "
+		c.userAgent = c.userAgent + " " + name + separator + version + " (" + strings.Join(comments, "; ") + ") "
 		c.isUserAgentSet = true
 	}
 }
@@ -239,6 +238,7 @@ type API struct {
 	s3API
 }
 
+// isVirtualHostedStyle - verify if host is virtual hosted style.
 func isVirtualHostedStyle(host string) bool {
 	isS3VirtualHost, _ := filepath.Match("*.s3*.amazonaws.com", host)
 	isGoogleVirtualHost, _ := filepath.Match("*.storage.googleapis.com", host)
@@ -285,49 +285,56 @@ func (a API) PresignedPostPolicy(p *PostPolicy) (map[string]string, error) {
 
 // PresignedPutObject get a presigned URL to upload an object.
 // Expires maximum is 7days - ie. 604800 and minimum is 1.
-func (a API) PresignedPutObject(bucket, object string, expires time.Duration) (string, error) {
+func (a API) PresignedPutObject(bucketName, objectName string, expires time.Duration) (string, error) {
 	expireSeconds := int64(expires / time.Second)
-	if expireSeconds < 1 || expireSeconds > 604800 {
-		return "", invalidArgumentError("")
+	if expireSeconds < 1 {
+		return "", ErrInvalidArgument("expires value cannot be lesser than 1 second")
 	}
-	return a.presignedPutObject(bucket, object, expireSeconds)
+	if expireSeconds > 604800 {
+		return "", ErrInvalidArgument("expires value cannot be greater than 604800 second")
+	}
+	return a.presignedPutObject(bucketName, objectName, expireSeconds)
 }
 
 // PresignedGetObject get a presigned URL to retrieve an object for third party apps.
-func (a API) PresignedGetObject(bucket, object string, expires time.Duration) (string, error) {
+func (a API) PresignedGetObject(bucketName, objectName string, expires time.Duration) (string, error) {
 	expireSeconds := int64(expires / time.Second)
-	if expireSeconds < 1 || expireSeconds > 604800 {
-		return "", invalidArgumentError("")
+	if expireSeconds < 1 {
+		return "", ErrInvalidArgument("expires value cannot be lesser than 1 second")
 	}
-	return a.presignedGetObject(bucket, object, expireSeconds, 0, 0)
+	if expireSeconds > 604800 {
+		return "", ErrInvalidArgument("expires value cannot be greater than 604800 second")
+	}
+	return a.presignedGetObject(bucketName, objectName, expireSeconds, 0, 0)
 }
 
 // GetObject retrieve object. retrieves full object, if you need ranges use GetPartialObject.
-func (a API) GetObject(bucket, object string) (io.ReadSeeker, error) {
-	if err := invalidBucketError(bucket); err != nil {
-		return nil, err
+func (a API) GetObject(bucketName, objectName string) (io.ReadSeeker, error) {
+	if !isValidBucketName(bucketName) {
+		return nil, ErrInvalidBucketName()
 	}
-	if err := invalidObjectError(object); err != nil {
-		return nil, err
+	if !isValidObjectName(objectName) {
+		return nil, ErrInvalidObjectName()
 	}
-	// get object
-	return newObjectReadSeeker(a, bucket, object), nil
+	// get object.
+	return newObjectReadSeeker(a, bucketName, objectName), nil
 }
 
 // GetPartialObject retrieve partial object.
 //
 // Takes range arguments to download the specified range bytes of an object.
 // Setting offset and length = 0 will download the full object.
-// For more information about the HTTP Range header, go to http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35.
-func (a API) GetPartialObject(bucket, object string, offset, length int64) (io.ReadSeeker, error) {
-	if err := invalidBucketError(bucket); err != nil {
-		return nil, err
+// For more information about the HTTP Range header,
+// go to http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35
+func (a API) GetPartialObject(bucketName, objectName string, offset, length int64) (io.ReadSeeker, error) {
+	if !isValidBucketName(bucketName) {
+		return nil, ErrInvalidBucketName()
 	}
-	if err := invalidObjectError(object); err != nil {
-		return nil, err
+	if !isValidObjectName(objectName) {
+		return nil, ErrInvalidObjectName()
 	}
 	// get partial object.
-	return newObjectReadSeeker(a, bucket, object), nil
+	return newObjectReadSeeker(a, bucketName, objectName), nil
 }
 
 // completedParts is a wrapper to make parts sortable by their part numbers.
@@ -347,23 +354,26 @@ var maxParts = int64(10000)
 // maxPartSize - maximum part size for a single multipart upload operation.
 var maxPartSize int64 = 1024 * 1024 * 1024 * 5
 
-// maxConcurrentQueue - max concurrent upload queue.
-var maxConcurrentQueue int64 = 4
+// maxConcurrentQueue - max concurrent upload queue, defaults to number of CPUs - 1.
+var maxConcurrentQueue = int(math.Max(float64(runtime.NumCPU())-1, 1))
 
 // calculatePartSize - calculate the optimal part size for the given objectSize.
 //
-// NOTE: Assumption here is that for any given object upload to a S3 compatible object
-// storage it will have the following parameters as constants.
+// NOTE: Assumption here is that for any object to be uploaded to any S3 compatible
+// object storage it will have the following parameters as constants.
 //
-//  maxParts
-//  maximumPartSize
-//  minimumPartSize
+//  maxParts - 10000
+//  maximumPartSize - 5GB
 //
 // if the partSize after division with maxParts is greater than minimumPartSize
 // then choose miniumPartSize as the new part size, if not return minimumPartSize.
 //
-// special case where it happens to be that partSize is indeed bigger than the
-// maximum part size just return maxPartSize.
+// Special cases
+//
+// - if input object size is -1 then return maxPartSize.
+// - if it happens to be that partSize is indeed bigger
+//   than the maximum part size just return maxPartSize.
+//
 func calculatePartSize(objectSize int64) int64 {
 	// if object size is -1 choose part size as 5GB.
 	if objectSize == -1 {
@@ -380,10 +390,10 @@ func calculatePartSize(objectSize int64) int64 {
 	return minimumPartSize
 }
 
-// Initiate a fresh multipart upload
-func (a API) newObjectUpload(bucket, object, contentType string, size int64, data io.ReadSeeker) error {
+// Initiate a fresh multipart upload.
+func (a API) newObjectUpload(bucketName, objectName, contentType string, size int64, data io.ReadSeeker) error {
 	// Initiate a new multipart upload request.
-	initMultipartUploadResult, err := a.initiateMultipartUpload(bucket, object)
+	initMultipartUploadResult, err := a.initiateMultipartUpload(bucketName, objectName)
 	if err != nil {
 		return err
 	}
@@ -392,9 +402,9 @@ func (a API) newObjectUpload(bucket, object, contentType string, size int64, dat
 
 	// Calculate optimal part size for a given size.
 	partSize := calculatePartSize(size)
-	// Allocate bufferred error channel for maximum parts.
+	// Allocate bufferred error channel for maximum number of parts.
 	errCh := make(chan error, maxParts)
-	// Limit multi part queue size to concurrent.
+	// Limit multi part queue size to max concurrent queue, defaults to NCPUs - 1.
 	mpQueueCh := make(chan struct{}, maxConcurrentQueue)
 	defer close(errCh)
 	defer close(mpQueueCh)
@@ -422,7 +432,7 @@ func (a API) newObjectUpload(bucket, object, contentType string, size int64, dat
 				return
 			}
 			var complPart completePart
-			complPart, err = a.uploadPart(bucket, object, uploadID, part)
+			complPart, err = a.uploadPart(bucketName, objectName, uploadID, part)
 			if err != nil {
 				errCh <- err
 				return
@@ -437,22 +447,22 @@ func (a API) newObjectUpload(bucket, object, contentType string, size int64, dat
 		return err
 	}
 	sort.Sort(completedParts(complMultipartUpload.Parts))
-	_, err = a.completeMultipartUpload(bucket, object, uploadID, complMultipartUpload)
+	_, err = a.completeMultipartUpload(bucketName, objectName, uploadID, complMultipartUpload)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (a API) listObjectPartsRecursive(bucket, object, uploadID string) <-chan objectPartMetadata {
+func (a API) listObjectPartsRecursive(bucketName, objectName, uploadID string) <-chan objectPartMetadata {
 	objectPartCh := make(chan objectPartMetadata, 1000)
-	go a.listObjectPartsRecursiveInRoutine(bucket, object, uploadID, objectPartCh)
+	go a.listObjectPartsRecursiveInRoutine(bucketName, objectName, uploadID, objectPartCh)
 	return objectPartCh
 }
 
-func (a API) listObjectPartsRecursiveInRoutine(bucket, object, uploadID string, ch chan<- objectPartMetadata) {
+func (a API) listObjectPartsRecursiveInRoutine(bucketName, objectName, uploadID string, ch chan<- objectPartMetadata) {
 	defer close(ch)
-	listObjPartsResult, err := a.listObjectParts(bucket, object, uploadID, 0, 1000)
+	listObjPartsResult, err := a.listObjectParts(bucketName, objectName, uploadID, 0, 1000)
 	if err != nil {
 		ch <- objectPartMetadata{
 			Err: err,
@@ -467,7 +477,7 @@ func (a API) listObjectPartsRecursiveInRoutine(bucket, object, uploadID string, 
 			break
 		}
 		nextPartNumberMarker := listObjPartsResult.NextPartNumberMarker
-		listObjPartsResult, err = a.listObjectParts(bucket, object, uploadID, nextPartNumberMarker, 1000)
+		listObjPartsResult, err = a.listObjectParts(bucketName, objectName, uploadID, nextPartNumberMarker, 1000)
 		if err != nil {
 			ch <- objectPartMetadata{
 				Err: err,
@@ -481,9 +491,9 @@ func (a API) listObjectPartsRecursiveInRoutine(bucket, object, uploadID string, 
 }
 
 // getTotalMultipartSize - calculate total uploaded size for the a given multipart object.
-func (a API) getTotalMultipartSize(bucket, object, uploadID string) (int64, error) {
+func (a API) getTotalMultipartSize(bucketName, objectName, uploadID string) (int64, error) {
 	var size int64
-	for part := range a.listObjectPartsRecursive(bucket, object, uploadID) {
+	for part := range a.listObjectPartsRecursive(bucketName, objectName, uploadID) {
 		if part.Err != nil {
 			return 0, part.Err
 		}
@@ -493,11 +503,11 @@ func (a API) getTotalMultipartSize(bucket, object, uploadID string) (int64, erro
 }
 
 // continue previously interrupted multipart upload object at `uploadID`
-func (a API) continueObjectUpload(bucket, object, uploadID string, size int64, data io.ReadSeeker) error {
+func (a API) continueObjectUpload(bucketName, objectName, uploadID string, size int64, data io.ReadSeeker) error {
 	var seekOffset int64
 	partNumber := 1
 	completeMultipartUpload := completeMultipartUpload{}
-	for objPart := range a.listObjectPartsRecursive(bucket, object, uploadID) {
+	for objPart := range a.listObjectPartsRecursive(bucketName, objectName, uploadID) {
 		if objPart.Err != nil {
 			return objPart.Err
 		}
@@ -546,7 +556,7 @@ func (a API) continueObjectUpload(bucket, object, uploadID string, size int64, d
 				errCh <- part.Err
 				return
 			}
-			complPart, err := a.uploadPart(bucket, object, uploadID, part)
+			complPart, err := a.uploadPart(bucketName, objectName, uploadID, part)
 			if err != nil {
 				errCh <- err
 				return
@@ -561,7 +571,7 @@ func (a API) continueObjectUpload(bucket, object, uploadID string, size int64, d
 		return err
 	}
 	sort.Sort(completedParts(completeMultipartUpload.Parts))
-	_, err := a.completeMultipartUpload(bucket, object, uploadID, completeMultipartUpload)
+	_, err := a.completeMultipartUpload(bucketName, objectName, uploadID, completeMultipartUpload)
 	if err != nil {
 		return err
 	}
@@ -585,12 +595,12 @@ func (a API) continueObjectUpload(bucket, object, uploadID string, size int64, d
 //
 // For un-authenticated requests S3 doesn't allow multipart upload, so we fall back to single
 // PUT operation.
-func (a API) PutObject(bucket, object string, data io.ReadSeeker, size int64, contentType string) error {
-	if err := invalidBucketError(bucket); err != nil {
-		return err
+func (a API) PutObject(bucketName, objectName string, data io.ReadSeeker, size int64, contentType string) error {
+	if !isValidBucketName(bucketName) {
+		return ErrInvalidBucketName()
 	}
-	if err := invalidArgumentError(object); err != nil {
-		return err
+	if !isValidObjectName(objectName) {
+		return ErrInvalidObjectName()
 	}
 	// NOTE: S3 doesn't allow anonymous multipart requests.
 	if strings.Contains(a.config.Endpoint, "amazonaws.com") || strings.Contains(a.config.Endpoint, "googleapis.com") {
@@ -599,14 +609,14 @@ func (a API) PutObject(bucket, object string, data io.ReadSeeker, size int64, co
 				return ErrorResponse{
 					Code:     "NotImplemented",
 					Message:  "For Anonymous requests Content-Length cannot be '-1'.",
-					Resource: separator + bucket + separator + object,
+					Resource: separator + bucketName + separator + objectName,
 				}
 			}
 			if size > maxPartSize {
 				return ErrorResponse{
 					Code:     "EntityTooLarge",
 					Message:  "Your proposed upload exceeds the maximum allowed object size '5GB' for single PUT operation.",
-					Resource: separator + bucket + separator + object,
+					Resource: separator + bucketName + separator + objectName,
 				}
 			}
 			// For anonymous requests, we will not calculate sha256 and md5sum.
@@ -617,7 +627,7 @@ func (a API) PutObject(bucket, object string, data io.ReadSeeker, size int64, co
 				Size:        size,
 				ContentType: contentType,
 			}
-			_, err := a.putObject(bucket, object, putObjMetadata)
+			_, err := a.putObject(bucketName, objectName, putObjMetadata)
 			if err != nil {
 				return err
 			}
@@ -630,7 +640,7 @@ func (a API) PutObject(bucket, object string, data io.ReadSeeker, size int64, co
 			return ErrorResponse{
 				Code:     "EntityTooLarge",
 				Message:  "Your proposed upload exceeds the maximum allowed object size '5GB' for single PUT operation.",
-				Resource: separator + bucket + separator + object,
+				Resource: separator + bucketName + separator + objectName,
 			}
 		}
 		putObjMetadata := putObjectMetadata{
@@ -641,7 +651,7 @@ func (a API) PutObject(bucket, object string, data io.ReadSeeker, size int64, co
 			ContentType: contentType,
 		}
 		// NOTE: with Google Cloud Storage, Content-MD5 is deliberately skipped.
-		if _, err := a.putObject(bucket, object, putObjMetadata); err != nil {
+		if _, err := a.putObject(bucketName, objectName, putObjMetadata); err != nil {
 			return err
 		}
 		return nil
@@ -656,7 +666,7 @@ func (a API) PutObject(bucket, object string, data io.ReadSeeker, size int64, co
 			return ErrorResponse{
 				Code:     "UnexpectedShortRead",
 				Message:  "Data read ‘" + strconv.FormatInt(int64(len(dataBytes)), 10) + "’ is not equal to expected size ‘" + strconv.FormatInt(size, 10) + "’",
-				Resource: separator + bucket + separator + object,
+				Resource: separator + bucketName + separator + objectName,
 			}
 		}
 		putObjMetadata := putObjectMetadata{
@@ -667,7 +677,7 @@ func (a API) PutObject(bucket, object string, data io.ReadSeeker, size int64, co
 			ContentType: contentType,
 		}
 		// Single Part use case, use PutObject directly.
-		_, err = a.putObject(bucket, object, putObjMetadata)
+		_, err = a.putObject(bucketName, objectName, putObjMetadata)
 		if err != nil {
 			return err
 		}
@@ -675,44 +685,44 @@ func (a API) PutObject(bucket, object string, data io.ReadSeeker, size int64, co
 	case size >= minimumPartSize || size == -1:
 		var inProgress bool
 		var inProgressUploadID string
-		for mpUpload := range a.listMultipartUploadsRecursive(bucket, object) {
+		for mpUpload := range a.listMultipartUploadsRecursive(bucketName, objectName) {
 			if mpUpload.Err != nil {
 				return mpUpload.Err
 			}
-			if mpUpload.Key == object {
+			if mpUpload.Key == objectName {
 				inProgress = true
 				inProgressUploadID = mpUpload.UploadID
 				break
 			}
 		}
 		if !inProgress {
-			return a.newObjectUpload(bucket, object, contentType, size, data)
+			return a.newObjectUpload(bucketName, objectName, contentType, size, data)
 		}
-		return a.continueObjectUpload(bucket, object, inProgressUploadID, size, data)
+		return a.continueObjectUpload(bucketName, objectName, inProgressUploadID, size, data)
 	}
 	return errors.New("Unexpected control flow, please report this error at https://github.com/minio/minio-go/issues")
 }
 
 // StatObject verify if object exists and you have permission to access it.
-func (a API) StatObject(bucket, object string) (ObjectStat, error) {
-	if err := invalidBucketError(bucket); err != nil {
-		return ObjectStat{}, err
+func (a API) StatObject(bucketName, objectName string) (ObjectStat, error) {
+	if !isValidBucketName(bucketName) {
+		return ObjectStat{}, ErrInvalidBucketName()
 	}
-	if err := invalidObjectError(object); err != nil {
-		return ObjectStat{}, err
+	if !isValidObjectName(objectName) {
+		return ObjectStat{}, ErrInvalidObjectName()
 	}
-	return a.headObject(bucket, object)
+	return a.headObject(bucketName, objectName)
 }
 
 // RemoveObject remove an object from a bucket.
-func (a API) RemoveObject(bucket, object string) error {
-	if err := invalidBucketError(bucket); err != nil {
-		return err
+func (a API) RemoveObject(bucketName, objectName string) error {
+	if !isValidBucketName(bucketName) {
+		return ErrInvalidBucketName()
 	}
-	if err := invalidObjectError(object); err != nil {
-		return err
+	if !isValidObjectName(objectName) {
+		return ErrInvalidObjectName()
 	}
-	return a.deleteObject(bucket, object)
+	return a.deleteObject(bucketName, objectName)
 }
 
 /// Bucket operations
@@ -729,12 +739,12 @@ func (a API) RemoveObject(bucket, object string) error {
 //  public-read-write - owner gets full access, all others get full access too.
 //  authenticated-read - owner gets full access, authenticated users get read access.
 //
-func (a API) MakeBucket(bucket string, acl BucketACL) error {
-	if err := invalidBucketError(bucket); err != nil {
-		return err
+func (a API) MakeBucket(bucketName string, acl BucketACL) error {
+	if !isValidBucketName(bucketName) {
+		return ErrInvalidBucketName()
 	}
 	if !acl.isValidBucketACL() {
-		return invalidArgumentError("")
+		return ErrInvalidArgument("Unrecognized ACL " + acl.String())
 	}
 	location := a.config.Region
 	if location == "us-east-1" {
@@ -743,7 +753,7 @@ func (a API) MakeBucket(bucket string, acl BucketACL) error {
 	if location == "google" {
 		location = ""
 	}
-	return a.putBucket(bucket, string(acl), location)
+	return a.putBucket(bucketName, string(acl), location)
 }
 
 // SetBucketACL set the permissions on an existing bucket using access control lists (ACL).
@@ -754,15 +764,14 @@ func (a API) MakeBucket(bucket string, acl BucketACL) error {
 //  public-read - owner gets full access, all others get read access.
 //  public-read-write - owner gets full access, all others get full access too.
 //  authenticated-read - owner gets full access, authenticated users get read access.
-//
-func (a API) SetBucketACL(bucket string, acl BucketACL) error {
-	if err := invalidBucketError(bucket); err != nil {
-		return err
+func (a API) SetBucketACL(bucketName string, acl BucketACL) error {
+	if !isValidBucketName(bucketName) {
+		return ErrInvalidBucketName()
 	}
 	if !acl.isValidBucketACL() {
-		return invalidArgumentError("")
+		return ErrInvalidArgument("Unrecognized ACL " + acl.String())
 	}
-	return a.putBucketACL(bucket, string(acl))
+	return a.putBucketACL(bucketName, string(acl))
 }
 
 // GetBucketACL get the permissions on an existing bucket.
@@ -773,12 +782,11 @@ func (a API) SetBucketACL(bucket string, acl BucketACL) error {
 //  public-read - owner gets full access, others get read access.
 //  public-read-write - owner gets full access, others get full access too.
 //  authenticated-read - owner gets full access, authenticated users get read access.
-//
-func (a API) GetBucketACL(bucket string) (BucketACL, error) {
-	if err := invalidBucketError(bucket); err != nil {
-		return "", err
+func (a API) GetBucketACL(bucketName string) (BucketACL, error) {
+	if !isValidBucketName(bucketName) {
+		return "", ErrInvalidBucketName()
 	}
-	policy, err := a.getBucketACL(bucket)
+	policy, err := a.getBucketACL(bucketName)
 	if err != nil {
 		return "", err
 	}
@@ -807,39 +815,39 @@ func (a API) GetBucketACL(bucket string) (BucketACL, error) {
 	return "", ErrorResponse{
 		Code:      "NoSuchBucketPolicy",
 		Message:   "The specified bucket does not have a bucket policy.",
-		Resource:  "/" + bucket,
+		Resource:  separator + bucketName,
 		RequestID: "minio",
 	}
 }
 
 // BucketExists verify if bucket exists and you have permission to access it.
-func (a API) BucketExists(bucket string) error {
-	if err := invalidBucketError(bucket); err != nil {
-		return err
+func (a API) BucketExists(bucketName string) error {
+	if !isValidBucketName(bucketName) {
+		return ErrInvalidBucketName()
 	}
-	return a.headBucket(bucket)
+	return a.headBucket(bucketName)
 }
 
-// RemoveBucket deletes the bucket named in the URI.
+// RemoveBucket deletes the bucket name.
 //
 //  All objects (including all object versions and delete markers).
 //  in the bucket must be deleted before successfully attempting this request.
-func (a API) RemoveBucket(bucket string) error {
-	if err := invalidBucketError(bucket); err != nil {
-		return err
+func (a API) RemoveBucket(bucketName string) error {
+	if !isValidBucketName(bucketName) {
+		return ErrInvalidBucketName()
 	}
-	return a.deleteBucket(bucket)
+	return a.deleteBucket(bucketName)
 }
 
-func (a API) listMultipartUploadsRecursive(bucket, object string) <-chan ObjectMultipartStat {
+func (a API) listMultipartUploadsRecursive(bucketName, objectName string) <-chan ObjectMultipartStat {
 	ch := make(chan ObjectMultipartStat, 1000)
-	go a.listMultipartUploadsRecursiveInRoutine(bucket, object, ch)
+	go a.listMultipartUploadsRecursiveInRoutine(bucketName, objectName, ch)
 	return ch
 }
 
-func (a API) listMultipartUploadsRecursiveInRoutine(bucket, object string, ch chan<- ObjectMultipartStat) {
+func (a API) listMultipartUploadsRecursiveInRoutine(bucketName, objectName string, ch chan<- ObjectMultipartStat) {
 	defer close(ch)
-	listMultipartUplResult, err := a.listMultipartUploads(bucket, "", "", object, "", 1000)
+	listMultipartUplResult, err := a.listMultipartUploads(bucketName, "", "", objectName, "", 1000)
 	if err != nil {
 		ch <- ObjectMultipartStat{
 			Err: err,
@@ -853,8 +861,8 @@ func (a API) listMultipartUploadsRecursiveInRoutine(bucket, object string, ch ch
 		if !listMultipartUplResult.IsTruncated {
 			break
 		}
-		listMultipartUplResult, err = a.listMultipartUploads(bucket,
-			listMultipartUplResult.NextKeyMarker, listMultipartUplResult.NextUploadIDMarker, object, "", 1000)
+		listMultipartUplResult, err = a.listMultipartUploads(bucketName,
+			listMultipartUplResult.NextKeyMarker, listMultipartUplResult.NextUploadIDMarker, objectName, "", 1000)
 		if err != nil {
 			ch <- ObjectMultipartStat{
 				Err: err,
@@ -868,11 +876,11 @@ func (a API) listMultipartUploadsRecursiveInRoutine(bucket, object string, ch ch
 }
 
 // listIncompleteUploadsInRoutine is an internal goroutine function called for listing objects.
-func (a API) listIncompleteUploadsInRoutine(bucket, prefix string, recursive bool, ch chan<- ObjectMultipartStat) {
+func (a API) listIncompleteUploadsInRoutine(bucketName, prefix string, recursive bool, ch chan<- ObjectMultipartStat) {
 	defer close(ch)
-	if err := invalidBucketError(bucket); err != nil {
+	if !isValidBucketName(bucketName) {
 		ch <- ObjectMultipartStat{
-			Err: err,
+			Err: ErrInvalidBucketName(),
 		}
 		return
 	}
@@ -881,7 +889,7 @@ func (a API) listIncompleteUploadsInRoutine(bucket, prefix string, recursive boo
 		var multipartMarker string
 		var uploadIDMarker string
 		for {
-			result, err := a.listMultipartUploads(bucket, multipartMarker, uploadIDMarker, prefix, "", 1000)
+			result, err := a.listMultipartUploads(bucketName, multipartMarker, uploadIDMarker, prefix, "", 1000)
 			if err != nil {
 				ch <- ObjectMultipartStat{
 					Err: err,
@@ -890,7 +898,7 @@ func (a API) listIncompleteUploadsInRoutine(bucket, prefix string, recursive boo
 			}
 			for _, objectSt := range result.Uploads {
 				// NOTE: getTotalMultipartSize can make listing incomplete uploads slower.
-				objectSt.Size, err = a.getTotalMultipartSize(bucket, objectSt.Key, objectSt.UploadID)
+				objectSt.Size, err = a.getTotalMultipartSize(bucketName, objectSt.Key, objectSt.UploadID)
 				if err != nil {
 					ch <- ObjectMultipartStat{
 						Err: err,
@@ -908,7 +916,7 @@ func (a API) listIncompleteUploadsInRoutine(bucket, prefix string, recursive boo
 		var multipartMarker string
 		var uploadIDMarker string
 		for {
-			result, err := a.listMultipartUploads(bucket, multipartMarker, uploadIDMarker, prefix, "/", 1000)
+			result, err := a.listMultipartUploads(bucketName, multipartMarker, uploadIDMarker, prefix, separator, 1000)
 			if err != nil {
 				ch <- ObjectMultipartStat{
 					Err: err,
@@ -918,7 +926,7 @@ func (a API) listIncompleteUploadsInRoutine(bucket, prefix string, recursive boo
 			multipartMarker = result.NextKeyMarker
 			uploadIDMarker = result.NextUploadIDMarker
 			for _, objectSt := range result.Uploads {
-				objectSt.Size, err = a.getTotalMultipartSize(bucket, objectSt.Key, objectSt.UploadID)
+				objectSt.Size, err = a.getTotalMultipartSize(bucketName, objectSt.Key, objectSt.UploadID)
 				if err != nil {
 					ch <- ObjectMultipartStat{
 						Err: err,
@@ -941,11 +949,13 @@ func (a API) listIncompleteUploadsInRoutine(bucket, prefix string, recursive boo
 
 // ListIncompleteUploads - List incompletely uploaded multipart objects.
 //
-// ListIncompleteUploads is a channel based API implemented to facilitate ease of usage of S3 API ListMultipartUploads()
-// by automatically recursively traversing all multipart objects on a given bucket if specified.
+// ListIncompleteUploads is a channel based API implemented to facilitate
+// ease of usage of S3 API ListMultipartUploads() by automatically
+// recursively traversing all multipart objects on a given bucket if specified.
 //
-// Your input paramters are just bucket, prefix and recursive.
-// If you enable recursive as 'true' this function will return back all the multipart objects in a given bucket.
+// Your input paramters are just bucketName, prefix and recursive.
+// If you enable recursive as 'true' this function will return back all
+// the multipart objects in a given bucket name.
 //
 //   api := client.New(....)
 //   recursive := true
@@ -953,19 +963,19 @@ func (a API) listIncompleteUploadsInRoutine(bucket, prefix string, recursive boo
 //       fmt.Println(message)
 //   }
 //
-func (a API) ListIncompleteUploads(bucket, prefix string, recursive bool) <-chan ObjectMultipartStat {
+func (a API) ListIncompleteUploads(bucketName, prefix string, recursive bool) <-chan ObjectMultipartStat {
 	objectMultipartStatCh := make(chan ObjectMultipartStat, 1000)
-	go a.listIncompleteUploadsInRoutine(bucket, prefix, recursive, objectMultipartStatCh)
+	go a.listIncompleteUploadsInRoutine(bucketName, prefix, recursive, objectMultipartStatCh)
 	return objectMultipartStatCh
 }
 
 // listObjectsInRoutine is an internal goroutine function called for listing objects.
 // This function feeds data into channel.
-func (a API) listObjectsInRoutine(bucket, prefix string, recursive bool, ch chan<- ObjectStat) {
+func (a API) listObjectsInRoutine(bucketName, prefix string, recursive bool, ch chan<- ObjectStat) {
 	defer close(ch)
-	if err := invalidBucketError(bucket); err != nil {
+	if !isValidBucketName(bucketName) {
 		ch <- ObjectStat{
-			Err: err,
+			Err: ErrInvalidBucketName(),
 		}
 		return
 	}
@@ -973,7 +983,7 @@ func (a API) listObjectsInRoutine(bucket, prefix string, recursive bool, ch chan
 	case recursive == true:
 		var marker string
 		for {
-			result, err := a.listObjects(bucket, marker, prefix, "", 1000)
+			result, err := a.listObjects(bucketName, marker, prefix, "", 1000)
 			if err != nil {
 				ch <- ObjectStat{
 					Err: err,
@@ -991,7 +1001,7 @@ func (a API) listObjectsInRoutine(bucket, prefix string, recursive bool, ch chan
 	default:
 		var marker string
 		for {
-			result, err := a.listObjects(bucket, marker, prefix, "/", 1000)
+			result, err := a.listObjects(bucketName, marker, prefix, separator, 1000)
 			if err != nil {
 				ch <- ObjectStat{
 					Err: err,
@@ -1017,11 +1027,13 @@ func (a API) listObjectsInRoutine(bucket, prefix string, recursive bool, ch chan
 
 // ListObjects - (List Objects) - List some objects or all recursively.
 //
-// ListObjects is a channel based API implemented to facilitate ease of usage of S3 API ListObjects()
-// by automatically recursively traversing all objects on a given bucket if specified.
+// ListObjects is a channel based API implemented to facilitate ease
+// of usage of S3 API ListObjects() by automatically recursively
+// traversing all objects on a given bucket if specified.
 //
-// Your input paramters are just bucket, prefix and recursive.
-// If you enable recursive as 'true' this function will return back all the objects in a given bucket.
+// Your input paramters are just bucketName, prefix and recursive. If you
+// enable recursive as 'true' this function will return back all the
+// objects in a given bucket name.
 //
 //   api := client.New(....)
 //   recursive := true
@@ -1029,9 +1041,9 @@ func (a API) listObjectsInRoutine(bucket, prefix string, recursive bool, ch chan
 //       fmt.Println(message)
 //   }
 //
-func (a API) ListObjects(bucket string, prefix string, recursive bool) <-chan ObjectStat {
+func (a API) ListObjects(bucketName string, prefix string, recursive bool) <-chan ObjectStat {
 	ch := make(chan ObjectStat, 1000)
-	go a.listObjectsInRoutine(bucket, prefix, recursive, ch)
+	go a.listObjectsInRoutine(bucketName, prefix, recursive, ch)
 	return ch
 }
 
@@ -1053,7 +1065,8 @@ func (a API) listBucketsInRoutine(ch chan<- BucketStat) {
 
 // ListBuckets list of all buckets owned by the authenticated sender of the request.
 //
-// This call requires explicit authentication, no anonymous requests are allowed for listing buckets.
+// This call requires explicit authentication, no anonymous requests are
+// allowed for listing buckets.
 //
 //   api := client.New(....)
 //   for message := range api.ListBuckets() {
@@ -1066,24 +1079,24 @@ func (a API) ListBuckets() <-chan BucketStat {
 	return ch
 }
 
-func (a API) removeIncompleteUploadInRoutine(bucket, object string, errorCh chan<- error) {
+func (a API) removeIncompleteUploadInRoutine(bucketName, objectName string, errorCh chan<- error) {
 	defer close(errorCh)
-	if err := invalidBucketError(bucket); err != nil {
-		errorCh <- err
+	if !isValidBucketName(bucketName) {
+		errorCh <- ErrInvalidBucketName()
 		return
 	}
-	if err := invalidObjectError(object); err != nil {
-		errorCh <- err
+	if !isValidObjectName(objectName) {
+		errorCh <- ErrInvalidObjectName()
 		return
 	}
-	listMultipartUplResult, err := a.listMultipartUploads(bucket, "", "", object, "", 1000)
+	listMultipartUplResult, err := a.listMultipartUploads(bucketName, "", "", objectName, "", 1000)
 	if err != nil {
 		errorCh <- err
 		return
 	}
 	for _, multiPartUpload := range listMultipartUplResult.Uploads {
-		if object == multiPartUpload.Key {
-			err := a.abortMultipartUpload(bucket, multiPartUpload.Key, multiPartUpload.UploadID)
+		if objectName == multiPartUpload.Key {
+			err := a.abortMultipartUpload(bucketName, multiPartUpload.Key, multiPartUpload.UploadID)
 			if err != nil {
 				errorCh <- err
 				return
@@ -1095,15 +1108,17 @@ func (a API) removeIncompleteUploadInRoutine(bucket, object string, errorCh chan
 		if !listMultipartUplResult.IsTruncated {
 			break
 		}
-		listMultipartUplResult, err = a.listMultipartUploads(bucket,
-			listMultipartUplResult.NextKeyMarker, listMultipartUplResult.NextUploadIDMarker, object, "", 1000)
+		listMultipartUplResult, err = a.listMultipartUploads(bucketName,
+			listMultipartUplResult.NextKeyMarker,
+			listMultipartUplResult.NextUploadIDMarker,
+			objectName, "", 1000)
 		if err != nil {
 			errorCh <- err
 			return
 		}
 		for _, multiPartUpload := range listMultipartUplResult.Uploads {
-			if object == multiPartUpload.Key {
-				err := a.abortMultipartUpload(bucket, multiPartUpload.Key, multiPartUpload.UploadID)
+			if objectName == multiPartUpload.Key {
+				err := a.abortMultipartUpload(bucketName, multiPartUpload.Key, multiPartUpload.UploadID)
 				if err != nil {
 					errorCh <- err
 					return
@@ -1117,8 +1132,8 @@ func (a API) removeIncompleteUploadInRoutine(bucket, object string, errorCh chan
 
 // RemoveIncompleteUpload - abort a specific in progress active multipart upload.
 // Requires explicit authentication, no anonymous requests are allowed for multipart API.
-func (a API) RemoveIncompleteUpload(bucket, object string) <-chan error {
+func (a API) RemoveIncompleteUpload(bucketName, objectName string) <-chan error {
 	errorCh := make(chan error)
-	go a.removeIncompleteUploadInRoutine(bucket, object, errorCh)
+	go a.removeIncompleteUploadInRoutine(bucketName, objectName, errorCh)
 	return errorCh
 }

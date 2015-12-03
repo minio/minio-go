@@ -34,8 +34,9 @@ import (
 // PreSignV2 - presign the request in following style.
 // https://${S3_BUCKET}.s3.amazonaws.com/${S3_OBJECT}?AWSAccessKeyId=${S3_ACCESS_KEY}&Expires=${TIMESTAMP}&Signature=${SIGNATURE}
 func (r *Request) PreSignV2() (string, error) {
+	// if config is anonymous then presigning cannot be achieved, throw an error.
 	if r.config.isAnonymous() {
-		return "", errors.New("presigning cannot be done with anonymous credentials")
+		return "", errors.New("Presigning cannot be achieved with anonymous credentials")
 	}
 	d := time.Now().UTC()
 	// Add date if not present

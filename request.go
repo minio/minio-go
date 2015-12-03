@@ -198,8 +198,9 @@ func (op *operation) getRequestURL(config Config) (url string) {
 	return
 }
 
+// newPresignedRequest - provides a new instance of *Request* for presign operations.
 func newPresignedRequest(op *operation, config *Config, expires int64) (*Request, error) {
-	// if no method default to POST
+	// if no method default to POST.
 	method := op.HTTPMethod
 	if method == "" {
 		method = "POST"
@@ -207,16 +208,16 @@ func newPresignedRequest(op *operation, config *Config, expires int64) (*Request
 
 	u := op.getRequestURL(*config)
 
-	// get a new HTTP request, for the requested method
+	// get a new HTTP request, for the requested method.
 	req, err := http.NewRequest(method, u, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	// set UserAgent
+	// set UserAgent.
 	req.Header.Set("User-Agent", config.userAgent)
 
-	// save for subsequent use
+	// save for subsequent use.
 	r := new(Request)
 	r.config = config
 	r.expires = expires
@@ -225,25 +226,25 @@ func newPresignedRequest(op *operation, config *Config, expires int64) (*Request
 	return r, nil
 }
 
-// newRequest - instantiate a new request
+// newRequest - provides a new instance of *Request*.
 func newRequest(op *operation, config *Config, metadata requestMetadata) (*Request, error) {
-	// if no method default to POST
+	// if no method default to POST.
 	method := op.HTTPMethod
 	if method == "" {
 		method = "POST"
 	}
 
 	u := op.getRequestURL(*config)
-	// get a new HTTP request, for the requested method
+	// get a new HTTP request, for the requested method.
 	req, err := http.NewRequest(method, u, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	// set UserAgent
+	// set UserAgent.
 	req.Header.Set("User-Agent", config.userAgent)
 
-	// add body
+	// add body.
 	switch {
 	case metadata.body == nil:
 		req.Body = nil
@@ -251,7 +252,7 @@ func newRequest(op *operation, config *Config, metadata requestMetadata) (*Reque
 		req.Body = metadata.body
 	}
 
-	// save for subsequent use
+	// save for subsequent use.
 	r := new(Request)
 	r.config = config
 	r.req = req
@@ -273,7 +274,7 @@ func newRequest(op *operation, config *Config, metadata requestMetadata) (*Reque
 			r.Set("X-Amz-Content-Sha256", hex.EncodeToString(metadata.sha256PayloadBytes))
 		}
 	}
-	// set md5Sum for in transit corruption detection.
+	// set md5Sum for content protection.
 	if metadata.md5SumPayloadBytes != nil {
 		r.Set("Content-MD5", base64.StdEncoding.EncodeToString(metadata.md5SumPayloadBytes))
 	}
