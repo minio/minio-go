@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// expirationDateFormat date format for expiration key in json policy
+// expirationDateFormat date format for expiration key in json policy.
 const expirationDateFormat = "2006-01-02T15:04:05.999Z"
 
 // policyCondition explanation: http://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-HTTPPOSTConstructPolicy.html
@@ -33,15 +33,15 @@ type PostPolicy struct {
 	conditions []policyCondition // collection of different policy conditions.
 	// contentLengthRange minimum and maximum allowable size for the uploaded content.
 	contentLengthRange struct {
-		min int
-		max int
+		min int64
+		max int64
 	}
 
-	// Post form data
+	// Post form data.
 	formData map[string]string
 }
 
-// NewPostPolicy instantiate new post policy
+// NewPostPolicy instantiate new post policy.
 func NewPostPolicy() *PostPolicy {
 	p := &PostPolicy{}
 	p.conditions = make([]policyCondition, 0)
@@ -49,7 +49,7 @@ func NewPostPolicy() *PostPolicy {
 	return p
 }
 
-// SetExpires expiration time
+// SetExpires expiration time.
 func (p *PostPolicy) SetExpires(t time.Time) error {
 	if t.IsZero() {
 		return errors.New("No expiry time set.")
@@ -58,7 +58,7 @@ func (p *PostPolicy) SetExpires(t time.Time) error {
 	return nil
 }
 
-// SetKey Object name
+// SetKey Object name.
 func (p *PostPolicy) SetKey(key string) error {
 	if strings.TrimSpace(key) == "" || key == "" {
 		return errors.New("Object name is not specified.")
@@ -75,7 +75,7 @@ func (p *PostPolicy) SetKey(key string) error {
 	return nil
 }
 
-// SetKeyStartsWith Object name that can start with
+// SetKeyStartsWith Object name that can start with.
 func (p *PostPolicy) SetKeyStartsWith(keyStartsWith string) error {
 	if strings.TrimSpace(keyStartsWith) == "" || keyStartsWith == "" {
 		return errors.New("Object prefix is not specified.")
@@ -92,24 +92,24 @@ func (p *PostPolicy) SetKeyStartsWith(keyStartsWith string) error {
 	return nil
 }
 
-// SetBucket bucket name
-func (p *PostPolicy) SetBucket(bucket string) error {
-	if strings.TrimSpace(bucket) == "" || bucket == "" {
+// SetBucket bucket name.
+func (p *PostPolicy) SetBucket(bucketName string) error {
+	if strings.TrimSpace(bucketName) == "" || bucketName == "" {
 		return errors.New("Bucket name is not specified.")
 	}
 	policyCond := policyCondition{
 		matchType: "eq",
 		condition: "$bucket",
-		value:     bucket,
+		value:     bucketName,
 	}
 	if err := p.addNewPolicy(policyCond); err != nil {
 		return err
 	}
-	p.formData["bucket"] = bucket
+	p.formData["bucket"] = bucketName
 	return nil
 }
 
-// SetContentType content-type
+// SetContentType content-type.
 func (p *PostPolicy) SetContentType(contentType string) error {
 	if strings.TrimSpace(contentType) == "" || contentType == "" {
 		return errors.New("No content type specified.")
@@ -126,23 +126,23 @@ func (p *PostPolicy) SetContentType(contentType string) error {
 	return nil
 }
 
-// SetContentLength - set new min and max content length condition
-func (p *PostPolicy) SetContentLength(min, max int) error {
+// SetContentLengthRange - set new min and max content length condition.
+func (p *PostPolicy) SetContentLengthRange(min, max int64) error {
 	if min > max {
-		return errors.New("Content length minimum-limit is larger than maximum-limit.")
+		return errors.New("minimum limit is larger than maximum limit")
 	}
 	if min < 0 {
-		return errors.New("Content length minimum-limit is negative.")
+		return errors.New("minimum limit cannot be negative")
 	}
 	if max < 0 {
-		return errors.New("Content length maximum-limit is negative")
+		return errors.New("maximum limit cannot be negative")
 	}
 	p.contentLengthRange.min = min
 	p.contentLengthRange.max = max
 	return nil
 }
 
-// addNewPolicy - internal helper to validate adding new policies
+// addNewPolicy - internal helper to validate adding new policies.
 func (p *PostPolicy) addNewPolicy(policyCond policyCondition) error {
 	if policyCond.matchType == "" || policyCond.condition == "" || policyCond.value == "" {
 		return errors.New("Policy fields empty.")
@@ -151,12 +151,12 @@ func (p *PostPolicy) addNewPolicy(policyCond policyCondition) error {
 	return nil
 }
 
-// Stringer interface for printing in pretty manner
+// Stringer interface for printing in pretty manner.
 func (p PostPolicy) String() string {
 	return string(p.marshalJSON())
 }
 
-// marshalJSON provides Marshalled JSON
+// marshalJSON provides Marshalled JSON.
 func (p PostPolicy) marshalJSON() []byte {
 	expirationStr := `"expiration":"` + p.expiration.Format(expirationDateFormat) + `"`
 	var conditionsStr string
@@ -178,7 +178,7 @@ func (p PostPolicy) marshalJSON() []byte {
 	return []byte(retStr)
 }
 
-// base64 produces base64 of PostPolicy's Marshalled json
+// base64 produces base64 of PostPolicy's Marshalled json.
 func (p PostPolicy) base64() string {
 	return base64.StdEncoding.EncodeToString(p.marshalJSON())
 }

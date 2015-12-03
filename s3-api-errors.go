@@ -22,24 +22,24 @@ import "net/http"
 //
 // For path style requests on buckets with wrong endpoint s3 returns back a
 // generic error. Following block of code tries to make this meaningful for
-// the user by fetching the proper endpoint. Additionally also sets AmzBucketRegion.
-func (a s3API) handleStatusMovedPermanently(resp *http.Response, bucket, object string) ErrorResponse {
+// the user by fetching the proper endpoint. Additionally it also sets AmzBucketRegion.
+func (a s3API) handleStatusMovedPermanently(resp *http.Response, bucketName, objectName string) ErrorResponse {
 	errorResponse := ErrorResponse{
 		Code:            "PermanentRedirect",
 		RequestID:       resp.Header.Get("x-amz-request-id"),
 		HostID:          resp.Header.Get("x-amz-id-2"),
 		AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
 	}
-	errorResponse.Resource = separator + bucket
-	if object != "" {
-		errorResponse.Resource = separator + bucket + separator + object
+	errorResponse.Resource = separator + bucketName
+	if objectName != "" {
+		errorResponse.Resource = separator + bucketName + separator + objectName
 	}
 	var endPoint string
 	if errorResponse.AmzBucketRegion != "" {
 		region := errorResponse.AmzBucketRegion
 		endPoint = getEndpoint(region)
 	} else {
-		region, err := a.getBucketLocation(bucket)
+		region, err := a.getBucketLocation(bucketName)
 		if err != nil {
 			return *ToErrorResponse(err)
 		}

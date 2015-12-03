@@ -20,9 +20,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"io"
-	"regexp"
-	"strings"
-	"unicode/utf8"
 )
 
 /* **** SAMPLE ERROR RESPONSE ****
@@ -105,66 +102,29 @@ func BodyToErrorResponse(errBody io.Reader) error {
 	return errorResponse
 }
 
-// invalidBucketToError - invalid bucket to errorResponse
-func invalidBucketError(bucket string) error {
-	// verify bucket name in accordance with
-	//  - http://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html
-	isValidBucket := func(bucket string) bool {
-		if len(bucket) < 3 || len(bucket) > 63 {
-			return false
-		}
-		if bucket[0] == '.' || bucket[len(bucket)-1] == '.' {
-			return false
-		}
-		if match, _ := regexp.MatchString("\\.\\.", bucket); match == true {
-			return false
-		}
-		// We don't support buckets with '.' in them
-		match, _ := regexp.MatchString("^[a-zA-Z][a-zA-Z0-9\\-]+[a-zA-Z0-9]$", bucket)
-		return match
-	}
-
-	if !isValidBucket(strings.TrimSpace(bucket)) {
-		// no resource since bucket is empty string
-		errorResponse := ErrorResponse{
-			Code:      "InvalidBucketName",
-			Message:   "The specified bucket is not valid.",
-			RequestID: "minio",
-		}
-		return errorResponse
-	}
-	return nil
-}
-
-// invalidObjectError invalid object name to errorResponse
-func invalidObjectError(object string) error {
-	if strings.TrimSpace(object) == "" || object == "" {
-		// no resource since object name is empty
-		errorResponse := ErrorResponse{
-			Code:      "NoSuchKey",
-			Message:   "The specified key does not exist.",
-			RequestID: "minio",
-		}
-		return errorResponse
-	}
-	return nil
-}
-
-// invalidArgumentError invalid argument to errorResponse
-func invalidArgumentError(arg string) error {
-	errorResponse := ErrorResponse{
-		Code:      "InvalidArgument",
-		Message:   "Invalid Argument.",
+// ErrInvalidBucketName - invalid bucket name response.
+var ErrInvalidBucketName = func() error {
+	return ErrorResponse{
+		Code:      "InvalidBucketName",
+		Message:   "The specified bucket is not valid.",
 		RequestID: "minio",
 	}
-	if strings.TrimSpace(arg) == "" || arg == "" {
-		// no resource since arg is empty string
-		return errorResponse
+}
+
+// ErrInvalidObjectName - invalid object name response.
+var ErrInvalidObjectName = func() error {
+	return ErrorResponse{
+		Code:      "NoSuchKey",
+		Message:   "The specified key does not exist.",
+		RequestID: "minio",
 	}
-	if !utf8.ValidString(arg) {
-		// add resource to reply back with invalid string
-		errorResponse.Resource = arg
-		return errorResponse
+}
+
+// ErrInvalidArgument - invalid argument response.
+var ErrInvalidArgument = func(message string) error {
+	return ErrorResponse{
+		Code:      "InvalidArgument",
+		Message:   message,
+		RequestID: "minio",
 	}
-	return nil
 }

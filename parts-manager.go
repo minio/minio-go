@@ -23,8 +23,8 @@ import (
 	"io"
 )
 
-// partsManager reads from io.Reader, partitions data into individual partMetadata{}, backed by a
-// temporary file which deletes itself upon Close().
+// partsManager reads from io.Reader, partitions data into individual *partMetadata{}*.
+// backed by a temporary file which purges itself upon Close().
 //
 // This method runs until an EOF or an error occurs. Before returning, the channel is always closed.
 func partsManager(reader io.Reader, partSize int64, isEnableSha256Sum bool) <-chan partMetadata {
