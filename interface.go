@@ -21,9 +21,9 @@ import (
 	"time"
 )
 
-// CloudStorageAPI - Cloud Storage API interface
+// CloudStorageAPI - Cloud Storage API interface.
 type CloudStorageAPI interface {
-	// Bucket Read/Write/Stat operations
+	// Bucket Read/Write/Stat operations.
 	MakeBucket(bucket string, cannedACL BucketACL) error
 	BucketExists(bucket string) error
 	RemoveBucket(bucket string) error
@@ -34,7 +34,7 @@ type CloudStorageAPI interface {
 	ListObjects(bucket, prefix string, recursive bool) <-chan ObjectStat
 	ListIncompleteUploads(bucket, prefix string, recursive bool) <-chan ObjectMultipartStat
 
-	// Object Read/Write/Stat operations
+	// Object Read/Write/Stat operations.
 	GetObject(bucket, object string) (io.ReadSeeker, error)
 	GetPartialObject(bucket, object string, offset, length int64) (io.ReadSeeker, error)
 	PutObject(bucket, object string, data io.ReadSeeker, size int64, contentType string) error
@@ -42,11 +42,11 @@ type CloudStorageAPI interface {
 	RemoveObject(bucket, object string) error
 	RemoveIncompleteUpload(bucket, object string) <-chan error
 
-	// Presigned operations
+	// Presigned operations.
 	PresignedGetObject(bucket, object string, expires time.Duration) (string, error)
 	PresignedPutObject(bucket, object string, expires time.Duration) (string, error)
 	PresignedPostPolicy(*PostPolicy) (map[string]string, error)
 
-	// Client level
-	SetAppInfo(appName, appVersion string, comments ...string)
+	// Application info.
+	SetAppInfo(appName, appVersion string)
 }
