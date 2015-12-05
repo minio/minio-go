@@ -123,16 +123,16 @@ type Config struct {
 	Transport http.RoundTripper
 
 	/// Internal options
-	// use SetUserAgent append to default, useful when minio-go is used with in your application
+	// use SetAppInfo add application details in user agent.
 	userAgent            string
-	isUserAgentSet       bool // allow user agent's to be set only once
 	isVirtualHostedStyle bool // set when virtual hostnames are on
 }
 
 // Global constants
 const (
-	LibraryName    = "minio-go"
-	LibraryVersion = "0.2.5"
+	LibraryName      = "minio-go"
+	LibraryVersion   = "0.2.5"
+	LibraryUserAgent = LibraryName + separator + LibraryVersion + " (" + runtime.GOOS + "; " + runtime.GOARCH + ") "
 )
 
 // isAnonymous - True if config doesn't have access and secret keys.
@@ -220,19 +220,6 @@ func (c *Config) setEndpoint(region, bucketName, scheme string) {
 	return
 }
 
-// SetUserAgent - append to a default user agent
-func (c *Config) SetUserAgent(name string, version string, comments ...string) {
-	if c.isUserAgentSet {
-		// if user agent already set do not set it
-		return
-	}
-	// if no name and version is set we do not add new user agents
-	if name != "" && version != "" {
-		c.userAgent = c.userAgent + " " + name + separator + version + " (" + strings.Join(comments, "; ") + ") "
-		c.isUserAgentSet = true
-	}
-}
-
 // API is a container which delegates methods that comply with CloudStorageAPI interface.
 type API struct {
 	s3API
@@ -262,9 +249,19 @@ func New(config Config) (CloudStorageAPI, error) {
 	if config.Region == "google" && config.Signature != SignatureV2 {
 		config.Signature = SignatureV2
 	}
-	config.SetUserAgent(LibraryName, LibraryVersion, runtime.GOOS, runtime.GOARCH)
-	config.isUserAgentSet = false // default
+	// Defaults to our library userAgent.
+	config.userAgent = LibraryUserAgent
 	return API{s3API{&config}}, nil
+}
+
+// SetAppInfo - add application details to user agent.
+// this can only be called once per application.
+func (a API) SetAppInfo(appName string, appVersion string, comments ...string) {
+	// if app name and version is not set, we do not a new user agent.
+	if appName != "" && appVersion != "" {
+		appUserAgent := appName + separator + appVersion + " (" + strings.Join(comments, "; ") + ") "
+		a.config.userAgent = LibraryUserAgent + " " + appUserAgent
+	}
 }
 
 // PresignedPostPolicy return POST form data that can be used for object upload.

@@ -46,4 +46,7 @@ type CloudStorageAPI interface {
 	PresignedGetObject(bucket, object string, expires time.Duration) (string, error)
 	PresignedPutObject(bucket, object string, expires time.Duration) (string, error)
 	PresignedPostPolicy(*PostPolicy) (map[string]string, error)
+
+	// Client level
+	SetAppInfo(appName, appVersion string, comments ...string)
 }

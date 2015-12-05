@@ -16,10 +16,7 @@
 
 package minio
 
-import (
-	"strings"
-	"testing"
-)
+import "testing"
 
 func TestSignature(t *testing.T) {
 	conf := new(Config)
@@ -51,14 +48,6 @@ func TestACLTypes(t *testing.T) {
 		if BucketACL(acl).isValidBucketACL() != ok {
 			t.Fatal("Error")
 		}
-	}
-}
-
-func TestUserAgent(t *testing.T) {
-	conf := new(Config)
-	conf.SetUserAgent("minio", "1.0", "amd64")
-	if !strings.Contains(conf.userAgent, "minio") {
-		t.Fatalf("Error")
 	}
 }
 

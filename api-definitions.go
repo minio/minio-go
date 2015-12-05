@@ -39,6 +39,7 @@ type ObjectStat struct {
 	Size         int64
 	ContentType  string
 
+	// Owner name.
 	Owner struct {
 		DisplayName string
 		ID          string
