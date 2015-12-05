@@ -36,13 +36,13 @@ func TestUserAgent(t *testing.T) {
 		t.Fatal("Error")
 	}
 	// Set app info again.
-	a.SetAppInfo("minio", "1.0", "amd64")
+	a.SetAppInfo("hello-app", "1.0")
 
-	// Initiate a request
+	// Initiate a request.
 	a.MakeBucket("bucket", "private")
 
 	// Set app info again, this should not have set.
-	a.SetAppInfo("minio-gc", "2.0", "arm")
+	a.SetAppInfo("new-hello-app", "2.0")
 
 	// This call should succeed, server shouldn't see
 	// a new userAgent on the same connection.
@@ -230,7 +230,7 @@ func TestPresignedURL(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error")
 	}
-	// should error out for invalid access keys
+	// should error out for invalid access keys.
 	_, err = a.PresignedGetObject("bucket", "object", time.Duration(1000)*time.Second)
 	if err == nil {
 		t.Fatal("Error")
@@ -272,7 +272,7 @@ func TestErrorResponse(t *testing.T) {
 		t.Fatal("Error")
 	}
 	resp := minio.ToErrorResponse(err)
-	// valid all fields
+	// valid all fields.
 	if resp == nil {
 		t.Fatal("Error")
 	}

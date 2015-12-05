@@ -29,14 +29,15 @@ type userAgentHandler struct{}
 
 func (h userAgentHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Verify if new user agents are set for the same client.
-	if strings.Contains(r.Header.Get("User-Agent"), "minio-gc") {
+	if strings.Contains(r.Header.Get("User-Agent"), "new-hello-app") {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 	w.WriteHeader(http.StatusBadRequest)
 }
 
-// bucketHandler is an http.Handler that verifies bucket responses and validates incoming requests
+// bucketHandler is an http.Handler that verifies bucket
+// responses and validates incoming requests.
 type bucketHandler struct {
 	resource string
 }
@@ -105,7 +106,8 @@ func (h bucketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// objectHandler is an http.Handler that verifies object responses and validates incoming requests
+// objectHandler is an http.Handler that verifies object responses
+// and validates incoming requests.
 type objectHandler struct {
 	resource string
 	data     []byte

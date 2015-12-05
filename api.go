@@ -130,9 +130,17 @@ type Config struct {
 
 // Global constants
 const (
-	LibraryName      = "minio-go"
-	LibraryVersion   = "0.2.5"
-	LibraryUserAgent = LibraryName + separator + LibraryVersion + " (" + runtime.GOOS + "; " + runtime.GOARCH + ") "
+	libraryName    = "minio-go"
+	libraryVersion = "0.2.5"
+)
+
+// User Agent should always following the below style.
+// Please open an issue to discuss any new changes here.
+//
+//       Minio (OS; ARCH) LIB/VER APP/VER
+const (
+	libraryUserAgentPrefix = "Minio (" + runtime.GOOS + "; " + runtime.GOARCH + ") "
+	libraryUserAgent       = libraryUserAgentPrefix + libraryName + "/" + libraryVersion
 )
 
 // isAnonymous - True if config doesn't have access and secret keys.
@@ -250,17 +258,16 @@ func New(config Config) (CloudStorageAPI, error) {
 		config.Signature = SignatureV2
 	}
 	// Defaults to our library userAgent.
-	config.userAgent = LibraryUserAgent
+	config.userAgent = libraryUserAgent
 	return API{s3API{&config}}, nil
 }
 
 // SetAppInfo - add application details to user agent.
-// this can only be called once per application.
-func (a API) SetAppInfo(appName string, appVersion string, comments ...string) {
+func (a API) SetAppInfo(appName string, appVersion string) {
 	// if app name and version is not set, we do not a new user agent.
 	if appName != "" && appVersion != "" {
-		appUserAgent := appName + separator + appVersion + " (" + strings.Join(comments, "; ") + ") "
-		a.config.userAgent = LibraryUserAgent + " " + appUserAgent
+		appUserAgent := appName + "/" + appVersion
+		a.config.userAgent = libraryUserAgent + " " + appUserAgent
 	}
 }
 
