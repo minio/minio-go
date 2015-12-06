@@ -43,14 +43,15 @@ type bucketHandler struct {
 }
 
 func (h bucketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
 	switch {
 	case r.Method == "GET":
 		switch {
-		case r.URL.Path == "/":
+		case path == "/":
 			response := []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?><ListAllMyBucketsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Buckets><Bucket><Name>bucket</Name><CreationDate>2015-05-20T23:05:09.230Z</CreationDate></Bucket></Buckets><Owner><ID>minio</ID><DisplayName>minio</DisplayName></Owner></ListAllMyBucketsResult>")
 			w.Header().Set("Content-Length", strconv.Itoa(len(response)))
 			w.Write(response)
-		case r.URL.Path == "/bucket":
+		case path == h.resource:
 			_, ok := r.URL.Query()["acl"]
 			if ok {
 				response := []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?><AccessControlPolicy><Owner><ID>75aa57f09aa0c8caeab4f8c24e99d10f8e7faeebf76c078efc7c6caea54ba06a</ID><DisplayName>CustomersName@amazon.com</DisplayName></Owner><AccessControlList><Grant><Grantee xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:type=\"CanonicalUser\"><ID>75aa57f09aa0c8caeab4f8c24e99d10f8e7faeebf76c078efc7c6caea54ba06a</ID><DisplayName>CustomersName@amazon.com</DisplayName></Grantee><Permission>FULL_CONTROL</Permission></Grant></AccessControlList></AccessControlPolicy>")
@@ -59,14 +60,14 @@ func (h bucketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			fallthrough
-		case r.URL.Path == "/bucket":
+		case path == h.resource:
 			response := []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?><ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Contents><ETag>\"259d04a13802ae09c7e41be50ccc6baa\"</ETag><Key>object</Key><LastModified>2015-05-21T18:24:21.097Z</LastModified><Size>22061</Size><Owner><ID>minio</ID><DisplayName>minio</DisplayName></Owner><StorageClass>STANDARD</StorageClass></Contents><Delimiter></Delimiter><EncodingType></EncodingType><IsTruncated>false</IsTruncated><Marker></Marker><MaxKeys>1000</MaxKeys><Name>testbucket</Name><NextMarker></NextMarker><Prefix></Prefix></ListBucketResult>")
 			w.Header().Set("Content-Length", strconv.Itoa(len(response)))
 			w.Write(response)
 		}
 	case r.Method == "PUT":
 		switch {
-		case r.URL.Path == h.resource:
+		case path == h.resource:
 			_, ok := r.URL.Query()["acl"]
 			if ok {
 				switch r.Header.Get("x-amz-acl") {
@@ -90,14 +91,14 @@ func (h bucketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	case r.Method == "HEAD":
 		switch {
-		case r.URL.Path == h.resource:
+		case path == h.resource:
 			w.WriteHeader(http.StatusOK)
 		default:
 			w.WriteHeader(http.StatusForbidden)
 		}
 	case r.Method == "DELETE":
 		switch {
-		case r.URL.Path != h.resource:
+		case path != h.resource:
 			w.WriteHeader(http.StatusNotFound)
 		default:
 			h.resource = ""

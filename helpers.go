@@ -1,0 +1,232 @@
+/*
+ * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2015 Minio, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package minio
+
+import (
+	"encoding/hex"
+	"net/url"
+	"regexp"
+	"strings"
+	"time"
+	"unicode/utf8"
+)
+
+// minimumPartSize minimum part size per object after which PutObject behaves internally as multipart.
+var minimumPartSize int64 = 1024 * 1024 * 5
+
+// maxParts - maximum parts for a single multipart session.
+var maxParts = int64(10000)
+
+// maxPartSize - maximum part size for a single multipart upload operation.
+var maxPartSize int64 = 1024 * 1024 * 1024 * 5
+
+// isAnonymousCredentials - True if config doesn't have access and secret keys.
+func isAnonymousCredentials(c clientCredentials) bool {
+	if c.AccessKeyID != "" && c.SecretAccessKey != "" {
+		return false
+	}
+	return true
+}
+
+// isVirtualHostSupported - verify if host supports virtual hosted style.
+// Currently only Amazon S3 and Google Cloud Storage would support this.
+func isVirtualHostSupported(endpointURL *url.URL) bool {
+	return isAmazonEndpoint(endpointURL) || isGoogleEndpoint(endpointURL)
+}
+
+// Match if it is exactly Amazon S3 endpoint.
+func isAmazonEndpoint(endpointURL *url.URL) bool {
+	if endpointURL == nil {
+		return false
+	}
+	if endpointURL.Host == "s3.amazonaws.com" {
+		return true
+	}
+	return false
+}
+
+// Match if it is exactly Google cloud storage endpoint.
+func isGoogleEndpoint(endpointURL *url.URL) bool {
+	if endpointURL == nil {
+		return false
+	}
+	if endpointURL.Host == "storage.googleapis.com" {
+		return true
+	}
+	return false
+}
+
+// Verify if input endpoint URL is valid.
+func isValidEndpointURL(endpointURL *url.URL) error {
+	if endpointURL == nil {
+		return ErrInvalidArgument("Endpoint url cannot be empty.")
+	}
+	if endpointURL.Path != "/" && endpointURL.Path != "" {
+		return ErrInvalidArgument("Endpoing url cannot have fully qualified paths.")
+	}
+	if strings.Contains(endpointURL.Host, ".amazonaws.com") {
+		if !isAmazonEndpoint(endpointURL) {
+			return ErrInvalidArgument("Amazon S3 endpoint should be 's3.amazonaws.com'.")
+		}
+	}
+	if strings.Contains(endpointURL.Host, ".googleapis.com") {
+		if !isGoogleEndpoint(endpointURL) {
+			return ErrInvalidArgument("Google Cloud Storage endpoint should be 'storage.googleapis.com'.")
+		}
+	}
+	return nil
+}
+
+// Verify if input expires value is valid.
+func isValidExpiry(expires time.Duration) error {
+	expireSeconds := int64(expires / time.Second)
+	if expireSeconds < 1 {
+		return ErrInvalidArgument("Expires cannot be lesser than 1 second.")
+	}
+	if expireSeconds > 604800 {
+		return ErrInvalidArgument("Expires cannot be greater than 7 days.")
+	}
+	return nil
+}
+
+/// Excerpts from - http://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html
+/// When using virtual hosted–style buckets with SSL, the SSL wild card
+/// certificate only matches buckets that do not contain periods.
+/// To work around this, use HTTP or write your own certificate verification logic.
+
+// We decided to not support bucketNames with '.' in them.
+var validBucketName = regexp.MustCompile(`^[a-z0-9][a-z0-9\-]{1,61}[a-z0-9]$`)
+
+// isValidBucketName - verify bucket name in accordance with
+//  - http://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html
+func isValidBucketName(bucketName string) error {
+	if strings.TrimSpace(bucketName) == "" {
+		return ErrInvalidBucketName("Bucket name cannot be empty.")
+	}
+	if len(bucketName) < 3 {
+		return ErrInvalidBucketName("Bucket name cannot be smaller than 3 characters.")
+	}
+	if len(bucketName) > 63 {
+		return ErrInvalidBucketName("Bucket name cannot be greater than 63 characters.")
+	}
+	if bucketName[0] == '.' || bucketName[len(bucketName)-1] == '.' {
+		return ErrInvalidBucketName("Bucket name cannot start or end with a '.' dot.")
+	}
+	if !validBucketName.MatchString(bucketName) {
+		return ErrInvalidBucketName("Bucket name contains invalid characters.")
+	}
+	return nil
+}
+
+// isValidObjectName - verify object name in accordance with
+//   - http://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html
+func isValidObjectName(objectName string) error {
+	if strings.TrimSpace(objectName) == "" {
+		return ErrInvalidObjectName("Object name cannot be empty.")
+	}
+	if len(objectName) > 1024 {
+		return ErrInvalidObjectName("Object name cannot be greater than 1024 characters.")
+	}
+	if !utf8.ValidString(objectName) {
+		return ErrInvalidBucketName("Object name with non UTF-8 strings are not supported.")
+	}
+	return nil
+}
+
+// isValidObjectPrefix - verify if object prefix is valid.
+func isValidObjectPrefix(objectPrefix string) error {
+	if len(objectPrefix) > 1024 {
+		return ErrInvalidObjectPrefix("Object prefix cannot be greater than 1024 characters.")
+	}
+	if !utf8.ValidString(objectPrefix) {
+		return ErrInvalidObjectPrefix("Object prefix with non UTF-8 strings are not supported.")
+	}
+	return nil
+}
+
+// calculatePartSize - calculate the optimal part size for the given objectSize.
+//
+// NOTE: Assumption here is that for any object to be uploaded to any S3 compatible
+// object storage it will have the following parameters as constants.
+//
+//  maxParts - 10000
+//  maximumPartSize - 5GB
+//
+// if the partSize after division with maxParts is greater than minimumPartSize
+// then choose miniumPartSize as the new part size, if not return minimumPartSize.
+//
+// Special cases
+//
+// - if input object size is -1 then return maxPartSize.
+// - if it happens to be that partSize is indeed bigger
+//   than the maximum part size just return maxPartSize.
+//
+func calculatePartSize(objectSize int64) int64 {
+	// if object size is -1 choose part size as 5GB.
+	if objectSize == -1 {
+		return maxPartSize
+	}
+	// make sure last part has enough buffer and handle this poperly.
+	partSize := (objectSize / (maxParts - 1))
+	if partSize > minimumPartSize {
+		if partSize > maxPartSize {
+			return maxPartSize
+		}
+		return partSize
+	}
+	return minimumPartSize
+}
+
+// urlEncodePath encode the strings from UTF-8 byte representations to HTML hex escape sequences
+//
+// This is necessary since regular url.Parse() and url.Encode() functions do not support UTF-8
+// non english characters cannot be parsed due to the nature in which url.Encode() is written
+//
+// This function on the other hand is a direct replacement for url.Encode() technique to support
+// pretty much every UTF-8 character.
+func urlEncodePath(pathName string) string {
+	// if object matches reserved string, no need to encode them
+	reservedNames := regexp.MustCompile("^[a-zA-Z0-9-_.~/]+$")
+	if reservedNames.MatchString(pathName) {
+		return pathName
+	}
+	var encodedPathname string
+	for _, s := range pathName {
+		if 'A' <= s && s <= 'Z' || 'a' <= s && s <= 'z' || '0' <= s && s <= '9' { // §2.3 Unreserved characters (mark)
+			encodedPathname = encodedPathname + string(s)
+			continue
+		}
+		switch s {
+		case '-', '_', '.', '~', '/': // §2.3 Unreserved characters (mark)
+			encodedPathname = encodedPathname + string(s)
+			continue
+		default:
+			len := utf8.RuneLen(s)
+			if len < 0 {
+				// if utf8 cannot convert return the same string as is
+				return pathName
+			}
+			u := make([]byte, len)
+			utf8.EncodeRune(u, s)
+			for _, r := range u {
+				hex := hex.EncodeToString([]byte{r})
+				encodedPathname = encodedPathname + "%" + strings.ToUpper(hex)
+			}
+		}
+	}
+	return encodedPathname
+}

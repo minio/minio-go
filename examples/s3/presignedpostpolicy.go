@@ -27,22 +27,19 @@ import (
 )
 
 func main() {
-	config := minio.Config{
-		Endpoint:        "https://s3.amazonaws.com",
-		AccessKeyID:     "YOUR-ACCESS-KEY-HERE",
-		SecretAccessKey: "YOUR-PASSWORD-HERE",
-	}
+	// Requests are always secure by default. set inSecure=true to enable insecure access.
+	// inSecure boolean is the last argument for New().
 
-	// Default is Signature Version 4. To enable Signature Version 2 do the following.
-	// config.Signature = minio.SignatureV2
-
-	s3Client, err := minio.New(config)
+	// New provides a client object backend by automatically detected signature type based
+	// on the provider.
+	s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESS-KEY-HERE", "YOUR-SECRET-KEY-HERE", false)
 	if err != nil {
 		log.Fatalln(err)
 	}
+
 	policy := minio.NewPostPolicy()
+	policy.SetBucket("bucket-name")
 	policy.SetKey("objectName")
-	policy.SetBucket("bucketName")
 	policy.SetExpires(time.Now().UTC().AddDate(0, 0, 10)) // expires in 10 days
 	m, err := s3Client.PresignedPostPolicy(policy)
 	if err != nil {
@@ -53,5 +50,5 @@ func main() {
 		fmt.Printf("-F %s=%s ", k, v)
 	}
 	fmt.Printf("-F file=@/etc/bashrc ")
-	fmt.Printf(config.Endpoint + "/bucketName\n")
+	fmt.Printf(config.Endpoint + "/bucket-name\n")
 }

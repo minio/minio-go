@@ -19,7 +19,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"time"
 
 	"github.com/minio/minio-go"
 )
@@ -30,15 +32,23 @@ func main() {
 
 	// New provides a client object backend by automatically detected signature type based
 	// on the provider.
-	s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESS-KEY-HERE", "YOUR-SECRET-KEY-HERE", false)
+	s3Client, err := minio.New("play.minio.io:9002", "Q3AM3UQ867SPQQA43P2F", "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG", false)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	for err := range s3Client.RemoveIncompleteUpload("bucket-name", "objectName") {
-		if err != nil {
-			log.Fatalln(err)
-		}
+	policy := minio.NewPostPolicy()
+	policy.SetBucket("bucket-name")
+	policy.SetKey("objectName")
+	policy.SetExpires(time.Now().UTC().AddDate(0, 0, 10)) // expires in 10 days
+	m, err := s3Client.PresignedPostPolicy(policy)
+	if err != nil {
+		log.Fatalln(err)
 	}
-	log.Println("Success")
+	fmt.Printf("curl ")
+	for k, v := range m {
+		fmt.Printf("-F %s=%s ", k, v)
+	}
+	fmt.Printf("-F file=@/etc/bashrc ")
+	fmt.Printf(config.Endpoint + "/bucket-name\n")
 }

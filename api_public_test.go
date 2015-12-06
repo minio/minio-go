@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"io"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -31,7 +32,11 @@ func TestUserAgent(t *testing.T) {
 	server := httptest.NewServer(userAgent)
 	defer server.Close()
 
-	a, err := minio.New(minio.Config{Endpoint: server.URL})
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal("Error")
+	}
+	a, err := minio.New(u.Host, "", "", true)
 	if err != nil {
 		t.Fatal("Error")
 	}
@@ -39,7 +44,7 @@ func TestUserAgent(t *testing.T) {
 	a.SetAppInfo("hello-app", "1.0")
 
 	// Initiate a request.
-	a.MakeBucket("bucket", "private")
+	a.MakeBucket("bucket", "private", "")
 
 	// Set app info again, this should not have set.
 	a.SetAppInfo("new-hello-app", "2.0")
@@ -59,11 +64,15 @@ func TestBucketOperations(t *testing.T) {
 	server := httptest.NewServer(bucket)
 	defer server.Close()
 
-	a, err := minio.New(minio.Config{Endpoint: server.URL})
+	u, err := url.Parse(server.URL)
 	if err != nil {
 		t.Fatal("Error")
 	}
-	err = a.MakeBucket("bucket", "private")
+	a, err := minio.New(u.Host, "", "", true)
+	if err != nil {
+		t.Fatal("Error")
+	}
+	err = a.MakeBucket("bucket", "private", "")
 	if err != nil {
 		t.Fatal("Error")
 	}
@@ -133,11 +142,15 @@ func TestBucketOperationsFail(t *testing.T) {
 	server := httptest.NewServer(bucket)
 	defer server.Close()
 
-	a, err := minio.New(minio.Config{Endpoint: server.URL})
+	u, err := url.Parse(server.URL)
 	if err != nil {
 		t.Fatal("Error")
 	}
-	err = a.MakeBucket("bucket$$$", "private")
+	a, err := minio.New(u.Host, "", "", true)
+	if err != nil {
+		t.Fatal("Error")
+	}
+	err = a.MakeBucket("bucket$$$", "private", "")
 	if err == nil {
 		t.Fatal("Error")
 	}
@@ -168,7 +181,7 @@ func TestBucketOperationsFail(t *testing.T) {
 		t.Fatal("Error")
 	}
 
-	if err.Error() != "The specified bucket is not valid." {
+	if err.Error() != "Bucket name contains invalid characters." {
 		t.Fatal("Error")
 	}
 }
@@ -181,7 +194,11 @@ func TestObjectOperations(t *testing.T) {
 	server := httptest.NewServer(object)
 	defer server.Close()
 
-	a, err := minio.New(minio.Config{Endpoint: server.URL})
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal("Error")
+	}
+	a, err := minio.New(u.Host, "", "", true)
 	if err != nil {
 		t.Fatal("Error")
 	}
@@ -226,7 +243,11 @@ func TestPresignedURL(t *testing.T) {
 	server := httptest.NewServer(object)
 	defer server.Close()
 
-	a, err := minio.New(minio.Config{Endpoint: server.URL})
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal("Error")
+	}
+	a, err := minio.New(u.Host, "", "", true)
 	if err != nil {
 		t.Fatal("Error")
 	}
@@ -236,11 +257,7 @@ func TestPresignedURL(t *testing.T) {
 		t.Fatal("Error")
 	}
 
-	a, err = minio.New(minio.Config{
-		Endpoint:        server.URL,
-		AccessKeyID:     "accessKey",
-		SecretAccessKey: "secretKey",
-	})
+	a, err = minio.New(u.Host, "accessKey", "secretKey", true)
 	if err != nil {
 		t.Fatal("Error")
 	}
@@ -262,7 +279,7 @@ func TestPresignedURL(t *testing.T) {
 }
 
 func TestErrorResponse(t *testing.T) {
-	errorResponse := []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?><Error><Code>AccessDenied</Code><Message>Access Denied</Message><Resource>/mybucket/myphoto.jpg</Resource><RequestId>F19772218238A85A</RequestId><HostId>GuWkjyviSiGHizehqpmsD1ndz5NClSP19DOT+s2mv7gXGQ8/X1lhbDGiIJEXpGFD</HostId></Error>")
+	errorResponse := []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?><Error><Code>AccessDenied</Code><Message>Access Denied</Message><BucketName>mybucket</BucketName><Key>myphoto.jpg</Key><RequestId>F19772218238A85A</RequestId><HostId>GuWkjyviSiGHizehqpmsD1ndz5NClSP19DOT+s2mv7gXGQ8/X1lhbDGiIJEXpGFD</HostId></Error>")
 	errorReader := bytes.NewReader(errorResponse)
 	err := minio.BodyToErrorResponse(errorReader)
 	if err == nil {
@@ -272,10 +289,6 @@ func TestErrorResponse(t *testing.T) {
 		t.Fatal("Error")
 	}
 	resp := minio.ToErrorResponse(err)
-	// valid all fields.
-	if resp == nil {
-		t.Fatal("Error")
-	}
 	if resp.Code != "AccessDenied" {
 		t.Fatal("Error")
 	}
@@ -285,7 +298,10 @@ func TestErrorResponse(t *testing.T) {
 	if resp.Message != "Access Denied" {
 		t.Fatal("Error")
 	}
-	if resp.Resource != "/mybucket/myphoto.jpg" {
+	if resp.BucketName != "mybucket" {
+		t.Fatal("Error")
+	}
+	if resp.Key != "myphoto.jpg" {
 		t.Fatal("Error")
 	}
 	if resp.HostID != "GuWkjyviSiGHizehqpmsD1ndz5NClSP19DOT+s2mv7gXGQ8/X1lhbDGiIJEXpGFD" {

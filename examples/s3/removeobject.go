@@ -25,16 +25,16 @@ import (
 )
 
 func main() {
-	config := minio.Config{
-		Endpoint:        "https://s3.amazonaws.com",
-		AccessKeyID:     "YOUR-ACCESS-KEY-HERE",
-		SecretAccessKey: "YOUR-PASSWORD-HERE",
-	}
-	s3Client, err := minio.New(config)
+	// Requests are always secure by default. set inSecure=true to enable insecure access.
+	// inSecure boolean is the last argument for New().
+
+	// New provides a client object backend by automatically detected signature type based
+	// on the provider.
+	s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESS-KEY-HERE", "YOUR-SECRET-KEY-HERE", false)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = s3Client.RemoveObject("bucketName", "objectName")
+	err = s3Client.RemoveObject("bucket-name", "objectName")
 	if err != nil {
 		log.Fatalln(err)
 	}
