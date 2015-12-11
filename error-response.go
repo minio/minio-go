@@ -19,7 +19,9 @@ package minio
 import (
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"io"
+	"strconv"
 )
 
 /* **** SAMPLE ERROR RESPONSE ****
@@ -104,8 +106,43 @@ func BodyToErrorResponse(errBody io.Reader) error {
 	return errorResponse
 }
 
+// ErrEntityTooLarge input size is larger than supported maximum.
+func ErrEntityTooLarge(totalSize int64, bucketName, objectName string) error {
+	msg := fmt.Sprintf("Your proposed upload size ‘%d’ exceeds the maximum allowed object size '5GB' for single PUT operation.", totalSize)
+	return ErrorResponse{
+		Code:       "EntityTooLarge",
+		Message:    msg,
+		BucketName: bucketName,
+		Key:        objectName,
+	}
+}
+
+// ErrUnexpectedShortRead unexpected shorter read of input buffer from target.
+func ErrUnexpectedShortRead(totalRead, totalSize int64, bucketName, objectName string) error {
+	msg := fmt.Sprintf("Data read ‘%s’ is shorter than the size ‘%s’ of input buffer.",
+		strconv.FormatInt(totalRead, 10), strconv.FormatInt(totalSize, 10))
+	return ErrorResponse{
+		Code:       "UnexpectedShortRead",
+		Message:    msg,
+		BucketName: bucketName,
+		Key:        objectName,
+	}
+}
+
+// ErrUnexpectedEOF unexpected end of file reached.
+func ErrUnexpectedEOF(totalRead, totalSize int64, bucketName, objectName string) error {
+	msg := fmt.Sprintf("Data read ‘%s’ is not equal to the size ‘%s’ of the input Reader.",
+		strconv.FormatInt(totalRead, 10), strconv.FormatInt(totalSize, 10))
+	return ErrorResponse{
+		Code:       "UnexpectedEOF",
+		Message:    msg,
+		BucketName: bucketName,
+		Key:        objectName,
+	}
+}
+
 // ErrInvalidBucketName - invalid bucket name response.
-var ErrInvalidBucketName = func(message string) error {
+func ErrInvalidBucketName(message string) error {
 	return ErrorResponse{
 		Code:      "InvalidBucketName",
 		Message:   message,
@@ -114,7 +151,7 @@ var ErrInvalidBucketName = func(message string) error {
 }
 
 // ErrInvalidObjectName - invalid object name response.
-var ErrInvalidObjectName = func(message string) error {
+func ErrInvalidObjectName(message string) error {
 	return ErrorResponse{
 		Code:      "NoSuchKey",
 		Message:   message,
@@ -127,7 +164,7 @@ var ErrInvalidObjectName = func(message string) error {
 var ErrInvalidObjectPrefix = ErrInvalidObjectName
 
 // ErrInvalidArgument - invalid argument response.
-var ErrInvalidArgument = func(message string) error {
+func ErrInvalidArgument(message string) error {
 	return ErrorResponse{
 		Code:      "InvalidArgument",
 		Message:   message,

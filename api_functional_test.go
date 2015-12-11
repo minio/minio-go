@@ -9,7 +9,7 @@ import (
 	"github.com/minio/minio-go"
 )
 
-const letterBytes = "abcdefghijklmnopqrstuvwxyz01234569-"
+const letterBytes = "abcdefghijklmnopqrstuvwxyz01234569"
 const (
 	letterIdxBits = 6                    // 6 bits to represent a letter index
 	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
@@ -43,12 +43,12 @@ func TestFunctional(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
 	err = a.MakeBucket(bucketName, "private", "us-east-1")
 	if err != nil {
-		t.Fatal("Error", err)
+		t.Fatal("Error", err, bucketName)
 	}
 
 	err = a.BucketExists(bucketName)
 	if err != nil {
-		t.Fatal("Error", err)
+		t.Fatal("Error", err, bucketName)
 	}
 
 	err = a.SetBucketACL(bucketName, "public-read-write")

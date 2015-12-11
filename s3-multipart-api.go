@@ -411,7 +411,7 @@ func (a API) uploadPart(bucketName, objectName, uploadID string, uploadingPart p
 	if err != nil {
 		return completePart{}, err
 	}
-	// initiate the request.
+	// Initiate the request.
 	resp, err := req.Do()
 	defer closeResp(resp)
 	if err != nil {

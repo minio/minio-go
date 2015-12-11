@@ -202,14 +202,19 @@ func TestObjectOperations(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error")
 	}
+
 	data := []byte("Hello, World")
-	err = a.PutObject("bucket", "object", bytes.NewReader(data), int64(len(data)), "")
+	n, err := a.PutObject("bucket", "object", bytes.NewReader(data), int64(len(data)), "")
 	if err != nil {
+		t.Fatal(err)
+	}
+	if n != int64(len(data)) {
 		t.Fatal("Error")
 	}
+
 	metadata, err := a.StatObject("bucket", "object")
 	if err != nil {
-		t.Fatal("Error")
+		t.Fatal(err)
 	}
 	if metadata.Key != "object" {
 		t.Fatal("Error")
@@ -220,7 +225,7 @@ func TestObjectOperations(t *testing.T) {
 
 	reader, err := a.GetObject("bucket", "object")
 	if err != nil {
-		t.Fatal("Error")
+		t.Fatal(err)
 	}
 
 	var buffer bytes.Buffer
