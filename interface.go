@@ -38,7 +38,7 @@ type CloudStorageAPI interface {
 	// Object Read/Write/Stat operations.
 	GetObject(bucket, object string) (io.ReadSeeker, error)
 	GetPartialObject(bucket, object string, offset, length int64) (io.ReadSeeker, error)
-	PutObject(bucket, object string, data io.ReadSeeker, size int64, contentType string) error
+	PutObject(bucket, object string, data io.ReadSeeker, size int64, contentType string) (int64, error)
 	StatObject(bucket, object string) (ObjectStat, error)
 	RemoveObject(bucket, object string) error
 	RemoveIncompleteUpload(bucket, object string) <-chan error

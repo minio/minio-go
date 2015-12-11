@@ -18,13 +18,11 @@ package minio
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
 	"runtime"
 	"sort"
-	"strconv"
 	"sync"
 )
 
@@ -40,16 +38,22 @@ func (a completedParts) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a completedParts) Less(i, j int) bool { return a[i].PartNumber < a[j].PartNumber }
 
 // putParts - fully managed multipart uploader, resumes where its left off at `uploadID`
-func (a API) putParts(bucketName, objectName, uploadID string, data io.ReadSeeker, size int64) error {
+func (a API) putParts(bucketName, objectName, uploadID string, data io.ReadSeeker, size int64) (int64, error) {
 	// Cleanup any previously left stale files, as the function exits.
 	defer cleanupStaleTempfiles("multiparts$")
 
+	// total data read and written to server. should be equal to 'size' at the end of the call.
+	var totalWritten int64
+
+	// Seek offset where the file will be seeked to.
 	var seekOffset int64
+
+	// Starting part number. Always part '1'.
 	partNumber := 1
 	completeMultipartUpload := completeMultipartUpload{}
 	for objPart := range a.listObjectPartsRecursive(bucketName, objectName, uploadID) {
 		if objPart.Err != nil {
-			return objPart.Err
+			return 0, objPart.Err
 		}
 		// Verify if there is a hole i.e one of the parts is missing
 		// Break and start uploading that part.
@@ -60,7 +64,10 @@ func (a API) putParts(bucketName, objectName, uploadID string, data io.ReadSeeke
 		completedPart.PartNumber = objPart.PartNumber
 		completedPart.ETag = objPart.ETag
 		completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, completedPart)
-		seekOffset += objPart.Size // Add seek Offset for future Seek to skip entries.
+		// Add seek Offset for future Seek to skip entries.
+		seekOffset += objPart.Size
+		// Save total written to verify later.
+		totalWritten += objPart.Size
 		// Increment lexically to verify holes in next iteration.
 		partNumber++
 	}
@@ -68,21 +75,20 @@ func (a API) putParts(bucketName, objectName, uploadID string, data io.ReadSeeke
 	// Calculate the optimal part size for a given size.
 	partSize := calculatePartSize(size)
 
-	type erroredPart struct {
-		err    error
-		closer io.ReadCloser
+	// Error struct sent back upon error.
+	type uploadedPart struct {
+		Part   completePart
+		Closer io.ReadCloser
+		Error  error
 	}
-	// Allocate bufferred error channel for maximum parts.
-	errCh := make(chan erroredPart, maxParts)
 
 	// Allocate bufferred upload part channel.
-	uploadedPartsCh := make(chan completePart, maxParts)
+	uploadedPartsCh := make(chan uploadedPart, maxParts)
 
 	// Limit multipart queue size to max concurrent queue, defaults to NCPUs - 1.
 	mpQueueCh := make(chan struct{}, maxConcurrentQueue)
 
 	// Close all our channels.
-	defer close(errCh)
 	defer close(mpQueueCh)
 	defer close(uploadedPartsCh)
 
@@ -92,7 +98,7 @@ func (a API) putParts(bucketName, objectName, uploadID string, data io.ReadSeeke
 	// Seek to the new offset if greater than '0'
 	if seekOffset > 0 {
 		if _, err := data.Seek(seekOffset, 0); err != nil {
-			return err
+			return 0, err
 		}
 	}
 
@@ -109,67 +115,70 @@ func (a API) putParts(bucketName, objectName, uploadID string, data io.ReadSeeke
 		// Account for all parts uploaded simultaneousy.
 		wg.Add(1)
 		part.Number = partNumber
-		go func(mpQueueCh <-chan struct{}, part partMetadata, wg *sync.WaitGroup,
-			errCh chan<- erroredPart, uploadedPartsCh chan<- completePart) {
+		go func(mpQueueCh <-chan struct{}, part partMetadata, wg *sync.WaitGroup, uploadedPartsCh chan<- uploadedPart) {
 			defer wg.Done()
 			defer func() {
 				<-mpQueueCh
 			}()
 			if part.Err != nil {
-				errCh <- erroredPart{
-					err:    part.Err,
-					closer: part.ReadCloser,
+				uploadedPartsCh <- uploadedPart{
+					Error:  part.Err,
+					Closer: part.ReadCloser,
 				}
 				return
 			}
 			complPart, err := a.uploadPart(bucketName, objectName, uploadID, part)
 			if err != nil {
-				errCh <- erroredPart{
-					err:    err,
-					closer: part.ReadCloser,
+				uploadedPartsCh <- uploadedPart{
+					Error:  err,
+					Closer: part.ReadCloser,
 				}
 				return
 			}
-			uploadedPartsCh <- complPart
-			errCh <- erroredPart{
-				err: nil,
+			// On Success send through both the channels.
+			uploadedPartsCh <- uploadedPart{
+				Part:  complPart,
+				Error: nil,
 			}
-		}(mpQueueCh, part, wg, errCh, uploadedPartsCh)
+		}(mpQueueCh, part, wg, uploadedPartsCh)
 		// If any errors return right here.
-		if erroredPrt, ok := <-errCh; ok {
-			if erroredPrt.err != nil {
+		if uploadedPrt, ok := <-uploadedPartsCh; ok {
+			// Uploading failed close the Reader and return error.
+			if uploadedPrt.Error != nil {
 				// Close the part to remove it from disk.
-				erroredPrt.closer.Close()
-				return erroredPrt.err
+				if uploadedPrt.Closer != nil {
+					uploadedPrt.Closer.Close()
+				}
+				return totalWritten, uploadedPrt.Error
 			}
-		}
-		// If success fully uploaded, save them in Parts.
-		if uploadedPart, ok := <-uploadedPartsCh; ok {
-			completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, uploadedPart)
+			// Save successfully uploaded size.
+			totalWritten += part.Size
+			// Save successfully uploaded part metadata.
+			completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, uploadedPrt.Part)
 		}
 		partNumber++
 	}
 	wg.Wait()
+	// if totalWritten is different than the input 'size'.
+	// Do not complete the request throw an error.
+	if totalWritten != size {
+		return totalWritten, ErrUnexpectedEOF(totalWritten, size, bucketName, objectName)
+	}
 	sort.Sort(completedParts(completeMultipartUpload.Parts))
 	_, err := a.completeMultipartUpload(bucketName, objectName, uploadID, completeMultipartUpload)
 	if err != nil {
-		return err
+		return totalWritten, err
 	}
-	return nil
+	return totalWritten, nil
 }
 
 // putNoChecksum special function used for anonymous uploads and Google Cloud Storage.
 // This special function is necessary since Amazon S3 doesn't allow multipart uploads
 // for anonymous requests. This special function is also used for Google Cloud Storage
 // since multipart API is not S3 compatible.
-func (a API) putNoChecksum(bucketName, objectName string, data io.ReadSeeker, size int64, contentType string) error {
+func (a API) putNoChecksum(bucketName, objectName string, data io.ReadSeeker, size int64, contentType string) (int64, error) {
 	if size > maxPartSize {
-		return ErrorResponse{
-			Code:       "EntityTooLarge",
-			Message:    "Your proposed upload exceeds the maximum allowed object size '5GB' for single PUT operation.",
-			BucketName: bucketName,
-			Key:        objectName,
-		}
+		return 0, ErrEntityTooLarge(size, bucketName, objectName)
 	}
 	// For anonymous requests, we will not calculate sha256 and md5sum.
 	putObjMetadata := putObjectMetadata{
@@ -180,26 +189,19 @@ func (a API) putNoChecksum(bucketName, objectName string, data io.ReadSeeker, si
 		ContentType: contentType,
 	}
 	if _, err := a.putObject(bucketName, objectName, putObjMetadata); err != nil {
-		return err
+		return 0, err
 	}
-	return nil
+	return size, nil
 }
 
 // putSmallObject uploads files smaller than 5 mega bytes.
-func (a API) putSmallObject(bucketName, objectName string, data io.ReadSeeker, size int64, contentType string) error {
+func (a API) putSmallObject(bucketName, objectName string, data io.ReadSeeker, size int64, contentType string) (int64, error) {
 	dataBytes, err := ioutil.ReadAll(data)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	if int64(len(dataBytes)) != size {
-		msg := fmt.Sprintf("Data read ‘%s’ is not equal to expected size ‘%s’",
-			strconv.FormatInt(int64(len(dataBytes)), 10), strconv.FormatInt(size, 10))
-		return ErrorResponse{
-			Code:       "UnexpectedShortRead",
-			Message:    msg,
-			BucketName: bucketName,
-			Key:        objectName,
-		}
+		return 0, ErrUnexpectedEOF(int64(len(dataBytes)), size, bucketName, objectName)
 	}
 	putObjMetadata := putObjectMetadata{
 		MD5Sum:      sumMD5(dataBytes),
@@ -209,19 +211,19 @@ func (a API) putSmallObject(bucketName, objectName string, data io.ReadSeeker, s
 		ContentType: contentType,
 	}
 	// Single part use case, use putObject directly.
-	if _, err = a.putObject(bucketName, objectName, putObjMetadata); err != nil {
-		return err
+	if _, err := a.putObject(bucketName, objectName, putObjMetadata); err != nil {
+		return 0, err
 	}
-	return nil
+	return size, nil
 }
 
 // putLargeObject uploads files bigger than 5 mega bytes.
-func (a API) putLargeObject(bucketName, objectName string, data io.ReadSeeker, size int64, contentType string) error {
+func (a API) putLargeObject(bucketName, objectName string, data io.ReadSeeker, size int64, contentType string) (int64, error) {
 	var uploadID string
 	isRecursive := true
 	for mpUpload := range a.listIncompleteUploads(bucketName, objectName, isRecursive) {
 		if mpUpload.Err != nil {
-			return mpUpload.Err
+			return 0, mpUpload.Err
 		}
 		if mpUpload.Key == objectName {
 			uploadID = mpUpload.UploadID
@@ -231,7 +233,7 @@ func (a API) putLargeObject(bucketName, objectName string, data io.ReadSeeker, s
 	if uploadID == "" {
 		initMultipartUploadResult, err := a.initiateMultipartUpload(bucketName, objectName, contentType)
 		if err != nil {
-			return err
+			return 0, err
 		}
 		uploadID = initMultipartUploadResult.UploadID
 	}

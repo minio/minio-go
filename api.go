@@ -276,17 +276,18 @@ func (a API) GetPartialObject(bucketName, objectName string, offset, length int6
 // only upload for file sizes upto maximum 5GB. (maximum limit for single PUT operation).
 //
 // For un-authenticated requests S3 doesn't allow multipart upload, so we fall back to single PUT operation.
-func (a API) PutObject(bucketName, objectName string, data io.ReadSeeker, size int64, contentType string) error {
+func (a API) PutObject(bucketName, objectName string, data io.ReadSeeker, size int64, contentType string) (int64, error) {
+	// Input validation.
 	if err := isValidBucketName(bucketName); err != nil {
-		return err
+		return 0, err
 	}
 	if err := isValidObjectName(objectName); err != nil {
-		return err
+		return 0, err
 	}
 	// NOTE: S3 doesn't allow anonymous multipart requests.
 	if isAmazonEndpoint(a.endpointURL) && isAnonymousCredentials(*a.credentials) {
 		if size <= -1 {
-			return ErrorResponse{
+			return 0, ErrorResponse{
 				Code:       "NotImplemented",
 				Message:    "For anonymous requests Content-Length cannot be negative.",
 				Key:        objectName,
@@ -300,7 +301,7 @@ func (a API) PutObject(bucketName, objectName string, data io.ReadSeeker, size i
 	// resumable object upload for Google Cloud Storage.
 	if isGoogleEndpoint(a.endpointURL) {
 		if size <= -1 {
-			return ErrorResponse{
+			return 0, ErrorResponse{
 				Code:       "NotImplemented",
 				Message:    "Content-Length cannot be negative for file uploads to Google Cloud Storage.",
 				Key:        objectName,

@@ -680,7 +680,10 @@ func (a API) putObject(bucketName, objectName string, putObjMetadata putObjectMe
 		}
 	}
 	var metadata ObjectStat
-	metadata.ETag = strings.Trim(resp.Header.Get("ETag"), "\"") // trim off the odd double quotes
+	// Trim off the odd double quotes from ETag.
+	metadata.ETag = strings.Trim(resp.Header.Get("ETag"), "\"")
+	// A success here means data was written to server successfully.
+	metadata.Size = putObjMetadata.Size
 	return metadata, nil
 }
 
