@@ -26,20 +26,17 @@ import (
 )
 
 func main() {
-	config := minio.Config{
-		Endpoint:        "https://s3.amazonaws.com",
-		AccessKeyID:     "YOUR-ACCESS-KEY-HERE",
-		SecretAccessKey: "YOUR-PASSWORD-HERE",
-	}
+	// Requests are always secure by default. set inSecure=true to enable insecure access.
+	// inSecure boolean is the last argument for New().
 
-	// Default is Signature Version 4. To enable Signature Version 2 do the following.
-	// config.Signature = minio.SignatureV2
-
-	s3Client, err := minio.New(config)
+	// New provides a client object backend by automatically detected signature type based
+	// on the provider.
+	s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESS-KEY-HERE", "YOUR-SECRET-KEY-HERE", false)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	presignedURL, err := s3Client.PresignedGetObject("bucketName", "objectName", time.Duration(1000)*time.Second)
+
+	presignedURL, err := s3Client.PresignedGetObject("bucket-name", "objectName", time.Duration(1000)*time.Second)
 	if err != nil {
 		log.Fatalln(err)
 	}

@@ -20,6 +20,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/minio/minio-go"
 )
@@ -30,15 +31,14 @@ func main() {
 
 	// New provides a client object backend by automatically detected signature type based
 	// on the provider.
-	s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESS-KEY-HERE", "YOUR-SECRET-KEY-HERE", false)
+	s3Client, err := minio.New("play.minio.io:9002", "Q3AM3UQ867SPQQA43P2F", "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG", false)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	for err := range s3Client.RemoveIncompleteUpload("bucket-name", "objectName") {
-		if err != nil {
-			log.Fatalln(err)
-		}
+	presignedURL, err := s3Client.PresignedGetObject("bucket-name", "objectName", time.Duration(1000)*time.Second)
+	if err != nil {
+		log.Fatalln(err)
 	}
-	log.Println("Success")
+	log.Println(presignedURL)
 }

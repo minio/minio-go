@@ -31,11 +31,31 @@ import (
 	"time"
 )
 
+// Encode input URL path to URL encoded path.
+func encodeURL2Path(u *url.URL) string {
+	// Encode URL path.
+	var path string
+	if !isAmazonEndpoint(u) && !isGoogleEndpoint(u) {
+		path = urlEncodePath(u.Path)
+	}
+	if strings.HasSuffix(u.Host, ".s3.amazonaws.com") {
+		path = "/" + strings.TrimSuffix(u.Host, ".s3.amazonaws.com")
+		path += u.Path
+		path = urlEncodePath(path)
+	}
+	if strings.HasSuffix(u.Host, ".storage.googleapis.com") {
+		path = "/" + strings.TrimSuffix(u.Host, ".storage.googleapis.com")
+		path += u.Path
+		path = urlEncodePath(path)
+	}
+	return path
+}
+
 // PreSignV2 - presign the request in following style.
 // https://${S3_BUCKET}.s3.amazonaws.com/${S3_OBJECT}?AWSAccessKeyId=${S3_ACCESS_KEY}&Expires=${TIMESTAMP}&Signature=${SIGNATURE}
 func (r *Request) PreSignV2() (string, error) {
 	// if config is anonymous then presigning cannot be achieved, throw an error.
-	if r.config.isAnonymous() {
+	if isAnonymousCredentials(*r.credentials) {
 		return "", errors.New("Presigning cannot be achieved with anonymous credentials")
 	}
 	d := time.Now().UTC()
@@ -43,37 +63,26 @@ func (r *Request) PreSignV2() (string, error) {
 	if date := r.Get("Date"); date == "" {
 		r.Set("Date", d.Format(http.TimeFormat))
 	}
-	var path string
-	// Encode URL path.
-	if r.config.isVirtualHostedStyle {
-		for k, v := range regions {
-			if v == r.config.Region {
-				path = "/" + strings.TrimSuffix(r.req.URL.Host, "."+k)
-				path += r.req.URL.Path
-				path = getURLEncodedPath(path)
-				break
-			}
-		}
-	} else {
-		path = getURLEncodedPath(r.req.URL.Path)
-	}
+
+	// Get encoded URL path.
+	path := encodeURL2Path(r.req.URL)
 
 	// Find epoch expires when the request will expire.
 	epochExpires := d.Unix() + r.expires
 
 	// get string to sign.
 	stringToSign := fmt.Sprintf("%s\n\n\n%d\n%s", r.req.Method, epochExpires, path)
-	hm := hmac.New(sha1.New, []byte(r.config.SecretAccessKey))
+	hm := hmac.New(sha1.New, []byte(r.credentials.SecretAccessKey))
 	hm.Write([]byte(stringToSign))
 	// calculate signature.
 	signature := base64.StdEncoding.EncodeToString(hm.Sum(nil))
 
 	query := r.req.URL.Query()
 	// Handle specially for Google Cloud Storage.
-	if r.config.Region == "google" {
-		query.Set("GoogleAccessId", r.config.AccessKeyID)
+	if strings.Contains(r.req.URL.Host, ".storage.googleapis.com") {
+		query.Set("GoogleAccessId", r.credentials.AccessKeyID)
 	} else {
-		query.Set("AWSAccessKeyId", r.config.AccessKeyID)
+		query.Set("AWSAccessKeyId", r.credentials.AccessKeyID)
 	}
 
 	// Fill in Expires and Signature for presigned query.
@@ -86,7 +95,7 @@ func (r *Request) PreSignV2() (string, error) {
 
 // PostPresignSignatureV2 - presigned signature for PostPolicy request
 func (r *Request) PostPresignSignatureV2(policyBase64 string) string {
-	hm := hmac.New(sha1.New, []byte(r.config.SecretAccessKey))
+	hm := hmac.New(sha1.New, []byte(r.credentials.SecretAccessKey))
 	hm.Write([]byte(policyBase64))
 	signature := base64.StdEncoding.EncodeToString(hm.Sum(nil))
 	return signature
@@ -120,12 +129,12 @@ func (r *Request) SignV2() {
 
 	// Calculate HMAC for secretAccessKey.
 	stringToSign := r.getStringToSignV2()
-	hm := hmac.New(sha1.New, []byte(r.config.SecretAccessKey))
+	hm := hmac.New(sha1.New, []byte(r.credentials.SecretAccessKey))
 	hm.Write([]byte(stringToSign))
 
 	// Prepare auth header.
 	authHeader := new(bytes.Buffer)
-	authHeader.WriteString(fmt.Sprintf("AWS %s:", r.config.AccessKeyID))
+	authHeader.WriteString(fmt.Sprintf("AWS %s:", r.credentials.AccessKeyID))
 	encoder := base64.NewEncoder(base64.StdEncoding, authHeader)
 	encoder.Write(hm.Sum(nil))
 	encoder.Close()
@@ -231,18 +240,10 @@ var resourceList = []string{
 // 	  [ sub-resource, if present. For example "?acl", "?location", "?logging", or "?torrent"];
 func (r *Request) writeCanonicalizedResource(buf *bytes.Buffer) error {
 	requestURL := r.req.URL
-	if r.config.isVirtualHostedStyle {
-		for k, v := range regions {
-			if v == r.config.Region {
-				path := "/" + strings.TrimSuffix(requestURL.Host, "."+k)
-				path += requestURL.Path
-				buf.WriteString(getURLEncodedPath(path))
-				break
-			}
-		}
-	} else {
-		buf.WriteString(getURLEncodedPath(requestURL.Path))
-	}
+	// Get encoded URL path.
+	path := encodeURL2Path(requestURL)
+	buf.WriteString(path)
+
 	sort.Strings(resourceList)
 	if requestURL.RawQuery != "" {
 		var n int

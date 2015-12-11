@@ -16,22 +16,25 @@
 
 package minio
 
-import "testing"
+import (
+	"net/url"
+	"testing"
+)
 
 func TestSignature(t *testing.T) {
-	conf := new(Config)
-	if !conf.Signature.isLatest() {
+	credentials := clientCredentials{}
+	if !credentials.Signature.isLatest() {
 		t.Fatalf("Error")
 	}
-	conf.Signature = SignatureV2
-	if !conf.Signature.isV2() {
+	credentials.Signature = SignatureV2
+	if !credentials.Signature.isV2() {
 		t.Fatalf("Error")
 	}
-	if conf.Signature.isV4() {
+	if credentials.Signature.isV4() {
 		t.Fatalf("Error")
 	}
-	conf.Signature = SignatureV4
-	if !conf.Signature.isV4() {
+	credentials.Signature = SignatureV4
+	if !credentials.Signature.isV4() {
 		t.Fatalf("Error")
 	}
 }
@@ -48,17 +51,6 @@ func TestACLTypes(t *testing.T) {
 		if BucketACL(acl).isValidBucketACL() != ok {
 			t.Fatal("Error")
 		}
-	}
-}
-
-func TestGetRegion(t *testing.T) {
-	region := getRegion("s3.amazonaws.com")
-	if region != "us-east-1" {
-		t.Fatalf("Error")
-	}
-	region = getRegion("localhost:9000")
-	if region != "us-east-1" {
-		t.Fatalf("Error")
 	}
 }
 
@@ -110,8 +102,128 @@ func TestURLEncoding(t *testing.T) {
 	}
 
 	for _, u := range want {
-		if u.encodedName != getURLEncodedPath(u.name) {
+		if u.encodedName != urlEncodePath(u.name) {
 			t.Errorf("Error")
+		}
+	}
+}
+
+func TestGetEndpointURL(t *testing.T) {
+	if _, err := getEndpointURL("s3.amazonaws.com", false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := getEndpointURL("192.168.1.1", false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := getEndpointURL("13333.123123.", false); err == nil {
+		t.Fatal("Error")
+	}
+	if _, err := getEndpointURL("s3.aamzza.", false); err == nil {
+		t.Fatal("Error")
+	}
+	if _, err := getEndpointURL("s3.amazonaws.com:443", false); err == nil {
+		t.Fatal("Error")
+	}
+}
+
+func TestValidIP(t *testing.T) {
+	type validIP struct {
+		ip    string
+		valid bool
+	}
+
+	want := []validIP{
+		{
+			ip:    "192.168.1.1",
+			valid: true,
+		},
+		{
+			ip:    "192.1.8",
+			valid: false,
+		},
+		{
+			ip:    "..192.",
+			valid: false,
+		},
+		{
+			ip:    "192.168.1.1.1",
+			valid: false,
+		},
+	}
+	for _, w := range want {
+		valid := validIPAddress.MatchString(w.ip)
+		if valid != w.valid {
+			t.Fatal("Error")
+		}
+	}
+}
+
+func TestValidEndpointDomain(t *testing.T) {
+	type validEndpoint struct {
+		endpointDomain string
+		valid          bool
+	}
+
+	want := []validEndpoint{
+		{
+			endpointDomain: "s3.amazonaws.com",
+			valid:          true,
+		},
+		{
+			endpointDomain: "s3.amazonaws.com_",
+			valid:          false,
+		},
+		{
+			endpointDomain: "%$$$",
+			valid:          false,
+		},
+		{
+			endpointDomain: "s3.amz.test.com",
+			valid:          false,
+		},
+		{
+			endpointDomain: "s3.",
+			valid:          false,
+		},
+	}
+	for _, w := range want {
+		valid := validEndpointDomain.MatchString(w.endpointDomain)
+		if valid != w.valid {
+			t.Fatal("Error")
+		}
+	}
+}
+
+func TestValidEndpointURL(t *testing.T) {
+	type validURL struct {
+		url   string
+		valid bool
+	}
+	want := []validURL{
+		{
+			url:   "https://s3.amazonaws.com",
+			valid: true,
+		},
+		{
+			url:   "https://s3.amazonaws.com/bucket/object",
+			valid: false,
+		},
+		{
+			url:   "192.168.1.1",
+			valid: false,
+		},
+	}
+	for _, w := range want {
+		u, err := url.Parse(w.url)
+		if err != nil {
+			t.Fatal("Error")
+		}
+		valid := false
+		if err := isValidEndpointURL(u); err == nil {
+			valid = true
+		}
+		if valid != w.valid {
+			t.Fatal("Error")
 		}
 	}
 }

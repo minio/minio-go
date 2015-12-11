@@ -23,19 +23,12 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 )
-
-const (
-	separator = "/"
-)
-
-// s3API container to hold unexported internal functions.
-type s3API struct {
-	config *Config
-}
 
 // closeResp close non nil response with any response Body.
 // convenient wrapper to drain any remaining data on response body.
@@ -57,54 +50,99 @@ func closeResp(resp *http.Response) {
 	}
 }
 
-// putBucketRequest wrapper creates a new putBucket request.
-func (a s3API) putBucketRequest(bucket, acl, location string) (*Request, error) {
-	var r *Request
-	var err error
-	op := &operation{
-		HTTPServer: a.config.Endpoint,
-		HTTPMethod: "PUT",
-		HTTPPath:   separator + bucket,
+// setRegion - set region for the bucketName in private region map cache.
+func (a API) setRegion(bucketName string) (string, error) {
+	// If signature version '2', no need to fetch bucket location.
+	if a.credentials.Signature.isV2() {
+		return "us-east-1", nil
 	}
-	var createBucketConfigBuffer *bytes.Buffer
-	// If location is set use it and create proper bucket configuration.
-	switch {
-	case location != "":
+	if a.credentials.Signature.isV4() && !isAmazonEndpoint(a.endpointURL) {
+		return "us-east-1", nil
+	}
+	// get bucket location.
+	location, err := a.getBucketLocation(bucketName)
+	if err != nil {
+		return "", err
+	}
+	// location is region in context of S3 API.
+	a.mutex.Lock()
+	a.regionMap[bucketName] = location
+	a.mutex.Unlock()
+	return location, nil
+}
+
+// getRegion - get region for the bucketName from region map cache.
+func (a API) getRegion(bucketName string) (string, error) {
+	// If signature version '2', no need to fetch bucket location.
+	if a.credentials.Signature.isV2() {
+		return "us-east-1", nil
+	}
+	// If signature version '4' and latest and endpoint is not Amazon.
+	// Return 'us-east-1'
+	if a.credentials.Signature.isV4() || a.credentials.Signature.isLatest() {
+		if !isAmazonEndpoint(a.endpointURL) {
+			return "us-east-1", nil
+		}
+	}
+	// Search through regionMap protected.
+	a.mutex.Lock()
+	region, ok := a.regionMap[bucketName]
+	a.mutex.Unlock()
+	// return if found.
+	if ok {
+		return region, nil
+	}
+	// Set region if no region was found for a bucket.
+	region, err := a.setRegion(bucketName)
+	if err != nil {
+		return "us-east-1", err
+	}
+	return region, nil
+}
+
+// putBucketRequest wrapper creates a new putBucket request.
+func (a API) putBucketRequest(bucketName, acl, region string) (*Request, error) {
+	// get target URL.
+	targetURL, err := getTargetURL(a.endpointURL, bucketName, "", url.Values{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Initialize request metadata.
+	var rmetadata requestMetadata
+	rmetadata = requestMetadata{
+		userAgent:    a.userAgent,
+		credentials:  a.credentials,
+		bucketRegion: region,
+	}
+
+	// If region is set use to create bucket location config.
+	if region != "" {
 		createBucketConfig := new(createBucketConfiguration)
-		createBucketConfig.Location = location
+		createBucketConfig.Location = region
 		var createBucketConfigBytes []byte
 		createBucketConfigBytes, err = xml.Marshal(createBucketConfig)
 		if err != nil {
 			return nil, err
 		}
-		createBucketConfigBuffer = bytes.NewBuffer(createBucketConfigBytes)
-	}
-	switch {
-	case createBucketConfigBuffer == nil:
-		r, err = newRequest(op, a.config, requestMetadata{})
-		if err != nil {
-			return nil, err
-		}
-	default:
-		rmetadata := requestMetadata{
-			body:               ioutil.NopCloser(createBucketConfigBuffer),
-			contentLength:      int64(createBucketConfigBuffer.Len()),
-			sha256PayloadBytes: sum256(createBucketConfigBuffer.Bytes()),
-		}
-		r, err = newRequest(op, a.config, rmetadata)
-		if err != nil {
-			return nil, err
-		}
-	}
-	// by default bucket is private
-	switch {
-	case acl != "":
-		r.Set("x-amz-acl", acl)
-	default:
-		r.Set("x-amz-acl", "private")
+		createBucketConfigBuffer := bytes.NewBuffer(createBucketConfigBytes)
+		rmetadata.contentBody = ioutil.NopCloser(createBucketConfigBuffer)
+		rmetadata.contentLength = int64(createBucketConfigBuffer.Len())
+		rmetadata.contentSha256Bytes = sum256(createBucketConfigBuffer.Bytes())
 	}
 
-	return r, nil
+	// Initialize new request.
+	req, err := newRequest("PUT", targetURL, rmetadata)
+	if err != nil {
+		return nil, err
+	}
+
+	// by default bucket acl is set to private.
+	req.Set("x-amz-acl", "private")
+	if acl != "" {
+		req.Set("x-amz-acl", acl)
+	}
+	return req, nil
 }
 
 /// Bucket Write Operations
@@ -126,15 +164,17 @@ func (a s3API) putBucketRequest(bucket, acl, location string) (*Request, error) 
 // authenticated-read - owner gets full access, authenticated users get read access.
 // ------------------
 //
-// Location valid values.
+// Region valid values.
 // ------------------
 // [ us-west-1 | us-west-2 | eu-west-1 | eu-central-1 | ap-southeast-1 | ap-northeast-1 | ap-southeast-2 | sa-east-1 ]
 // Default - US standard
-func (a s3API) putBucket(bucket, acl, location string) error {
-	req, err := a.putBucketRequest(bucket, acl, location)
+func (a API) putBucket(bucketName, acl, region string) error {
+	// Initialize a new request.
+	req, err := a.putBucketRequest(bucketName, acl, region)
 	if err != nil {
 		return err
 	}
+	// Initiate the request.
 	resp, err := req.Do()
 	defer closeResp(resp)
 	if err != nil {
@@ -149,26 +189,52 @@ func (a s3API) putBucket(bucket, acl, location string) error {
 }
 
 // putBucketRequestACL wrapper creates a new putBucketACL request.
-func (a s3API) putBucketACLRequest(bucket, acl string) (*Request, error) {
-	op := &operation{
-		HTTPServer: a.config.Endpoint,
-		HTTPMethod: "PUT",
-		HTTPPath:   separator + bucket + "?acl",
-	}
-	req, err := newRequest(op, a.config, requestMetadata{})
+func (a API) putBucketACLRequest(bucketName, acl string) (*Request, error) {
+	// Set acl query.
+	urlValues := make(url.Values)
+	urlValues.Set("acl", "")
+
+	// get target URL.
+	targetURL, err := getTargetURL(a.endpointURL, bucketName, "", urlValues)
 	if err != nil {
 		return nil, err
 	}
-	req.Set("x-amz-acl", acl)
+
+	// get bucket region.
+	region, err := a.getRegion(bucketName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Instantiate a new request.
+	req, err := newRequest("PUT", targetURL, requestMetadata{
+		credentials:  a.credentials,
+		userAgent:    a.userAgent,
+		bucketRegion: region,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Set relevant acl.
+	if acl != "" {
+		req.Set("x-amz-acl", acl)
+	} else {
+		req.Set("x-amz-acl", "private")
+	}
+
+	// Return.
 	return req, nil
 }
 
 // putBucketACL set the permissions on an existing bucket using Canned ACL's.
-func (a s3API) putBucketACL(bucket, acl string) error {
-	req, err := a.putBucketACLRequest(bucket, acl)
+func (a API) putBucketACL(bucketName, acl string) error {
+	// Initialize a new request.
+	req, err := a.putBucketACLRequest(bucketName, acl)
 	if err != nil {
 		return err
 	}
+	// Initiate the request.
 	resp, err := req.Do()
 	defer closeResp(resp)
 	if err != nil {
@@ -176,9 +242,6 @@ func (a s3API) putBucketACL(bucket, acl string) error {
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			if resp.StatusCode == http.StatusMovedPermanently {
-				return a.handleStatusMovedPermanently(resp, bucket, "")
-			}
 			return BodyToErrorResponse(resp.Body)
 		}
 	}
@@ -186,13 +249,28 @@ func (a s3API) putBucketACL(bucket, acl string) error {
 }
 
 // getBucketACLRequest wrapper creates a new getBucketACL request.
-func (a s3API) getBucketACLRequest(bucket string) (*Request, error) {
-	op := &operation{
-		HTTPServer: a.config.Endpoint,
-		HTTPMethod: "GET",
-		HTTPPath:   separator + bucket + "?acl",
+func (a API) getBucketACLRequest(bucketName string) (*Request, error) {
+	// Set acl query.
+	urlValues := make(url.Values)
+	urlValues.Set("acl", "")
+
+	// get target URL.
+	targetURL, err := getTargetURL(a.endpointURL, bucketName, "", urlValues)
+	if err != nil {
+		return nil, err
 	}
-	req, err := newRequest(op, a.config, requestMetadata{})
+
+	// get bucket region.
+	region, err := a.getRegion(bucketName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Instantiate a new request.
+	req, err := newRequest("GET", targetURL, requestMetadata{
+		bucketRegion: region,
+		credentials:  a.credentials,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -200,11 +278,14 @@ func (a s3API) getBucketACLRequest(bucket string) (*Request, error) {
 }
 
 // getBucketACL get the acl information on an existing bucket.
-func (a s3API) getBucketACL(bucketName string) (accessControlPolicy, error) {
+func (a API) getBucketACL(bucketName string) (accessControlPolicy, error) {
+	// Initialize a new request.
 	req, err := a.getBucketACLRequest(bucketName)
 	if err != nil {
 		return accessControlPolicy{}, err
 	}
+
+	// Initiate the request.
 	resp, err := req.Do()
 	defer closeResp(resp)
 	if err != nil {
@@ -212,27 +293,26 @@ func (a s3API) getBucketACL(bucketName string) (accessControlPolicy, error) {
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			if resp.StatusCode == http.StatusMovedPermanently {
-				errorResponse := a.handleStatusMovedPermanently(resp, bucketName, "")
-				return accessControlPolicy{}, errorResponse
-			}
 			return accessControlPolicy{}, BodyToErrorResponse(resp.Body)
 		}
 	}
+
+	// Decode access control policy.
 	policy := accessControlPolicy{}
 	err = xmlDecoder(resp.Body, &policy)
 	if err != nil {
 		return accessControlPolicy{}, err
 	}
-	// In-case of google private bucket policy doesn't have any Grant list.
-	if a.config.Region == "google" {
+
+	// If Google private bucket policy doesn't have any Grant list.
+	if isGoogleEndpoint(a.endpointURL) {
 		return policy, nil
 	}
 	if policy.AccessControlList.Grant == nil {
 		errorResponse := ErrorResponse{
 			Code:            "InternalError",
 			Message:         "Access control Grant list is empty, please report this at https://github.com/minio/minio-go/issues.",
-			Resource:        separator + bucketName,
+			BucketName:      bucketName,
 			RequestID:       resp.Header.Get("x-amz-request-id"),
 			HostID:          resp.Header.Get("x-amz-id-2"),
 			AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
@@ -243,13 +323,21 @@ func (a s3API) getBucketACL(bucketName string) (accessControlPolicy, error) {
 }
 
 // getBucketLocationRequest wrapper creates a new getBucketLocation request.
-func (a s3API) getBucketLocationRequest(bucket string) (*Request, error) {
-	op := &operation{
-		HTTPServer: a.config.Endpoint,
-		HTTPMethod: "GET",
-		HTTPPath:   separator + bucket + "?location",
-	}
-	req, err := newRequest(op, a.config, requestMetadata{})
+func (a API) getBucketLocationRequest(bucketName string) (*Request, error) {
+	// Set location query.
+	urlValues := make(url.Values)
+	urlValues.Set("location", "")
+
+	// Set get bucket location always as path style.
+	targetURL := a.endpointURL
+	targetURL.Path = filepath.Join(bucketName, "")
+	targetURL.RawQuery = urlValues.Encode()
+
+	// Instantiate a new request.
+	req, err := newRequest("GET", targetURL, requestMetadata{
+		bucketRegion: "us-east-1",
+		credentials:  a.credentials,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -257,11 +345,14 @@ func (a s3API) getBucketLocationRequest(bucket string) (*Request, error) {
 }
 
 // getBucketLocation uses location subresource to return a bucket's region.
-func (a s3API) getBucketLocation(bucketName string) (string, error) {
+func (a API) getBucketLocation(bucketName string) (string, error) {
+	// Initialize a new request.
 	req, err := a.getBucketLocationRequest(bucketName)
 	if err != nil {
 		return "", err
 	}
+
+	// Initiate the request.
 	resp, err := req.Do()
 	defer closeResp(resp)
 	if err != nil {
@@ -272,41 +363,60 @@ func (a s3API) getBucketLocation(bucketName string) (string, error) {
 			return "", BodyToErrorResponse(resp.Body)
 		}
 	}
+
+	// Extract location.
 	var locationConstraint string
 	err = xmlDecoder(resp.Body, &locationConstraint)
 	if err != nil {
 		return "", err
 	}
+
+	// location is empty will be 'us-east-1'.
+	if locationConstraint == "" {
+		return "us-east-1", nil
+	}
+
+	// location can be 'EU' convert it to meaningful 'eu-west-1'.
+	if locationConstraint == "EU" {
+		return "eu-west-1", nil
+	}
+
+	// return location.
 	return locationConstraint, nil
 }
 
 // listObjectsRequest wrapper creates a new listObjects request.
-func (a s3API) listObjectsRequest(bucket, marker, prefix, delimiter string, maxkeys int) (*Request, error) {
-	// resourceQuery - get resources properly escaped and lined up before using them in http request.
-	resourceQuery := func() (*string, error) {
-		switch {
-		case marker != "":
-			marker = fmt.Sprintf("&marker=%s", getURLEncodedPath(marker))
-			fallthrough
-		case prefix != "":
-			prefix = fmt.Sprintf("&prefix=%s", getURLEncodedPath(prefix))
-			fallthrough
-		case delimiter != "":
-			delimiter = fmt.Sprintf("&delimiter=%s", delimiter)
-		}
-		query := fmt.Sprintf("?max-keys=%d", maxkeys) + marker + prefix + delimiter
-		return &query, nil
-	}
-	query, err := resourceQuery()
+func (a API) listObjectsRequest(bucketName, objectPrefix, objectMarker, delimiter string, maxkeys int) (*Request, error) {
+	// Get resources properly escaped and lined up before
+	// using them in http request.
+	urlValues := make(url.Values)
+	// Set object prefix.
+	urlValues.Set("prefix", urlEncodePath(objectPrefix))
+	// Set object marker.
+	urlValues.Set("marker", urlEncodePath(objectMarker))
+	// Set delimiter.
+	urlValues.Set("delimiter", delimiter)
+	// Set max keys.
+	urlValues.Set("max-keys", fmt.Sprintf("%d", maxkeys))
+
+	// Get target url.
+	targetURL, err := getTargetURL(a.endpointURL, bucketName, "", urlValues)
 	if err != nil {
 		return nil, err
 	}
-	op := &operation{
-		HTTPServer: a.config.Endpoint,
-		HTTPMethod: "GET",
-		HTTPPath:   separator + bucket + *query,
+
+	// get bucket region.
+	region, err := a.getRegion(bucketName)
+	if err != nil {
+		return nil, err
 	}
-	r, err := newRequest(op, a.config, requestMetadata{})
+
+	// Initialize a new request.
+	r, err := newRequest("GET", targetURL, requestMetadata{
+		credentials:  a.credentials,
+		userAgent:    a.userAgent,
+		bucketRegion: region,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -324,11 +434,14 @@ func (a s3API) listObjectsRequest(bucket, marker, prefix, delimiter string, maxk
 // ?delimiter - A delimiter is a character you use to group keys.
 // ?prefix - Limits the response to keys that begin with the specified prefix.
 // ?max-keys - Sets the maximum number of keys returned in the response body.
-func (a s3API) listObjects(bucketName, marker, prefix, delimiter string, maxkeys int) (listBucketResult, error) {
-	if !isValidBucketName(bucketName) {
-		return listBucketResult{}, ErrInvalidBucketName()
+func (a API) listObjects(bucketName, objectPrefix, objectMarker, delimiter string, maxkeys int) (listBucketResult, error) {
+	if err := isValidBucketName(bucketName); err != nil {
+		return listBucketResult{}, err
 	}
-	req, err := a.listObjectsRequest(bucketName, marker, prefix, delimiter, maxkeys)
+	if err := isValidObjectPrefix(objectPrefix); err != nil {
+		return listBucketResult{}, err
+	}
+	req, err := a.listObjectsRequest(bucketName, objectPrefix, objectMarker, delimiter, maxkeys)
 	if err != nil {
 		return listBucketResult{}, err
 	}
@@ -339,10 +452,6 @@ func (a s3API) listObjects(bucketName, marker, prefix, delimiter string, maxkeys
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			if resp.StatusCode == http.StatusMovedPermanently {
-				errorResponse := a.handleStatusMovedPermanently(resp, bucketName, "")
-				return listBucketResult{}, errorResponse
-			}
 			return listBucketResult{}, BodyToErrorResponse(resp.Body)
 		}
 	}
@@ -356,19 +465,29 @@ func (a s3API) listObjects(bucketName, marker, prefix, delimiter string, maxkeys
 }
 
 // headBucketRequest wrapper creates a new headBucket request.
-func (a s3API) headBucketRequest(bucketName string) (*Request, error) {
-	op := &operation{
-		HTTPServer: a.config.Endpoint,
-		HTTPMethod: "HEAD",
-		HTTPPath:   separator + bucketName,
+func (a API) headBucketRequest(bucketName string) (*Request, error) {
+	targetURL, err := getTargetURL(a.endpointURL, bucketName, "", url.Values{})
+	if err != nil {
+		return nil, err
 	}
-	return newRequest(op, a.config, requestMetadata{})
+
+	// get bucket region.
+	region, err := a.getRegion(bucketName)
+	if err != nil {
+		return nil, err
+	}
+
+	return newRequest("HEAD", targetURL, requestMetadata{
+		credentials:  a.credentials,
+		userAgent:    a.userAgent,
+		bucketRegion: region,
+	})
 }
 
 // headBucket useful to determine if a bucket exists and you have permission to access it.
-func (a s3API) headBucket(bucketName string) error {
-	if !isValidBucketName(bucketName) {
-		return ErrInvalidBucketName()
+func (a API) headBucket(bucketName string) error {
+	if err := isValidBucketName(bucketName); err != nil {
+		return err
 	}
 	req, err := a.headBucketRequest(bucketName)
 	if err != nil {
@@ -379,19 +498,16 @@ func (a s3API) headBucket(bucketName string) error {
 	if err != nil {
 		return err
 	}
-	var resource = separator + bucketName
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
 			// Head has no response body, handle it.
 			var errorResponse ErrorResponse
 			switch resp.StatusCode {
-			case http.StatusMovedPermanently:
-				errorResponse = a.handleStatusMovedPermanently(resp, bucketName, "")
 			case http.StatusNotFound:
 				errorResponse = ErrorResponse{
 					Code:            "NoSuchBucket",
 					Message:         "The specified bucket does not exist.",
-					Resource:        resource,
+					BucketName:      bucketName,
 					RequestID:       resp.Header.Get("x-amz-request-id"),
 					HostID:          resp.Header.Get("x-amz-id-2"),
 					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
@@ -400,7 +516,7 @@ func (a s3API) headBucket(bucketName string) error {
 				errorResponse = ErrorResponse{
 					Code:            "AccessDenied",
 					Message:         "Access Denied.",
-					Resource:        resource,
+					BucketName:      bucketName,
 					RequestID:       resp.Header.Get("x-amz-request-id"),
 					HostID:          resp.Header.Get("x-amz-id-2"),
 					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
@@ -409,7 +525,7 @@ func (a s3API) headBucket(bucketName string) error {
 				errorResponse = ErrorResponse{
 					Code:            resp.Status,
 					Message:         resp.Status,
-					Resource:        resource,
+					BucketName:      bucketName,
 					RequestID:       resp.Header.Get("x-amz-request-id"),
 					HostID:          resp.Header.Get("x-amz-id-2"),
 					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
@@ -422,13 +538,23 @@ func (a s3API) headBucket(bucketName string) error {
 }
 
 // deleteBucketRequest wrapper creates a new deleteBucket request.
-func (a s3API) deleteBucketRequest(bucketName string) (*Request, error) {
-	op := &operation{
-		HTTPServer: a.config.Endpoint,
-		HTTPMethod: "DELETE",
-		HTTPPath:   separator + bucketName,
+func (a API) deleteBucketRequest(bucketName string) (*Request, error) {
+	targetURL, err := getTargetURL(a.endpointURL, bucketName, "", url.Values{})
+	if err != nil {
+		return nil, err
 	}
-	return newRequest(op, a.config, requestMetadata{})
+
+	// get bucket region.
+	region, err := a.getRegion(bucketName)
+	if err != nil {
+		return nil, err
+	}
+
+	return newRequest("DELETE", targetURL, requestMetadata{
+		credentials:  a.credentials,
+		userAgent:    a.userAgent,
+		bucketRegion: region,
+	})
 }
 
 // deleteBucket deletes the bucket name.
@@ -436,9 +562,9 @@ func (a s3API) deleteBucketRequest(bucketName string) (*Request, error) {
 // NOTE: -
 //  All objects (including all object versions and delete markers)
 //  in the bucket must be deleted before successfully attempting this request.
-func (a s3API) deleteBucket(bucketName string) error {
-	if !isValidBucketName(bucketName) {
-		return ErrInvalidBucketName()
+func (a API) deleteBucket(bucketName string) error {
+	if err := isValidBucketName(bucketName); err != nil {
+		return err
 	}
 	req, err := a.deleteBucketRequest(bucketName)
 	if err != nil {
@@ -449,18 +575,15 @@ func (a s3API) deleteBucket(bucketName string) error {
 	if err != nil {
 		return err
 	}
-	var resource = separator + bucketName
 	if resp != nil {
 		if resp.StatusCode != http.StatusNoContent {
 			var errorResponse ErrorResponse
 			switch resp.StatusCode {
-			case http.StatusMovedPermanently:
-				errorResponse = a.handleStatusMovedPermanently(resp, bucketName, "")
 			case http.StatusNotFound:
 				errorResponse = ErrorResponse{
 					Code:            "NoSuchBucket",
 					Message:         "The specified bucket does not exist.",
-					Resource:        resource,
+					BucketName:      bucketName,
 					RequestID:       resp.Header.Get("x-amz-request-id"),
 					HostID:          resp.Header.Get("x-amz-id-2"),
 					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
@@ -469,7 +592,7 @@ func (a s3API) deleteBucket(bucketName string) error {
 				errorResponse = ErrorResponse{
 					Code:            "AccessDenied",
 					Message:         "Access Denied.",
-					Resource:        resource,
+					BucketName:      bucketName,
 					RequestID:       resp.Header.Get("x-amz-request-id"),
 					HostID:          resp.Header.Get("x-amz-id-2"),
 					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
@@ -478,7 +601,7 @@ func (a s3API) deleteBucket(bucketName string) error {
 				errorResponse = ErrorResponse{
 					Code:            "Conflict",
 					Message:         "Bucket not empty.",
-					Resource:        resource,
+					BucketName:      bucketName,
 					RequestID:       resp.Header.Get("x-amz-request-id"),
 					HostID:          resp.Header.Get("x-amz-id-2"),
 					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
@@ -487,7 +610,7 @@ func (a s3API) deleteBucket(bucketName string) error {
 				errorResponse = ErrorResponse{
 					Code:            resp.Status,
 					Message:         resp.Status,
-					Resource:        resource,
+					BucketName:      bucketName,
 					RequestID:       resp.Header.Get("x-amz-request-id"),
 					HostID:          resp.Header.Get("x-amz-id-2"),
 					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
@@ -502,23 +625,37 @@ func (a s3API) deleteBucket(bucketName string) error {
 /// Object Read/Write/Stat Operations
 
 // putObjectRequest wrapper creates a new PutObject request.
-func (a s3API) putObjectRequest(bucketName, objectName string, putObjMetadata putObjectMetadata) (*Request, error) {
+func (a API) putObjectRequest(bucketName, objectName string, putObjMetadata putObjectMetadata) (*Request, error) {
+	targetURL, err := getTargetURL(a.endpointURL, bucketName, objectName, url.Values{})
+	if err != nil {
+		return nil, err
+	}
 	if strings.TrimSpace(putObjMetadata.ContentType) == "" {
 		putObjMetadata.ContentType = "application/octet-stream"
 	}
-	op := &operation{
-		HTTPServer: a.config.Endpoint,
-		HTTPMethod: "PUT",
-		HTTPPath:   separator + bucketName + separator + objectName,
+
+	// get bucket region.
+	region, err := a.getRegion(bucketName)
+	if err != nil {
+		return nil, err
 	}
+
+	// Set headers.
+	putObjMetadataHeader := make(http.Header)
+	putObjMetadataHeader.Set("Content-Type", putObjMetadata.ContentType)
+
+	// Populate request metadata.
 	rmetadata := requestMetadata{
-		body:               putObjMetadata.ReadCloser,
+		credentials:        a.credentials,
+		userAgent:          a.userAgent,
+		bucketRegion:       region,
+		contentBody:        putObjMetadata.ReadCloser,
 		contentLength:      putObjMetadata.Size,
-		contentType:        putObjMetadata.ContentType,
-		sha256PayloadBytes: putObjMetadata.Sha256Sum,
-		md5SumPayloadBytes: putObjMetadata.MD5Sum,
+		contentHeader:      putObjMetadataHeader,
+		contentSha256Bytes: putObjMetadata.Sha256Sum,
+		contentMD5Bytes:    putObjMetadata.MD5Sum,
 	}
-	r, err := newRequest(op, a.config, rmetadata)
+	r, err := newRequest("PUT", targetURL, rmetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -527,7 +664,7 @@ func (a s3API) putObjectRequest(bucketName, objectName string, putObjMetadata pu
 
 // putObject - add an object to a bucket.
 // NOTE: You must have WRITE permissions on a bucket to add an object to it.
-func (a s3API) putObject(bucketName, objectName string, putObjMetadata putObjectMetadata) (ObjectStat, error) {
+func (a API) putObject(bucketName, objectName string, putObjMetadata putObjectMetadata) (ObjectStat, error) {
 	req, err := a.putObjectRequest(bucketName, objectName, putObjMetadata)
 	if err != nil {
 		return ObjectStat{}, err
@@ -539,10 +676,6 @@ func (a s3API) putObject(bucketName, objectName string, putObjMetadata putObject
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			if resp.StatusCode == http.StatusMovedPermanently {
-				errorResponse := a.handleStatusMovedPermanently(resp, bucketName, objectName)
-				return ObjectStat{}, errorResponse
-			}
 			return ObjectStat{}, BodyToErrorResponse(resp.Body)
 		}
 	}
@@ -552,23 +685,44 @@ func (a s3API) putObject(bucketName, objectName string, putObjMetadata putObject
 }
 
 // presignedPostPolicy - generate post form data.
-func (a s3API) presignedPostPolicy(p *PostPolicy) map[string]string {
+func (a API) presignedPostPolicy(p *PostPolicy) (map[string]string, error) {
+	// get targetURL.
+	targetURL, err := getTargetURL(a.endpointURL, p.formData["bucket"], "", url.Values{})
+	if err != nil {
+		return nil, err
+	}
+
+	// get bucket region.
+	region, err := a.getRegion(p.formData["bucket"])
+	if err != nil {
+		return nil, err
+	}
+
+	// Instantiate a new request.
+	req, err := newRequest("POST", targetURL, requestMetadata{
+		credentials:  a.credentials,
+		userAgent:    a.userAgent,
+		bucketRegion: region,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Keep time.
 	t := time.Now().UTC()
-	r := new(Request)
-	r.config = a.config
-	if r.config.Signature.isV2() {
+	if req.credentials.Signature.isV2() {
 		policyBase64 := p.base64()
 		p.formData["policy"] = policyBase64
 		// for all other regions set this value to be 'AWSAccessKeyId'.
-		if r.config.Region != "google" {
-			p.formData["AWSAccessKeyId"] = r.config.AccessKeyID
+		if isGoogleEndpoint(a.endpointURL) {
+			p.formData["GoogleAccessId"] = req.credentials.AccessKeyID
 		} else {
-			p.formData["GoogleAccessId"] = r.config.AccessKeyID
+			p.formData["AWSAccessKeyId"] = req.credentials.AccessKeyID
 		}
-		p.formData["signature"] = r.PostPresignSignatureV2(policyBase64)
-		return p.formData
+		p.formData["signature"] = req.PostPresignSignatureV2(policyBase64)
+		return p.formData, nil
 	}
-	credential := getCredential(r.config.AccessKeyID, r.config.Region, t)
+	credential := getCredential(req.credentials.AccessKeyID, req.bucketRegion, t)
 	p.addNewPolicy(policyCondition{
 		matchType: "eq",
 		condition: "$x-amz-date",
@@ -589,88 +743,112 @@ func (a s3API) presignedPostPolicy(p *PostPolicy) map[string]string {
 	p.formData["x-amz-algorithm"] = authHeader
 	p.formData["x-amz-credential"] = credential
 	p.formData["x-amz-date"] = t.Format(iso8601DateFormat)
-	p.formData["x-amz-signature"] = r.PostPresignSignatureV4(policyBase64, t)
-	return p.formData
+	p.formData["x-amz-signature"] = req.PostPresignSignatureV4(policyBase64, t)
+	return p.formData, nil
 }
 
 // presignedPutObject - generate presigned PUT url.
-func (a s3API) presignedPutObject(bucketName, objectName string, expires int64) (string, error) {
-	op := &operation{
-		HTTPServer: a.config.Endpoint,
-		HTTPMethod: "PUT",
-		HTTPPath:   separator + bucketName + separator + objectName,
-	}
-	r, err := newPresignedRequest(op, a.config, expires)
+func (a API) presignedPutObject(bucketName, objectName string, expires int64) (string, error) {
+	// get targetURL.
+	targetURL, err := getTargetURL(a.endpointURL, bucketName, objectName, url.Values{})
 	if err != nil {
 		return "", err
 	}
-	if r.config.Signature.isV2() {
-		return r.PreSignV2()
-	}
-	return r.PreSignV4()
-}
 
-// presignedGetObjectRequest - presigned get object request
-func (a s3API) presignedGetObjectRequest(bucketName, objectName string, expires, offset, length int64) (*Request, error) {
-	op := &operation{
-		HTTPServer: a.config.Endpoint,
-		HTTPMethod: "GET",
-		HTTPPath:   separator + bucketName + separator + objectName,
-	}
-	r, err := newPresignedRequest(op, a.config, expires)
+	// get bucket region.
+	region, err := a.getRegion(bucketName)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	switch {
-	case length > 0 && offset > 0:
-		r.Set("Range", fmt.Sprintf("bytes=%d-%d", offset, offset+length-1))
-	case offset > 0 && length == 0:
-		r.Set("Range", fmt.Sprintf("bytes=%d-", offset))
-	case length > 0 && offset == 0:
-		r.Set("Range", fmt.Sprintf("bytes=-%d", length))
+
+	// Instantiate a new request.
+	req, err := newRequest("PUT", targetURL, requestMetadata{
+		credentials:  a.credentials,
+		expires:      expires,
+		userAgent:    a.userAgent,
+		bucketRegion: region,
+	})
+	if err != nil {
+		return "", err
 	}
-	return r, nil
+	if req.credentials.Signature.isV2() {
+		return req.PreSignV2()
+	}
+	return req.PreSignV4()
 }
 
 // presignedGetObject - generate presigned get object URL.
-func (a s3API) presignedGetObject(bucketName, objectName string, expires, offset, length int64) (string, error) {
-	if !isValidBucketName(bucketName) {
-		return "", ErrInvalidBucketName()
-	}
-	if !isValidObjectName(objectName) {
-		return "", ErrInvalidObjectName()
-	}
-	r, err := a.presignedGetObjectRequest(bucketName, objectName, expires, offset, length)
+func (a API) presignedGetObject(bucketName, objectName string, expires, offset, length int64) (string, error) {
+	// get targetURL.
+	targetURL, err := getTargetURL(a.endpointURL, bucketName, objectName, url.Values{})
 	if err != nil {
 		return "", err
 	}
-	if r.config.Signature.isV2() {
-		return r.PreSignV2()
+
+	// get bucket region.
+	region, err := a.getRegion(bucketName)
+	if err != nil {
+		return "", err
 	}
-	return r.PreSignV4()
+
+	// Instantiate a new request.
+	req, err := newRequest("GET", targetURL, requestMetadata{
+		credentials:  a.credentials,
+		expires:      expires,
+		userAgent:    a.userAgent,
+		bucketRegion: region,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	// Set ranges if length and offset are valid.
+	if length > 0 && offset >= 0 {
+		req.Set("Range", fmt.Sprintf("bytes=%d-%d", offset, offset+length-1))
+	} else if offset > 0 && length == 0 {
+		req.Set("Range", fmt.Sprintf("bytes=%d-", offset))
+	} else if length > 0 && offset == 0 {
+		req.Set("Range", fmt.Sprintf("bytes=-%d", length))
+	}
+	if req.credentials.Signature.isV2() {
+		return req.PreSignV2()
+	}
+	return req.PreSignV4()
 }
 
 // getObjectRequest wrapper creates a new getObject request.
-func (a s3API) getObjectRequest(bucketName, objectName string, offset, length int64) (*Request, error) {
-	op := &operation{
-		HTTPServer: a.config.Endpoint,
-		HTTPMethod: "GET",
-		HTTPPath:   separator + bucketName + separator + objectName,
-	}
-	r, err := newRequest(op, a.config, requestMetadata{})
+func (a API) getObjectRequest(bucketName, objectName string, offset, length int64) (*Request, error) {
+	// get targetURL.
+	targetURL, err := getTargetURL(a.endpointURL, bucketName, objectName, url.Values{})
 	if err != nil {
 		return nil, err
 	}
-	switch {
-	case length > 0 && offset >= 0:
-		r.Set("Range", fmt.Sprintf("bytes=%d-%d", offset, offset+length-1))
-	case offset > 0 && length == 0:
-		r.Set("Range", fmt.Sprintf("bytes=%d-", offset))
-	// The final length bytes
-	case length < 0 && offset == 0:
-		r.Set("Range", fmt.Sprintf("bytes=%d", length))
+
+	// get bucket region.
+	region, err := a.getRegion(bucketName)
+	if err != nil {
+		return nil, err
 	}
-	return r, nil
+
+	// Instantiate a new request.
+	req, err := newRequest("GET", targetURL, requestMetadata{
+		credentials:  a.credentials,
+		userAgent:    a.userAgent,
+		bucketRegion: region,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Set ranges if length and offset are valid.
+	if length > 0 && offset >= 0 {
+		req.Set("Range", fmt.Sprintf("bytes=%d-%d", offset, offset+length-1))
+	} else if offset > 0 && length == 0 {
+		req.Set("Range", fmt.Sprintf("bytes=%d-", offset))
+	} else if length < 0 && offset == 0 {
+		req.Set("Range", fmt.Sprintf("bytes=%d", length))
+	}
+	return req, nil
 }
 
 // getObject - retrieve object from Object Storage.
@@ -680,12 +858,12 @@ func (a s3API) getObjectRequest(bucketName, objectName string, offset, length in
 //
 // For more information about the HTTP Range header.
 // go to http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35.
-func (a s3API) getObject(bucketName, objectName string, offset, length int64) (io.ReadCloser, ObjectStat, error) {
-	if !isValidBucketName(bucketName) {
-		return nil, ObjectStat{}, ErrInvalidBucketName()
+func (a API) getObject(bucketName, objectName string, offset, length int64) (io.ReadCloser, ObjectStat, error) {
+	if err := isValidBucketName(bucketName); err != nil {
+		return nil, ObjectStat{}, err
 	}
-	if !isValidObjectName(objectName) {
-		return nil, ObjectStat{}, ErrInvalidObjectName()
+	if err := isValidObjectName(objectName); err != nil {
+		return nil, ObjectStat{}, err
 	}
 	req, err := a.getObjectRequest(bucketName, objectName, offset, length)
 	if err != nil {
@@ -696,15 +874,7 @@ func (a s3API) getObject(bucketName, objectName string, offset, length int64) (i
 		return nil, ObjectStat{}, err
 	}
 	if resp != nil {
-		switch resp.StatusCode {
-		// for HTTP status 200 and 204 are valid cases.
-		case http.StatusOK:
-		case http.StatusPartialContent:
-		// handle 301 sepcifically in case of wrong regions during path style.
-		case http.StatusMovedPermanently:
-			errorResponse := a.handleStatusMovedPermanently(resp, bucketName, objectName)
-			return nil, ObjectStat{}, errorResponse
-		default:
+		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
 			return nil, ObjectStat{}, BodyToErrorResponse(resp.Body)
 		}
 	}
@@ -735,22 +905,38 @@ func (a s3API) getObject(bucketName, objectName string, offset, length int64) (i
 }
 
 // deleteObjectRequest wrapper creates a new deleteObject request.
-func (a s3API) deleteObjectRequest(bucketName, objectName string) (*Request, error) {
-	op := &operation{
-		HTTPServer: a.config.Endpoint,
-		HTTPMethod: "DELETE",
-		HTTPPath:   separator + bucketName + separator + objectName,
+func (a API) deleteObjectRequest(bucketName, objectName string) (*Request, error) {
+	// get targetURL.
+	targetURL, err := getTargetURL(a.endpointURL, bucketName, objectName, url.Values{})
+	if err != nil {
+		return nil, err
 	}
-	return newRequest(op, a.config, requestMetadata{})
+
+	// get bucket region.
+	region, err := a.getRegion(bucketName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Instantiate a new request.
+	req, err := newRequest("DELETE", targetURL, requestMetadata{
+		credentials:  a.credentials,
+		userAgent:    a.userAgent,
+		bucketRegion: region,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return req, nil
 }
 
 // deleteObject deletes a given object from a bucket.
-func (a s3API) deleteObject(bucketName, objectName string) error {
-	if !isValidBucketName(bucketName) {
-		return ErrInvalidBucketName()
+func (a API) deleteObject(bucketName, objectName string) error {
+	if err := isValidBucketName(bucketName); err != nil {
+		return err
 	}
-	if !isValidObjectName(objectName) {
-		return ErrInvalidObjectName()
+	if err := isValidObjectName(objectName); err != nil {
+		return err
 	}
 	req, err := a.deleteObjectRequest(bucketName, objectName)
 	if err != nil {
@@ -768,22 +954,40 @@ func (a s3API) deleteObject(bucketName, objectName string) error {
 }
 
 // headObjectRequest wrapper creates a new headObject request.
-func (a s3API) headObjectRequest(bucketName, objectName string) (*Request, error) {
-	op := &operation{
-		HTTPServer: a.config.Endpoint,
-		HTTPMethod: "HEAD",
-		HTTPPath:   separator + bucketName + separator + objectName,
+func (a API) headObjectRequest(bucketName, objectName string) (*Request, error) {
+	// get targetURL.
+	targetURL, err := getTargetURL(a.endpointURL, bucketName, objectName, url.Values{})
+	if err != nil {
+		return nil, err
 	}
-	return newRequest(op, a.config, requestMetadata{})
+
+	// get bucket region.
+	region, err := a.getRegion(bucketName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Instantiate a new request.
+	req, err := newRequest("HEAD", targetURL, requestMetadata{
+		credentials:  a.credentials,
+		userAgent:    a.userAgent,
+		bucketRegion: region,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Return new request.
+	return req, nil
 }
 
 // headObject retrieves metadata for an object without returning the object itself.
-func (a s3API) headObject(bucketName, objectName string) (ObjectStat, error) {
-	if !isValidBucketName(bucketName) {
-		return ObjectStat{}, ErrInvalidBucketName()
+func (a API) headObject(bucketName, objectName string) (ObjectStat, error) {
+	if err := isValidBucketName(bucketName); err != nil {
+		return ObjectStat{}, err
 	}
-	if !isValidObjectName(objectName) {
-		return ObjectStat{}, ErrInvalidObjectName()
+	if err := isValidObjectName(objectName); err != nil {
+		return ObjectStat{}, err
 	}
 	req, err := a.headObjectRequest(bucketName, objectName)
 	if err != nil {
@@ -794,18 +998,16 @@ func (a s3API) headObject(bucketName, objectName string) (ObjectStat, error) {
 	if err != nil {
 		return ObjectStat{}, err
 	}
-	var resource = separator + bucketName + separator + objectName
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
 			var errorResponse ErrorResponse
 			switch resp.StatusCode {
-			case http.StatusMovedPermanently:
-				errorResponse = a.handleStatusMovedPermanently(resp, bucketName, objectName)
 			case http.StatusNotFound:
 				errorResponse = ErrorResponse{
 					Code:            "NoSuchKey",
 					Message:         "The specified key does not exist.",
-					Resource:        resource,
+					BucketName:      bucketName,
+					Key:             objectName,
 					RequestID:       resp.Header.Get("x-amz-request-id"),
 					HostID:          resp.Header.Get("x-amz-id-2"),
 					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
@@ -814,7 +1016,8 @@ func (a s3API) headObject(bucketName, objectName string) (ObjectStat, error) {
 				errorResponse = ErrorResponse{
 					Code:            "AccessDenied",
 					Message:         "Access Denied.",
-					Resource:        resource,
+					BucketName:      bucketName,
+					Key:             objectName,
 					RequestID:       resp.Header.Get("x-amz-request-id"),
 					HostID:          resp.Header.Get("x-amz-id-2"),
 					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
@@ -823,7 +1026,8 @@ func (a s3API) headObject(bucketName, objectName string) (ObjectStat, error) {
 				errorResponse = ErrorResponse{
 					Code:            resp.Status,
 					Message:         resp.Status,
-					Resource:        resource,
+					BucketName:      bucketName,
+					Key:             objectName,
 					RequestID:       resp.Header.Get("x-amz-request-id"),
 					HostID:          resp.Header.Get("x-amz-id-2"),
 					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
@@ -839,7 +1043,8 @@ func (a s3API) headObject(bucketName, objectName string) (ObjectStat, error) {
 		return ObjectStat{}, ErrorResponse{
 			Code:            "InternalError",
 			Message:         "Content-Length not recognized, please report this issue at https://github.com/minio/minio-go/issues.",
-			Resource:        resource,
+			BucketName:      bucketName,
+			Key:             objectName,
 			RequestID:       resp.Header.Get("x-amz-request-id"),
 			HostID:          resp.Header.Get("x-amz-id-2"),
 			AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
@@ -850,7 +1055,8 @@ func (a s3API) headObject(bucketName, objectName string) (ObjectStat, error) {
 		return ObjectStat{}, ErrorResponse{
 			Code:            "InternalError",
 			Message:         "Last-Modified time format not recognized, please report this issue at https://github.com/minio/minio-go/issues.",
-			Resource:        resource,
+			BucketName:      bucketName,
+			Key:             objectName,
 			RequestID:       resp.Header.Get("x-amz-request-id"),
 			HostID:          resp.Header.Get("x-amz-id-2"),
 			AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
@@ -860,7 +1066,7 @@ func (a s3API) headObject(bucketName, objectName string) (ObjectStat, error) {
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
-
+	// Save object metadata info.
 	var objectstat ObjectStat
 	objectstat.ETag = md5sum
 	objectstat.Key = objectName
@@ -873,17 +1079,26 @@ func (a s3API) headObject(bucketName, objectName string) (ObjectStat, error) {
 /// Service Operations.
 
 // listBucketRequest wrapper creates a new listBuckets request.
-func (a s3API) listBucketsRequest() (*Request, error) {
-	op := &operation{
-		HTTPServer: a.config.Endpoint,
-		HTTPMethod: "GET",
-		HTTPPath:   separator,
+func (a API) listBucketsRequest() (*Request, error) {
+	// get targetURL.
+	targetURL, err := getTargetURL(a.endpointURL, "", "", url.Values{})
+	if err != nil {
+		return nil, err
 	}
-	return newRequest(op, a.config, requestMetadata{})
+	// Instantiate a new request.
+	req, err := newRequest("GET", targetURL, requestMetadata{
+		credentials:  a.credentials,
+		userAgent:    a.userAgent,
+		bucketRegion: "us-east-1",
+	})
+	if err != nil {
+		return nil, err
+	}
+	return req, nil
 }
 
 // listBuckets list of all buckets owned by the authenticated sender of the request.
-func (a s3API) listBuckets() (listAllMyBucketsResult, error) {
+func (a API) listBuckets() (listAllMyBucketsResult, error) {
 	req, err := a.listBucketsRequest()
 	if err != nil {
 		return listAllMyBucketsResult{}, err

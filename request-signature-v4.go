@@ -173,7 +173,7 @@ func (r *Request) getCanonicalRequest() string {
 	r.req.URL.RawQuery = strings.Replace(r.req.URL.Query().Encode(), "+", "%20", -1)
 	canonicalRequest := strings.Join([]string{
 		r.req.Method,
-		getURLEncodedPath(r.req.URL.Path),
+		urlEncodePath(r.req.URL.Path),
 		r.req.URL.RawQuery,
 		r.getCanonicalHeaders(),
 		r.getSignedHeaders(),
@@ -185,7 +185,7 @@ func (r *Request) getCanonicalRequest() string {
 // getStringToSign a string based on selected query values.
 func (r *Request) getStringToSignV4(canonicalRequest string, t time.Time) string {
 	stringToSign := authHeader + "\n" + t.Format(iso8601DateFormat) + "\n"
-	stringToSign = stringToSign + getScope(r.config.Region, t) + "\n"
+	stringToSign = stringToSign + getScope(r.bucketRegion, t) + "\n"
 	stringToSign = stringToSign + hex.EncodeToString(sum256([]byte(canonicalRequest)))
 	return stringToSign
 }
@@ -193,16 +193,16 @@ func (r *Request) getStringToSignV4(canonicalRequest string, t time.Time) string
 // PreSignV4 presign the request, in accordance with
 // http://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html.
 func (r *Request) PreSignV4() (string, error) {
-	if r.config.isAnonymous() {
+	if isAnonymousCredentials(*r.credentials) {
 		return "", errors.New("presigning cannot be done with anonymous credentials")
 	}
 	// Initial time.
 	t := time.Now().UTC()
 
 	// get credential string.
-	credential := getCredential(r.config.AccessKeyID, r.config.Region, t)
+	credential := getCredential(r.credentials.AccessKeyID, r.bucketRegion, t)
 	// get hmac signing key.
-	signingKey := getSigningKey(r.config.SecretAccessKey, r.config.Region, t)
+	signingKey := getSigningKey(r.credentials.SecretAccessKey, r.bucketRegion, t)
 
 	// Get all signed headers.
 	signedHeaders := r.getSignedHeaders()
@@ -227,14 +227,14 @@ func (r *Request) PreSignV4() (string, error) {
 
 // PostPresignSignatureV4 - presigned signature for PostPolicy requests.
 func (r *Request) PostPresignSignatureV4(policyBase64 string, t time.Time) string {
-	signingkey := getSigningKey(r.config.SecretAccessKey, r.config.Region, t)
+	signingkey := getSigningKey(r.credentials.SecretAccessKey, r.bucketRegion, t)
 	signature := getSignature(signingkey, policyBase64)
 	return signature
 }
 
 // SignV4 sign the request before Do(), in accordance with
 // http://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html.
-func (r *Request) SignV4(presign bool) {
+func (r *Request) SignV4() {
 	// Initial time.
 	t := time.Now().UTC()
 	// Set x-amz-date.
@@ -246,9 +246,9 @@ func (r *Request) SignV4(presign bool) {
 	stringToSign := r.getStringToSignV4(r.getCanonicalRequest(), t)
 
 	// get credential string.
-	credential := getCredential(r.config.AccessKeyID, r.config.Region, t)
+	credential := getCredential(r.credentials.AccessKeyID, r.bucketRegion, t)
 	// get hmac signing key.
-	signingKey := getSigningKey(r.config.SecretAccessKey, r.config.Region, t)
+	signingKey := getSigningKey(r.credentials.SecretAccessKey, r.bucketRegion, t)
 	// calculate signature.
 	signature := getSignature(signingKey, stringToSign)
 

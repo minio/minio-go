@@ -22,43 +22,46 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 )
 
 // listMultipartUploadsRequest wrapper creates a new listMultipartUploads request.
-func (a s3API) listMultipartUploadsRequest(bucket, keymarker, uploadIDMarker, prefix, delimiter string, maxuploads int) (*Request, error) {
-	// resourceQuery get resources properly escaped and lined up before using them in http request.
-	resourceQuery := func() (string, error) {
-		switch {
-		case keymarker != "":
-			keymarker = fmt.Sprintf("&key-marker=%s", getURLEncodedPath(keymarker))
-			fallthrough
-		case uploadIDMarker != "":
-			uploadIDMarker = fmt.Sprintf("&upload-id-marker=%s", uploadIDMarker)
-			fallthrough
-		case prefix != "":
-			prefix = fmt.Sprintf("&prefix=%s", getURLEncodedPath(prefix))
-			fallthrough
-		case delimiter != "":
-			delimiter = fmt.Sprintf("&delimiter=%s", delimiter)
-		}
-		query := fmt.Sprintf("?uploads&max-uploads=%d", maxuploads) + keymarker + uploadIDMarker + prefix + delimiter
-		return query, nil
-	}
-	query, err := resourceQuery()
+func (a API) listMultipartUploadsRequest(bucketName, keyMarker, uploadIDMarker,
+	prefix, delimiter string, maxUploads int) (*Request, error) {
+	// Get resources properly escaped and lined up before using them in http request.
+	urlValues := make(url.Values)
+	// Set uploads.
+	urlValues.Set("uploads", "")
+	// Set object key marker.
+	urlValues.Set("key-marker", urlEncodePath(keyMarker))
+	// Set upload id marker.
+	urlValues.Set("upload-id-marker", uploadIDMarker)
+	// Set prefix marker.
+	urlValues.Set("prefix", urlEncodePath(prefix))
+	// Set delimiter.
+	urlValues.Set("delimiter", delimiter)
+	// Set max-uploads.
+	urlValues.Set("max-uploads", fmt.Sprintf("%d", maxUploads))
+
+	// get targetURL.
+	targetURL, err := getTargetURL(a.endpointURL, bucketName, "", urlValues)
 	if err != nil {
 		return nil, err
 	}
-	op := &operation{
-		HTTPServer: a.config.Endpoint,
-		HTTPMethod: "GET",
-		HTTPPath:   separator + bucket + query,
-	}
-	r, err := newRequest(op, a.config, requestMetadata{})
+
+	// get bucket region.
+	region, err := a.getRegion(bucketName)
 	if err != nil {
 		return nil, err
 	}
-	return r, nil
+
+	// Instantiate a new request.
+	return newRequest("GET", targetURL, requestMetadata{
+		credentials:  a.credentials,
+		userAgent:    a.userAgent,
+		bucketRegion: region,
+	})
 }
 
 // listMultipartUploads - (List Multipart Uploads).
@@ -72,8 +75,10 @@ func (a s3API) listMultipartUploadsRequest(bucket, keymarker, uploadIDMarker, pr
 // ?delimiter - A delimiter is a character you use to group keys.
 // ?prefix - Limits the response to keys that begin with the specified prefix.
 // ?max-uploads - Sets the maximum number of multipart uploads returned in the response body.
-func (a s3API) listMultipartUploads(bucket, keymarker, uploadIDMarker, prefix, delimiter string, maxuploads int) (listMultipartUploadsResult, error) {
-	req, err := a.listMultipartUploadsRequest(bucket, keymarker, uploadIDMarker, prefix, delimiter, maxuploads)
+func (a API) listMultipartUploads(bucketName, keyMarker,
+	uploadIDMarker, prefix, delimiter string, maxUploads int) (listMultipartUploadsResult, error) {
+	req, err := a.listMultipartUploadsRequest(bucketName,
+		keyMarker, uploadIDMarker, prefix, delimiter, maxUploads)
 	if err != nil {
 		return listMultipartUploadsResult{}, err
 	}
@@ -96,18 +101,42 @@ func (a s3API) listMultipartUploads(bucket, keymarker, uploadIDMarker, prefix, d
 }
 
 // initiateMultipartRequest wrapper creates a new initiateMultiPart request.
-func (a s3API) initiateMultipartRequest(bucket, object string) (*Request, error) {
-	op := &operation{
-		HTTPServer: a.config.Endpoint,
-		HTTPMethod: "POST",
-		HTTPPath:   separator + bucket + separator + object + "?uploads",
+func (a API) initiateMultipartRequest(bucketName, objectName, contentType string) (*Request, error) {
+	// Initialize url queries.
+	urlValues := make(url.Values)
+	urlValues.Set("uploads", "")
+
+	// get targetURL.
+	targetURL, err := getTargetURL(a.endpointURL, bucketName, objectName, urlValues)
+	if err != nil {
+		return nil, err
 	}
-	return newRequest(op, a.config, requestMetadata{})
+
+	// get bucket region.
+	region, err := a.getRegion(bucketName)
+	if err != nil {
+		return nil, err
+	}
+
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	// set ContentType header.
+	multipartHeader := make(http.Header)
+	multipartHeader.Set("Content-Type", contentType)
+
+	rmetadata := requestMetadata{
+		credentials:   a.credentials,
+		userAgent:     a.userAgent,
+		bucketRegion:  region,
+		contentHeader: multipartHeader,
+	}
+	return newRequest("POST", targetURL, rmetadata)
 }
 
 // initiateMultipartUpload initiates a multipart upload and returns an upload ID.
-func (a s3API) initiateMultipartUpload(bucket, object string) (initiateMultipartUploadResult, error) {
-	req, err := a.initiateMultipartRequest(bucket, object)
+func (a API) initiateMultipartUpload(bucketName, objectName, contentType string) (initiateMultipartUploadResult, error) {
+	req, err := a.initiateMultipartRequest(bucketName, objectName, contentType)
 	if err != nil {
 		return initiateMultipartUploadResult{}, err
 	}
@@ -130,32 +159,48 @@ func (a s3API) initiateMultipartUpload(bucket, object string) (initiateMultipart
 }
 
 // completeMultipartUploadRequest wrapper creates a new CompleteMultipartUpload request.
-func (a s3API) completeMultipartUploadRequest(bucket, object, uploadID string, complete completeMultipartUpload) (*Request, error) {
-	op := &operation{
-		HTTPServer: a.config.Endpoint,
-		HTTPMethod: "POST",
-		HTTPPath:   separator + bucket + separator + object + "?uploadId=" + uploadID,
+func (a API) completeMultipartUploadRequest(bucketName, objectName, uploadID string,
+	complete completeMultipartUpload) (*Request, error) {
+	// Initialize url queries.
+	urlValues := make(url.Values)
+	urlValues.Set("uploadId", uploadID)
+
+	// get targetURL.
+	targetURL, err := getTargetURL(a.endpointURL, bucketName, objectName, urlValues)
+	if err != nil {
+		return nil, err
 	}
 	completeMultipartUploadBytes, err := xml.Marshal(complete)
 	if err != nil {
 		return nil, err
 	}
-	completeMultipartUploadBuffer := bytes.NewBuffer(completeMultipartUploadBytes)
-	rmetadata := requestMetadata{
-		body:               ioutil.NopCloser(completeMultipartUploadBuffer),
-		contentLength:      int64(completeMultipartUploadBuffer.Len()),
-		sha256PayloadBytes: sum256(completeMultipartUploadBuffer.Bytes()),
-	}
-	r, err := newRequest(op, a.config, rmetadata)
+
+	// get bucket region.
+	region, err := a.getRegion(bucketName)
 	if err != nil {
 		return nil, err
 	}
-	return r, nil
+
+	completeMultipartUploadBuffer := bytes.NewBuffer(completeMultipartUploadBytes)
+	rmetadata := requestMetadata{
+		credentials:        a.credentials,
+		userAgent:          a.userAgent,
+		bucketRegion:       region,
+		contentBody:        ioutil.NopCloser(completeMultipartUploadBuffer),
+		contentLength:      int64(completeMultipartUploadBuffer.Len()),
+		contentSha256Bytes: sum256(completeMultipartUploadBuffer.Bytes()),
+	}
+	req, err := newRequest("POST", targetURL, rmetadata)
+	if err != nil {
+		return nil, err
+	}
+	return req, nil
 }
 
 // completeMultipartUpload completes a multipart upload by assembling previously uploaded parts.
-func (a s3API) completeMultipartUpload(bucket, object, uploadID string, c completeMultipartUpload) (completeMultipartUploadResult, error) {
-	req, err := a.completeMultipartUploadRequest(bucket, object, uploadID, c)
+func (a API) completeMultipartUpload(bucketName, objectName, uploadID string,
+	c completeMultipartUpload) (completeMultipartUploadResult, error) {
+	req, err := a.completeMultipartUploadRequest(bucketName, objectName, uploadID, c)
 	if err != nil {
 		return completeMultipartUploadResult{}, err
 	}
@@ -178,18 +223,37 @@ func (a s3API) completeMultipartUpload(bucket, object, uploadID string, c comple
 }
 
 // abortMultipartUploadRequest wrapper creates a new AbortMultipartUpload request.
-func (a s3API) abortMultipartUploadRequest(bucket, object, uploadID string) (*Request, error) {
-	op := &operation{
-		HTTPServer: a.config.Endpoint,
-		HTTPMethod: "DELETE",
-		HTTPPath:   separator + bucket + separator + object + "?uploadId=" + uploadID,
+func (a API) abortMultipartUploadRequest(bucketName, objectName, uploadID string) (*Request, error) {
+	// Initialize url queries.
+	urlValues := make(url.Values)
+	urlValues.Set("uploadId", uploadID)
+
+	// get targetURL.
+	targetURL, err := getTargetURL(a.endpointURL, bucketName, objectName, urlValues)
+	if err != nil {
+		return nil, err
 	}
-	return newRequest(op, a.config, requestMetadata{})
+
+	// get bucket region.
+	region, err := a.getRegion(bucketName)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := newRequest("DELETE", targetURL, requestMetadata{
+		credentials:  a.credentials,
+		userAgent:    a.userAgent,
+		bucketRegion: region,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return req, nil
 }
 
 // abortMultipartUpload aborts a multipart upload for the given uploadID, all parts are deleted.
-func (a s3API) abortMultipartUpload(bucket, object, uploadID string) error {
-	req, err := a.abortMultipartUploadRequest(bucket, object, uploadID)
+func (a API) abortMultipartUpload(bucketName, objectName, uploadID string) error {
+	req, err := a.abortMultipartUploadRequest(bucketName, objectName, uploadID)
 	if err != nil {
 		return err
 	}
@@ -207,7 +271,8 @@ func (a s3API) abortMultipartUpload(bucket, object, uploadID string) error {
 				errorResponse = ErrorResponse{
 					Code:            "NoSuchUpload",
 					Message:         "The specified multipart upload does not exist.",
-					Resource:        separator + bucket + separator + object,
+					BucketName:      bucketName,
+					Key:             objectName,
 					RequestID:       resp.Header.Get("x-amz-request-id"),
 					HostID:          resp.Header.Get("x-amz-id-2"),
 					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
@@ -216,7 +281,8 @@ func (a s3API) abortMultipartUpload(bucket, object, uploadID string) error {
 				errorResponse = ErrorResponse{
 					Code:            "AccessDenied",
 					Message:         "Access Denied.",
-					Resource:        separator + bucket + separator + object,
+					BucketName:      bucketName,
+					Key:             objectName,
 					RequestID:       resp.Header.Get("x-amz-request-id"),
 					HostID:          resp.Header.Get("x-amz-id-2"),
 					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
@@ -225,7 +291,8 @@ func (a s3API) abortMultipartUpload(bucket, object, uploadID string) error {
 				errorResponse = ErrorResponse{
 					Code:            resp.Status,
 					Message:         "Unknown error, please report this at https://github.com/minio/minio-go-legacy/issues.",
-					Resource:        separator + bucket + separator + object,
+					BucketName:      bucketName,
+					Key:             objectName,
 					RequestID:       resp.Header.Get("x-amz-request-id"),
 					HostID:          resp.Header.Get("x-amz-id-2"),
 					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
@@ -238,22 +305,37 @@ func (a s3API) abortMultipartUpload(bucket, object, uploadID string) error {
 }
 
 // listObjectPartsRequest wrapper creates a new ListObjectParts request.
-func (a s3API) listObjectPartsRequest(bucket, object, uploadID string, partNumberMarker, maxParts int) (*Request, error) {
-	// resourceQuery - get resources properly escaped and lined up before using them in http request.
-	resourceQuery := func() string {
-		var partNumberMarkerStr string
-		switch {
-		case partNumberMarker != 0:
-			partNumberMarkerStr = fmt.Sprintf("&part-number-marker=%d", partNumberMarker)
-		}
-		return fmt.Sprintf("?uploadId=%s&max-parts=%d", uploadID, maxParts) + partNumberMarkerStr
+func (a API) listObjectPartsRequest(bucketName, objectName, uploadID string, partNumberMarker, maxParts int) (*Request, error) {
+	// Get resources properly escaped and lined up before using them in http request.
+	urlValues := make(url.Values)
+	// Set part number marker.
+	urlValues.Set("part-number-marker", fmt.Sprintf("%d", partNumberMarker))
+	// Set upload id.
+	urlValues.Set("uploadId", uploadID)
+	// Set max parts.
+	urlValues.Set("max-parts", fmt.Sprintf("%d", maxParts))
+
+	// get targetURL.
+	targetURL, err := getTargetURL(a.endpointURL, bucketName, objectName, urlValues)
+	if err != nil {
+		return nil, err
 	}
-	op := &operation{
-		HTTPServer: a.config.Endpoint,
-		HTTPMethod: "GET",
-		HTTPPath:   separator + bucket + separator + object + resourceQuery(),
+
+	// get bucket region.
+	region, err := a.getRegion(bucketName)
+	if err != nil {
+		return nil, err
 	}
-	return newRequest(op, a.config, requestMetadata{})
+
+	req, err := newRequest("GET", targetURL, requestMetadata{
+		credentials:  a.credentials,
+		userAgent:    a.userAgent,
+		bucketRegion: region,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return req, nil
 }
 
 // listObjectParts (List Parts)
@@ -263,8 +345,8 @@ func (a s3API) listObjectPartsRequest(bucket, object, uploadID string, partNumbe
 // request paramters :-
 // ---------
 // ?part-number-marker - Specifies the part after which listing should begin.
-func (a s3API) listObjectParts(bucket, object, uploadID string, partNumberMarker, maxParts int) (listObjectPartsResult, error) {
-	req, err := a.listObjectPartsRequest(bucket, object, uploadID, partNumberMarker, maxParts)
+func (a API) listObjectParts(bucketName, objectName, uploadID string, partNumberMarker, maxParts int) (listObjectPartsResult, error) {
+	req, err := a.listObjectPartsRequest(bucketName, objectName, uploadID, partNumberMarker, maxParts)
 	if err != nil {
 		return listObjectPartsResult{}, err
 	}
@@ -287,33 +369,48 @@ func (a s3API) listObjectParts(bucket, object, uploadID string, partNumberMarker
 }
 
 // uploadPartRequest wrapper creates a new UploadPart request.
-func (a s3API) uploadPartRequest(bucket, object, uploadID string, uploadingPart partMetadata) (*Request, error) {
-	op := &operation{
-		HTTPServer: a.config.Endpoint,
-		HTTPMethod: "PUT",
-		HTTPPath: separator + bucket + separator + object +
-			"?partNumber=" + strconv.Itoa(uploadingPart.Number) + "&uploadId=" + uploadID,
-	}
-	rmetadata := requestMetadata{
-		body:               uploadingPart.ReadCloser,
-		contentLength:      uploadingPart.Size,
-		sha256PayloadBytes: uploadingPart.Sha256Sum,
-		md5SumPayloadBytes: uploadingPart.MD5Sum,
-	}
-	r, err := newRequest(op, a.config, rmetadata)
+func (a API) uploadPartRequest(bucketName, objectName, uploadID string, uploadingPart partMetadata) (*Request, error) {
+	// Get resources properly escaped and lined up before using them in http request.
+	urlValues := make(url.Values)
+	// Set part number.
+	urlValues.Set("partNumber", strconv.Itoa(uploadingPart.Number))
+	// Set upload id.
+	urlValues.Set("uploadId", uploadID)
+
+	// get targetURL.
+	targetURL, err := getTargetURL(a.endpointURL, bucketName, objectName, urlValues)
 	if err != nil {
 		return nil, err
 	}
-	return r, nil
+
+	// get bucket region.
+	region, err := a.getRegion(bucketName)
+	if err != nil {
+		return nil, err
+	}
+
+	rmetadata := requestMetadata{
+		credentials:        a.credentials,
+		userAgent:          a.userAgent,
+		bucketRegion:       region,
+		contentBody:        uploadingPart.ReadCloser,
+		contentLength:      uploadingPart.Size,
+		contentSha256Bytes: uploadingPart.Sha256Sum,
+		contentMD5Bytes:    uploadingPart.MD5Sum,
+	}
+	req, err := newRequest("PUT", targetURL, rmetadata)
+	if err != nil {
+		return nil, err
+	}
+	return req, nil
 }
 
 // uploadPart uploads a part in a multipart upload.
-func (a s3API) uploadPart(bucket, object, uploadID string, uploadingPart partMetadata) (completePart, error) {
-	req, err := a.uploadPartRequest(bucket, object, uploadID, uploadingPart)
+func (a API) uploadPart(bucketName, objectName, uploadID string, uploadingPart partMetadata) (completePart, error) {
+	req, err := a.uploadPartRequest(bucketName, objectName, uploadID, uploadingPart)
 	if err != nil {
 		return completePart{}, err
 	}
-
 	// initiate the request.
 	resp, err := req.Do()
 	defer closeResp(resp)

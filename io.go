@@ -20,6 +20,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sync"
 )
 
@@ -28,7 +29,7 @@ type objectReadSeeker struct {
 	// mutex.
 	mutex *sync.Mutex
 
-	s3API      API
+	api        API
 	reader     io.ReadCloser
 	isRead     bool
 	stat       ObjectStat
@@ -43,7 +44,7 @@ func newObjectReadSeeker(api API, bucket, object string) *objectReadSeeker {
 		mutex:      new(sync.Mutex),
 		reader:     nil,
 		isRead:     false,
-		s3API:      api,
+		api:        api,
 		offset:     0,
 		bucketName: bucket,
 		objectName: object,
@@ -69,7 +70,7 @@ func (r *objectReadSeeker) Read(p []byte) (int, error) {
 	defer r.mutex.Unlock()
 
 	if !r.isRead {
-		reader, _, err := r.s3API.getObject(r.bucketName, r.objectName, r.offset, 0)
+		reader, _, err := r.api.getObject(r.bucketName, r.objectName, r.offset, 0)
 		if err != nil {
 			return 0, err
 		}
@@ -110,7 +111,7 @@ func (r *objectReadSeeker) Seek(offset int64, whence int) (int64, error) {
 // Size returns the size of the object. If there is any error
 // it will be of type ErrorResponse.
 func (r *objectReadSeeker) Size() (int64, error) {
-	objectSt, err := r.s3API.headObject(r.bucketName, r.objectName)
+	objectSt, err := r.api.headObject(r.bucketName, r.objectName)
 	r.stat = objectSt
 	return r.stat.Size, err
 }
@@ -132,6 +133,21 @@ func newTempFile(prefix string) (*tempFile, error) {
 		File:  file,
 		mutex: new(sync.Mutex),
 	}, nil
+}
+
+// cleanupStaleTempFiles - cleanup any stale files present in temp directory at a prefix.
+func cleanupStaleTempfiles(prefix string) error {
+	globPath := filepath.Join(os.TempDir(), prefix) + "*"
+	staleFiles, err := filepath.Glob(globPath)
+	if err != nil {
+		return err
+	}
+	for _, staleFile := range staleFiles {
+		if err := os.Remove(staleFile); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Close - closer wrapper to close and remove temporary file.

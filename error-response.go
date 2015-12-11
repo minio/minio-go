@@ -27,7 +27,8 @@ import (
 <Error>
    <Code>AccessDenied</Code>
    <Message>Access Denied</Message>
-   <Resource>/mybucket/myphoto.jpg</Resource>
+   <BucketName>bucketName</BucketName>
+   <Key>objectName</Key>
    <RequestId>F19772218238A85A</RequestId>
    <HostId>GuWkjyviSiGHizehqpmsD1ndz5NClSP19DOT+s2mv7gXGQ8/X1lhbDGiIJEXpGFD</HostId>
 </Error>
@@ -35,12 +36,13 @@ import (
 
 // ErrorResponse is the type error returned by some API operations.
 type ErrorResponse struct {
-	XMLName   xml.Name `xml:"Error" json:"-"`
-	Code      string
-	Message   string
-	Resource  string
-	RequestID string `xml:"RequestId"`
-	HostID    string `xml:"HostId"`
+	XMLName    xml.Name `xml:"Error" json:"-"`
+	Code       string
+	Message    string
+	BucketName string
+	Key        string
+	RequestID  string `xml:"RequestId"`
+	HostID     string `xml:"HostId"`
 
 	// This is a new undocumented field, set only if available.
 	AmzBucketRegion string
@@ -60,12 +62,12 @@ type ErrorResponse struct {
 //      fmt.Println(resp.ToXML())
 //   }
 //   ...
-func ToErrorResponse(err error) *ErrorResponse {
+func ToErrorResponse(err error) ErrorResponse {
 	switch err := err.(type) {
 	case ErrorResponse:
-		return &err
+		return err
 	default:
-		return nil
+		return ErrorResponse{}
 	}
 }
 
@@ -103,22 +105,26 @@ func BodyToErrorResponse(errBody io.Reader) error {
 }
 
 // ErrInvalidBucketName - invalid bucket name response.
-var ErrInvalidBucketName = func() error {
+var ErrInvalidBucketName = func(message string) error {
 	return ErrorResponse{
 		Code:      "InvalidBucketName",
-		Message:   "The specified bucket is not valid.",
+		Message:   message,
 		RequestID: "minio",
 	}
 }
 
 // ErrInvalidObjectName - invalid object name response.
-var ErrInvalidObjectName = func() error {
+var ErrInvalidObjectName = func(message string) error {
 	return ErrorResponse{
 		Code:      "NoSuchKey",
-		Message:   "The specified key does not exist.",
+		Message:   message,
 		RequestID: "minio",
 	}
 }
+
+// ErrInvalidObjectPrefix - invalid object prefix response is
+// similar to object name response.
+var ErrInvalidObjectPrefix = ErrInvalidObjectName
 
 // ErrInvalidArgument - invalid argument response.
 var ErrInvalidArgument = func(message string) error {

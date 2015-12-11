@@ -18,13 +18,14 @@ package minio
 
 import (
 	"io"
+	"net/http"
 	"time"
 )
 
 // CloudStorageAPI - Cloud Storage API interface.
 type CloudStorageAPI interface {
 	// Bucket Read/Write/Stat operations.
-	MakeBucket(bucket string, cannedACL BucketACL) error
+	MakeBucket(bucket string, cannedACL BucketACL, location string) error
 	BucketExists(bucket string) error
 	RemoveBucket(bucket string) error
 	SetBucketACL(bucket string, cannedACL BucketACL) error
@@ -49,4 +50,7 @@ type CloudStorageAPI interface {
 
 	// Application info.
 	SetAppInfo(appName, appVersion string)
+
+	// Set custom transport.
+	SetCustomTransport(customTransport http.RoundTripper)
 }

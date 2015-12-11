@@ -27,104 +27,76 @@ import (
 // backed by a temporary file which purges itself upon Close().
 //
 // This method runs until an EOF or an error occurs. Before returning, the channel is always closed.
-func partsManager(reader io.Reader, partSize int64, isEnableSha256Sum bool) <-chan partMetadata {
+func partsManager(reader io.Reader, partSize int64, enableSha256Sum bool) <-chan partMetadata {
 	ch := make(chan partMetadata, 3)
-	go partsManagerInRoutine(reader, partSize, isEnableSha256Sum, ch)
+	go partsManagerInRoutine(reader, partSize, enableSha256Sum, ch)
 	return ch
 }
 
-func partsManagerInRoutine(reader io.Reader, partSize int64, isEnableSha256Sum bool, ch chan<- partMetadata) {
+func partsManagerInRoutine(reader io.Reader, partSize int64, enableSha256Sum bool, ch chan<- partMetadata) {
 	defer close(ch)
-	tmpFile, err := newTempFile("multiparts$")
-	if err != nil {
-		ch <- partMetadata{
-			Err: err,
-		}
-		return
-	}
-	var hashMD5 hash.Hash
-	var hashSha256 hash.Hash
+	// Any error generated when creating parts.
+	var err error
+	// Size of the each part read, could be shorter than partSize.
+	var size int64
+	// Tempfile structure backed by Closer to clean itself up.
+	var tmpFile *tempFile
+	// MD5 and Sha256 hasher.
+	var hashMD5, hashSha256 hash.Hash
+	// Collective multi writer.
 	var writer io.Writer
-	hashMD5 = md5.New()
-	mwwriter := io.MultiWriter(hashMD5)
-	if isEnableSha256Sum {
-		hashSha256 = sha256.New()
-		mwwriter = io.MultiWriter(hashMD5, hashSha256)
+	for {
+		tmpFile, err = newTempFile("multiparts$")
+		if err != nil {
+			break
+		}
+		// Create a hash multiwriter.
+		hashMD5 = md5.New()
+		hashWriter := io.MultiWriter(hashMD5)
+		if enableSha256Sum {
+			hashSha256 = sha256.New()
+			hashWriter = io.MultiWriter(hashMD5, hashSha256)
+		}
+		writer = io.MultiWriter(tmpFile, hashWriter)
+		size, err = io.CopyN(writer, reader, partSize)
+		if err != nil {
+			break
+		}
+		// Seek back to beginning.
+		tmpFile.Seek(0, 0)
+		partMdata := partMetadata{
+			MD5Sum:     hashMD5.Sum(nil),
+			ReadCloser: tmpFile,
+			Size:       size,
+			Err:        nil,
+		}
+		if enableSha256Sum {
+			partMdata.Sha256Sum = hashSha256.Sum(nil)
+		}
+		ch <- partMdata
 	}
-	writer = io.MultiWriter(tmpFile, mwwriter)
-	n, err := io.CopyN(writer, reader, partSize)
-	if err == io.EOF || err == io.ErrUnexpectedEOF {
+	// If end of file reached, we send the last part.
+	if err == io.EOF {
 		// Seek back to beginning.
 		tmpFile.Seek(0, 0)
 
-		// short read, only single partMetadata return.
+		// last part.
 		partMdata := partMetadata{
 			MD5Sum:     hashMD5.Sum(nil),
 			ReadCloser: tmpFile,
-			Size:       n,
+			Size:       size,
 			Err:        nil,
 		}
-		if isEnableSha256Sum {
+		if enableSha256Sum {
 			partMdata.Sha256Sum = hashSha256.Sum(nil)
 		}
 		ch <- partMdata
 		return
 	}
-	// unknown error considered catastrophic error, return here.
-	if err != nil {
+	if err != io.EOF {
 		ch <- partMetadata{
 			Err: err,
 		}
 		return
-	}
-	// Seek back to beginning.
-	tmpFile.Seek(0, 0)
-	partMdata := partMetadata{
-		MD5Sum:     hashMD5.Sum(nil),
-		ReadCloser: tmpFile,
-		Size:       n,
-		Err:        nil,
-	}
-	if isEnableSha256Sum {
-		partMdata.Sha256Sum = hashSha256.Sum(nil)
-	}
-	ch <- partMdata
-	for err == nil {
-		var n int64
-		tmpFile, err = newTempFile("multiparts$")
-		if err != nil {
-			ch <- partMetadata{
-				Err: err,
-			}
-			return
-		}
-		hashMD5 = md5.New()
-		mwwriter := io.MultiWriter(hashMD5)
-		if isEnableSha256Sum {
-			hashSha256 = sha256.New()
-			mwwriter = io.MultiWriter(hashMD5, hashSha256)
-		}
-		writer = io.MultiWriter(tmpFile, mwwriter)
-		n, err = io.CopyN(writer, reader, partSize)
-		if err != nil {
-			if err != io.EOF && err != io.ErrUnexpectedEOF { // catastrophic error
-				ch <- partMetadata{
-					Err: err,
-				}
-				return
-			}
-		}
-		// Seek back to beginning.
-		tmpFile.Seek(0, 0)
-		partMdata := partMetadata{
-			MD5Sum:     hashMD5.Sum(nil),
-			ReadCloser: tmpFile,
-			Size:       n,
-			Err:        nil,
-		}
-		if isEnableSha256Sum {
-			partMdata.Sha256Sum = hashSha256.Sum(nil)
-		}
-		ch <- partMdata
 	}
 }
