@@ -159,10 +159,12 @@ func (a API) putParts(bucketName, objectName, uploadID string, data io.ReadSeeke
 		partNumber++
 	}
 	wg.Wait()
-	// if totalWritten is different than the input 'size'.
-	// Do not complete the request throw an error.
-	if totalWritten != size {
-		return totalWritten, ErrUnexpectedEOF(totalWritten, size, bucketName, objectName)
+	// If size is greater than zero verify totalWritten.
+	// if totalWritten is different than the input 'size', do not complete the request throw an error.
+	if size > 0 {
+		if totalWritten != size {
+			return totalWritten, ErrUnexpectedEOF(totalWritten, size, bucketName, objectName)
+		}
 	}
 	sort.Sort(completedParts(completeMultipartUpload.Parts))
 	_, err := a.completeMultipartUpload(bucketName, objectName, uploadID, completeMultipartUpload)
