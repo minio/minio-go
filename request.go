@@ -130,6 +130,7 @@ func newRequest(method string, targetURL *url.URL, metadata requestMetadata) (*R
 	r.req = req
 	r.credentials = metadata.credentials
 	r.bucketRegion = metadata.bucketRegion
+	r.transport = metadata.contentTransport
 
 	// If presigned request, return.
 	if metadata.expires != 0 {

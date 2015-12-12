@@ -109,11 +109,12 @@ func (a API) putBucketRequest(bucketName, acl, region string) (*Request, error) 
 	}
 
 	// Initialize request metadata.
-	var rmetadata requestMetadata
-	rmetadata = requestMetadata{
-		userAgent:    a.userAgent,
-		credentials:  a.credentials,
-		bucketRegion: region,
+	var reqMetadata requestMetadata
+	reqMetadata = requestMetadata{
+		userAgent:        a.userAgent,
+		credentials:      a.credentials,
+		bucketRegion:     region,
+		contentTransport: a.httpTransport,
 	}
 
 	// If region is set use to create bucket location config.
@@ -126,13 +127,13 @@ func (a API) putBucketRequest(bucketName, acl, region string) (*Request, error) 
 			return nil, err
 		}
 		createBucketConfigBuffer := bytes.NewBuffer(createBucketConfigBytes)
-		rmetadata.contentBody = ioutil.NopCloser(createBucketConfigBuffer)
-		rmetadata.contentLength = int64(createBucketConfigBuffer.Len())
-		rmetadata.contentSha256Bytes = sum256(createBucketConfigBuffer.Bytes())
+		reqMetadata.contentBody = ioutil.NopCloser(createBucketConfigBuffer)
+		reqMetadata.contentLength = int64(createBucketConfigBuffer.Len())
+		reqMetadata.contentSha256Bytes = sum256(createBucketConfigBuffer.Bytes())
 	}
 
 	// Initialize new request.
-	req, err := newRequest("PUT", targetURL, rmetadata)
+	req, err := newRequest("PUT", targetURL, reqMetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -208,9 +209,10 @@ func (a API) putBucketACLRequest(bucketName, acl string) (*Request, error) {
 
 	// Instantiate a new request.
 	req, err := newRequest("PUT", targetURL, requestMetadata{
-		credentials:  a.credentials,
-		userAgent:    a.userAgent,
-		bucketRegion: region,
+		credentials:      a.credentials,
+		userAgent:        a.userAgent,
+		bucketRegion:     region,
+		contentTransport: a.httpTransport,
 	})
 	if err != nil {
 		return nil, err
@@ -268,8 +270,9 @@ func (a API) getBucketACLRequest(bucketName string) (*Request, error) {
 
 	// Instantiate a new request.
 	req, err := newRequest("GET", targetURL, requestMetadata{
-		bucketRegion: region,
-		credentials:  a.credentials,
+		bucketRegion:     region,
+		credentials:      a.credentials,
+		contentTransport: a.httpTransport,
 	})
 	if err != nil {
 		return nil, err
@@ -335,8 +338,9 @@ func (a API) getBucketLocationRequest(bucketName string) (*Request, error) {
 
 	// Instantiate a new request.
 	req, err := newRequest("GET", targetURL, requestMetadata{
-		bucketRegion: "us-east-1",
-		credentials:  a.credentials,
+		bucketRegion:     "us-east-1",
+		credentials:      a.credentials,
+		contentTransport: a.httpTransport,
 	})
 	if err != nil {
 		return nil, err
@@ -412,15 +416,16 @@ func (a API) listObjectsRequest(bucketName, objectPrefix, objectMarker, delimite
 	}
 
 	// Initialize a new request.
-	r, err := newRequest("GET", targetURL, requestMetadata{
-		credentials:  a.credentials,
-		userAgent:    a.userAgent,
-		bucketRegion: region,
+	req, err := newRequest("GET", targetURL, requestMetadata{
+		credentials:      a.credentials,
+		userAgent:        a.userAgent,
+		bucketRegion:     region,
+		contentTransport: a.httpTransport,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return r, nil
+	return req, nil
 }
 
 /// Bucket Read Operations.
@@ -478,9 +483,10 @@ func (a API) headBucketRequest(bucketName string) (*Request, error) {
 	}
 
 	return newRequest("HEAD", targetURL, requestMetadata{
-		credentials:  a.credentials,
-		userAgent:    a.userAgent,
-		bucketRegion: region,
+		credentials:      a.credentials,
+		userAgent:        a.userAgent,
+		bucketRegion:     region,
+		contentTransport: a.httpTransport,
 	})
 }
 
@@ -551,9 +557,10 @@ func (a API) deleteBucketRequest(bucketName string) (*Request, error) {
 	}
 
 	return newRequest("DELETE", targetURL, requestMetadata{
-		credentials:  a.credentials,
-		userAgent:    a.userAgent,
-		bucketRegion: region,
+		credentials:      a.credentials,
+		userAgent:        a.userAgent,
+		bucketRegion:     region,
+		contentTransport: a.httpTransport,
 	})
 }
 
@@ -645,21 +652,22 @@ func (a API) putObjectRequest(bucketName, objectName string, putObjMetadata putO
 	putObjMetadataHeader.Set("Content-Type", putObjMetadata.ContentType)
 
 	// Populate request metadata.
-	rmetadata := requestMetadata{
+	reqMetadata := requestMetadata{
 		credentials:        a.credentials,
 		userAgent:          a.userAgent,
 		bucketRegion:       region,
 		contentBody:        putObjMetadata.ReadCloser,
 		contentLength:      putObjMetadata.Size,
 		contentHeader:      putObjMetadataHeader,
+		contentTransport:   a.httpTransport,
 		contentSha256Bytes: putObjMetadata.Sha256Sum,
 		contentMD5Bytes:    putObjMetadata.MD5Sum,
 	}
-	r, err := newRequest("PUT", targetURL, rmetadata)
+	req, err := newRequest("PUT", targetURL, reqMetadata)
 	if err != nil {
 		return nil, err
 	}
-	return r, nil
+	return req, nil
 }
 
 // putObject - add an object to a bucket.
@@ -703,9 +711,10 @@ func (a API) presignedPostPolicy(p *PostPolicy) (map[string]string, error) {
 
 	// Instantiate a new request.
 	req, err := newRequest("POST", targetURL, requestMetadata{
-		credentials:  a.credentials,
-		userAgent:    a.userAgent,
-		bucketRegion: region,
+		credentials:      a.credentials,
+		userAgent:        a.userAgent,
+		bucketRegion:     region,
+		contentTransport: a.httpTransport,
 	})
 	if err != nil {
 		return nil, err
@@ -766,10 +775,11 @@ func (a API) presignedPutObject(bucketName, objectName string, expires int64) (s
 
 	// Instantiate a new request.
 	req, err := newRequest("PUT", targetURL, requestMetadata{
-		credentials:  a.credentials,
-		expires:      expires,
-		userAgent:    a.userAgent,
-		bucketRegion: region,
+		credentials:      a.credentials,
+		expires:          expires,
+		userAgent:        a.userAgent,
+		bucketRegion:     region,
+		contentTransport: a.httpTransport,
 	})
 	if err != nil {
 		return "", err
@@ -796,10 +806,11 @@ func (a API) presignedGetObject(bucketName, objectName string, expires, offset, 
 
 	// Instantiate a new request.
 	req, err := newRequest("GET", targetURL, requestMetadata{
-		credentials:  a.credentials,
-		expires:      expires,
-		userAgent:    a.userAgent,
-		bucketRegion: region,
+		credentials:      a.credentials,
+		expires:          expires,
+		userAgent:        a.userAgent,
+		bucketRegion:     region,
+		contentTransport: a.httpTransport,
 	})
 	if err != nil {
 		return "", err
@@ -835,9 +846,10 @@ func (a API) getObjectRequest(bucketName, objectName string, offset, length int6
 
 	// Instantiate a new request.
 	req, err := newRequest("GET", targetURL, requestMetadata{
-		credentials:  a.credentials,
-		userAgent:    a.userAgent,
-		bucketRegion: region,
+		credentials:      a.credentials,
+		userAgent:        a.userAgent,
+		bucketRegion:     region,
+		contentTransport: a.httpTransport,
 	})
 	if err != nil {
 		return nil, err
@@ -923,9 +935,10 @@ func (a API) deleteObjectRequest(bucketName, objectName string) (*Request, error
 
 	// Instantiate a new request.
 	req, err := newRequest("DELETE", targetURL, requestMetadata{
-		credentials:  a.credentials,
-		userAgent:    a.userAgent,
-		bucketRegion: region,
+		credentials:      a.credentials,
+		userAgent:        a.userAgent,
+		bucketRegion:     region,
+		contentTransport: a.httpTransport,
 	})
 	if err != nil {
 		return nil, err
@@ -972,9 +985,10 @@ func (a API) headObjectRequest(bucketName, objectName string) (*Request, error) 
 
 	// Instantiate a new request.
 	req, err := newRequest("HEAD", targetURL, requestMetadata{
-		credentials:  a.credentials,
-		userAgent:    a.userAgent,
-		bucketRegion: region,
+		credentials:      a.credentials,
+		userAgent:        a.userAgent,
+		bucketRegion:     region,
+		contentTransport: a.httpTransport,
 	})
 	if err != nil {
 		return nil, err
@@ -1090,9 +1104,10 @@ func (a API) listBucketsRequest() (*Request, error) {
 	}
 	// Instantiate a new request.
 	req, err := newRequest("GET", targetURL, requestMetadata{
-		credentials:  a.credentials,
-		userAgent:    a.userAgent,
-		bucketRegion: "us-east-1",
+		credentials:      a.credentials,
+		userAgent:        a.userAgent,
+		bucketRegion:     "us-east-1",
+		contentTransport: a.httpTransport,
 	})
 	if err != nil {
 		return nil, err
