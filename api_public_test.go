@@ -34,11 +34,11 @@ func TestUserAgent(t *testing.T) {
 
 	u, err := url.Parse(server.URL)
 	if err != nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 	a, err := minio.New(u.Host, "", "", true)
 	if err != nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 	// Set app info again.
 	a.SetAppInfo("hello-app", "1.0")
@@ -53,7 +53,7 @@ func TestUserAgent(t *testing.T) {
 	// a new userAgent on the same connection.
 	err = a.BucketExists("bucket")
 	if err != nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 }
 
@@ -66,25 +66,25 @@ func TestBucketOperations(t *testing.T) {
 
 	u, err := url.Parse(server.URL)
 	if err != nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 	a, err := minio.New(u.Host, "", "", true)
 	if err != nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 	err = a.MakeBucket("bucket", "private", "")
 	if err != nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 
 	err = a.BucketExists("bucket")
 	if err != nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 
 	err = a.BucketExists("bucket1")
 	if err == nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 	if err.Error() != "Access Denied." {
 		t.Fatal("Error")
@@ -92,12 +92,12 @@ func TestBucketOperations(t *testing.T) {
 
 	err = a.SetBucketACL("bucket", "public-read-write")
 	if err != nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 
 	acl, err := a.GetBucketACL("bucket")
 	if err != nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 	if acl != minio.BucketACL("private") {
 		t.Fatal("Error")
@@ -105,7 +105,7 @@ func TestBucketOperations(t *testing.T) {
 
 	for b := range a.ListBuckets() {
 		if b.Err != nil {
-			t.Fatal(b.Err.Error())
+			t.Fatal("Error:", b.Err.Error())
 		}
 		if b.Name != "bucket" {
 			t.Fatal("Error")
@@ -114,7 +114,7 @@ func TestBucketOperations(t *testing.T) {
 
 	for o := range a.ListObjects("bucket", "", true) {
 		if o.Err != nil {
-			t.Fatal(o.Err.Error())
+			t.Fatal("Error:", o.Err.Error())
 		}
 		if o.Key != "object" {
 			t.Fatal("Error")
@@ -123,7 +123,7 @@ func TestBucketOperations(t *testing.T) {
 
 	err = a.RemoveBucket("bucket")
 	if err != nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 
 	err = a.RemoveBucket("bucket1")
@@ -131,7 +131,7 @@ func TestBucketOperations(t *testing.T) {
 		t.Fatal("Error")
 	}
 	if err.Error() != "The specified bucket does not exist." {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 }
 
@@ -144,20 +144,20 @@ func TestBucketOperationsFail(t *testing.T) {
 
 	u, err := url.Parse(server.URL)
 	if err != nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 	a, err := minio.New(u.Host, "", "", true)
 	if err != nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 	err = a.MakeBucket("bucket$$$", "private", "")
 	if err == nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 
 	err = a.BucketExists("bucket.")
 	if err == nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 
 	err = a.SetBucketACL("bucket-.", "public-read-write")
@@ -167,12 +167,12 @@ func TestBucketOperationsFail(t *testing.T) {
 
 	_, err = a.GetBucketACL("bucket??")
 	if err == nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 
 	for o := range a.ListObjects("bucket??", "", true) {
 		if o.Err == nil {
-			t.Fatal(o.Err.Error())
+			t.Fatal("Error:", o.Err.Error())
 		}
 	}
 
@@ -182,7 +182,7 @@ func TestBucketOperationsFail(t *testing.T) {
 	}
 
 	if err.Error() != "Bucket name contains invalid characters." {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 }
 
@@ -196,17 +196,17 @@ func TestObjectOperations(t *testing.T) {
 
 	u, err := url.Parse(server.URL)
 	if err != nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 	a, err := minio.New(u.Host, "", "", true)
 	if err != nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 
 	data := []byte("Hello, World")
 	n, err := a.PutObject("bucket", "object", bytes.NewReader(data), int64(len(data)), "")
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("Error:", err)
 	}
 	if n != int64(len(data)) {
 		t.Fatal("Error")
@@ -214,7 +214,7 @@ func TestObjectOperations(t *testing.T) {
 
 	metadata, err := a.StatObject("bucket", "object")
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("Error:", err)
 	}
 	if metadata.Key != "object" {
 		t.Fatal("Error")
@@ -225,18 +225,21 @@ func TestObjectOperations(t *testing.T) {
 
 	reader, err := a.GetObject("bucket", "object")
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("Error:", err)
 	}
 
 	var buffer bytes.Buffer
 	_, err = io.Copy(&buffer, reader)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
 	if !bytes.Equal(buffer.Bytes(), data) {
 		t.Fatal("Error")
 	}
 
 	err = a.RemoveObject("bucket", "object")
 	if err != nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 }
 
@@ -250,25 +253,25 @@ func TestPresignedURL(t *testing.T) {
 
 	u, err := url.Parse(server.URL)
 	if err != nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 	a, err := minio.New(u.Host, "", "", true)
 	if err != nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 	// should error out for invalid access keys.
 	_, err = a.PresignedGetObject("bucket", "object", time.Duration(1000)*time.Second)
 	if err == nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 
 	a, err = minio.New(u.Host, "accessKey", "secretKey", true)
 	if err != nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 	url, err := a.PresignedGetObject("bucket", "object", time.Duration(1000)*time.Second)
 	if err != nil {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 	if url == "" {
 		t.Fatal("Error")
@@ -291,26 +294,26 @@ func TestErrorResponse(t *testing.T) {
 		t.Fatal("Error")
 	}
 	if err.Error() != "Access Denied" {
-		t.Fatal("Error")
+		t.Fatal("Error:", err)
 	}
 	resp := minio.ToErrorResponse(err)
 	if resp.Code != "AccessDenied" {
-		t.Fatal("Error")
+		t.Fatal("Error:", resp)
 	}
 	if resp.RequestID != "F19772218238A85A" {
-		t.Fatal("Error")
+		t.Fatal("Error:", resp.RequestID)
 	}
 	if resp.Message != "Access Denied" {
-		t.Fatal("Error")
+		t.Fatal("Error:", resp.Message)
 	}
 	if resp.BucketName != "mybucket" {
-		t.Fatal("Error")
+		t.Fatal("Error:", resp.BucketName)
 	}
 	if resp.Key != "myphoto.jpg" {
-		t.Fatal("Error")
+		t.Fatal("Error:", resp.Key)
 	}
 	if resp.HostID != "GuWkjyviSiGHizehqpmsD1ndz5NClSP19DOT+s2mv7gXGQ8/X1lhbDGiIJEXpGFD" {
-		t.Fatal("Error")
+		t.Fatal("Error:", resp.HostID)
 	}
 	if resp.ToXML() == "" {
 		t.Fatal("Error")

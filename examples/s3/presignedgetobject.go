@@ -26,11 +26,11 @@ import (
 )
 
 func main() {
-	// Requests are always secure by default. set inSecure=true to enable insecure access.
-	// inSecure boolean is the last argument for New().
+	// Requests are always secure (HTTPS) by default. Set insecure=true to enable insecure (HTTP) access.
+	// This boolean value is the last argument for New().
 
-	// New provides a client object backend by automatically detected signature type based
-	// on the provider.
+	// New returns an Amazon S3 compatible client object. API copatibality (v2 or v4) is automatically
+	// determined based on the Endpoint value.
 	s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESS-KEY-HERE", "YOUR-SECRET-KEY-HERE", false)
 	if err != nil {
 		log.Fatalln(err)

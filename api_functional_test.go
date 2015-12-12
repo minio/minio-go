@@ -1,7 +1,6 @@
 package minio_test
 
 import (
-	"log"
 	"math/rand"
 	"testing"
 	"time"
@@ -37,51 +36,51 @@ func TestFunctional(t *testing.T) {
 	a, err := minio.New("play.minio.io:9002",
 		"Q3AM3UQ867SPQQA43P2F", "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG", false)
 	if err != nil {
-		log.Fatalln(err)
+		t.Fatal("Error:", err)
 	}
 
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
 	err = a.MakeBucket(bucketName, "private", "us-east-1")
 	if err != nil {
-		t.Fatal("Error", err, bucketName)
+		t.Fatal("Error:", err, bucketName)
 	}
 
 	err = a.BucketExists(bucketName)
 	if err != nil {
-		t.Fatal("Error", err, bucketName)
+		t.Fatal("Error:", err, bucketName)
 	}
 
 	err = a.SetBucketACL(bucketName, "public-read-write")
 	if err != nil {
-		t.Fatal("Error", err)
+		t.Fatal("Error:", err)
 	}
 
 	acl, err := a.GetBucketACL(bucketName)
 	if err != nil {
-		t.Fatal("Error", err)
+		t.Fatal("Error:", err)
 	}
 	if acl != minio.BucketACL("public-read-write") {
-		t.Fatal("Error", acl)
+		t.Fatal("Error:", acl)
 	}
 
 	for b := range a.ListBuckets() {
 		if b.Err != nil {
-			t.Fatal("Error", b.Err)
+			t.Fatal("Error:", b.Err)
 		}
 	}
 
 	err = a.RemoveBucket(bucketName)
 	if err != nil {
-		t.Fatal("Error", err)
+		t.Fatal("Error:", err)
 	}
 
 	err = a.RemoveBucket("bucket1")
 	if err == nil {
-		t.Fatal("Error")
+		t.Fatal("Error:")
 	}
 
 	if err.Error() != "The specified bucket does not exist." {
-		t.Fatal("Error", err)
+		t.Fatal("Error:", err)
 	}
 
 }

@@ -40,16 +40,12 @@ import (
 )
 
 func main() {
-	config := minio.Config{
-		Endpoint:        "https://s3.amazonaws.com",
-		AccessKeyID:     "YOUR-ACCESS-KEY-HERE",
-		SecretAccessKey: "YOUR-PASSWORD-HERE",
-	}
+	// Requests are always secure (HTTPS) by default. Set insecure=true to enable insecure (HTTP) access.
+	// This boolean value is the last argument for New().
 
-	// Default is Signature Version 4. To enable Signature Version 2 do the following.
-	// config.Signature = minio.SignatureV2
-
-	s3Client, err := minio.New(config)
+	// New returns an Amazon S3 compatible client object. API copatibality (v2 or v4) is automatically
+	// determined based on the Endpoint value.
+	s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESS-KEY-HERE", "YOUR-SECRET-KEY-HERE", false)
 	if err != nil {
 	    log.Fatalln(err)
 	}
@@ -71,7 +67,7 @@ func main() {
 * [GetBucketACL(bucketName) (BucketACL, error)](examples/s3/getbucketacl.go)
 * [SetBucketACL(bucketName, BucketACL) error)](examples/s3/setbucketacl.go)
 * [ListBuckets() <-chan BucketStat](examples/s3/listbuckets.go)
-* [ListObjects(bucketName, prefix, recursive) <-chan ObjectStat](examples/s3/listobjects.go)
+* [ListObjects(bucketName, objectPrefix, recursive) <-chan ObjectStat](examples/s3/listobjects.go)
 * [ListIncompleteUploads(bucketName, prefix, recursive) <-chan ObjectMultipartStat](examples/s3/listincompleteuploads.go)
 
 ### Object Operations.
