@@ -32,23 +32,22 @@ import (
 )
 
 // Encode input URL path to URL encoded path.
-func encodeURL2Path(u *url.URL) string {
+func encodeURL2Path(u *url.URL) (path string) {
 	// Encode URL path.
-	var path string
-	if !isAmazonEndpoint(u) && !isGoogleEndpoint(u) {
-		path = urlEncodePath(u.Path)
-	}
 	if strings.HasSuffix(u.Host, ".s3.amazonaws.com") {
 		path = "/" + strings.TrimSuffix(u.Host, ".s3.amazonaws.com")
 		path += u.Path
 		path = urlEncodePath(path)
+		return
 	}
 	if strings.HasSuffix(u.Host, ".storage.googleapis.com") {
 		path = "/" + strings.TrimSuffix(u.Host, ".storage.googleapis.com")
 		path += u.Path
 		path = urlEncodePath(path)
+		return
 	}
-	return path
+	path = urlEncodePath(u.Path)
+	return
 }
 
 // PreSignV2 - presign the request in following style.
