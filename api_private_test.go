@@ -24,18 +24,18 @@ import (
 func TestSignature(t *testing.T) {
 	credentials := clientCredentials{}
 	if !credentials.Signature.isLatest() {
-		t.Fatalf("Error")
+		t.Fatal("Error")
 	}
 	credentials.Signature = SignatureV2
 	if !credentials.Signature.isV2() {
-		t.Fatalf("Error")
+		t.Fatal("Error")
 	}
 	if credentials.Signature.isV4() {
-		t.Fatalf("Error")
+		t.Fatal("Error")
 	}
 	credentials.Signature = SignatureV4
 	if !credentials.Signature.isV4() {
-		t.Fatalf("Error")
+		t.Fatal("Error")
 	}
 }
 
@@ -103,17 +103,17 @@ func TestURLEncoding(t *testing.T) {
 
 	for _, u := range want {
 		if u.encodedName != urlEncodePath(u.name) {
-			t.Errorf("Error")
+			t.Fatal("Error")
 		}
 	}
 }
 
 func TestGetEndpointURL(t *testing.T) {
 	if _, err := getEndpointURL("s3.amazonaws.com", false); err != nil {
-		t.Fatal(err)
+		t.Fatal("Error:", err)
 	}
 	if _, err := getEndpointURL("192.168.1.1", false); err != nil {
-		t.Fatal(err)
+		t.Fatal("Error:", err)
 	}
 	if _, err := getEndpointURL("13333.123123.", false); err == nil {
 		t.Fatal("Error")
@@ -216,7 +216,7 @@ func TestValidEndpointURL(t *testing.T) {
 	for _, w := range want {
 		u, err := url.Parse(w.url)
 		if err != nil {
-			t.Fatal("Error")
+			t.Fatal("Error:", err)
 		}
 		valid := false
 		if err := isValidEndpointURL(u); err == nil {
