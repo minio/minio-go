@@ -58,9 +58,10 @@ func (a API) listMultipartUploadsRequest(bucketName, keyMarker, uploadIDMarker,
 
 	// Instantiate a new request.
 	return newRequest("GET", targetURL, requestMetadata{
-		credentials:  a.credentials,
-		userAgent:    a.userAgent,
-		bucketRegion: region,
+		credentials:      a.credentials,
+		userAgent:        a.userAgent,
+		bucketRegion:     region,
+		contentTransport: a.httpTransport,
 	})
 }
 
@@ -125,13 +126,14 @@ func (a API) initiateMultipartRequest(bucketName, objectName, contentType string
 	multipartHeader := make(http.Header)
 	multipartHeader.Set("Content-Type", contentType)
 
-	rmetadata := requestMetadata{
-		credentials:   a.credentials,
-		userAgent:     a.userAgent,
-		bucketRegion:  region,
-		contentHeader: multipartHeader,
+	reqMetadata := requestMetadata{
+		credentials:      a.credentials,
+		userAgent:        a.userAgent,
+		bucketRegion:     region,
+		contentHeader:    multipartHeader,
+		contentTransport: a.httpTransport,
 	}
-	return newRequest("POST", targetURL, rmetadata)
+	return newRequest("POST", targetURL, reqMetadata)
 }
 
 // initiateMultipartUpload initiates a multipart upload and returns an upload ID.
@@ -182,15 +184,16 @@ func (a API) completeMultipartUploadRequest(bucketName, objectName, uploadID str
 	}
 
 	completeMultipartUploadBuffer := bytes.NewBuffer(completeMultipartUploadBytes)
-	rmetadata := requestMetadata{
+	reqMetadata := requestMetadata{
 		credentials:        a.credentials,
 		userAgent:          a.userAgent,
 		bucketRegion:       region,
 		contentBody:        ioutil.NopCloser(completeMultipartUploadBuffer),
 		contentLength:      int64(completeMultipartUploadBuffer.Len()),
+		contentTransport:   a.httpTransport,
 		contentSha256Bytes: sum256(completeMultipartUploadBuffer.Bytes()),
 	}
-	req, err := newRequest("POST", targetURL, rmetadata)
+	req, err := newRequest("POST", targetURL, reqMetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -241,9 +244,10 @@ func (a API) abortMultipartUploadRequest(bucketName, objectName, uploadID string
 	}
 
 	req, err := newRequest("DELETE", targetURL, requestMetadata{
-		credentials:  a.credentials,
-		userAgent:    a.userAgent,
-		bucketRegion: region,
+		credentials:      a.credentials,
+		userAgent:        a.userAgent,
+		bucketRegion:     region,
+		contentTransport: a.httpTransport,
 	})
 	if err != nil {
 		return nil, err
@@ -328,9 +332,10 @@ func (a API) listObjectPartsRequest(bucketName, objectName, uploadID string, par
 	}
 
 	req, err := newRequest("GET", targetURL, requestMetadata{
-		credentials:  a.credentials,
-		userAgent:    a.userAgent,
-		bucketRegion: region,
+		credentials:      a.credentials,
+		userAgent:        a.userAgent,
+		bucketRegion:     region,
+		contentTransport: a.httpTransport,
 	})
 	if err != nil {
 		return nil, err
@@ -389,16 +394,17 @@ func (a API) uploadPartRequest(bucketName, objectName, uploadID string, uploadin
 		return nil, err
 	}
 
-	rmetadata := requestMetadata{
+	reqMetadata := requestMetadata{
 		credentials:        a.credentials,
 		userAgent:          a.userAgent,
 		bucketRegion:       region,
 		contentBody:        uploadingPart.ReadCloser,
 		contentLength:      uploadingPart.Size,
+		contentTransport:   a.httpTransport,
 		contentSha256Bytes: uploadingPart.Sha256Sum,
 		contentMD5Bytes:    uploadingPart.MD5Sum,
 	}
-	req, err := newRequest("PUT", targetURL, rmetadata)
+	req, err := newRequest("PUT", targetURL, reqMetadata)
 	if err != nil {
 		return nil, err
 	}
