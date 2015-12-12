@@ -1097,11 +1097,10 @@ func (a API) headObject(bucketName, objectName string) (ObjectStat, error) {
 
 // listBucketRequest wrapper creates a new listBuckets request.
 func (a API) listBucketsRequest() (*Request, error) {
-	// get targetURL.
-	targetURL, err := getTargetURL(a.endpointURL, "", "", url.Values{})
-	if err != nil {
-		return nil, err
-	}
+	// List buckets is directly on the endpoint URL.
+	targetURL := a.endpointURL
+	targetURL.Path = "/"
+
 	// Instantiate a new request.
 	req, err := newRequest("GET", targetURL, requestMetadata{
 		credentials:      a.credentials,
