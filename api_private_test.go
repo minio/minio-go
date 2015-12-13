@@ -115,10 +115,10 @@ func TestGetEndpointURL(t *testing.T) {
 	if _, err := getEndpointURL("192.168.1.1", false); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if _, err := getEndpointURL("13333.123123.", false); err == nil {
+	if _, err := getEndpointURL("13333.123123.-", false); err == nil {
 		t.Fatal("Error")
 	}
-	if _, err := getEndpointURL("s3.aamzza.", false); err == nil {
+	if _, err := getEndpointURL("s3.aamzza.-", false); err == nil {
 		t.Fatal("Error")
 	}
 	if _, err := getEndpointURL("s3.amazonaws.com:443", false); err == nil {
@@ -151,7 +151,7 @@ func TestValidIP(t *testing.T) {
 		},
 	}
 	for _, w := range want {
-		valid := validIPAddress.MatchString(w.ip)
+		valid := isValidIP(w.ip)
 		if valid != w.valid {
 			t.Fatal("Error")
 		}
@@ -179,17 +179,37 @@ func TestValidEndpointDomain(t *testing.T) {
 		},
 		{
 			endpointDomain: "s3.amz.test.com",
+			valid:          true,
+		},
+		{
+			endpointDomain: "s3.%%",
 			valid:          false,
 		},
 		{
-			endpointDomain: "s3.",
+			endpointDomain: "localhost",
+			valid:          true,
+		},
+		{
+			endpointDomain: "-localhost",
+			valid:          false,
+		},
+		{
+			endpointDomain: "",
+			valid:          false,
+		},
+		{
+			endpointDomain: "\n \t",
+			valid:          false,
+		},
+		{
+			endpointDomain: "    ",
 			valid:          false,
 		},
 	}
 	for _, w := range want {
-		valid := validEndpointDomain.MatchString(w.endpointDomain)
+		valid := isValidDomain(w.endpointDomain)
 		if valid != w.valid {
-			t.Fatal("Error")
+			t.Fatal("Error:", w.endpointDomain)
 		}
 	}
 }

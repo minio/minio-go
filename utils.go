@@ -35,12 +35,6 @@ var maxParts = int64(10000)
 // maxPartSize - maximum part size for a single multipart upload operation.
 var maxPartSize int64 = 1024 * 1024 * 1024 * 5
 
-// validEndpointDomain - regex for validating domain names.
-var validEndpointDomain = regexp.MustCompile(`^(([a-zA-Z]{1})|([a-zA-Z]{1}[a-zA-Z]{1})|([a-zA-Z]{1}[0-9]{1})|([0-9]{1}[a-zA-Z]{1})|([a-zA-Z0-9][a-zA-Z0-9-_]{1,61}[a-zA-Z0-9]))\.([a-zA-Z]{2,6}|[a-zA-Z0-9-]{2,30}\.[a-zA-Z]{2,3})$`)
-
-// validIPAddress - regex for validating ip address.
-var validIPAddress = regexp.MustCompile(`^(\d+\.){3}\d+$`)
-
 // getEndpointURL - construct a new endpoint.
 func getEndpointURL(endpoint string, inSecure bool) (*url.URL, error) {
 	if strings.Contains(endpoint, ":") {
@@ -48,12 +42,12 @@ func getEndpointURL(endpoint string, inSecure bool) (*url.URL, error) {
 		if err != nil {
 			return nil, err
 		}
-		if !validIPAddress.MatchString(host) && !validEndpointDomain.MatchString(host) {
+		if !isValidIP(host) && !isValidDomain(host) {
 			msg := "Endpoint: " + endpoint + " does not follow ip address or domain name standards."
 			return nil, ErrInvalidArgument(msg)
 		}
 	} else {
-		if !validIPAddress.MatchString(endpoint) && !validEndpointDomain.MatchString(endpoint) {
+		if !isValidIP(endpoint) && !isValidDomain(endpoint) {
 			msg := "Endpoint: " + endpoint + " does not follow ip address or domain name standards."
 			return nil, ErrInvalidArgument(msg)
 		}
@@ -65,15 +59,50 @@ func getEndpointURL(endpoint string, inSecure bool) (*url.URL, error) {
 	}
 
 	// Construct a secured endpoint URL.
-	endpointURL := new(url.URL)
-	endpointURL.Host = endpoint
-	endpointURL.Scheme = scheme
+	endpointURLStr := scheme + "://" + endpoint
+	endpointURL, err := url.Parse(endpointURLStr)
+	if err != nil {
+		return nil, err
+	}
 
 	// Validate incoming endpoint URL.
 	if err := isValidEndpointURL(endpointURL); err != nil {
 		return nil, err
 	}
 	return endpointURL, nil
+}
+
+// isValidDomain validates if input string is a valid domain name.
+func isValidDomain(host string) bool {
+	// See RFC 1035, RFC 3696.
+	host = strings.TrimSpace(host)
+	if len(host) == 0 || len(host) > 255 {
+		return false
+	}
+	// host cannot start or end with "-"
+	if host[len(host)-1:] == "-" || host[:1] == "-" {
+		return false
+	}
+	// host cannot start or end with "_"
+	if host[len(host)-1:] == "_" || host[:1] == "_" {
+		return false
+	}
+	// host cannot start or end with a "."
+	if host[len(host)-1:] == "." || host[:1] == "." {
+		return false
+	}
+	// All non alphanumeric characters are invalid.
+	if strings.ContainsAny(host, "`~!@#$%^&*()+={}[]|\\\"';:><?/") {
+		return false
+	}
+	// No need to regexp match, since the list is non-exhaustive.
+	// We let it valid and fail later.
+	return true
+}
+
+// isValidIP parses input string for ip address validity.
+func isValidIP(ip string) bool {
+	return net.ParseIP(ip) != nil
 }
 
 // isAnonymousCredentials - True if config doesn't have access and secret keys.
