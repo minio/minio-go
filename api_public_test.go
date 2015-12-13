@@ -27,36 +27,6 @@ import (
 	"github.com/minio/minio-go"
 )
 
-func TestUserAgent(t *testing.T) {
-	userAgent := userAgentHandler(userAgentHandler{})
-	server := httptest.NewServer(userAgent)
-	defer server.Close()
-
-	u, err := url.Parse(server.URL)
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
-	a, err := minio.New(u.Host, "", "", true)
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
-	// Set app info again.
-	a.SetAppInfo("hello-app", "1.0")
-
-	// Initiate a request.
-	a.MakeBucket("bucket", "private", "")
-
-	// Set app info again, this should not have set.
-	a.SetAppInfo("new-hello-app", "2.0")
-
-	// This call should succeed, server shouldn't see
-	// a new userAgent on the same connection.
-	err = a.BucketExists("bucket")
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
-}
-
 func TestBucketOperations(t *testing.T) {
 	bucket := bucketHandler(bucketHandler{
 		resource: "/bucket",
