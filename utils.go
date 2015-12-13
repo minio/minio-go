@@ -18,6 +18,7 @@ package minio
 
 import (
 	"encoding/hex"
+	"net"
 	"net/url"
 	"regexp"
 	"strings"
@@ -33,6 +34,47 @@ var maxParts = int64(10000)
 
 // maxPartSize - maximum part size for a single multipart upload operation.
 var maxPartSize int64 = 1024 * 1024 * 1024 * 5
+
+// validEndpointDomain - regex for validating domain names.
+var validEndpointDomain = regexp.MustCompile(`^(([a-zA-Z]{1})|([a-zA-Z]{1}[a-zA-Z]{1})|([a-zA-Z]{1}[0-9]{1})|([0-9]{1}[a-zA-Z]{1})|([a-zA-Z0-9][a-zA-Z0-9-_]{1,61}[a-zA-Z0-9]))\.([a-zA-Z]{2,6}|[a-zA-Z0-9-]{2,30}\.[a-zA-Z]{2,3})$`)
+
+// validIPAddress - regex for validating ip address.
+var validIPAddress = regexp.MustCompile(`^(\d+\.){3}\d+$`)
+
+// getEndpointURL - construct a new endpoint.
+func getEndpointURL(endpoint string, inSecure bool) (*url.URL, error) {
+	if strings.Contains(endpoint, ":") {
+		host, _, err := net.SplitHostPort(endpoint)
+		if err != nil {
+			return nil, err
+		}
+		if !validIPAddress.MatchString(host) && !validEndpointDomain.MatchString(host) {
+			msg := "Endpoint: " + endpoint + " does not follow ip address or domain name standards."
+			return nil, ErrInvalidArgument(msg)
+		}
+	} else {
+		if !validIPAddress.MatchString(endpoint) && !validEndpointDomain.MatchString(endpoint) {
+			msg := "Endpoint: " + endpoint + " does not follow ip address or domain name standards."
+			return nil, ErrInvalidArgument(msg)
+		}
+	}
+	// if inSecure is true, use 'http' scheme.
+	scheme := "https"
+	if inSecure {
+		scheme = "http"
+	}
+
+	// Construct a secured endpoint URL.
+	endpointURL := new(url.URL)
+	endpointURL.Host = endpoint
+	endpointURL.Scheme = scheme
+
+	// Validate incoming endpoint URL.
+	if err := isValidEndpointURL(endpointURL); err != nil {
+		return nil, err
+	}
+	return endpointURL, nil
+}
 
 // isAnonymousCredentials - True if config doesn't have access and secret keys.
 func isAnonymousCredentials(c clientCredentials) bool {
