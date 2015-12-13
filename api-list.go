@@ -49,7 +49,7 @@ func (a API) listBucketsInRoutine(ch chan<- BucketStat) {
 		return
 	}
 	resp, err := req.Do()
-	defer closeResp(resp)
+	defer closeResponse(resp)
 	if err != nil {
 		ch <- BucketStat{
 			Err: err,
@@ -269,7 +269,7 @@ func (a API) listObjects(bucketName, objectPrefix, objectMarker, delimiter strin
 		return listBucketResult{}, err
 	}
 	resp, err := req.Do()
-	defer closeResp(resp)
+	defer closeResponse(resp)
 	if err != nil {
 		return listBucketResult{}, err
 	}
@@ -465,7 +465,7 @@ func (a API) listMultipartUploads(bucketName, keyMarker,
 		return listMultipartUploadsResult{}, err
 	}
 	resp, err := req.Do()
-	defer closeResp(resp)
+	defer closeResponse(resp)
 	if err != nil {
 		return listMultipartUploadsResult{}, err
 	}
@@ -582,7 +582,7 @@ func (a API) listObjectParts(bucketName, objectName, uploadID string, partNumber
 		return listObjectPartsResult{}, err
 	}
 	resp, err := req.Do()
-	defer closeResp(resp)
+	defer closeResponse(resp)
 	if err != nil {
 		return listObjectPartsResult{}, err
 	}

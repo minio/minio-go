@@ -18,7 +18,7 @@ func (a API) BucketExists(bucketName string) error {
 		return err
 	}
 	resp, err := req.Do()
-	defer closeResp(resp)
+	defer closeResponse(resp)
 	if err != nil {
 		return err
 	}
@@ -95,7 +95,7 @@ func (a API) StatObject(bucketName, objectName string) (ObjectStat, error) {
 		return ObjectStat{}, err
 	}
 	resp, err := req.Do()
-	defer closeResp(resp)
+	defer closeResponse(resp)
 	if err != nil {
 		return ObjectStat{}, err
 	}

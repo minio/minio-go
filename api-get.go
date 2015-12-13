@@ -30,7 +30,7 @@ func (a API) GetBucketACL(bucketName string) (BucketACL, error) {
 
 	// Initiate the request.
 	resp, err := req.Do()
-	defer closeResp(resp)
+	defer closeResponse(resp)
 	if err != nil {
 		return "", err
 	}

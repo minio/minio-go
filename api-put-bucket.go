@@ -43,7 +43,7 @@ func (a API) MakeBucket(bucketName string, acl BucketACL, region string) error {
 
 	// Initiate the request.
 	resp, err := req.Do()
-	defer closeResp(resp)
+	defer closeResponse(resp)
 	if err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func (a API) SetBucketACL(bucketName string, acl BucketACL) error {
 
 	// Initiate the request.
 	resp, err := req.Do()
-	defer closeResp(resp)
+	defer closeResponse(resp)
 	if err != nil {
 		return err
 	}

@@ -17,52 +17,50 @@
 package minio
 
 import (
-	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"sync"
 )
 
-// closeResp close non nil response with any response Body.
-// convenient wrapper to drain any remaining data on response body.
-//
-// Subsequently this allows golang http RoundTripper
-// to re-use the same connection for future requests.
-func closeResp(resp *http.Response) {
-	// Callers should close resp.Body when done reading from it.
-	// If resp.Body is not closed, the Client's underlying RoundTripper
-	// (typically Transport) may not be able to re-use a persistent TCP
-	// connection to the server for a subsequent "keep-alive" request.
-	if resp != nil && resp.Body != nil {
-		// Drain any remaining Body and then close the connection.
-		// Without this closing connection would disallow re-using
-		// the same connection for future uses.
-		//  - http://stackoverflow.com/a/17961593/4465767
-		io.Copy(ioutil.Discard, resp.Body)
-		resp.Body.Close()
+// bucketRegionCache provides simple mechansim to hold bucket regions in memory.
+type bucketRegionCache struct {
+	// Mutex is used for handling the concurrent
+	// read/write requests for cache
+	sync.RWMutex
+
+	// items holds the cached regions.
+	items map[string]string
+}
+
+// newBucketRegionCache provides a new bucket region cache to be used
+// internally with the client object.
+func newBucketRegionCache() *bucketRegionCache {
+	return &bucketRegionCache{
+		items: make(map[string]string),
 	}
 }
 
-// setRegion - set region for the bucketName in private region map cache.
-func (a API) setRegion(bucketName string) (string, error) {
-	// If signature version '2', no need to fetch bucket location.
-	if a.credentials.Signature.isV2() {
-		return "us-east-1", nil
-	}
-	if a.credentials.Signature.isV4() && !isAmazonEndpoint(a.endpointURL) {
-		return "us-east-1", nil
-	}
-	// get bucket location.
-	location, err := a.getBucketLocation(bucketName)
-	if err != nil {
-		return "", err
-	}
-	// location is region in context of S3 API.
-	a.mutex.Lock()
-	a.regionMap[bucketName] = location
-	a.mutex.Unlock()
-	return location, nil
+// Get returns a value of a given key if it exists
+func (r *bucketRegionCache) Get(bucketName string) (region string, ok bool) {
+	r.RLock()
+	defer r.RUnlock()
+	region, ok = r.items[bucketName]
+	return
+}
+
+// Set will persist a value to the cache
+func (r *bucketRegionCache) Set(bucketName string, region string) {
+	r.Lock()
+	defer r.Unlock()
+	r.items[bucketName] = region
+}
+
+// Delete deletes a bucket name.
+func (r *bucketRegionCache) Delete(bucketName string) {
+	r.Lock()
+	defer r.Unlock()
+	delete(r.items, bucketName)
 }
 
 // getRegion - get region for the bucketName from region map cache.
@@ -78,19 +76,21 @@ func (a API) getRegion(bucketName string) (string, error) {
 			return "us-east-1", nil
 		}
 	}
-	// Search through regionMap protected.
-	a.mutex.Lock()
-	region, ok := a.regionMap[bucketName]
-	a.mutex.Unlock()
-	// return if found.
-	if ok {
+	if region, ok := a.bucketRgnC.Get(bucketName); ok {
 		return region, nil
 	}
-	// Set region if no region was found for a bucket.
-	region, err := a.setRegion(bucketName)
+
+	// get bucket location.
+	location, err := a.getBucketLocation(bucketName)
 	if err != nil {
-		return "us-east-1", err
+		return "", err
 	}
+	region := "us-east-1"
+	// location is region in context of S3 API.
+	if location != "" {
+		region = location
+	}
+	a.bucketRgnC.Set(bucketName, region)
 	return region, nil
 }
 
@@ -127,7 +127,7 @@ func (a API) getBucketLocation(bucketName string) (string, error) {
 
 	// Initiate the request.
 	resp, err := req.Do()
-	defer closeResp(resp)
+	defer closeResponse(resp)
 	if err != nil {
 		return "", err
 	}

@@ -31,11 +31,22 @@ import (
 	"sync"
 )
 
+/// Multipart upload defaults.
+
+// minimumPartSize minimum part size per object after which PutObject behaves internally as multipart.
+var minimumPartSize int64 = 1024 * 1024 * 5
+
+// maxParts - maximum parts for a single multipart session.
+var maxParts = int64(10000)
+
+// maxPartSize - maximum part size for a single multipart upload operation.
+var maxPartSize int64 = 1024 * 1024 * 1024 * 5
+
 // maxConcurrentQueue - max concurrent upload queue, defaults to number of CPUs - 1.
 var maxConcurrentQueue = int(math.Max(float64(runtime.NumCPU())-1, 1))
 
-// completedParts is a wrapper to make parts sortable by their part numbers.
-// multi part completion requires list of multi parts to be sorted.
+// completedParts is a collection of parts sortable by their part numbers.
+// used for sorting the uploaded parts before completing the multipart request.
 type completedParts []completePart
 
 func (a completedParts) Len() int           { return len(a) }
@@ -357,7 +368,7 @@ func (a API) putObject(bucketName, objectName string, putObjMetadata putObjectMe
 		return ObjectStat{}, err
 	}
 	resp, err := req.Do()
-	defer closeResp(resp)
+	defer closeResponse(resp)
 	if err != nil {
 		return ObjectStat{}, err
 	}
@@ -416,7 +427,7 @@ func (a API) initiateMultipartUpload(bucketName, objectName, contentType string)
 		return initiateMultipartUploadResult{}, err
 	}
 	resp, err := req.Do()
-	defer closeResp(resp)
+	defer closeResponse(resp)
 	if err != nil {
 		return initiateMultipartUploadResult{}, err
 	}
@@ -479,7 +490,7 @@ func (a API) uploadPart(bucketName, objectName, uploadID string, uploadingPart p
 	}
 	// Initiate the request.
 	resp, err := req.Do()
-	defer closeResp(resp)
+	defer closeResponse(resp)
 	if err != nil {
 		return completePart{}, err
 	}
@@ -542,7 +553,7 @@ func (a API) completeMultipartUpload(bucketName, objectName, uploadID string,
 		return completeMultipartUploadResult{}, err
 	}
 	resp, err := req.Do()
-	defer closeResp(resp)
+	defer closeResponse(resp)
 	if err != nil {
 		return completeMultipartUploadResult{}, err
 	}
