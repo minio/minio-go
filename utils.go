@@ -18,22 +18,16 @@ package minio
 
 import (
 	"encoding/hex"
+	"io"
+	"io/ioutil"
 	"net"
+	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
 )
-
-// minimumPartSize minimum part size per object after which PutObject behaves internally as multipart.
-var minimumPartSize int64 = 1024 * 1024 * 5
-
-// maxParts - maximum parts for a single multipart session.
-var maxParts = int64(10000)
-
-// maxPartSize - maximum part size for a single multipart upload operation.
-var maxPartSize int64 = 1024 * 1024 * 1024 * 5
 
 // getEndpointURL - construct a new endpoint.
 func getEndpointURL(endpoint string, inSecure bool) (*url.URL, error) {
@@ -103,6 +97,26 @@ func isValidDomain(host string) bool {
 // isValidIP parses input string for ip address validity.
 func isValidIP(ip string) bool {
 	return net.ParseIP(ip) != nil
+}
+
+// closeResponse close non nil response with any response Body.
+// convenient wrapper to drain any remaining data on response body.
+//
+// Subsequently this allows golang http RoundTripper
+// to re-use the same connection for future requests.
+func closeResponse(resp *http.Response) {
+	// Callers should close resp.Body when done reading from it.
+	// If resp.Body is not closed, the Client's underlying RoundTripper
+	// (typically Transport) may not be able to re-use a persistent TCP
+	// connection to the server for a subsequent "keep-alive" request.
+	if resp != nil && resp.Body != nil {
+		// Drain any remaining Body and then close the connection.
+		// Without this closing connection would disallow re-using
+		// the same connection for future uses.
+		//  - http://stackoverflow.com/a/17961593/4465767
+		io.Copy(ioutil.Discard, resp.Body)
+		resp.Body.Close()
+	}
 }
 
 // isAnonymousCredentials - True if config doesn't have access and secret keys.

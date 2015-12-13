@@ -18,7 +18,7 @@ func (a API) RemoveBucket(bucketName string) error {
 		return err
 	}
 	resp, err := req.Do()
-	defer closeResp(resp)
+	defer closeResponse(resp)
 	if err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func (a API) RemoveObject(bucketName, objectName string) error {
 		return err
 	}
 	resp, err := req.Do()
-	defer closeResp(resp)
+	defer closeResponse(resp)
 	if err != nil {
 		return err
 	}
@@ -212,7 +212,7 @@ func (a API) abortMultipartUpload(bucketName, objectName, uploadID string) error
 		return err
 	}
 	resp, err := req.Do()
-	defer closeResp(resp)
+	defer closeResponse(resp)
 	if err != nil {
 		return err
 	}

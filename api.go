@@ -20,16 +20,11 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"sync"
 	"time"
 )
 
 // API implements Amazon S3 compatible methods.
 type API struct {
-	// Needs allocation.
-	mutex     *sync.Mutex
-	regionMap map[string]string
-
 	// User supplied.
 	userAgent   string
 	credentials *clientCredentials
@@ -39,6 +34,9 @@ type API struct {
 	// custom TLS certificates on the client transport, for custom CA's and
 	// certs which are not part of standard certificate authority.
 	httpTransport http.RoundTripper
+
+	// Needs allocation.
+	bucketRgnC *bucketRegionCache
 }
 
 // NewV2 - instantiate minio client with Amazon S3 signature version '2' compatiblity.
@@ -57,13 +55,12 @@ func NewV2(endpoint string, accessKeyID, secretAccessKey string, inSecure bool) 
 
 	// instantiate new API.
 	api := API{
-		// Allocate.
-		mutex:     &sync.Mutex{},
-		regionMap: make(map[string]string),
 		// Save for lower level calls.
 		userAgent:   libraryUserAgent,
 		credentials: credentials,
 		endpointURL: endpointURL,
+		// Allocate.
+		bucketRgnC: newBucketRegionCache(),
 	}
 	return api, nil
 }
@@ -84,13 +81,12 @@ func NewV4(endpoint string, accessKeyID, secretAccessKey string, inSecure bool) 
 
 	// instantiate new API.
 	api := API{
-		// Allocate.
-		mutex:     &sync.Mutex{},
-		regionMap: make(map[string]string),
 		// Save for lower level calls.
 		userAgent:   libraryUserAgent,
 		credentials: credentials,
 		endpointURL: endpointURL,
+		// Allocate.
+		bucketRgnC: newBucketRegionCache(),
 	}
 	return api, nil
 }
@@ -119,13 +115,12 @@ func New(endpoint string, accessKeyID, secretAccessKey string, inSecure bool) (A
 
 	// instantiate new API.
 	api := API{
-		// Allocate.
-		mutex:     &sync.Mutex{},
-		regionMap: make(map[string]string),
 		// Save for lower level calls.
 		userAgent:   libraryUserAgent,
 		credentials: credentials,
 		endpointURL: endpointURL,
+		// Allocate.
+		bucketRgnC: newBucketRegionCache(),
 	}
 	return api, nil
 }
