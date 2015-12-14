@@ -1,6 +1,8 @@
 package minio_test
 
 import (
+	"bytes"
+	"io/ioutil"
 	"math/rand"
 	"testing"
 	"time"
@@ -33,29 +35,32 @@ func randString(n int, src rand.Source) string {
 }
 
 func TestFunctional(t *testing.T) {
-	a, err := minio.New("play.minio.io:9002",
+	c, err := minio.New("play.minio.io:9002",
 		"Q3AM3UQ867SPQQA43P2F", "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG", false)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 
+	// Set user agent.
+	c.SetAppInfo("Test", "0.1.0")
+
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
-	err = a.MakeBucket(bucketName, "private", "us-east-1")
+	err = c.MakeBucket(bucketName, "private", "us-east-1")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
 
-	err = a.BucketExists(bucketName)
+	err = c.BucketExists(bucketName)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
 
-	err = a.SetBucketACL(bucketName, "public-read-write")
+	err = c.SetBucketACL(bucketName, "public-read-write")
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 
-	acl, err := a.GetBucketACL(bucketName)
+	acl, err := c.GetBucketACL(bucketName)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -63,18 +68,46 @@ func TestFunctional(t *testing.T) {
 		t.Fatal("Error:", acl)
 	}
 
-	for b := range a.ListBuckets() {
-		if b.Err != nil {
-			t.Fatal("Error:", b.Err)
-		}
-	}
-
-	err = a.RemoveBucket(bucketName)
+	_, err = c.ListBuckets()
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 
-	err = a.RemoveBucket("bucket1")
+	objectName := bucketName + "Minio"
+	readSeeker := bytes.NewReader([]byte("Hello World!"))
+
+	n, err := c.PutObject(bucketName, objectName, readSeeker, int64(readSeeker.Len()), "")
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+	if n != int64(len([]byte("Hello World!"))) {
+		t.Fatal("Error: bad length ", n, readSeeker.Len())
+	}
+
+	newReadSeeker, err := c.GetObject(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+
+	newReadBytes, err := ioutil.ReadAll(newReadSeeker)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+
+	if !bytes.Equal(newReadBytes, []byte("Hello World!")) {
+		t.Fatal("Error: bytes invalid.")
+	}
+
+	err = c.RemoveObject(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	err = c.RemoveBucket("bucket1")
 	if err == nil {
 		t.Fatal("Error:")
 	}

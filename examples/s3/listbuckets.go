@@ -35,10 +35,11 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	for bucket := range s3Client.ListBuckets() {
-		if bucket.Err != nil {
-			log.Fatalln(bucket.Err)
-		}
+	buckets, err := s3Client.ListBuckets()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	for _, bucket := range buckets {
 		log.Println(bucket)
 	}
 }

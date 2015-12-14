@@ -1,3 +1,19 @@
+/*
+ * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2015 Minio, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package minio
 
 import (
@@ -9,100 +25,45 @@ import (
 //
 //  All objects (including all object versions and delete markers).
 //  in the bucket must be deleted before successfully attempting this request.
-func (a API) RemoveBucket(bucketName string) error {
+func (c Client) RemoveBucket(bucketName string) error {
 	if err := isValidBucketName(bucketName); err != nil {
 		return err
 	}
-	req, err := a.removeBucketRequest(bucketName)
+	req, err := c.newRequest("DELETE", requestMetadata{
+		bucketName: bucketName,
+	})
 	if err != nil {
 		return err
 	}
-	resp, err := req.Do()
+	resp, err := c.httpClient.Do(req)
 	defer closeResponse(resp)
 	if err != nil {
 		return err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusNoContent {
-			var errorResponse ErrorResponse
-			switch resp.StatusCode {
-			case http.StatusNotFound:
-				errorResponse = ErrorResponse{
-					Code:            "NoSuchBucket",
-					Message:         "The specified bucket does not exist.",
-					BucketName:      bucketName,
-					RequestID:       resp.Header.Get("x-amz-request-id"),
-					HostID:          resp.Header.Get("x-amz-id-2"),
-					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
-				}
-			case http.StatusForbidden:
-				errorResponse = ErrorResponse{
-					Code:            "AccessDenied",
-					Message:         "Access Denied.",
-					BucketName:      bucketName,
-					RequestID:       resp.Header.Get("x-amz-request-id"),
-					HostID:          resp.Header.Get("x-amz-id-2"),
-					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
-				}
-			case http.StatusConflict:
-				errorResponse = ErrorResponse{
-					Code:            "Conflict",
-					Message:         "Bucket not empty.",
-					BucketName:      bucketName,
-					RequestID:       resp.Header.Get("x-amz-request-id"),
-					HostID:          resp.Header.Get("x-amz-id-2"),
-					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
-				}
-			default:
-				errorResponse = ErrorResponse{
-					Code:            resp.Status,
-					Message:         resp.Status,
-					BucketName:      bucketName,
-					RequestID:       resp.Header.Get("x-amz-request-id"),
-					HostID:          resp.Header.Get("x-amz-id-2"),
-					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
-				}
-			}
-			return errorResponse
+			return HTTPRespToErrorResponse(resp, bucketName, "")
 		}
 	}
 	return nil
 }
 
-// removeBucketRequest constructs a new request for RemoveBucket.
-func (a API) removeBucketRequest(bucketName string) (*Request, error) {
-	targetURL, err := getTargetURL(a.endpointURL, bucketName, "", url.Values{})
-	if err != nil {
-		return nil, err
-	}
-
-	// get bucket region.
-	region, err := a.getRegion(bucketName)
-	if err != nil {
-		return nil, err
-	}
-
-	return newRequest("DELETE", targetURL, requestMetadata{
-		credentials:      a.credentials,
-		userAgent:        a.userAgent,
-		bucketRegion:     region,
-		contentTransport: a.httpTransport,
-	})
-}
-
 // RemoveObject remove an object from a bucket.
-func (a API) RemoveObject(bucketName, objectName string) error {
+func (c Client) RemoveObject(bucketName, objectName string) error {
 	if err := isValidBucketName(bucketName); err != nil {
 		return err
 	}
 	if err := isValidObjectName(objectName); err != nil {
 		return err
 	}
-	req, err := a.removeObjectRequest(bucketName, objectName)
+	req, err := c.newRequest("DELETE", requestMetadata{
+		bucketName: bucketName,
+		objectName: objectName,
+	})
 	if err != nil {
 		return err
 	}
-	resp, err := req.Do()
+	resp, err := c.httpClient.Do(req)
 	defer closeResponse(resp)
 	if err != nil {
 		return err
@@ -113,105 +74,67 @@ func (a API) RemoveObject(bucketName, objectName string) error {
 	return nil
 }
 
-// removeObjectRequest constructs a request for RemoveObject.
-func (a API) removeObjectRequest(bucketName, objectName string) (*Request, error) {
-	// get targetURL.
-	targetURL, err := getTargetURL(a.endpointURL, bucketName, objectName, url.Values{})
-	if err != nil {
-		return nil, err
-	}
-
-	// get bucket region.
-	region, err := a.getRegion(bucketName)
-	if err != nil {
-		return nil, err
-	}
-
-	// Instantiate a new request.
-	req, err := newRequest("DELETE", targetURL, requestMetadata{
-		credentials:      a.credentials,
-		userAgent:        a.userAgent,
-		bucketRegion:     region,
-		contentTransport: a.httpTransport,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return req, nil
-}
-
 // RemoveIncompleteUpload aborts an partially uploaded object.
 // Requires explicit authentication, no anonymous requests are allowed for multipart API.
-func (a API) RemoveIncompleteUpload(bucketName, objectName string) <-chan error {
-	errorCh := make(chan error)
-	go a.removeIncompleteUploadInRoutine(bucketName, objectName, errorCh)
-	return errorCh
-}
-
-// removeIncompleteUploadInRoutine iterates over all incomplete uploads
-// and removes only input object name.
-func (a API) removeIncompleteUploadInRoutine(bucketName, objectName string, errorCh chan<- error) {
-	defer close(errorCh)
-	// Validate incoming bucket name.
+func (c Client) RemoveIncompleteUpload(bucketName, objectName string) error {
+	// Validate input arguments.
 	if err := isValidBucketName(bucketName); err != nil {
-		errorCh <- err
-		return
+		return err
 	}
-	// Validate incoming object name.
 	if err := isValidObjectName(objectName); err != nil {
-		errorCh <- err
-		return
+		return err
 	}
-	// List all incomplete uploads recursively.
-	for mpUpload := range a.listIncompleteUploads(bucketName, objectName, true) {
-		if objectName == mpUpload.Key {
-			err := a.abortMultipartUpload(bucketName, mpUpload.Key, mpUpload.UploadID)
+	errorCh := make(chan error)
+	go func(errorCh chan<- error) {
+		defer close(errorCh)
+		// Find multipart upload id of the object.
+		uploadID, err := c.findUploadID(bucketName, objectName)
+		if err != nil {
+			errorCh <- err
+			return
+		}
+		if uploadID != "" {
+			// If uploadID is not an empty string, initiate the request.
+			err := c.abortMultipartUpload(bucketName, objectName, uploadID)
 			if err != nil {
 				errorCh <- err
 				return
 			}
 			return
 		}
+	}(errorCh)
+	err, ok := <-errorCh
+	if ok && err != nil {
+		return err
 	}
+	return nil
 }
 
-// abortMultipartUploadRequest wrapper creates a new AbortMultipartUpload request.
-func (a API) abortMultipartUploadRequest(bucketName, objectName, uploadID string) (*Request, error) {
+// abortMultipartUpload aborts a multipart upload for the given uploadID, all parts are deleted.
+func (c Client) abortMultipartUpload(bucketName, objectName, uploadID string) error {
+	// Validate input arguments.
+	if err := isValidBucketName(bucketName); err != nil {
+		return err
+	}
+	if err := isValidObjectName(objectName); err != nil {
+		return err
+	}
+
 	// Initialize url queries.
 	urlValues := make(url.Values)
 	urlValues.Set("uploadId", uploadID)
 
-	// get targetURL.
-	targetURL, err := getTargetURL(a.endpointURL, bucketName, objectName, urlValues)
-	if err != nil {
-		return nil, err
-	}
-
-	// get bucket region.
-	region, err := a.getRegion(bucketName)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := newRequest("DELETE", targetURL, requestMetadata{
-		credentials:      a.credentials,
-		userAgent:        a.userAgent,
-		bucketRegion:     region,
-		contentTransport: a.httpTransport,
+	// Instantiate a new DELETE request.
+	req, err := c.newRequest("DELETE", requestMetadata{
+		bucketName:  bucketName,
+		objectName:  objectName,
+		queryValues: urlValues,
 	})
-	if err != nil {
-		return nil, err
-	}
-	return req, nil
-}
-
-// abortMultipartUpload aborts a multipart upload for the given uploadID, all parts are deleted.
-func (a API) abortMultipartUpload(bucketName, objectName, uploadID string) error {
-	req, err := a.abortMultipartUploadRequest(bucketName, objectName, uploadID)
 	if err != nil {
 		return err
 	}
-	resp, err := req.Do()
+	// execute the request.
+	resp, err := c.httpClient.Do(req)
 	defer closeResponse(resp)
 	if err != nil {
 		return err
@@ -222,6 +145,7 @@ func (a API) abortMultipartUpload(bucketName, objectName, uploadID string) error
 			var errorResponse ErrorResponse
 			switch resp.StatusCode {
 			case http.StatusNotFound:
+				// This is needed specifically for Abort and it cannot be converged.
 				errorResponse = ErrorResponse{
 					Code:            "NoSuchUpload",
 					Message:         "The specified multipart upload does not exist.",
@@ -231,26 +155,8 @@ func (a API) abortMultipartUpload(bucketName, objectName, uploadID string) error
 					HostID:          resp.Header.Get("x-amz-id-2"),
 					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
 				}
-			case http.StatusForbidden:
-				errorResponse = ErrorResponse{
-					Code:            "AccessDenied",
-					Message:         "Access Denied.",
-					BucketName:      bucketName,
-					Key:             objectName,
-					RequestID:       resp.Header.Get("x-amz-request-id"),
-					HostID:          resp.Header.Get("x-amz-id-2"),
-					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
-				}
 			default:
-				errorResponse = ErrorResponse{
-					Code:            resp.Status,
-					Message:         "Unknown error, please report this at https://github.com/minio/minio-go-legacy/issues.",
-					BucketName:      bucketName,
-					Key:             objectName,
-					RequestID:       resp.Header.Get("x-amz-request-id"),
-					HostID:          resp.Header.Get("x-amz-id-2"),
-					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
-				}
+				return HTTPRespToErrorResponse(resp, bucketName, objectName)
 			}
 			return errorResponse
 		}

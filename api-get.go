@@ -1,3 +1,19 @@
+/*
+ * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2015 Minio, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package minio
 
 import (
@@ -19,24 +35,33 @@ import (
 //  public-read - owner gets full access, others get read access.
 //  public-read-write - owner gets full access, others get full access too.
 //  authenticated-read - owner gets full access, authenticated users get read access.
-func (a API) GetBucketACL(bucketName string) (BucketACL, error) {
+func (c Client) GetBucketACL(bucketName string) (BucketACL, error) {
 	if err := isValidBucketName(bucketName); err != nil {
 		return "", err
 	}
-	req, err := a.getBucketACLRequest(bucketName)
+
+	// Set acl query.
+	urlValues := make(url.Values)
+	urlValues.Set("acl", "")
+
+	// Instantiate a new request.
+	req, err := c.newRequest("GET", requestMetadata{
+		bucketName:  bucketName,
+		queryValues: urlValues,
+	})
 	if err != nil {
 		return "", err
 	}
 
 	// Initiate the request.
-	resp, err := req.Do()
+	resp, err := c.httpClient.Do(req)
 	defer closeResponse(resp)
 	if err != nil {
 		return "", err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return "", BodyToErrorResponse(resp.Body)
+			return "", HTTPRespToErrorResponse(resp, bucketName, "")
 		}
 	}
 
@@ -47,12 +72,14 @@ func (a API) GetBucketACL(bucketName string) (BucketACL, error) {
 		return "", err
 	}
 
-	// If Google private bucket policy doesn't have any Grant list.
-	if !isGoogleEndpoint(a.endpointURL) {
+	// We need to avoid following de-serialization check for Google Cloud Storage.
+	// On Google Cloud Storage "private" canned ACL's policy do not have grant list.
+	// Treat it as a valid case, check for all other vendors.
+	if !isGoogleEndpoint(c.endpointURL) {
 		if policy.AccessControlList.Grant == nil {
 			errorResponse := ErrorResponse{
 				Code:            "InternalError",
-				Message:         "Access control Grant list is empty, please report this at https://github.com/minio/minio-go/issues.",
+				Message:         "Access control Grant list is empty. " + reportIssue,
 				BucketName:      bucketName,
 				RequestID:       resp.Header.Get("x-amz-request-id"),
 				HostID:          resp.Header.Get("x-amz-id-2"),
@@ -101,39 +128,9 @@ func (a API) GetBucketACL(bucketName string) (BucketACL, error) {
 	}
 }
 
-// getBucketACLRequest wrapper creates a new getBucketACL request.
-func (a API) getBucketACLRequest(bucketName string) (*Request, error) {
-	// Set acl query.
-	urlValues := make(url.Values)
-	urlValues.Set("acl", "")
-
-	// get target URL.
-	targetURL, err := getTargetURL(a.endpointURL, bucketName, "", urlValues)
-	if err != nil {
-		return nil, err
-	}
-
-	// get bucket region.
-	region, err := a.getRegion(bucketName)
-	if err != nil {
-		return nil, err
-	}
-
-	// Instantiate a new request.
-	req, err := newRequest("GET", targetURL, requestMetadata{
-		bucketRegion:     region,
-		credentials:      a.credentials,
-		contentTransport: a.httpTransport,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return req, nil
-}
-
 // GetObject gets object content from specified bucket.
 // You may also look at GetPartialObject.
-func (a API) GetObject(bucketName, objectName string) (io.ReadSeeker, error) {
+func (c Client) GetObject(bucketName, objectName string) (io.ReadSeeker, error) {
 	if err := isValidBucketName(bucketName); err != nil {
 		return nil, err
 	}
@@ -141,7 +138,7 @@ func (a API) GetObject(bucketName, objectName string) (io.ReadSeeker, error) {
 		return nil, err
 	}
 	// get object.
-	return newObjectReadSeeker(a, bucketName, objectName), nil
+	return newObjectReadSeeker(c, bucketName, objectName), nil
 }
 
 // GetPartialObject gets partial object content as specified by the Range.
@@ -149,7 +146,7 @@ func (a API) GetObject(bucketName, objectName string) (io.ReadSeeker, error) {
 // Setting offset and length = 0 will download the full object.
 // For more information about the HTTP Range header,
 // go to http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35
-func (a API) GetPartialObject(bucketName, objectName string, offset, length int64) (io.ReadSeeker, error) {
+func (c Client) GetPartialObject(bucketName, objectName string, offset, length int64) (io.ReadSeeker, error) {
 	if err := isValidBucketName(bucketName); err != nil {
 		return nil, err
 	}
@@ -157,7 +154,7 @@ func (a API) GetPartialObject(bucketName, objectName string, offset, length int6
 		return nil, err
 	}
 	// get partial object.
-	return newObjectReadSeeker(a, bucketName, objectName), nil
+	return newObjectReadSeeker(c, bucketName, objectName), nil
 }
 
 // objectReadSeeker container for io.ReadSeeker.
@@ -165,7 +162,7 @@ type objectReadSeeker struct {
 	// mutex.
 	mutex *sync.Mutex
 
-	api        API
+	client     Client
 	reader     io.ReadCloser
 	isRead     bool
 	stat       ObjectStat
@@ -175,12 +172,12 @@ type objectReadSeeker struct {
 }
 
 // newObjectReadSeeker wraps getObject request returning a io.ReadSeeker.
-func newObjectReadSeeker(api API, bucket, object string) *objectReadSeeker {
+func newObjectReadSeeker(client Client, bucket, object string) *objectReadSeeker {
 	return &objectReadSeeker{
 		mutex:      new(sync.Mutex),
 		reader:     nil,
 		isRead:     false,
-		api:        api,
+		client:     client,
 		offset:     0,
 		bucketName: bucket,
 		objectName: object,
@@ -206,7 +203,7 @@ func (r *objectReadSeeker) Read(p []byte) (int, error) {
 	defer r.mutex.Unlock()
 
 	if !r.isRead {
-		reader, _, err := r.api.getObject(r.bucketName, r.objectName, r.offset, 0)
+		reader, _, err := r.client.getObject(r.bucketName, r.objectName, r.offset, 0)
 		if err != nil {
 			return 0, err
 		}
@@ -246,45 +243,9 @@ func (r *objectReadSeeker) Seek(offset int64, whence int) (int64, error) {
 
 // Size returns the size of the object.
 func (r *objectReadSeeker) Size() (int64, error) {
-	objectSt, err := r.api.StatObject(r.bucketName, r.objectName)
+	objectSt, err := r.client.StatObject(r.bucketName, r.objectName)
 	r.stat = objectSt
 	return r.stat.Size, err
-}
-
-// getObjectRequest wrapper creates a new getObject request.
-func (a API) getObjectRequest(bucketName, objectName string, offset, length int64) (*Request, error) {
-	// get targetURL.
-	targetURL, err := getTargetURL(a.endpointURL, bucketName, objectName, url.Values{})
-	if err != nil {
-		return nil, err
-	}
-
-	// get bucket region.
-	region, err := a.getRegion(bucketName)
-	if err != nil {
-		return nil, err
-	}
-
-	// Instantiate a new request.
-	req, err := newRequest("GET", targetURL, requestMetadata{
-		credentials:      a.credentials,
-		userAgent:        a.userAgent,
-		bucketRegion:     region,
-		contentTransport: a.httpTransport,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Set ranges if length and offset are valid.
-	if length > 0 && offset >= 0 {
-		req.Set("Range", fmt.Sprintf("bytes=%d-%d", offset, offset+length-1))
-	} else if offset > 0 && length == 0 {
-		req.Set("Range", fmt.Sprintf("bytes=%d-", offset))
-	} else if length < 0 && offset == 0 {
-		req.Set("Range", fmt.Sprintf("bytes=%d", length))
-	}
-	return req, nil
 }
 
 // getObject - retrieve object from Object Storage.
@@ -294,32 +255,53 @@ func (a API) getObjectRequest(bucketName, objectName string, offset, length int6
 //
 // For more information about the HTTP Range header.
 // go to http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35.
-func (a API) getObject(bucketName, objectName string, offset, length int64) (io.ReadCloser, ObjectStat, error) {
+func (c Client) getObject(bucketName, objectName string, offset, length int64) (io.ReadCloser, ObjectStat, error) {
+	// Validate input arguments.
 	if err := isValidBucketName(bucketName); err != nil {
 		return nil, ObjectStat{}, err
 	}
 	if err := isValidObjectName(objectName); err != nil {
 		return nil, ObjectStat{}, err
 	}
-	req, err := a.getObjectRequest(bucketName, objectName, offset, length)
+
+	customHeader := make(http.Header)
+	// Set ranges if length and offset are valid.
+	if length > 0 && offset >= 0 {
+		customHeader.Set("Range", fmt.Sprintf("bytes=%d-%d", offset, offset+length-1))
+	} else if offset > 0 && length == 0 {
+		customHeader.Set("Range", fmt.Sprintf("bytes=%d-", offset))
+	} else if length < 0 && offset == 0 {
+		customHeader.Set("Range", fmt.Sprintf("bytes=%d", length))
+	}
+
+	// Instantiate a new request.
+	req, err := c.newRequest("GET", requestMetadata{
+		bucketName:   bucketName,
+		objectName:   objectName,
+		customHeader: customHeader,
+	})
 	if err != nil {
 		return nil, ObjectStat{}, err
 	}
-	resp, err := req.Do()
+	// Execute the request.
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, ObjectStat{}, err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
-			return nil, ObjectStat{}, BodyToErrorResponse(resp.Body)
+			return nil, ObjectStat{}, HTTPRespToErrorResponse(resp, bucketName, objectName)
 		}
 	}
-	md5sum := strings.Trim(resp.Header.Get("ETag"), "\"") // trim off the odd double quotes
+	// trim off the odd double quotes.
+	md5sum := strings.Trim(resp.Header.Get("ETag"), "\"")
+	// parse the date.
 	date, err := time.Parse(http.TimeFormat, resp.Header.Get("Last-Modified"))
 	if err != nil {
+		msg := "Last-Modified time format not recognized. " + reportIssue
 		return nil, ObjectStat{}, ErrorResponse{
 			Code:            "InternalError",
-			Message:         "Last-Modified time format not recognized, please report this issue at https://github.com/minio/minio-go/issues.",
+			Message:         msg,
 			RequestID:       resp.Header.Get("x-amz-request-id"),
 			HostID:          resp.Header.Get("x-amz-id-2"),
 			AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),

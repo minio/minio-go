@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"io"
+	"net/http"
 	"strconv"
 )
 
@@ -96,12 +96,71 @@ func (e ErrorResponse) Error() string {
 	return e.Message
 }
 
-// BodyToErrorResponse returns a new encoded ErrorResponse structure
-func BodyToErrorResponse(errBody io.Reader) error {
+// Common reporting string
+const (
+	reportIssue = "Please report this issue at https://github.com/minio/minio-go/issues."
+)
+
+// HTTPRespToErrorResponse returns a new encoded ErrorResponse structure
+func HTTPRespToErrorResponse(resp *http.Response, bucketName, objectName string) error {
+	if resp == nil {
+		msg := "Response is empty. " + reportIssue
+		return ErrInvalidArgument(msg)
+	}
 	var errorResponse ErrorResponse
-	err := xmlDecoder(errBody, &errorResponse)
+	err := xmlDecoder(resp.Body, &errorResponse)
 	if err != nil {
-		return err
+		switch resp.StatusCode {
+		case http.StatusNotFound:
+			if objectName == "" {
+				errorResponse = ErrorResponse{
+					Code:            "NoSuchBucket",
+					Message:         "The specified bucket does not exist.",
+					BucketName:      bucketName,
+					RequestID:       resp.Header.Get("x-amz-request-id"),
+					HostID:          resp.Header.Get("x-amz-id-2"),
+					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
+				}
+			} else {
+				errorResponse = ErrorResponse{
+					Code:            "NoSuchKey",
+					Message:         "The specified key does not exist.",
+					BucketName:      bucketName,
+					Key:             objectName,
+					RequestID:       resp.Header.Get("x-amz-request-id"),
+					HostID:          resp.Header.Get("x-amz-id-2"),
+					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
+				}
+			}
+		case http.StatusForbidden:
+			errorResponse = ErrorResponse{
+				Code:            "AccessDenied",
+				Message:         "Access Denied.",
+				BucketName:      bucketName,
+				Key:             objectName,
+				RequestID:       resp.Header.Get("x-amz-request-id"),
+				HostID:          resp.Header.Get("x-amz-id-2"),
+				AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
+			}
+		case http.StatusConflict:
+			errorResponse = ErrorResponse{
+				Code:            "Conflict",
+				Message:         "Bucket not empty.",
+				BucketName:      bucketName,
+				RequestID:       resp.Header.Get("x-amz-request-id"),
+				HostID:          resp.Header.Get("x-amz-id-2"),
+				AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
+			}
+		default:
+			errorResponse = ErrorResponse{
+				Code:            resp.Status,
+				Message:         resp.Status,
+				BucketName:      bucketName,
+				RequestID:       resp.Header.Get("x-amz-request-id"),
+				HostID:          resp.Header.Get("x-amz-id-2"),
+				AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
+			}
+		}
 	}
 	return errorResponse
 }

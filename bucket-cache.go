@@ -17,123 +17,79 @@
 package minio
 
 import (
+	"encoding/hex"
 	"net/http"
 	"net/url"
 	"path/filepath"
 	"sync"
 )
 
-// bucketRegionCache provides simple mechansim to hold bucket regions in memory.
-type bucketRegionCache struct {
+// bucketLocationCache provides simple mechansim to hold bucket locations in memory.
+type bucketLocationCache struct {
 	// Mutex is used for handling the concurrent
 	// read/write requests for cache
 	sync.RWMutex
 
-	// items holds the cached regions.
+	// items holds the cached bucket locations.
 	items map[string]string
 }
 
-// newBucketRegionCache provides a new bucket region cache to be used
+// newBucketLocationCache provides a new bucket location cache to be used
 // internally with the client object.
-func newBucketRegionCache() *bucketRegionCache {
-	return &bucketRegionCache{
+func newBucketLocationCache() *bucketLocationCache {
+	return &bucketLocationCache{
 		items: make(map[string]string),
 	}
 }
 
 // Get returns a value of a given key if it exists
-func (r *bucketRegionCache) Get(bucketName string) (region string, ok bool) {
+func (r *bucketLocationCache) Get(bucketName string) (location string, ok bool) {
 	r.RLock()
 	defer r.RUnlock()
-	region, ok = r.items[bucketName]
+	location, ok = r.items[bucketName]
 	return
 }
 
 // Set will persist a value to the cache
-func (r *bucketRegionCache) Set(bucketName string, region string) {
+func (r *bucketLocationCache) Set(bucketName string, location string) {
 	r.Lock()
 	defer r.Unlock()
-	r.items[bucketName] = region
+	r.items[bucketName] = location
 }
 
 // Delete deletes a bucket name.
-func (r *bucketRegionCache) Delete(bucketName string) {
+func (r *bucketLocationCache) Delete(bucketName string) {
 	r.Lock()
 	defer r.Unlock()
 	delete(r.items, bucketName)
 }
 
-// getRegion - get region for the bucketName from region map cache.
-func (a API) getRegion(bucketName string) (string, error) {
-	// If signature version '2', no need to fetch bucket location.
-	if a.credentials.Signature.isV2() {
+// getBucketLocation - get location for the bucketName from location map cache.
+func (c Client) getBucketLocation(bucketName string) (string, error) {
+	// For anonymous requests, default to "us-east-1" and let other calls
+	// move forward.
+	if c.anonymous {
 		return "us-east-1", nil
 	}
-	// If signature version '4' and latest and endpoint is not Amazon.
-	// Return 'us-east-1'
-	if a.credentials.Signature.isV4() || a.credentials.Signature.isLatest() {
-		if !isAmazonEndpoint(a.endpointURL) {
-			return "us-east-1", nil
-		}
-	}
-	if region, ok := a.bucketRgnC.Get(bucketName); ok {
-		return region, nil
+	if location, ok := c.bucketLocCache.Get(bucketName); ok {
+		return location, nil
 	}
 
-	// get bucket location.
-	location, err := a.getBucketLocation(bucketName)
-	if err != nil {
-		return "", err
-	}
-	region := "us-east-1"
-	// location is region in context of S3 API.
-	if location != "" {
-		region = location
-	}
-	a.bucketRgnC.Set(bucketName, region)
-	return region, nil
-}
-
-// getBucketLocationRequest wrapper creates a new getBucketLocation request.
-func (a API) getBucketLocationRequest(bucketName string) (*Request, error) {
-	// Set location query.
-	urlValues := make(url.Values)
-	urlValues.Set("location", "")
-
-	// Set get bucket location always as path style.
-	targetURL := a.endpointURL
-	targetURL.Path = filepath.Join(bucketName, "")
-	targetURL.RawQuery = urlValues.Encode()
-
-	// Instantiate a new request.
-	req, err := newRequest("GET", targetURL, requestMetadata{
-		bucketRegion:     "us-east-1",
-		credentials:      a.credentials,
-		contentTransport: a.httpTransport,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return req, nil
-}
-
-// getBucketLocation uses location subresource to return a bucket's region.
-func (a API) getBucketLocation(bucketName string) (string, error) {
 	// Initialize a new request.
-	req, err := a.getBucketLocationRequest(bucketName)
+	req, err := c.getBucketLocationRequest(bucketName)
 	if err != nil {
 		return "", err
 	}
 
 	// Initiate the request.
-	resp, err := req.Do()
+	resp, err := c.httpClient.Do(req)
 	defer closeResponse(resp)
 	if err != nil {
 		return "", err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return "", BodyToErrorResponse(resp.Body)
+			return "", HTTPRespToErrorResponse(resp, bucketName, "")
 		}
 	}
 
@@ -144,16 +100,54 @@ func (a API) getBucketLocation(bucketName string) (string, error) {
 		return "", err
 	}
 
+	location := locationConstraint
 	// location is empty will be 'us-east-1'.
-	if locationConstraint == "" {
-		return "us-east-1", nil
+	if location == "" {
+		location = "us-east-1"
 	}
 
 	// location can be 'EU' convert it to meaningful 'eu-west-1'.
-	if locationConstraint == "EU" {
-		return "eu-west-1", nil
+	if location == "EU" {
+		location = "eu-west-1"
 	}
 
-	// return location.
-	return locationConstraint, nil
+	// Save the location into cache.
+	c.bucketLocCache.Set(bucketName, location)
+
+	// Return.
+	return location, nil
+}
+
+// getBucketLocationRequest wrapper creates a new getBucketLocation request.
+func (c Client) getBucketLocationRequest(bucketName string) (*http.Request, error) {
+	// Set location query.
+	urlValues := make(url.Values)
+	urlValues.Set("location", "")
+
+	// Set get bucket location always as path style.
+	targetURL := c.endpointURL
+	targetURL.Path = filepath.Join(bucketName, "")
+	targetURL.RawQuery = urlValues.Encode()
+
+	// get a new HTTP request for the method.
+	req, err := http.NewRequest("GET", targetURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// set UserAgent for the request.
+	c.setUserAgent(req)
+
+	// set sha256 sum for signature calculation only with signature version '4'.
+	if c.signature.isV4() || c.signature.isLatest() {
+		req.Header.Set("X-Amz-Content-Sha256", hex.EncodeToString(sum256([]byte{})))
+	}
+
+	// Sign the request.
+	if c.signature.isV4() || c.signature.isLatest() {
+		req = SignV4(*req, c.accessKeyID, c.secretAccessKey, "us-east-1")
+	} else if c.signature.isV2() {
+		req = SignV2(*req, c.accessKeyID, c.secretAccessKey)
+	}
+	return req, nil
 }

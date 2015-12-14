@@ -50,5 +50,5 @@ func main() {
 		fmt.Printf("-F %s=%s ", k, v)
 	}
 	fmt.Printf("-F file=@/etc/bashrc ")
-	fmt.Printf(config.Endpoint + "/bucket-name\n")
+	fmt.Printf("https://play.minio.io:9002/bucket-name\n")
 }

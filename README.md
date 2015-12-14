@@ -49,10 +49,11 @@ func main() {
 	if err != nil {
 	    log.Fatalln(err)
 	}
-	for bucket := range s3Client.ListBuckets() {
-		if bucket.Err != nil {
-			log.Fatalln(bucket.Err)
-		}
+	buckets, err := s3Client.ListBuckets()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	for _, bucket := range buckets {
 		log.Println(bucket)
 	}
 }
@@ -66,7 +67,7 @@ func main() {
 * [RemoveBucket(bucketName) error](examples/s3/removebucket.go)
 * [GetBucketACL(bucketName) (BucketACL, error)](examples/s3/getbucketacl.go)
 * [SetBucketACL(bucketName, BucketACL) error)](examples/s3/setbucketacl.go)
-* [ListBuckets() <-chan BucketStat](examples/s3/listbuckets.go)
+* [ListBuckets() []BucketStat](examples/s3/listbuckets.go)
 * [ListObjects(bucketName, objectPrefix, recursive) <-chan ObjectStat](examples/s3/listobjects.go)
 * [ListIncompleteUploads(bucketName, prefix, recursive) <-chan ObjectMultipartStat](examples/s3/listincompleteuploads.go)
 

@@ -1,141 +1,76 @@
+/*
+ * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2015 Minio, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package minio
 
 import (
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
 )
 
 // BucketExists verify if bucket exists and you have permission to access it.
-func (a API) BucketExists(bucketName string) error {
+func (c Client) BucketExists(bucketName string) error {
 	if err := isValidBucketName(bucketName); err != nil {
 		return err
 	}
-	req, err := a.bucketExistsRequest(bucketName)
+	req, err := c.newRequest("HEAD", requestMetadata{
+		bucketName: bucketName,
+	})
 	if err != nil {
 		return err
 	}
-	resp, err := req.Do()
+	resp, err := c.httpClient.Do(req)
 	defer closeResponse(resp)
 	if err != nil {
 		return err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			// Head has no response body, handle it.
-			var errorResponse ErrorResponse
-			switch resp.StatusCode {
-			case http.StatusNotFound:
-				errorResponse = ErrorResponse{
-					Code:            "NoSuchBucket",
-					Message:         "The specified bucket does not exist.",
-					BucketName:      bucketName,
-					RequestID:       resp.Header.Get("x-amz-request-id"),
-					HostID:          resp.Header.Get("x-amz-id-2"),
-					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
-				}
-			case http.StatusForbidden:
-				errorResponse = ErrorResponse{
-					Code:            "AccessDenied",
-					Message:         "Access Denied.",
-					BucketName:      bucketName,
-					RequestID:       resp.Header.Get("x-amz-request-id"),
-					HostID:          resp.Header.Get("x-amz-id-2"),
-					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
-				}
-			default:
-				errorResponse = ErrorResponse{
-					Code:            resp.Status,
-					Message:         resp.Status,
-					BucketName:      bucketName,
-					RequestID:       resp.Header.Get("x-amz-request-id"),
-					HostID:          resp.Header.Get("x-amz-id-2"),
-					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
-				}
-			}
-			return errorResponse
+			return HTTPRespToErrorResponse(resp, bucketName, "")
 		}
 	}
 	return nil
 }
 
-// bucketExistsRequest constructs a new request for BucketExists.
-func (a API) bucketExistsRequest(bucketName string) (*Request, error) {
-	targetURL, err := getTargetURL(a.endpointURL, bucketName, "", url.Values{})
-	if err != nil {
-		return nil, err
-	}
-
-	// get bucket region.
-	region, err := a.getRegion(bucketName)
-	if err != nil {
-		return nil, err
-	}
-
-	return newRequest("HEAD", targetURL, requestMetadata{
-		credentials:      a.credentials,
-		userAgent:        a.userAgent,
-		bucketRegion:     region,
-		contentTransport: a.httpTransport,
-	})
-}
-
 // StatObject verifies if object exists and you have permission to access.
-func (a API) StatObject(bucketName, objectName string) (ObjectStat, error) {
+func (c Client) StatObject(bucketName, objectName string) (ObjectStat, error) {
 	if err := isValidBucketName(bucketName); err != nil {
 		return ObjectStat{}, err
 	}
 	if err := isValidObjectName(objectName); err != nil {
 		return ObjectStat{}, err
 	}
-	req, err := a.statObjectRequest(bucketName, objectName)
+	// Instantiate a new request.
+	req, err := c.newRequest("HEAD", requestMetadata{
+		bucketName: bucketName,
+		objectName: objectName,
+	})
 	if err != nil {
 		return ObjectStat{}, err
 	}
-	resp, err := req.Do()
+	resp, err := c.httpClient.Do(req)
 	defer closeResponse(resp)
 	if err != nil {
 		return ObjectStat{}, err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			var errorResponse ErrorResponse
-			switch resp.StatusCode {
-			case http.StatusNotFound:
-				errorResponse = ErrorResponse{
-					Code:            "NoSuchKey",
-					Message:         "The specified key does not exist.",
-					BucketName:      bucketName,
-					Key:             objectName,
-					RequestID:       resp.Header.Get("x-amz-request-id"),
-					HostID:          resp.Header.Get("x-amz-id-2"),
-					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
-				}
-			case http.StatusForbidden:
-				errorResponse = ErrorResponse{
-					Code:            "AccessDenied",
-					Message:         "Access Denied.",
-					BucketName:      bucketName,
-					Key:             objectName,
-					RequestID:       resp.Header.Get("x-amz-request-id"),
-					HostID:          resp.Header.Get("x-amz-id-2"),
-					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
-				}
-			default:
-				errorResponse = ErrorResponse{
-					Code:            resp.Status,
-					Message:         resp.Status,
-					BucketName:      bucketName,
-					Key:             objectName,
-					RequestID:       resp.Header.Get("x-amz-request-id"),
-					HostID:          resp.Header.Get("x-amz-id-2"),
-					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
-				}
-
-			}
-			return ObjectStat{}, errorResponse
+			return ObjectStat{}, HTTPRespToErrorResponse(resp, bucketName, objectName)
 		}
 	}
 	md5sum := strings.Trim(resp.Header.Get("ETag"), "\"") // trim off the odd double quotes
@@ -143,7 +78,7 @@ func (a API) StatObject(bucketName, objectName string) (ObjectStat, error) {
 	if err != nil {
 		return ObjectStat{}, ErrorResponse{
 			Code:            "InternalError",
-			Message:         "Content-Length is invalid, please report this issue at https://github.com/minio/minio-go/issues.",
+			Message:         "Content-Length is invalid. " + reportIssue,
 			BucketName:      bucketName,
 			Key:             objectName,
 			RequestID:       resp.Header.Get("x-amz-request-id"),
@@ -155,7 +90,7 @@ func (a API) StatObject(bucketName, objectName string) (ObjectStat, error) {
 	if err != nil {
 		return ObjectStat{}, ErrorResponse{
 			Code:            "InternalError",
-			Message:         "Last-Modified time format is invalid, please report this issue at https://github.com/minio/minio-go/issues.",
+			Message:         "Last-Modified time format is invalid. " + reportIssue,
 			BucketName:      bucketName,
 			Key:             objectName,
 			RequestID:       resp.Header.Get("x-amz-request-id"),
@@ -175,33 +110,4 @@ func (a API) StatObject(bucketName, objectName string) (ObjectStat, error) {
 	objectStat.LastModified = date
 	objectStat.ContentType = contentType
 	return objectStat, nil
-}
-
-// statObjectRequest wrapper creates a new headObject request.
-func (a API) statObjectRequest(bucketName, objectName string) (*Request, error) {
-	// get targetURL.
-	targetURL, err := getTargetURL(a.endpointURL, bucketName, objectName, url.Values{})
-	if err != nil {
-		return nil, err
-	}
-
-	// get bucket region.
-	region, err := a.getRegion(bucketName)
-	if err != nil {
-		return nil, err
-	}
-
-	// Instantiate a new request.
-	req, err := newRequest("HEAD", targetURL, requestMetadata{
-		credentials:      a.credentials,
-		userAgent:        a.userAgent,
-		bucketRegion:     region,
-		contentTransport: a.httpTransport,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Return new request.
-	return req, nil
 }

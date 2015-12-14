@@ -49,6 +49,6 @@ func main() {
 	for k, v := range m {
 		fmt.Printf("-F %s=%s ", k, v)
 	}
-	fmt.Printf("-F file=@/etc/bashrc ")
-	fmt.Printf(config.Endpoint + "/bucket-name\n")
+	fmt.Printf("-F file=@/etc/bash.bashrc ")
+	fmt.Printf("https://bucket-name.s3.amazonaws.com\n")
 }

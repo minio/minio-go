@@ -67,7 +67,7 @@ func (a completedParts) Less(i, j int) bool { return a[i].PartNumber < a[j].Part
 //
 // NOTE: For anonymous requests Amazon S3 doesn't allow multipart upload,
 // so we fall back to single PUT operation.
-func (a API) PutObject(bucketName, objectName string, data io.ReadSeeker, size int64, contentType string) (int64, error) {
+func (c Client) PutObject(bucketName, objectName string, data io.ReadSeeker, size int64, contentType string) (int64, error) {
 	// Input validation.
 	if err := isValidBucketName(bucketName); err != nil {
 		return 0, err
@@ -76,7 +76,7 @@ func (a API) PutObject(bucketName, objectName string, data io.ReadSeeker, size i
 		return 0, err
 	}
 	// NOTE: S3 doesn't allow anonymous multipart requests.
-	if isAmazonEndpoint(a.endpointURL) && isAnonymousCredentials(*a.credentials) {
+	if isAmazonEndpoint(c.endpointURL) && c.anonymous {
 		if size <= -1 {
 			return 0, ErrorResponse{
 				Code:       "NotImplemented",
@@ -86,11 +86,11 @@ func (a API) PutObject(bucketName, objectName string, data io.ReadSeeker, size i
 			}
 		}
 		// Do not compute MD5 for anonymous requests to Amazon S3. Uploads upto 5GB in size.
-		return a.putAnonymous(bucketName, objectName, data, size, contentType)
+		return c.putAnonymous(bucketName, objectName, data, size, contentType)
 	}
 	// NOTE: Google Cloud Storage multipart Put is not compatible with Amazon S3 APIs.
 	// Current implementation will only upload a maximum of 5GB to Google Cloud Storage servers.
-	if isGoogleEndpoint(a.endpointURL) {
+	if isGoogleEndpoint(c.endpointURL) {
 		if size <= -1 {
 			return 0, ErrorResponse{
 				Code:       "NotImplemented",
@@ -100,19 +100,26 @@ func (a API) PutObject(bucketName, objectName string, data io.ReadSeeker, size i
 			}
 		}
 		// Do not compute MD5 for Google Cloud Storage. Uploads upto 5GB in size.
-		return a.putNoChecksum(bucketName, objectName, data, size, contentType)
+		return c.putNoChecksum(bucketName, objectName, data, size, contentType)
 	}
 	// Large file upload is initiated for uploads for input data size
 	// if its greater than 5MB or data size is negative.
 	if size >= minimumPartSize || size < 0 {
-		return a.putLargeObject(bucketName, objectName, data, size, contentType)
+		return c.putLargeObject(bucketName, objectName, data, size, contentType)
 	}
-	return a.putSmallObject(bucketName, objectName, data, size, contentType)
+	return c.putSmallObject(bucketName, objectName, data, size, contentType)
 }
 
 // putNoChecksum special function used Google Cloud Storage. This special function
 // is used for Google Cloud Storage since Google's multipart API is not S3 compatible.
-func (a API) putNoChecksum(bucketName, objectName string, data io.ReadSeeker, size int64, contentType string) (int64, error) {
+func (c Client) putNoChecksum(bucketName, objectName string, data io.ReadSeeker, size int64, contentType string) (int64, error) {
+	// Input validation.
+	if err := isValidBucketName(bucketName); err != nil {
+		return 0, err
+	}
+	if err := isValidObjectName(objectName); err != nil {
+		return 0, err
+	}
 	if size > maxPartSize {
 		return 0, ErrEntityTooLarge(size, bucketName, objectName)
 	}
@@ -124,7 +131,8 @@ func (a API) putNoChecksum(bucketName, objectName string, data io.ReadSeeker, si
 		Size:        size,
 		ContentType: contentType,
 	}
-	if _, err := a.putObject(bucketName, objectName, putObjMetadata); err != nil {
+	// Execute put object.
+	if _, err := c.putObject(bucketName, objectName, putObjMetadata); err != nil {
 		return 0, err
 	}
 	return size, nil
@@ -133,12 +141,27 @@ func (a API) putNoChecksum(bucketName, objectName string, data io.ReadSeeker, si
 // putAnonymous is a special function for uploading content as anonymous request.
 // This special function is necessary since Amazon S3 doesn't allow anonymous
 // multipart uploads.
-func (a API) putAnonymous(bucketName, objectName string, data io.ReadSeeker, size int64, contentType string) (int64, error) {
-	return a.putNoChecksum(bucketName, objectName, data, size, contentType)
+func (c Client) putAnonymous(bucketName, objectName string, data io.ReadSeeker, size int64, contentType string) (int64, error) {
+	// Input validation.
+	if err := isValidBucketName(bucketName); err != nil {
+		return 0, err
+	}
+	if err := isValidObjectName(objectName); err != nil {
+		return 0, err
+	}
+	return c.putNoChecksum(bucketName, objectName, data, size, contentType)
 }
 
 // putSmallObject uploads files smaller than 5 mega bytes.
-func (a API) putSmallObject(bucketName, objectName string, data io.ReadSeeker, size int64, contentType string) (int64, error) {
+func (c Client) putSmallObject(bucketName, objectName string, data io.ReadSeeker, size int64, contentType string) (int64, error) {
+	// Input validation.
+	if err := isValidBucketName(bucketName); err != nil {
+		return 0, err
+	}
+	if err := isValidObjectName(objectName); err != nil {
+		return 0, err
+	}
+	// Read input data fully into buffer.
 	dataBytes, err := ioutil.ReadAll(data)
 	if err != nil {
 		return 0, err
@@ -146,6 +169,7 @@ func (a API) putSmallObject(bucketName, objectName string, data io.ReadSeeker, s
 	if int64(len(dataBytes)) != size {
 		return 0, ErrUnexpectedEOF(int64(len(dataBytes)), size, bucketName, objectName)
 	}
+	// Construct a new PUT object metadata.
 	putObjMetadata := putObjectMetadata{
 		MD5Sum:      sumMD5(dataBytes),
 		Sha256Sum:   sum256(dataBytes),
@@ -154,38 +178,49 @@ func (a API) putSmallObject(bucketName, objectName string, data io.ReadSeeker, s
 		ContentType: contentType,
 	}
 	// Single part use case, use putObject directly.
-	if _, err := a.putObject(bucketName, objectName, putObjMetadata); err != nil {
+	if _, err := c.putObject(bucketName, objectName, putObjMetadata); err != nil {
 		return 0, err
 	}
 	return size, nil
 }
 
 // putLargeObject uploads files bigger than 5 mega bytes.
-func (a API) putLargeObject(bucketName, objectName string, data io.ReadSeeker, size int64, contentType string) (int64, error) {
-	var uploadID string
-	isRecursive := true
-	for mpUpload := range a.listIncompleteUploads(bucketName, objectName, isRecursive) {
-		if mpUpload.Err != nil {
-			return 0, mpUpload.Err
-		}
-		if mpUpload.Key == objectName {
-			uploadID = mpUpload.UploadID
-			break
-		}
+func (c Client) putLargeObject(bucketName, objectName string, data io.ReadSeeker, size int64, contentType string) (int64, error) {
+	// Input validation.
+	if err := isValidBucketName(bucketName); err != nil {
+		return 0, err
+	}
+	if err := isValidObjectName(objectName); err != nil {
+		return 0, err
+	}
+	// Find upload id before upload.
+	uploadID, err := c.findUploadID(bucketName, objectName)
+	if err != nil {
+		return 0, err
 	}
 	if uploadID == "" {
-		initMultipartUploadResult, err := a.initiateMultipartUpload(bucketName, objectName, contentType)
+		// Initiate multipart upload.
+		initMultipartUploadResult, err := c.initiateMultipartUpload(bucketName, objectName, contentType)
 		if err != nil {
 			return 0, err
 		}
+		// Save the new upload id.
 		uploadID = initMultipartUploadResult.UploadID
 	}
 	// Initiate multipart upload.
-	return a.putParts(bucketName, objectName, uploadID, data, size)
+	return c.putParts(bucketName, objectName, uploadID, data, size)
 }
 
 // putParts - fully managed multipart uploader, resumes where its left off at `uploadID`
-func (a API) putParts(bucketName, objectName, uploadID string, data io.ReadSeeker, size int64) (int64, error) {
+func (c Client) putParts(bucketName, objectName, uploadID string, data io.ReadSeeker, size int64) (int64, error) {
+	// Input validation.
+	if err := isValidBucketName(bucketName); err != nil {
+		return 0, err
+	}
+	if err := isValidObjectName(objectName); err != nil {
+		return 0, err
+	}
+
 	// Cleanup any previously left stale files, as the function exits.
 	defer cleanupStaleTempfiles("multiparts$")
 
@@ -198,13 +233,17 @@ func (a API) putParts(bucketName, objectName, uploadID string, data io.ReadSeeke
 	// Starting part number. Always part '1'.
 	partNumber := 1
 	completeMultipartUpload := completeMultipartUpload{}
-	for objPart := range a.listObjectPartsRecursive(bucketName, objectName, uploadID) {
+	doneCh := make(chan bool, 1)
+	defer close(doneCh)
+	for objPart := range c.listObjectPartsRecursive(bucketName, objectName, uploadID, doneCh) {
 		if objPart.Err != nil {
 			return 0, objPart.Err
 		}
 		// Verify if there is a hole i.e one of the parts is missing
 		// Break and start uploading that part.
 		if partNumber != objPart.PartNumber {
+			// Close listObjectParts channel.
+			doneCh <- true
 			break
 		}
 		var completedPart completePart
@@ -250,8 +289,8 @@ func (a API) putParts(bucketName, objectName, uploadID string, data io.ReadSeeke
 	}
 
 	var enableSha256Sum bool
-	// if signature V4 - enable Sha256 calculation for individual parts.
-	if a.credentials.Signature.isV4() {
+	// Enable Sha256 calculation if signature version '4'.
+	if c.signature.isV4() {
 		enableSha256Sum = true
 	}
 
@@ -262,6 +301,7 @@ func (a API) putParts(bucketName, objectName, uploadID string, data io.ReadSeeke
 		// Account for all parts uploaded simultaneousy.
 		wg.Add(1)
 		part.Number = partNumber
+		// Initiate the part upload goroutine.
 		go func(mpQueueCh <-chan struct{}, part partMetadata, wg *sync.WaitGroup, uploadedPartsCh chan<- uploadedPart) {
 			defer wg.Done()
 			defer func() {
@@ -274,7 +314,8 @@ func (a API) putParts(bucketName, objectName, uploadID string, data io.ReadSeeke
 				}
 				return
 			}
-			complPart, err := a.uploadPart(bucketName, objectName, uploadID, part)
+			// execute upload part.
+			complPart, err := c.uploadPart(bucketName, objectName, uploadID, part)
 			if err != nil {
 				uploadedPartsCh <- uploadedPart{
 					Error:  err,
@@ -300,7 +341,7 @@ func (a API) putParts(bucketName, objectName, uploadID string, data io.ReadSeeke
 			}
 			// Save successfully uploaded size.
 			totalWritten += part.Size
-			// Save successfully uploaded part metadata.
+			// Save successfully uploaded part metadatc.
 			completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, uploadedPrt.Part)
 		}
 		partNumber++
@@ -313,68 +354,58 @@ func (a API) putParts(bucketName, objectName, uploadID string, data io.ReadSeeke
 			return totalWritten, ErrUnexpectedEOF(totalWritten, size, bucketName, objectName)
 		}
 	}
+	// sort all completed parts.
 	sort.Sort(completedParts(completeMultipartUpload.Parts))
-	_, err := a.completeMultipartUpload(bucketName, objectName, uploadID, completeMultipartUpload)
+	_, err := c.completeMultipartUpload(bucketName, objectName, uploadID, completeMultipartUpload)
 	if err != nil {
 		return totalWritten, err
 	}
 	return totalWritten, nil
 }
 
-// putObjectRequest wrapper creates a new PutObject request.
-func (a API) putObjectRequest(bucketName, objectName string, putObjMetadata putObjectMetadata) (*Request, error) {
-	targetURL, err := getTargetURL(a.endpointURL, bucketName, objectName, url.Values{})
-	if err != nil {
-		return nil, err
+// putObject - add an object to a bucket.
+// NOTE: You must have WRITE permissions on a bucket to add an object to it.
+func (c Client) putObject(bucketName, objectName string, putObjMetadata putObjectMetadata) (ObjectStat, error) {
+	// Input validation.
+	if err := isValidBucketName(bucketName); err != nil {
+		return ObjectStat{}, err
 	}
+	if err := isValidObjectName(objectName); err != nil {
+		return ObjectStat{}, err
+	}
+
 	if strings.TrimSpace(putObjMetadata.ContentType) == "" {
 		putObjMetadata.ContentType = "application/octet-stream"
 	}
 
-	// get bucket region.
-	region, err := a.getRegion(bucketName)
-	if err != nil {
-		return nil, err
-	}
-
 	// Set headers.
-	putObjMetadataHeader := make(http.Header)
-	putObjMetadataHeader.Set("Content-Type", putObjMetadata.ContentType)
+	customHeader := make(http.Header)
+	customHeader.Set("Content-Type", putObjMetadata.ContentType)
 
 	// Populate request metadata.
 	reqMetadata := requestMetadata{
-		credentials:        a.credentials,
-		userAgent:          a.userAgent,
-		bucketRegion:       region,
+		bucketName:         bucketName,
+		objectName:         objectName,
+		customHeader:       customHeader,
 		contentBody:        putObjMetadata.ReadCloser,
 		contentLength:      putObjMetadata.Size,
-		contentHeader:      putObjMetadataHeader,
-		contentTransport:   a.httpTransport,
 		contentSha256Bytes: putObjMetadata.Sha256Sum,
 		contentMD5Bytes:    putObjMetadata.MD5Sum,
 	}
-	req, err := newRequest("PUT", targetURL, reqMetadata)
-	if err != nil {
-		return nil, err
-	}
-	return req, nil
-}
-
-// putObject - add an object to a bucket.
-// NOTE: You must have WRITE permissions on a bucket to add an object to it.
-func (a API) putObject(bucketName, objectName string, putObjMetadata putObjectMetadata) (ObjectStat, error) {
-	req, err := a.putObjectRequest(bucketName, objectName, putObjMetadata)
+	// Initiate new request.
+	req, err := c.newRequest("PUT", reqMetadata)
 	if err != nil {
 		return ObjectStat{}, err
 	}
-	resp, err := req.Do()
+	// Execute the request.
+	resp, err := c.httpClient.Do(req)
 	defer closeResponse(resp)
 	if err != nil {
 		return ObjectStat{}, err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return ObjectStat{}, BodyToErrorResponse(resp.Body)
+			return ObjectStat{}, HTTPRespToErrorResponse(resp, bucketName, objectName)
 		}
 	}
 	var metadata ObjectStat
@@ -385,57 +416,52 @@ func (a API) putObject(bucketName, objectName string, putObjMetadata putObjectMe
 	return metadata, nil
 }
 
-// initiateMultipartRequest wrapper creates a new initiateMultiPart request.
-func (a API) initiateMultipartRequest(bucketName, objectName, contentType string) (*Request, error) {
+// initiateMultipartUpload initiates a multipart upload and returns an upload ID.
+func (c Client) initiateMultipartUpload(bucketName, objectName, contentType string) (initiateMultipartUploadResult, error) {
+	// Input validation.
+	if err := isValidBucketName(bucketName); err != nil {
+		return initiateMultipartUploadResult{}, err
+	}
+	if err := isValidObjectName(objectName); err != nil {
+		return initiateMultipartUploadResult{}, err
+	}
+
 	// Initialize url queries.
 	urlValues := make(url.Values)
 	urlValues.Set("uploads", "")
 
-	// get targetURL.
-	targetURL, err := getTargetURL(a.endpointURL, bucketName, objectName, urlValues)
-	if err != nil {
-		return nil, err
-	}
-
-	// get bucket region.
-	region, err := a.getRegion(bucketName)
-	if err != nil {
-		return nil, err
-	}
-
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
+
 	// set ContentType header.
-	multipartHeader := make(http.Header)
-	multipartHeader.Set("Content-Type", contentType)
+	customHeader := make(http.Header)
+	customHeader.Set("Content-Type", contentType)
 
 	reqMetadata := requestMetadata{
-		credentials:      a.credentials,
-		userAgent:        a.userAgent,
-		bucketRegion:     region,
-		contentHeader:    multipartHeader,
-		contentTransport: a.httpTransport,
+		bucketName:   bucketName,
+		objectName:   objectName,
+		queryValues:  urlValues,
+		customHeader: customHeader,
 	}
-	return newRequest("POST", targetURL, reqMetadata)
-}
 
-// initiateMultipartUpload initiates a multipart upload and returns an upload ID.
-func (a API) initiateMultipartUpload(bucketName, objectName, contentType string) (initiateMultipartUploadResult, error) {
-	req, err := a.initiateMultipartRequest(bucketName, objectName, contentType)
+	// Instantiate the request.
+	req, err := c.newRequest("POST", reqMetadata)
 	if err != nil {
 		return initiateMultipartUploadResult{}, err
 	}
-	resp, err := req.Do()
+	// Execute the request.
+	resp, err := c.httpClient.Do(req)
 	defer closeResponse(resp)
 	if err != nil {
 		return initiateMultipartUploadResult{}, err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return initiateMultipartUploadResult{}, BodyToErrorResponse(resp.Body)
+			return initiateMultipartUploadResult{}, HTTPRespToErrorResponse(resp, bucketName, objectName)
 		}
 	}
+	// Decode xml initiate multipart.
 	initiateMultipartUploadResult := initiateMultipartUploadResult{}
 	err = xmlDecoder(resp.Body, &initiateMultipartUploadResult)
 	if err != nil {
@@ -444,8 +470,16 @@ func (a API) initiateMultipartUpload(bucketName, objectName, contentType string)
 	return initiateMultipartUploadResult, nil
 }
 
-// uploadPartRequest wrapper creates a new UploadPart request.
-func (a API) uploadPartRequest(bucketName, objectName, uploadID string, uploadingPart partMetadata) (*Request, error) {
+// uploadPart uploads a part in a multipart upload.
+func (c Client) uploadPart(bucketName, objectName, uploadID string, uploadingPart partMetadata) (completePart, error) {
+	// Input validation.
+	if err := isValidBucketName(bucketName); err != nil {
+		return completePart{}, err
+	}
+	if err := isValidObjectName(objectName); err != nil {
+		return completePart{}, err
+	}
+
 	// Get resources properly escaped and lined up before using them in http request.
 	urlValues := make(url.Values)
 	// Set part number.
@@ -453,115 +487,88 @@ func (a API) uploadPartRequest(bucketName, objectName, uploadID string, uploadin
 	// Set upload id.
 	urlValues.Set("uploadId", uploadID)
 
-	// get targetURL.
-	targetURL, err := getTargetURL(a.endpointURL, bucketName, objectName, urlValues)
-	if err != nil {
-		return nil, err
-	}
-
-	// get bucket region.
-	region, err := a.getRegion(bucketName)
-	if err != nil {
-		return nil, err
-	}
-
 	reqMetadata := requestMetadata{
-		credentials:        a.credentials,
-		userAgent:          a.userAgent,
-		bucketRegion:       region,
+		bucketName:         bucketName,
+		objectName:         objectName,
+		queryValues:        urlValues,
 		contentBody:        uploadingPart.ReadCloser,
 		contentLength:      uploadingPart.Size,
-		contentTransport:   a.httpTransport,
 		contentSha256Bytes: uploadingPart.Sha256Sum,
 		contentMD5Bytes:    uploadingPart.MD5Sum,
 	}
-	req, err := newRequest("PUT", targetURL, reqMetadata)
-	if err != nil {
-		return nil, err
-	}
-	return req, nil
-}
 
-// uploadPart uploads a part in a multipart upload.
-func (a API) uploadPart(bucketName, objectName, uploadID string, uploadingPart partMetadata) (completePart, error) {
-	req, err := a.uploadPartRequest(bucketName, objectName, uploadID, uploadingPart)
+	// Instantiate a request.
+	req, err := c.newRequest("PUT", reqMetadata)
 	if err != nil {
 		return completePart{}, err
 	}
-	// Initiate the request.
-	resp, err := req.Do()
+	// Execute the request.
+	resp, err := c.httpClient.Do(req)
 	defer closeResponse(resp)
 	if err != nil {
 		return completePart{}, err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return completePart{}, BodyToErrorResponse(resp.Body)
+			return completePart{}, HTTPRespToErrorResponse(resp, bucketName, objectName)
 		}
 	}
-	cPart := completePart{}
-	cPart.PartNumber = uploadingPart.Number
-	cPart.ETag = resp.Header.Get("ETag")
-	return cPart, nil
+	// Once successfully uploaded, return completed part.
+	cmplPart := completePart{}
+	cmplPart.PartNumber = uploadingPart.Number
+	cmplPart.ETag = resp.Header.Get("ETag")
+	return cmplPart, nil
 }
 
-// completeMultipartUploadRequest wrapper creates a new CompleteMultipartUpload request.
-func (a API) completeMultipartUploadRequest(bucketName, objectName, uploadID string,
-	complete completeMultipartUpload) (*Request, error) {
+// completeMultipartUpload completes a multipart upload by assembling previously uploaded parts.
+func (c Client) completeMultipartUpload(bucketName, objectName, uploadID string, complete completeMultipartUpload) (completeMultipartUploadResult, error) {
+	// Input validation.
+	if err := isValidBucketName(bucketName); err != nil {
+		return completeMultipartUploadResult{}, err
+	}
+	if err := isValidObjectName(objectName); err != nil {
+		return completeMultipartUploadResult{}, err
+	}
+
 	// Initialize url queries.
 	urlValues := make(url.Values)
 	urlValues.Set("uploadId", uploadID)
 
-	// get targetURL.
-	targetURL, err := getTargetURL(a.endpointURL, bucketName, objectName, urlValues)
-	if err != nil {
-		return nil, err
-	}
+	// Marshal complete multipart body.
 	completeMultipartUploadBytes, err := xml.Marshal(complete)
-	if err != nil {
-		return nil, err
-	}
-
-	// get bucket region.
-	region, err := a.getRegion(bucketName)
-	if err != nil {
-		return nil, err
-	}
-
-	completeMultipartUploadBuffer := bytes.NewBuffer(completeMultipartUploadBytes)
-	reqMetadata := requestMetadata{
-		credentials:        a.credentials,
-		userAgent:          a.userAgent,
-		bucketRegion:       region,
-		contentBody:        ioutil.NopCloser(completeMultipartUploadBuffer),
-		contentLength:      int64(completeMultipartUploadBuffer.Len()),
-		contentTransport:   a.httpTransport,
-		contentSha256Bytes: sum256(completeMultipartUploadBuffer.Bytes()),
-	}
-	req, err := newRequest("POST", targetURL, reqMetadata)
-	if err != nil {
-		return nil, err
-	}
-	return req, nil
-}
-
-// completeMultipartUpload completes a multipart upload by assembling previously uploaded parts.
-func (a API) completeMultipartUpload(bucketName, objectName, uploadID string,
-	c completeMultipartUpload) (completeMultipartUploadResult, error) {
-	req, err := a.completeMultipartUploadRequest(bucketName, objectName, uploadID, c)
 	if err != nil {
 		return completeMultipartUploadResult{}, err
 	}
-	resp, err := req.Do()
+
+	// Instantiate all the complete multipart buffer.
+	completeMultipartUploadBuffer := bytes.NewBuffer(completeMultipartUploadBytes)
+	reqMetadata := requestMetadata{
+		bucketName:         bucketName,
+		objectName:         objectName,
+		queryValues:        urlValues,
+		contentBody:        ioutil.NopCloser(completeMultipartUploadBuffer),
+		contentLength:      int64(completeMultipartUploadBuffer.Len()),
+		contentSha256Bytes: sum256(completeMultipartUploadBuffer.Bytes()),
+	}
+
+	// Instantiate the request.
+	req, err := c.newRequest("POST", reqMetadata)
+	if err != nil {
+		return completeMultipartUploadResult{}, err
+	}
+
+	// Execute the request.
+	resp, err := c.httpClient.Do(req)
 	defer closeResponse(resp)
 	if err != nil {
 		return completeMultipartUploadResult{}, err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return completeMultipartUploadResult{}, BodyToErrorResponse(resp.Body)
+			return completeMultipartUploadResult{}, HTTPRespToErrorResponse(resp, bucketName, objectName)
 		}
 	}
+	// If successful response, decode the body.
 	completeMultipartUploadResult := completeMultipartUploadResult{}
 	err = xmlDecoder(resp.Body, &completeMultipartUploadResult)
 	if err != nil {
