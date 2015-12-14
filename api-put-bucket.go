@@ -32,10 +32,6 @@ func (a API) MakeBucket(bucketName string, acl BucketACL, region string) error {
 		return ErrInvalidArgument("Unrecognized ACL " + acl.String())
 	}
 
-	if region == "" {
-		region = "us-east-1"
-	}
-
 	req, err := a.makeBucketRequest(bucketName, string(acl), region)
 	if err != nil {
 		return err
@@ -70,8 +66,13 @@ func (a API) makeBucketRequest(bucketName, acl, region string) (*Request, error)
 	reqMetadata = requestMetadata{
 		userAgent:        a.userAgent,
 		credentials:      a.credentials,
-		bucketRegion:     region,
+		bucketRegion:     "us-east-1",
 		contentTransport: a.httpTransport,
+	}
+
+	// if region is 'us-east-1' no need to apply location constraint on the bucket.
+	if region == "us-east-1" {
+		region = ""
 	}
 
 	// If region is set use to create bucket location config.
