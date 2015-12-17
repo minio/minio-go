@@ -19,6 +19,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/minio/minio-go"
@@ -35,10 +36,19 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	for object := range s3Client.ListObjects("bucket-name", "prefix", true) {
+	// Create a done channel to control 'ListObjects' go routine.
+	doneCh := make(struct{})
+
+	// Indicate to our routine to exit cleanly upon return.
+	defer close(doneCh)
+
+	// List all objects from a bucket-name with a matching prefix.
+	for object := range s3Client.ListObjects("bucket-name", "prefix", true, doneCh) {
 		if object.Err != nil {
-			log.Fatalln(object.Err)
+			fmt.Println(object.Err)
+			return
 		}
-		log.Println(object)
+		fmt.Println(object)
 	}
+	return
 }

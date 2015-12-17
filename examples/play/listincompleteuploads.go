@@ -19,6 +19,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/minio/minio-go"
@@ -35,10 +36,19 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	for multipartObject := range s3Client.ListIncompleteUploads("bucket-name", "objectName", true) {
+	// Create a done channel to control 'ListObjects' go routine.
+	doneCh := make(struct{})
+
+	// Indicate to our routine to exit cleanly upon return.
+	defer close(doneCh)
+
+	// List all multipart uploads from a bucket-name with a matching prefix.
+	for multipartObject := range s3Client.ListIncompleteUploads("bucket-name", "prefix", true, doneCh) {
 		if multipartObject.Err != nil {
-			log.Fatalln(multipartObject.Err)
+			fmt.Println(multipartObject.Err)
+			return
 		}
-		log.Println(multipartObject)
+		fmt.Println(multipartObject)
 	}
+	return
 }
