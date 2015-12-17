@@ -233,29 +233,33 @@ func (c Client) putParts(bucketName, objectName, uploadID string, data io.ReadSe
 	// Starting part number. Always part '1'.
 	partNumber := 1
 	completeMultipartUpload := completeMultipartUpload{}
-	doneCh := make(chan bool, 1)
-	defer close(doneCh)
-	for objPart := range c.listObjectPartsRecursive(bucketName, objectName, uploadID, doneCh) {
-		if objPart.Err != nil {
-			return 0, objPart.Err
+
+	listNext := c.getObjectPartsLister(bucketName, objectName, uploadID)
+
+listLoop:
+	for {
+		parts, err := listNext()
+		if err != nil {
+			return 0, err
 		}
-		// Verify if there is a hole i.e one of the parts is missing
-		// Break and start uploading that part.
-		if partNumber != objPart.PartNumber {
-			// Close listObjectParts channel.
-			doneCh <- true
+		if len(parts) == 0 {
 			break
 		}
-		var completedPart completePart
-		completedPart.PartNumber = objPart.PartNumber
-		completedPart.ETag = objPart.ETag
-		completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, completedPart)
-		// Add seek Offset for future Seek to skip entries.
-		seekOffset += objPart.Size
-		// Save total written to verify later.
-		totalWritten += objPart.Size
-		// Increment lexically to verify holes in next iteration.
-		partNumber++
+		for _, part := range parts {
+			if partNumber != part.PartNumber {
+				break listLoop
+			}
+			var completedPart completePart
+			completedPart.PartNumber = part.PartNumber
+			completedPart.ETag = part.ETag
+			completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, completedPart)
+			// Add seek Offset for future Seek to skip entries.
+			seekOffset += part.Size
+			// Save total written to verify later.
+			totalWritten += part.Size
+			// Increment lexically to verify holes in next iteration.
+			partNumber++
+		}
 	}
 
 	// Calculate the optimal part size for a given size.
