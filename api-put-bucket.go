@@ -1,7 +1,24 @@
+/*
+ * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2015 Minio, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package minio
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/xml"
 	"io/ioutil"
 	"net/http"
@@ -24,7 +41,13 @@ import (
 //
 // For Amazon S3 for more supported regions - http://docs.aws.amazon.com/general/latest/gr/rande.html
 // For Google Cloud Storage for more supported regions - https://cloud.google.com/storage/docs/bucket-locations
-func (a API) MakeBucket(bucketName string, acl BucketACL, region string) error {
+func (c Client) MakeBucket(bucketName string, acl BucketACL, location string) error {
+	// Validate if request is made on anonymous requests.
+	if c.anonymous {
+		return ErrInvalidArgument("Make bucket cannot be issued with anonymous credentials.")
+	}
+
+	// Validate the input arguments.
 	if err := isValidBucketName(bucketName); err != nil {
 		return err
 	}
@@ -32,13 +55,14 @@ func (a API) MakeBucket(bucketName string, acl BucketACL, region string) error {
 		return ErrInvalidArgument("Unrecognized ACL " + acl.String())
 	}
 
-	req, err := a.makeBucketRequest(bucketName, string(acl), region)
+	// Instantiate the request.
+	req, err := c.makeBucketRequest(bucketName, acl, location)
 	if err != nil {
 		return err
 	}
 
-	// Initiate the request.
-	resp, err := req.Do()
+	// Execute the request.
+	resp, err := c.httpClient.Do(req)
 	defer closeResponse(resp)
 	if err != nil {
 		return err
@@ -46,62 +70,77 @@ func (a API) MakeBucket(bucketName string, acl BucketACL, region string) error {
 
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return BodyToErrorResponse(resp.Body)
+			return HTTPRespToErrorResponse(resp, bucketName, "")
 		}
 	}
-
+	// Return.
 	return nil
 }
 
 // makeBucketRequest constructs request for makeBucket.
-func (a API) makeBucketRequest(bucketName, acl, region string) (*Request, error) {
-	// get target URL.
-	targetURL, err := getTargetURL(a.endpointURL, bucketName, "", url.Values{})
+func (c Client) makeBucketRequest(bucketName string, acl BucketACL, location string) (*http.Request, error) {
+	// Validate input arguments.
+	if err := isValidBucketName(bucketName); err != nil {
+		return nil, err
+	}
+	if !acl.isValidBucketACL() {
+		return nil, ErrInvalidArgument("Unrecognized ACL " + acl.String())
+	}
+
+	// Set get bucket location always as path style.
+	targetURL := c.endpointURL
+	targetURL.Path = "/" + bucketName
+
+	// get a new HTTP request for the method.
+	req, err := http.NewRequest("PUT", targetURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
 
-	// Initialize request metadata.
-	var reqMetadata requestMetadata
-	reqMetadata = requestMetadata{
-		userAgent:        a.userAgent,
-		credentials:      a.credentials,
-		bucketRegion:     "us-east-1",
-		contentTransport: a.httpTransport,
+	// by default bucket acl is set to private.
+	req.Header.Set("x-amz-acl", "private")
+	if acl != "" {
+		req.Header.Set("x-amz-acl", string(acl))
 	}
 
-	// if region is 'us-east-1' no need to apply location constraint on the bucket.
-	if region == "us-east-1" {
-		region = ""
+	// set UserAgent for the request.
+	c.setUserAgent(req)
+
+	// if location is 'us-east-1' no need to apply location constraint on the bucket.
+	if location == "us-east-1" {
+		location = ""
 	}
 
-	// If region is set use to create bucket location config.
-	if region != "" {
+	// set sha256 sum for signature calculation only with signature version '4'.
+	if c.signature.isV4() || c.signature.isLatest() {
+		req.Header.Set("X-Amz-Content-Sha256", hex.EncodeToString(sum256([]byte{})))
+	}
+
+	// If location is set use to create bucket location config.
+	if location != "" {
 		createBucketConfig := new(createBucketConfiguration)
-		createBucketConfig.Location = region
+		createBucketConfig.Location = location
 		var createBucketConfigBytes []byte
 		createBucketConfigBytes, err = xml.Marshal(createBucketConfig)
 		if err != nil {
 			return nil, err
 		}
 		createBucketConfigBuffer := bytes.NewBuffer(createBucketConfigBytes)
-		reqMetadata.contentBody = ioutil.NopCloser(createBucketConfigBuffer)
-		reqMetadata.contentLength = int64(createBucketConfigBuffer.Len())
-		reqMetadata.contentSha256Bytes = sum256(createBucketConfigBuffer.Bytes())
+		req.Body = ioutil.NopCloser(createBucketConfigBuffer)
+		req.ContentLength = int64(createBucketConfigBuffer.Len())
+		if c.signature.isV4() || c.signature.isLatest() {
+			req.Header.Set("X-Amz-Content-Sha256", hex.EncodeToString(sum256(createBucketConfigBuffer.Bytes())))
+		}
 	}
 
-	// Initialize new request.
-	req, err := newRequest("PUT", targetURL, reqMetadata)
-	if err != nil {
-		return nil, err
+	// Sign the request.
+	if c.signature.isV4() || c.signature.isLatest() {
+		req = SignV4(*req, c.accessKeyID, c.secretAccessKey, "us-east-1")
+	} else if c.signature.isV2() {
+		req = SignV2(*req, c.accessKeyID, c.secretAccessKey)
 	}
 
-	// by default bucket acl is set to private.
-	req.Set("x-amz-acl", "private")
-	if acl != "" {
-		req.Set("x-amz-acl", acl)
-	}
-
+	// Return signed request.
 	return req, nil
 }
 
@@ -113,7 +152,8 @@ func (a API) makeBucketRequest(bucketName, acl, region string) (*Request, error)
 //  public-read - owner gets full access, all others get read access.
 //  public-read-write - owner gets full access, all others get full access too.
 //  authenticated-read - owner gets full access, authenticated users get read access.
-func (a API) SetBucketACL(bucketName string, acl BucketACL) error {
+func (c Client) SetBucketACL(bucketName string, acl BucketACL) error {
+	// Input validation.
 	if err := isValidBucketName(bucketName); err != nil {
 		return err
 	}
@@ -121,63 +161,42 @@ func (a API) SetBucketACL(bucketName string, acl BucketACL) error {
 		return ErrInvalidArgument("Unrecognized ACL " + acl.String())
 	}
 
-	// Initialize a new request.
-	req, err := a.setBucketACLRequest(bucketName, string(acl))
+	// Set acl query.
+	urlValues := make(url.Values)
+	urlValues.Set("acl", "")
+
+	// Add misc headers.
+	customHeader := make(http.Header)
+
+	if acl != "" {
+		customHeader.Set("x-amz-acl", acl.String())
+	} else {
+		customHeader.Set("x-amz-acl", "private")
+	}
+
+	// Instantiate a new request.
+	req, err := c.newRequest("PUT", requestMetadata{
+		bucketName:   bucketName,
+		queryValues:  urlValues,
+		customHeader: customHeader,
+	})
 	if err != nil {
 		return err
 	}
 
 	// Initiate the request.
-	resp, err := req.Do()
+	resp, err := c.httpClient.Do(req)
 	defer closeResponse(resp)
 	if err != nil {
 		return err
 	}
 
 	if resp != nil {
+		// if error return.
 		if resp.StatusCode != http.StatusOK {
-			return BodyToErrorResponse(resp.Body)
+			return HTTPRespToErrorResponse(resp, bucketName, "")
 		}
 	}
+	// return
 	return nil
-}
-
-// setBucketRequestACL constructs request for SetBucketACL.
-func (a API) setBucketACLRequest(bucketName, acl string) (*Request, error) {
-	// Set acl query.
-	urlValues := make(url.Values)
-	urlValues.Set("acl", "")
-
-	// get target URL.
-	targetURL, err := getTargetURL(a.endpointURL, bucketName, "", urlValues)
-	if err != nil {
-		return nil, err
-	}
-
-	// get bucket region.
-	region, err := a.getRegion(bucketName)
-	if err != nil {
-		return nil, err
-	}
-
-	// Instantiate a new request.
-	req, err := newRequest("PUT", targetURL, requestMetadata{
-		credentials:      a.credentials,
-		userAgent:        a.userAgent,
-		bucketRegion:     region,
-		contentTransport: a.httpTransport,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Set relevant acl.
-	if acl != "" {
-		req.Set("x-amz-acl", acl)
-	} else {
-		req.Set("x-amz-acl", "private")
-	}
-
-	// Return.
-	return req, nil
 }

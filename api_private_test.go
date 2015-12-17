@@ -22,19 +22,19 @@ import (
 )
 
 func TestSignature(t *testing.T) {
-	credentials := clientCredentials{}
-	if !credentials.Signature.isLatest() {
+	clnt := Client{}
+	if !clnt.signature.isLatest() {
 		t.Fatal("Error")
 	}
-	credentials.Signature = SignatureV2
-	if !credentials.Signature.isV2() {
+	clnt.signature = SignatureV2
+	if !clnt.signature.isV2() {
 		t.Fatal("Error")
 	}
-	if credentials.Signature.isV4() {
+	if clnt.signature.isV4() {
 		t.Fatal("Error")
 	}
-	credentials.Signature = SignatureV4
-	if !credentials.Signature.isV4() {
+	clnt.signature = SignatureV4
+	if !clnt.signature.isV4() {
 		t.Fatal("Error")
 	}
 }

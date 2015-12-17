@@ -32,82 +32,29 @@ import (
 //       fmt.Println(message)
 //   }
 //
-func (a API) ListBuckets() <-chan BucketStat {
-	ch := make(chan BucketStat, 100)
-	go a.listBucketsInRoutine(ch)
-	return ch
-}
-
-// listBucketsInRoutine goroutine based iterator for listBuckets.
-func (a API) listBucketsInRoutine(ch chan<- BucketStat) {
-	defer close(ch)
-	req, err := a.listBucketsRequest()
+func (c Client) ListBuckets() ([]BucketStat, error) {
+	// Instantiate a new request.
+	req, err := c.newRequest("GET", requestMetadata{})
 	if err != nil {
-		ch <- BucketStat{
-			Err: err,
-		}
-		return
+		return nil, err
 	}
-	resp, err := req.Do()
+	// Initiate the request.
+	resp, err := c.httpClient.Do(req)
 	defer closeResponse(resp)
 	if err != nil {
-		ch <- BucketStat{
-			Err: err,
-		}
-		return
+		return nil, err
 	}
 	if resp != nil {
-		// for un-authenticated requests, amazon sends a redirect handle it.
-		if resp.StatusCode == http.StatusTemporaryRedirect {
-			ch <- BucketStat{
-				Err: ErrorResponse{
-					Code:            "AccessDenied",
-					Message:         "Anonymous access is forbidden for this operation.",
-					RequestID:       resp.Header.Get("x-amz-request-id"),
-					HostID:          resp.Header.Get("x-amz-id-2"),
-					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
-				},
-			}
-			return
-		}
 		if resp.StatusCode != http.StatusOK {
-			ch <- BucketStat{
-				Err: BodyToErrorResponse(resp.Body),
-			}
-			return
+			return nil, HTTPRespToErrorResponse(resp, "", "")
 		}
 	}
 	listAllMyBucketsResult := listAllMyBucketsResult{}
 	err = xmlDecoder(resp.Body, &listAllMyBucketsResult)
 	if err != nil {
-		ch <- BucketStat{
-			Err: err,
-		}
-		return
-	}
-
-	for _, bucket := range listAllMyBucketsResult.Buckets.Bucket {
-		ch <- bucket
-	}
-}
-
-// listBucketRequest wrapper creates a new listBuckets request.
-func (a API) listBucketsRequest() (*Request, error) {
-	// List buckets is directly on the endpoint URL.
-	targetURL := a.endpointURL
-	targetURL.Path = "/"
-
-	// Instantiate a new request.
-	req, err := newRequest("GET", targetURL, requestMetadata{
-		credentials:      a.credentials,
-		userAgent:        a.userAgent,
-		bucketRegion:     "us-east-1",
-		contentTransport: a.httpTransport,
-	})
-	if err != nil {
 		return nil, err
 	}
-	return req, nil
+	return listAllMyBucketsResult.Buckets.Bucket, nil
 }
 
 // ListObjects - (List Objects) - List some objects or all recursively.
@@ -126,124 +73,75 @@ func (a API) listBucketsRequest() (*Request, error) {
 //       fmt.Println(message)
 //   }
 //
-func (a API) ListObjects(bucketName string, objectPrefix string, recursive bool) <-chan ObjectStat {
-	ch := make(chan ObjectStat, 1000)
-	go a.listObjectsInRoutine(bucketName, objectPrefix, recursive, ch)
-	return ch
-}
-
-// listObjectsRecursive lists all objects recursively matching a prefix.
-func (a API) listObjectsRecursive(bucketName, objectPrefix string, ch chan<- ObjectStat) {
-	var objectMarker string
-	for {
-		result, err := a.listObjects(bucketName, objectPrefix, objectMarker, "", 1000)
-		if err != nil {
-			ch <- ObjectStat{
-				Err: err,
-			}
-			return
-		}
-		for _, object := range result.Contents {
-			ch <- object
-			objectMarker = object.Key
-		}
-		if !result.IsTruncated {
-			break
-		}
+func (c Client) ListObjects(bucketName string, objectPrefix string, recursive bool) <-chan ObjectStat {
+	// Allocate new list objects channel.
+	objectStatCh := make(chan ObjectStat, 1000)
+	// Default listing is delimited at "/"
+	delimiter := "/"
+	if recursive {
+		// If recursive we do not delimit.
+		delimiter = ""
 	}
-}
-
-// listObjectsNonRecursive lists objects delimited with "/" matching a prefix.
-func (a API) listObjectsNonRecursive(bucketName, objectPrefix string, ch chan<- ObjectStat) {
-	// Non recursive delimit with "/".
-	var objectMarker string
-	for {
-		result, err := a.listObjects(bucketName, objectPrefix, objectMarker, "/", 1000)
-		if err != nil {
-			ch <- ObjectStat{
-				Err: err,
-			}
-			return
-		}
-		objectMarker = result.NextMarker
-		for _, object := range result.Contents {
-			ch <- object
-		}
-		for _, obj := range result.CommonPrefixes {
-			object := ObjectStat{}
-			object.Key = obj.Prefix
-			object.Size = 0
-			ch <- object
-		}
-		if !result.IsTruncated {
-			break
-		}
-	}
-}
-
-// listObjectsInRoutine goroutine based iterator for listObjects.
-func (a API) listObjectsInRoutine(bucketName, objectPrefix string, recursive bool, ch chan<- ObjectStat) {
-	defer close(ch)
 	// Validate bucket name.
 	if err := isValidBucketName(bucketName); err != nil {
-		ch <- ObjectStat{
+		defer close(objectStatCh)
+		objectStatCh <- ObjectStat{
 			Err: err,
 		}
-		return
+		return objectStatCh
 	}
 	// Validate incoming object prefix.
 	if err := isValidObjectPrefix(objectPrefix); err != nil {
-		ch <- ObjectStat{
+		defer close(objectStatCh)
+		objectStatCh <- ObjectStat{
 			Err: err,
 		}
-		return
-	}
-	// Recursive do not delimit.
-	if recursive {
-		a.listObjectsRecursive(bucketName, objectPrefix, ch)
-		return
-	}
-	a.listObjectsNonRecursive(bucketName, objectPrefix, ch)
-	return
-}
-
-// listObjectsRequest wrapper creates a new listObjects request.
-func (a API) listObjectsRequest(bucketName, objectPrefix, objectMarker, delimiter string, maxkeys int) (*Request, error) {
-	// Get resources properly escaped and lined up before
-	// using them in http request.
-	urlValues := make(url.Values)
-	// Set object prefix.
-	urlValues.Set("prefix", urlEncodePath(objectPrefix))
-	// Set object marker.
-	urlValues.Set("marker", urlEncodePath(objectMarker))
-	// Set delimiter.
-	urlValues.Set("delimiter", delimiter)
-	// Set max keys.
-	urlValues.Set("max-keys", fmt.Sprintf("%d", maxkeys))
-
-	// Get target url.
-	targetURL, err := getTargetURL(a.endpointURL, bucketName, "", urlValues)
-	if err != nil {
-		return nil, err
+		return objectStatCh
 	}
 
-	// get bucket region.
-	region, err := a.getRegion(bucketName)
-	if err != nil {
-		return nil, err
-	}
+	// Initiate list objects goroutine here.
+	go func(objectStatCh chan<- ObjectStat) {
+		defer close(objectStatCh)
+		// Save marker for next request.
+		var marker string
+		for {
+			// Get list of objects a maximum of 1000 per request.
+			result, err := c.listObjects(bucketName, objectPrefix, marker, delimiter, 1000)
+			if err != nil {
+				objectStatCh <- ObjectStat{
+					Err: err,
+				}
+				return
+			}
 
-	// Initialize a new request.
-	req, err := newRequest("GET", targetURL, requestMetadata{
-		credentials:      a.credentials,
-		userAgent:        a.userAgent,
-		bucketRegion:     region,
-		contentTransport: a.httpTransport,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return req, nil
+			// If contents are available loop through and send over channel.
+			for _, object := range result.Contents {
+				objectStatCh <- object
+				// Save the marker.
+				marker = object.Key
+			}
+
+			// Send all common prefixes if any.
+			// NOTE: prefixes are only present if the request is delimited.
+			for _, obj := range result.CommonPrefixes {
+				object := ObjectStat{}
+				object.Key = obj.Prefix
+				object.Size = 0
+				objectStatCh <- object
+			}
+
+			// If next marker present, save it for next request.
+			if result.NextMarker != "" {
+				marker = result.NextMarker
+			}
+
+			// Listing ends result is not truncated, return right here.
+			if !result.IsTruncated {
+				return
+			}
+		}
+	}(objectStatCh)
+	return objectStatCh
 }
 
 /// Bucket Read Operations.
@@ -257,33 +155,52 @@ func (a API) listObjectsRequest(bucketName, objectPrefix, objectMarker, delimite
 // ?delimiter - A delimiter is a character you use to group keys.
 // ?prefix - Limits the response to keys that begin with the specified prefix.
 // ?max-keys - Sets the maximum number of keys returned in the response body.
-func (a API) listObjects(bucketName, objectPrefix, objectMarker, delimiter string, maxkeys int) (listBucketResult, error) {
+func (c Client) listObjects(bucketName, objectPrefix, objectMarker, delimiter string, maxkeys int) (listBucketResult, error) {
+	// Validate bucket name.
 	if err := isValidBucketName(bucketName); err != nil {
 		return listBucketResult{}, err
 	}
+	// Validate object prefix.
 	if err := isValidObjectPrefix(objectPrefix); err != nil {
 		return listBucketResult{}, err
 	}
-	req, err := a.listObjectsRequest(bucketName, objectPrefix, objectMarker, delimiter, maxkeys)
+	// Get resources properly escaped and lined up before
+	// using them in http request.
+	urlValues := make(url.Values)
+	// Set object prefix.
+	urlValues.Set("prefix", urlEncodePath(objectPrefix))
+	// Set object marker.
+	urlValues.Set("marker", urlEncodePath(objectMarker))
+	// Set delimiter.
+	urlValues.Set("delimiter", delimiter)
+	// Set max keys.
+	urlValues.Set("max-keys", fmt.Sprintf("%d", maxkeys))
+
+	// Initialize a new request.
+	req, err := c.newRequest("GET", requestMetadata{
+		bucketName:  bucketName,
+		queryValues: urlValues,
+	})
 	if err != nil {
 		return listBucketResult{}, err
 	}
-	resp, err := req.Do()
+	// Execute list buckets.
+	resp, err := c.httpClient.Do(req)
 	defer closeResponse(resp)
 	if err != nil {
 		return listBucketResult{}, err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return listBucketResult{}, BodyToErrorResponse(resp.Body)
+			return listBucketResult{}, HTTPRespToErrorResponse(resp, bucketName, "")
 		}
 	}
+	// Decode listBuckets XML.
 	listBucketResult := listBucketResult{}
 	err = xmlDecoder(resp.Body, &listBucketResult)
 	if err != nil {
 		return listBucketResult, err
 	}
-	// close body while returning, along with any error.
 	return listBucketResult, nil
 }
 
@@ -303,113 +220,99 @@ func (a API) listObjects(bucketName, objectPrefix, objectMarker, delimiter strin
 //       fmt.Println(message)
 //   }
 //
-func (a API) ListIncompleteUploads(bucketName, objectPrefix string, recursive bool) <-chan ObjectMultipartStat {
-	return a.listIncompleteUploads(bucketName, objectPrefix, recursive)
+func (c Client) ListIncompleteUploads(bucketName, objectPrefix string, recursive bool) <-chan ObjectMultipartStat {
+	// Turn on size aggregation of individual parts.
+	isAggregateSize := true
+	return c.listIncompleteUploads(bucketName, objectPrefix, recursive, isAggregateSize)
 }
 
 // listIncompleteUploads lists all incomplete uploads.
-func (a API) listIncompleteUploads(bucketName, objectName string, recursive bool) <-chan ObjectMultipartStat {
-	ch := make(chan ObjectMultipartStat, 1000)
-	go a.listIncompleteUploadsInRoutine(bucketName, objectName, recursive, ch)
-	return ch
-}
-
-// listIncompleteUploadsRecursive list incomplete uploads matching a prefix recursively.
-func (a API) listIncompleteUploadsRecursive(bucketName, objectPrefix string, ch chan<- ObjectMultipartStat) {
-	var objectMarker string
-	var uploadIDMarker string
-	for {
-		result, err := a.listMultipartUploads(bucketName, objectMarker, uploadIDMarker, objectPrefix, "", 1000)
-		if err != nil {
-			ch <- ObjectMultipartStat{
-				Err: err,
-			}
-			return
-		}
-		for _, objectSt := range result.Uploads {
-			// NOTE: getTotalMultipartSize can make listing incomplete uploads slower.
-			objectSt.Size, err = a.getTotalMultipartSize(bucketName, objectSt.Key, objectSt.UploadID)
-			if err != nil {
-				ch <- ObjectMultipartStat{
-					Err: err,
-				}
-			}
-			ch <- objectSt
-			objectMarker = result.NextKeyMarker
-			uploadIDMarker = result.NextUploadIDMarker
-		}
-		if !result.IsTruncated {
-			break
-		}
+func (c Client) listIncompleteUploads(bucketName, objectPrefix string, recursive, aggregateSize bool) <-chan ObjectMultipartStat {
+	// Allocate channel for multipart uploads.
+	objectMultipartStatCh := make(chan ObjectMultipartStat, 1000)
+	// Delimiter is set to "/" by default.
+	delimiter := "/"
+	if recursive {
+		// If recursive do not delimit.
+		delimiter = ""
 	}
-	return
-}
-
-// listIncompleteUploadsNonRecursive list incomplete uploads delimited at "/" matching a prefix.
-func (a API) listIncompleteUploadsNonRecursive(bucketName, objectPrefix string, ch chan<- ObjectMultipartStat) {
-	// Non recursive with "/" delimiter.
-	var objectMarker string
-	var uploadIDMarker string
-	for {
-		result, err := a.listMultipartUploads(bucketName, objectMarker, uploadIDMarker, objectPrefix, "/", 1000)
-		if err != nil {
-			ch <- ObjectMultipartStat{
-				Err: err,
-			}
-			return
-		}
-		objectMarker = result.NextKeyMarker
-		uploadIDMarker = result.NextUploadIDMarker
-		for _, objectSt := range result.Uploads {
-			objectSt.Size, err = a.getTotalMultipartSize(bucketName, objectSt.Key, objectSt.UploadID)
-			if err != nil {
-				ch <- ObjectMultipartStat{
-					Err: err,
-				}
-			}
-			ch <- objectSt
-		}
-		for _, obj := range result.CommonPrefixes {
-			object := ObjectMultipartStat{}
-			object.Key = obj.Prefix
-			object.Size = 0
-			ch <- object
-		}
-		if !result.IsTruncated {
-			break
-		}
-	}
-}
-
-// listIncompleteUploadsInRoutine goroutine based iterator for listing all incomplete uploads.
-func (a API) listIncompleteUploadsInRoutine(bucketName, objectPrefix string, recursive bool, ch chan<- ObjectMultipartStat) {
-	defer close(ch)
-	// Validate incoming bucket name.
+	// Validate bucket name.
 	if err := isValidBucketName(bucketName); err != nil {
-		ch <- ObjectMultipartStat{
+		defer close(objectMultipartStatCh)
+		objectMultipartStatCh <- ObjectMultipartStat{
 			Err: err,
 		}
-		return
+		return objectMultipartStatCh
 	}
 	// Validate incoming object prefix.
 	if err := isValidObjectPrefix(objectPrefix); err != nil {
-		ch <- ObjectMultipartStat{
+		defer close(objectMultipartStatCh)
+		objectMultipartStatCh <- ObjectMultipartStat{
 			Err: err,
 		}
-		return
+		return objectMultipartStatCh
 	}
-	// Recursive with no delimiter.
-	if recursive {
-		a.listIncompleteUploadsRecursive(bucketName, objectPrefix, ch)
-		return
-	}
-	a.listIncompleteUploadsNonRecursive(bucketName, objectPrefix, ch)
-	return
+	go func(objectMultipartStatCh chan<- ObjectMultipartStat) {
+		defer close(objectMultipartStatCh)
+		// object and upload ID marker for future requests.
+		var objectMarker string
+		var uploadIDMarker string
+		for {
+			// list all multipart uploads.
+			result, err := c.listMultipartUploads(bucketName, objectMarker, uploadIDMarker, objectPrefix, delimiter, 1000)
+			if err != nil {
+				objectMultipartStatCh <- ObjectMultipartStat{
+					Err: err,
+				}
+				return
+			}
+			// Save objectMarker and uploadIDMarker for next request.
+			objectMarker = result.NextKeyMarker
+			uploadIDMarker = result.NextUploadIDMarker
+			// Send all multipart uploads.
+			for _, obj := range result.Uploads {
+				// Calculate total size of the uploaded parts if 'aggregateSize' is enabled.
+				if aggregateSize {
+					// Get total multipart size.
+					obj.Size, err = c.getTotalMultipartSize(bucketName, obj.Key, obj.UploadID)
+					if err != nil {
+						objectMultipartStatCh <- ObjectMultipartStat{
+							Err: err,
+						}
+					}
+				}
+				objectMultipartStatCh <- obj
+			}
+			// Send all common prefixes if any.
+			// NOTE: prefixes are only present if the request is delimited.
+			for _, obj := range result.CommonPrefixes {
+				object := ObjectMultipartStat{}
+				object.Key = obj.Prefix
+				object.Size = 0
+				objectMultipartStatCh <- object
+			}
+			// Listing ends if result not truncated, return right here.
+			if !result.IsTruncated {
+				return
+			}
+		}
+	}(objectMultipartStatCh)
+	// return.
+	return objectMultipartStatCh
 }
 
-// listMultipartUploadsRequest wrapper creates a new listMultipartUploads request.
-func (a API) listMultipartUploadsRequest(bucketName, keyMarker, uploadIDMarker,
-	prefix, delimiter string, maxUploads int) (*Request, error) {
+// listMultipartUploads - (List Multipart Uploads).
+//   - Lists some or all (up to 1000) in-progress multipart uploads in a bucket.
+//
+// You can use the request parameters as selection criteria to return a subset of the uploads in a bucket.
+// request paramters. :-
+// ---------
+// ?key-marker - Specifies the multipart upload after which listing should begin.
+// ?upload-id-marker - Together with key-marker specifies the multipart upload after which listing should begin.
+// ?delimiter - A delimiter is a character you use to group keys.
+// ?prefix - Limits the response to keys that begin with the specified prefix.
+// ?max-uploads - Sets the maximum number of multipart uploads returned in the response body.
+func (c Client) listMultipartUploads(bucketName, keyMarker, uploadIDMarker, prefix, delimiter string, maxUploads int) (listMultipartUploadsResult, error) {
 	// Get resources properly escaped and lined up before using them in http request.
 	urlValues := make(url.Values)
 	// Set uploads.
@@ -425,55 +328,26 @@ func (a API) listMultipartUploadsRequest(bucketName, keyMarker, uploadIDMarker,
 	// Set max-uploads.
 	urlValues.Set("max-uploads", fmt.Sprintf("%d", maxUploads))
 
-	// get targetURL.
-	targetURL, err := getTargetURL(a.endpointURL, bucketName, "", urlValues)
-	if err != nil {
-		return nil, err
-	}
-
-	// get bucket region.
-	region, err := a.getRegion(bucketName)
-	if err != nil {
-		return nil, err
-	}
-
 	// Instantiate a new request.
-	return newRequest("GET", targetURL, requestMetadata{
-		credentials:      a.credentials,
-		userAgent:        a.userAgent,
-		bucketRegion:     region,
-		contentTransport: a.httpTransport,
+	req, err := c.newRequest("GET", requestMetadata{
+		bucketName:  bucketName,
+		queryValues: urlValues,
 	})
-}
-
-// listMultipartUploads - (List Multipart Uploads).
-//   - Lists some or all (up to 1000) in-progress multipart uploads in a bucket.
-//
-// You can use the request parameters as selection criteria to return a subset of the uploads in a bucket.
-// request paramters. :-
-// ---------
-// ?key-marker - Specifies the multipart upload after which listing should begin.
-// ?upload-id-marker - Together with key-marker specifies the multipart upload after which listing should begin.
-// ?delimiter - A delimiter is a character you use to group keys.
-// ?prefix - Limits the response to keys that begin with the specified prefix.
-// ?max-uploads - Sets the maximum number of multipart uploads returned in the response body.
-func (a API) listMultipartUploads(bucketName, keyMarker,
-	uploadIDMarker, prefix, delimiter string, maxUploads int) (listMultipartUploadsResult, error) {
-	req, err := a.listMultipartUploadsRequest(bucketName,
-		keyMarker, uploadIDMarker, prefix, delimiter, maxUploads)
 	if err != nil {
 		return listMultipartUploadsResult{}, err
 	}
-	resp, err := req.Do()
+	// Execute list multipart uploads request.
+	resp, err := c.httpClient.Do(req)
 	defer closeResponse(resp)
 	if err != nil {
 		return listMultipartUploadsResult{}, err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return listMultipartUploadsResult{}, BodyToErrorResponse(resp.Body)
+			return listMultipartUploadsResult{}, HTTPRespToErrorResponse(resp, bucketName, "")
 		}
 	}
+	// Decode response body.
 	listMultipartUploadsResult := listMultipartUploadsResult{}
 	err = xmlDecoder(resp.Body, &listMultipartUploadsResult)
 	if err != nil {
@@ -483,90 +357,81 @@ func (a API) listMultipartUploads(bucketName, keyMarker,
 }
 
 // listObjectPartsRecursive list all object parts recursively.
-func (a API) listObjectPartsRecursive(bucketName, objectName, uploadID string) <-chan objectPartMetadata {
+func (c Client) listObjectPartsRecursive(bucketName, objectName, uploadID string, doneCh <-chan bool) <-chan objectPartMetadata {
+	// Allocate new list parts channel.
 	objectPartCh := make(chan objectPartMetadata, 1000)
-	go a.listObjectPartsRecursiveInRoutine(bucketName, objectName, uploadID, objectPartCh)
+	// Initiate list parts goroutine.
+	go func(objectPartCh chan<- objectPartMetadata, doneCh <-chan bool) {
+		defer close(objectPartCh)
+		// part number marker for the next request if IsTruncated is set.
+		var nextPartNumberMarker int
+		for {
+			// Get list of uploaded parts a maximum of 1000 per request.
+			listObjPartsResult, err := c.listObjectParts(bucketName, objectName, uploadID, nextPartNumberMarker, 1000)
+			if err != nil {
+				objectPartCh <- objectPartMetadata{
+					Err: err,
+				}
+				return
+			}
+			// Loop through all object parts and send over the channel.
+			// Additionally wait on done channel to return the routine.
+			for _, uploadedObjectPart := range listObjPartsResult.ObjectParts {
+				select {
+				// If done channel return here.
+				case <-doneCh:
+					return
+				// Send uploaded parts here.
+				case objectPartCh <- uploadedObjectPart:
+				}
+			}
+			// Keep part number marker, for the next iteration.
+			nextPartNumberMarker = listObjPartsResult.NextPartNumberMarker
+
+			// Listing ends result is not truncated, return right here.
+			if !listObjPartsResult.IsTruncated {
+				return
+			}
+		}
+	}(objectPartCh, doneCh)
+	// Return the channel here.
 	return objectPartCh
 }
 
-// listObjectPartsRecursiveInRoutine gorountine based iterator for listing all object parts.
-func (a API) listObjectPartsRecursiveInRoutine(bucketName, objectName, uploadID string, ch chan<- objectPartMetadata) {
-	defer close(ch)
-	listObjPartsResult, err := a.listObjectParts(bucketName, objectName, uploadID, 0, 1000)
-	if err != nil {
-		ch <- objectPartMetadata{
-			Err: err,
+// findUploadID lists all incomplete uploads and finds the uploadID of the matching object name.
+func (c Client) findUploadID(bucketName, objectName string) (string, error) {
+	// Make list incomplete uploads recursive.
+	isRecursive := true
+	// Turn off size aggregation of individual parts, in this request.
+	isAggregateSize := false
+	for mpUpload := range c.listIncompleteUploads(bucketName, objectName, isRecursive, isAggregateSize) {
+		if mpUpload.Err != nil {
+			return "", mpUpload.Err
 		}
-		return
-	}
-	for _, uploadedObjectPart := range listObjPartsResult.ObjectParts {
-		ch <- uploadedObjectPart
-	}
-	// listObject parts.
-	for {
-		if !listObjPartsResult.IsTruncated {
-			break
-		}
-		nextPartNumberMarker := listObjPartsResult.NextPartNumberMarker
-		listObjPartsResult, err = a.listObjectParts(bucketName, objectName, uploadID, nextPartNumberMarker, 1000)
-		if err != nil {
-			ch <- objectPartMetadata{
-				Err: err,
-			}
-			return
-		}
-		for _, uploadedObjectPart := range listObjPartsResult.ObjectParts {
-			ch <- uploadedObjectPart
+		// if object name found, return the upload id.
+		if objectName == mpUpload.Key {
+			return mpUpload.UploadID, nil
 		}
 	}
+	// No upload id was found, return success and empty upload id.
+	return "", nil
 }
 
 // getTotalMultipartSize - calculate total uploaded size for the a given multipart object.
-func (a API) getTotalMultipartSize(bucketName, objectName, uploadID string) (int64, error) {
+func (c Client) getTotalMultipartSize(bucketName, objectName, uploadID string) (int64, error) {
 	var size int64
+	// Allocate a new done channel.
+	doneCh := make(chan bool, 1)
+	defer close(doneCh)
 	// Iterate over all parts and aggregate the size.
-	for part := range a.listObjectPartsRecursive(bucketName, objectName, uploadID) {
+	for part := range c.listObjectPartsRecursive(bucketName, objectName, uploadID, doneCh) {
 		if part.Err != nil {
 			return 0, part.Err
 		}
 		size += part.Size
 	}
+	// Done channel is not used here since, it is not necessary.
 	return size, nil
-}
-
-// listObjectPartsRequest wrapper creates a new ListObjectParts request.
-func (a API) listObjectPartsRequest(bucketName, objectName, uploadID string, partNumberMarker, maxParts int) (*Request, error) {
-	// Get resources properly escaped and lined up before using them in http request.
-	urlValues := make(url.Values)
-	// Set part number marker.
-	urlValues.Set("part-number-marker", fmt.Sprintf("%d", partNumberMarker))
-	// Set upload id.
-	urlValues.Set("uploadId", uploadID)
-	// Set max parts.
-	urlValues.Set("max-parts", fmt.Sprintf("%d", maxParts))
-
-	// get targetURL.
-	targetURL, err := getTargetURL(a.endpointURL, bucketName, objectName, urlValues)
-	if err != nil {
-		return nil, err
-	}
-
-	// get bucket region.
-	region, err := a.getRegion(bucketName)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := newRequest("GET", targetURL, requestMetadata{
-		credentials:      a.credentials,
-		userAgent:        a.userAgent,
-		bucketRegion:     region,
-		contentTransport: a.httpTransport,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return req, nil
 }
 
 // listObjectParts (List Parts)
@@ -576,21 +441,36 @@ func (a API) listObjectPartsRequest(bucketName, objectName, uploadID string, par
 // request paramters :-
 // ---------
 // ?part-number-marker - Specifies the part after which listing should begin.
-func (a API) listObjectParts(bucketName, objectName, uploadID string, partNumberMarker, maxParts int) (listObjectPartsResult, error) {
-	req, err := a.listObjectPartsRequest(bucketName, objectName, uploadID, partNumberMarker, maxParts)
+func (c Client) listObjectParts(bucketName, objectName, uploadID string, partNumberMarker, maxParts int) (listObjectPartsResult, error) {
+	// Get resources properly escaped and lined up before using them in http request.
+	urlValues := make(url.Values)
+	// Set part number marker.
+	urlValues.Set("part-number-marker", fmt.Sprintf("%d", partNumberMarker))
+	// Set upload id.
+	urlValues.Set("uploadId", uploadID)
+	// Set max parts.
+	urlValues.Set("max-parts", fmt.Sprintf("%d", maxParts))
+
+	req, err := c.newRequest("GET", requestMetadata{
+		bucketName:  bucketName,
+		objectName:  objectName,
+		queryValues: urlValues,
+	})
 	if err != nil {
 		return listObjectPartsResult{}, err
 	}
-	resp, err := req.Do()
+	// Exectue list object parts.
+	resp, err := c.httpClient.Do(req)
 	defer closeResponse(resp)
 	if err != nil {
 		return listObjectPartsResult{}, err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return listObjectPartsResult{}, BodyToErrorResponse(resp.Body)
+			return listObjectPartsResult{}, HTTPRespToErrorResponse(resp, bucketName, objectName)
 		}
 	}
+	// Decode list object parts XML.
 	listObjectPartsResult := listObjectPartsResult{}
 	err = xmlDecoder(resp.Body, &listObjectPartsResult)
 	if err != nil {

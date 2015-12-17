@@ -119,14 +119,6 @@ func closeResponse(resp *http.Response) {
 	}
 }
 
-// isAnonymousCredentials - True if config doesn't have access and secret keys.
-func isAnonymousCredentials(c clientCredentials) bool {
-	if c.AccessKeyID != "" && c.SecretAccessKey != "" {
-		return false
-	}
-	return true
-}
-
 // isVirtualHostSupported - verify if host supports virtual hosted style.
 // Currently only Amazon S3 and Google Cloud Storage would support this.
 func isVirtualHostSupported(endpointURL *url.URL) bool {

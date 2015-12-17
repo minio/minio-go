@@ -27,8 +27,6 @@ type BucketStat struct {
 	Name string
 	// Date the bucket was created.
 	CreationDate time.Time
-	// Error
-	Err error
 }
 
 // ObjectStat container for object metadata.

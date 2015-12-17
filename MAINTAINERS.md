@@ -4,11 +4,6 @@
 
 Please go through this link [Maintainer Responsibility](https://gist.github.com/abperiasamy/f4d9b31d3186bbd26522)
 
-## Current Maintainers
-
-- Harshavardhana
-- Krishna Srinivas
-
 ### Making new releases
 
 Edit `libraryVersion` constant in `api.go`.
