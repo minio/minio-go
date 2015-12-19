@@ -320,8 +320,8 @@ type CloudStorageClient interface {
 	ListIncompleteUploads(bucket, prefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectMultipartStat
 
 	// Object Read/Write/Stat operations.
-	GetObject(bucket, object string) (io.ReadSeeker, error)
-	GetPartialObject(bucket, object string, offset, length int64) (io.ReadSeeker, error)
+	GetObject(bucket, object string) (io.ReadCloser, ObjectStat, error)
+	GetPartialObject(bucket, object string) (io.ReadSeeker, ObjectStat, error)
 	PutObject(bucket, object string, data io.ReadSeeker, size int64, contentType string) (int64, error)
 	StatObject(bucket, object string) (ObjectStat, error)
 	RemoveObject(bucket, object string) error
