@@ -84,7 +84,7 @@ func TestFunctional(t *testing.T) {
 		t.Fatal("Error: bad length ", n, readSeeker.Len())
 	}
 
-	newReadSeeker, err := c.GetObject(bucketName, objectName)
+	newReadSeeker, _, err := c.GetObject(bucketName, objectName)
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
