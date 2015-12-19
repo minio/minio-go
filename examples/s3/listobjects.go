@@ -19,7 +19,7 @@
 package main
 
 import (
-	"log"
+	"fmt"
 
 	"github.com/minio/minio-go"
 )
@@ -32,13 +32,23 @@ func main() {
 	// determined based on the Endpoint value.
 	s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESS-KEY-HERE", "YOUR-SECRET-KEY-HERE", false)
 	if err != nil {
-		log.Fatalln(err)
+		fmt.Println(err)
+		return
 	}
 
-	for object := range s3Client.ListObjects("bucket-name", "prefix", true) {
+	// Create a done channel to control 'ListObjects' go routine.
+	doneCh := make(struct{})
+
+	// Indicate to our routine to exit cleanly upon return.
+	defer close(doneCh)
+
+	// List all objects from a bucket-name with a matching prefix.
+	for object := range s3Client.ListObjects("bucket-name", "prefix", true, doneCh) {
 		if object.Err != nil {
-			log.Fatalln(object.Err)
+			fmt.Println(object.Err)
+			return
 		}
-		log.Println(object)
+		fmt.Println(object)
 	}
+	return
 }

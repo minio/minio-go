@@ -225,36 +225,33 @@ func (c Client) putParts(bucketName, objectName, uploadID string, data io.ReadSe
 	defer cleanupStaleTempfiles("multiparts$")
 
 	// total data read and written to server. should be equal to 'size' at the end of the call.
-	var totalWritten int64
-
-	// Seek offset where the file will be seeked to.
-	var seekOffset int64
+	var totalUploadedSize int64
 
 	// Starting part number. Always part '1'.
 	partNumber := 1
 	completeMultipartUpload := completeMultipartUpload{}
-	doneCh := make(chan bool, 1)
-	defer close(doneCh)
-	for objPart := range c.listObjectPartsRecursive(bucketName, objectName, uploadID, doneCh) {
+	// Done channel is used to communicate with the go routine inside listObjectParts.
+	// It is necessary to close dangling routines inside once we break out of the loop.
+	doneCh := make(chan struct{})
+	for objPart := range c.listObjectParts(bucketName, objectName, uploadID, doneCh) {
 		if objPart.Err != nil {
+			close(doneCh)
 			return 0, objPart.Err
 		}
 		// Verify if there is a hole i.e one of the parts is missing
-		// Break and start uploading that part.
+		// Break and start uploading from this part.
 		if partNumber != objPart.PartNumber {
-			// Close listObjectParts channel.
-			doneCh <- true
+			// Close listObjectParts channel by communicating that we are done.
+			close(doneCh)
 			break
 		}
 		var completedPart completePart
 		completedPart.PartNumber = objPart.PartNumber
 		completedPart.ETag = objPart.ETag
 		completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, completedPart)
-		// Add seek Offset for future Seek to skip entries.
-		seekOffset += objPart.Size
-		// Save total written to verify later.
-		totalWritten += objPart.Size
-		// Increment lexically to verify holes in next iteration.
+		// Save total uploaded size which will be incremented later.
+		totalUploadedSize += objPart.Size
+		// Increment additively to verify holes in next iteration.
 		partNumber++
 	}
 
@@ -281,9 +278,9 @@ func (c Client) putParts(bucketName, objectName, uploadID string, data io.ReadSe
 	// Allocate a new wait group.
 	wg := new(sync.WaitGroup)
 
-	// Seek to the new offset if greater than '0'
-	if seekOffset > 0 {
-		if _, err := data.Seek(seekOffset, 0); err != nil {
+	// Seek to the total uploaded size obtained after listing all the parts.
+	if totalUploadedSize > 0 {
+		if _, err := data.Seek(totalUploadedSize, 0); err != nil {
 			return 0, err
 		}
 	}
@@ -337,10 +334,10 @@ func (c Client) putParts(bucketName, objectName, uploadID string, data io.ReadSe
 				if uploadedPrt.Closer != nil {
 					uploadedPrt.Closer.Close()
 				}
-				return totalWritten, uploadedPrt.Error
+				return totalUploadedSize, uploadedPrt.Error
 			}
 			// Save successfully uploaded size.
-			totalWritten += part.Size
+			totalUploadedSize += part.Size
 			// Save successfully uploaded part metadatc.
 			completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, uploadedPrt.Part)
 		}
@@ -350,17 +347,17 @@ func (c Client) putParts(bucketName, objectName, uploadID string, data io.ReadSe
 	// If size is greater than zero verify totalWritten.
 	// if totalWritten is different than the input 'size', do not complete the request throw an error.
 	if size > 0 {
-		if totalWritten != size {
-			return totalWritten, ErrUnexpectedEOF(totalWritten, size, bucketName, objectName)
+		if totalUploadedSize != size {
+			return totalUploadedSize, ErrUnexpectedEOF(totalUploadedSize, size, bucketName, objectName)
 		}
 	}
 	// sort all completed parts.
 	sort.Sort(completedParts(completeMultipartUpload.Parts))
 	_, err := c.completeMultipartUpload(bucketName, objectName, uploadID, completeMultipartUpload)
 	if err != nil {
-		return totalWritten, err
+		return totalUploadedSize, err
 	}
-	return totalWritten, nil
+	return totalUploadedSize, nil
 }
 
 // putObject - add an object to a bucket.

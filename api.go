@@ -316,8 +316,8 @@ type CloudStorageClient interface {
 	GetBucketACL(bucket string) (BucketACL, error)
 
 	ListBuckets() ([]BucketStat, error)
-	ListObjects(bucket, prefix string, recursive bool) <-chan ObjectStat
-	ListIncompleteUploads(bucket, prefix string, recursive bool) <-chan ObjectMultipartStat
+	ListObjects(bucket, prefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectStat
+	ListIncompleteUploads(bucket, prefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectMultipartStat
 
 	// Object Read/Write/Stat operations.
 	GetObject(bucket, object string) (io.ReadSeeker, error)

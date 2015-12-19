@@ -73,7 +73,7 @@ func (c Client) ListBuckets() ([]BucketStat, error) {
 //       fmt.Println(message)
 //   }
 //
-func (c Client) ListObjects(bucketName string, objectPrefix string, recursive bool) <-chan ObjectStat {
+func (c Client) ListObjects(bucketName, objectPrefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectStat {
 	// Allocate new list objects channel.
 	objectStatCh := make(chan ObjectStat, 1000)
 	// Default listing is delimited at "/"
@@ -106,7 +106,7 @@ func (c Client) ListObjects(bucketName string, objectPrefix string, recursive bo
 		var marker string
 		for {
 			// Get list of objects a maximum of 1000 per request.
-			result, err := c.listObjects(bucketName, objectPrefix, marker, delimiter, 1000)
+			result, err := c.listObjectsQuery(bucketName, objectPrefix, marker, delimiter, 1000)
 			if err != nil {
 				objectStatCh <- ObjectStat{
 					Err: err,
@@ -116,9 +116,15 @@ func (c Client) ListObjects(bucketName string, objectPrefix string, recursive bo
 
 			// If contents are available loop through and send over channel.
 			for _, object := range result.Contents {
-				objectStatCh <- object
 				// Save the marker.
 				marker = object.Key
+				select {
+				// Send object content.
+				case objectStatCh <- object:
+				// If receives done from the caller, return here.
+				case <-doneCh:
+					return
+				}
 			}
 
 			// Send all common prefixes if any.
@@ -127,7 +133,13 @@ func (c Client) ListObjects(bucketName string, objectPrefix string, recursive bo
 				object := ObjectStat{}
 				object.Key = obj.Prefix
 				object.Size = 0
-				objectStatCh <- object
+				select {
+				// Send object prefixes.
+				case objectStatCh <- object:
+				// If receives done from the caller, return here.
+				case <-doneCh:
+					return
+				}
 			}
 
 			// If next marker present, save it for next request.
@@ -155,7 +167,7 @@ func (c Client) ListObjects(bucketName string, objectPrefix string, recursive bo
 // ?delimiter - A delimiter is a character you use to group keys.
 // ?prefix - Limits the response to keys that begin with the specified prefix.
 // ?max-keys - Sets the maximum number of keys returned in the response body.
-func (c Client) listObjects(bucketName, objectPrefix, objectMarker, delimiter string, maxkeys int) (listBucketResult, error) {
+func (c Client) listObjectsQuery(bucketName, objectPrefix, objectMarker, delimiter string, maxkeys int) (listBucketResult, error) {
 	// Validate bucket name.
 	if err := isValidBucketName(bucketName); err != nil {
 		return listBucketResult{}, err
@@ -220,14 +232,14 @@ func (c Client) listObjects(bucketName, objectPrefix, objectMarker, delimiter st
 //       fmt.Println(message)
 //   }
 //
-func (c Client) ListIncompleteUploads(bucketName, objectPrefix string, recursive bool) <-chan ObjectMultipartStat {
+func (c Client) ListIncompleteUploads(bucketName, objectPrefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectMultipartStat {
 	// Turn on size aggregation of individual parts.
 	isAggregateSize := true
-	return c.listIncompleteUploads(bucketName, objectPrefix, recursive, isAggregateSize)
+	return c.listIncompleteUploads(bucketName, objectPrefix, recursive, isAggregateSize, doneCh)
 }
 
 // listIncompleteUploads lists all incomplete uploads.
-func (c Client) listIncompleteUploads(bucketName, objectPrefix string, recursive, aggregateSize bool) <-chan ObjectMultipartStat {
+func (c Client) listIncompleteUploads(bucketName, objectPrefix string, recursive, aggregateSize bool, doneCh <-chan struct{}) <-chan ObjectMultipartStat {
 	// Allocate channel for multipart uploads.
 	objectMultipartStatCh := make(chan ObjectMultipartStat, 1000)
 	// Delimiter is set to "/" by default.
@@ -259,7 +271,7 @@ func (c Client) listIncompleteUploads(bucketName, objectPrefix string, recursive
 		var uploadIDMarker string
 		for {
 			// list all multipart uploads.
-			result, err := c.listMultipartUploads(bucketName, objectMarker, uploadIDMarker, objectPrefix, delimiter, 1000)
+			result, err := c.listMultipartUploadsQuery(bucketName, objectMarker, uploadIDMarker, objectPrefix, delimiter, 1000)
 			if err != nil {
 				objectMultipartStatCh <- ObjectMultipartStat{
 					Err: err,
@@ -281,7 +293,13 @@ func (c Client) listIncompleteUploads(bucketName, objectPrefix string, recursive
 						}
 					}
 				}
-				objectMultipartStatCh <- obj
+				select {
+				// Send individual uploads here.
+				case objectMultipartStatCh <- obj:
+				// If done channel return here.
+				case <-doneCh:
+					return
+				}
 			}
 			// Send all common prefixes if any.
 			// NOTE: prefixes are only present if the request is delimited.
@@ -289,7 +307,13 @@ func (c Client) listIncompleteUploads(bucketName, objectPrefix string, recursive
 				object := ObjectMultipartStat{}
 				object.Key = obj.Prefix
 				object.Size = 0
-				objectMultipartStatCh <- object
+				select {
+				// Send delimited prefixes here.
+				case objectMultipartStatCh <- object:
+				// If done channel return here.
+				case <-doneCh:
+					return
+				}
 			}
 			// Listing ends if result not truncated, return right here.
 			if !result.IsTruncated {
@@ -312,7 +336,7 @@ func (c Client) listIncompleteUploads(bucketName, objectPrefix string, recursive
 // ?delimiter - A delimiter is a character you use to group keys.
 // ?prefix - Limits the response to keys that begin with the specified prefix.
 // ?max-uploads - Sets the maximum number of multipart uploads returned in the response body.
-func (c Client) listMultipartUploads(bucketName, keyMarker, uploadIDMarker, prefix, delimiter string, maxUploads int) (listMultipartUploadsResult, error) {
+func (c Client) listMultipartUploadsQuery(bucketName, keyMarker, uploadIDMarker, prefix, delimiter string, maxUploads int) (listMultipartUploadsResult, error) {
 	// Get resources properly escaped and lined up before using them in http request.
 	urlValues := make(url.Values)
 	// Set uploads.
@@ -356,18 +380,18 @@ func (c Client) listMultipartUploads(bucketName, keyMarker, uploadIDMarker, pref
 	return listMultipartUploadsResult, nil
 }
 
-// listObjectPartsRecursive list all object parts recursively.
-func (c Client) listObjectPartsRecursive(bucketName, objectName, uploadID string, doneCh <-chan bool) <-chan objectPartMetadata {
+// listObjectParts list all object parts recursively.
+func (c Client) listObjectParts(bucketName, objectName, uploadID string, doneCh <-chan struct{}) <-chan objectPartMetadata {
 	// Allocate new list parts channel.
 	objectPartCh := make(chan objectPartMetadata, 1000)
 	// Initiate list parts goroutine.
-	go func(objectPartCh chan<- objectPartMetadata, doneCh <-chan bool) {
+	go func(objectPartCh chan<- objectPartMetadata) {
 		defer close(objectPartCh)
 		// part number marker for the next request if IsTruncated is set.
 		var nextPartNumberMarker int
 		for {
 			// Get list of uploaded parts a maximum of 1000 per request.
-			listObjPartsResult, err := c.listObjectParts(bucketName, objectName, uploadID, nextPartNumberMarker, 1000)
+			listObjPartsResult, err := c.listObjectPartsQuery(bucketName, objectName, uploadID, nextPartNumberMarker, 1000)
 			if err != nil {
 				objectPartCh <- objectPartMetadata{
 					Err: err,
@@ -378,11 +402,11 @@ func (c Client) listObjectPartsRecursive(bucketName, objectName, uploadID string
 			// Additionally wait on done channel to return the routine.
 			for _, uploadedObjectPart := range listObjPartsResult.ObjectParts {
 				select {
+				// Send individual parts here.
+				case objectPartCh <- uploadedObjectPart:
 				// If done channel return here.
 				case <-doneCh:
 					return
-				// Send uploaded parts here.
-				case objectPartCh <- uploadedObjectPart:
 				}
 			}
 			// Keep part number marker, for the next iteration.
@@ -393,7 +417,7 @@ func (c Client) listObjectPartsRecursive(bucketName, objectName, uploadID string
 				return
 			}
 		}
-	}(objectPartCh, doneCh)
+	}(objectPartCh)
 	// Return the channel here.
 	return objectPartCh
 }
@@ -404,7 +428,8 @@ func (c Client) findUploadID(bucketName, objectName string) (string, error) {
 	isRecursive := true
 	// Turn off size aggregation of individual parts, in this request.
 	isAggregateSize := false
-	for mpUpload := range c.listIncompleteUploads(bucketName, objectName, isRecursive, isAggregateSize) {
+	// NOTE: done Channel is set to 'nil, this will drain go routine until exhaustion.
+	for mpUpload := range c.listIncompleteUploads(bucketName, objectName, isRecursive, isAggregateSize, nil) {
 		if mpUpload.Err != nil {
 			return "", mpUpload.Err
 		}
@@ -420,28 +445,25 @@ func (c Client) findUploadID(bucketName, objectName string) (string, error) {
 // getTotalMultipartSize - calculate total uploaded size for the a given multipart object.
 func (c Client) getTotalMultipartSize(bucketName, objectName, uploadID string) (int64, error) {
 	var size int64
-	// Allocate a new done channel.
-	doneCh := make(chan bool, 1)
-	defer close(doneCh)
 	// Iterate over all parts and aggregate the size.
-	for part := range c.listObjectPartsRecursive(bucketName, objectName, uploadID, doneCh) {
+	// NOTE: done Channel is set to 'nil, this will drain go routine until exhaustion.
+	for part := range c.listObjectParts(bucketName, objectName, uploadID, nil) {
 		if part.Err != nil {
 			return 0, part.Err
 		}
 		size += part.Size
 	}
-	// Done channel is not used here since, it is not necessary.
 	return size, nil
 }
 
-// listObjectParts (List Parts)
+// listObjectPartsQuery (List Parts query)
 //     - lists some or all (up to 1000) parts that have been uploaded for a specific multipart upload
 //
 // You can use the request parameters as selection criteria to return a subset of the uploads in a bucket.
 // request paramters :-
 // ---------
 // ?part-number-marker - Specifies the part after which listing should begin.
-func (c Client) listObjectParts(bucketName, objectName, uploadID string, partNumberMarker, maxParts int) (listObjectPartsResult, error) {
+func (c Client) listObjectPartsQuery(bucketName, objectName, uploadID string, partNumberMarker, maxParts int) (listObjectPartsResult, error) {
 	// Get resources properly escaped and lined up before using them in http request.
 	urlValues := make(url.Values)
 	// Set part number marker.
