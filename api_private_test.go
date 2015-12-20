@@ -23,7 +23,7 @@ import (
 
 func TestSignature(t *testing.T) {
 	clnt := Client{}
-	if !clnt.signature.isLatest() {
+	if !clnt.signature.isV4() {
 		t.Fatal("Error")
 	}
 	clnt.signature = SignatureV2

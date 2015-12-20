@@ -193,20 +193,13 @@ func (c Client) putLargeObject(bucketName, objectName string, data io.ReadSeeker
 	if err := isValidObjectName(objectName); err != nil {
 		return 0, err
 	}
-	// Find upload id before upload.
-	uploadID, err := c.findUploadID(bucketName, objectName)
+
+	// getUploadID for an object, fetches a new uploadID if necessary.
+	uploadID, err := c.getUploadID(bucketName, objectName, contentType)
 	if err != nil {
 		return 0, err
 	}
-	if uploadID == "" {
-		// Initiate multipart upload.
-		initMultipartUploadResult, err := c.initiateMultipartUpload(bucketName, objectName, contentType)
-		if err != nil {
-			return 0, err
-		}
-		// Save the new upload id.
-		uploadID = initMultipartUploadResult.UploadID
-	}
+
 	// Initiate multipart upload.
 	return c.putParts(bucketName, objectName, uploadID, data, size)
 }
@@ -227,32 +220,10 @@ func (c Client) putParts(bucketName, objectName, uploadID string, data io.ReadSe
 	// total data read and written to server. should be equal to 'size' at the end of the call.
 	var totalUploadedSize int64
 
-	// Starting part number. Always part '1'.
-	partNumber := 1
-	completeMultipartUpload := completeMultipartUpload{}
-	// Done channel is used to communicate with the go routine inside listObjectParts.
-	// It is necessary to close dangling routines inside once we break out of the loop.
-	doneCh := make(chan struct{})
-	for objPart := range c.listObjectParts(bucketName, objectName, uploadID, doneCh) {
-		if objPart.Err != nil {
-			close(doneCh)
-			return 0, objPart.Err
-		}
-		// Verify if there is a hole i.e one of the parts is missing
-		// Break and start uploading from this part.
-		if partNumber != objPart.PartNumber {
-			// Close listObjectParts channel by communicating that we are done.
-			close(doneCh)
-			break
-		}
-		var completedPart completePart
-		completedPart.PartNumber = objPart.PartNumber
-		completedPart.ETag = objPart.ETag
-		completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, completedPart)
-		// Save total uploaded size which will be incremented later.
-		totalUploadedSize += objPart.Size
-		// Increment additively to verify holes in next iteration.
-		partNumber++
+	// gather next part number to be uploaded, total uploaded size and list of all parts uploaded.
+	partNumber, totalUploadedSize, completeMultipartUpload, err := c.getMultipartStat(bucketName, objectName, uploadID)
+	if err != nil {
+		return 0, err
 	}
 
 	// Calculate the optimal part size for a given size.
@@ -353,7 +324,7 @@ func (c Client) putParts(bucketName, objectName, uploadID string, data io.ReadSe
 	}
 	// sort all completed parts.
 	sort.Sort(completedParts(completeMultipartUpload.Parts))
-	_, err := c.completeMultipartUpload(bucketName, objectName, uploadID, completeMultipartUpload)
+	_, err = c.completeMultipartUpload(bucketName, objectName, uploadID, completeMultipartUpload)
 	if err != nil {
 		return totalUploadedSize, err
 	}

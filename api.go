@@ -241,7 +241,7 @@ func (c Client) newRequest(method string, metadata requestMetadata) (*http.Reque
 	// Set sha256 sum only for non anonymous credentials.
 	if !c.anonymous {
 		// set sha256 sum for signature calculation only with signature version '4'.
-		if c.signature.isV4() || c.signature.isLatest() {
+		if c.signature.isV4() {
 			req.Header.Set("X-Amz-Content-Sha256", hex.EncodeToString(sum256([]byte{})))
 			if metadata.contentSha256Bytes != nil {
 				req.Header.Set("X-Amz-Content-Sha256", hex.EncodeToString(metadata.contentSha256Bytes))
@@ -259,7 +259,7 @@ func (c Client) newRequest(method string, metadata requestMetadata) (*http.Reque
 		if c.signature.isV2() {
 			// Add signature version '2' authorization header.
 			req = SignV2(*req, c.accessKeyID, c.secretAccessKey)
-		} else if c.signature.isV4() || c.signature.isLatest() {
+		} else if c.signature.isV4() {
 			// Add signature version '4' authorization header.
 			req = SignV4(*req, c.accessKeyID, c.secretAccessKey, location)
 		}
@@ -333,8 +333,8 @@ type CloudStorageClient interface {
 	PresignedPostPolicy(*PostPolicy) (map[string]string, error)
 
 	// File related API.
-	FPutObject(bucketName, objectName, fileName string) (string, error)
-	FGetObject(bucketName, objectName, fileName string) error
+	FPutObject(bucketName, objectName, filePath, contentType string) (int64, error)
+	FGetObject(bucketName, objectName, filePath string) error
 
 	// Application info.
 	SetAppInfo(appName, appVersion string)

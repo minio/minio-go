@@ -21,7 +21,71 @@ import (
 	"crypto/sha256"
 	"hash"
 	"io"
+	"io/ioutil"
+	"os"
 )
+
+// sectionManager reads from *os.File, partitions data into individual *partMetadata{}*.
+//
+// This method runs until an EOF or an error occurs. Before returning, the channel is always closed.
+func sectionManager(fileData *os.File, fileSize, partSize int64, enableSha256Sum bool, doneCh <-chan struct{}) <-chan partMetadata {
+	partMetadataCh := make(chan partMetadata, 3)
+	go sectionManagerInRoutine(fileData, fileSize, partSize, enableSha256Sum, partMetadataCh, doneCh)
+	return partMetadataCh
+}
+
+func sectionManagerInRoutine(fileData *os.File, fileSize, partSize int64, enableSha256Sum bool, partMetadataCh chan<- partMetadata, doneCh <-chan struct{}) {
+	defer close(partMetadataCh)
+	// MD5 and Sha256 hasher.
+	var hashMD5, hashSha256 hash.Hash
+
+	// totalRead counter
+	var totalRead int64
+
+	// Loop through until end of file.
+	for totalRead <= fileSize {
+		// Create a hash multiwriter.
+		hashMD5 = md5.New()
+		hashWriter := io.MultiWriter(hashMD5)
+		if enableSha256Sum {
+			hashSha256 = sha256.New()
+			hashWriter = io.MultiWriter(hashMD5, hashSha256)
+		}
+		// Get a section reader on a particular offset.
+		sectionReader := io.NewSectionReader(fileData, totalRead, partSize)
+		size, err := io.Copy(hashWriter, sectionReader)
+		if err != nil {
+			partMetadataCh <- partMetadata{
+				Err: err,
+			}
+			return
+		}
+		// Seek back to its primary location.
+		if _, err := sectionReader.Seek(0, 0); err != nil {
+			partMetadataCh <- partMetadata{
+				Err: err,
+			}
+			return
+		}
+		partMdata := partMetadata{
+			MD5Sum:     hashMD5.Sum(nil),
+			ReadCloser: ioutil.NopCloser(sectionReader),
+			Size:       size,
+			Err:        nil,
+		}
+		if enableSha256Sum {
+			partMdata.Sha256Sum = hashSha256.Sum(nil)
+		}
+		select {
+		// Reply with new partMetadata.
+		case partMetadataCh <- partMdata:
+			totalRead += partSize
+		// If done channel receives prematurely, return here to close the internal channel.
+		case <-doneCh:
+			return
+		}
+	}
+}
 
 // partsManager reads from io.Reader, partitions data into individual *partMetadata{}*.
 // backed by a temporary file which purges itself upon Close().

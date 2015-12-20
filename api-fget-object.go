@@ -17,21 +17,23 @@
 package minio
 
 import (
-	"errors"
 	"io"
 	"os"
 	"path/filepath"
 )
 
-// FPutObject - put object a file.
-func (c Client) FPutObject(bucketName, objectName, fileName string) (string, error) {
-	return "", errors.New("Not implemented yet")
-}
-
 // FGetObject - get object to a file.
-func (c Client) FGetObject(bucketName, objectName, fileName string) error {
+func (c Client) FGetObject(bucketName, objectName, filePath string) error {
+	// Input validation.
+	if err := isValidBucketName(bucketName); err != nil {
+		return err
+	}
+	if err := isValidObjectName(objectName); err != nil {
+		return err
+	}
+
 	// Verify if destination already exists.
-	st, err := os.Stat(fileName)
+	st, err := os.Stat(filePath)
 	if err == nil {
 		// If the destination exists and is a directory.
 		if st.IsDir() {
@@ -46,8 +48,8 @@ func (c Client) FGetObject(bucketName, objectName, fileName string) error {
 		}
 	}
 
-	// Extract dir name.
-	objectDir, _ := filepath.Split(fileName)
+	// Extract top level direcotry.
+	objectDir, _ := filepath.Split(filePath)
 	if objectDir != "" {
 		// Create any missing top level directories.
 		if err := os.MkdirAll(objectDir, 0700); err != nil {
@@ -56,7 +58,7 @@ func (c Client) FGetObject(bucketName, objectName, fileName string) error {
 	}
 
 	// Write to a temporary file "fileName.part.minio-go" before saving.
-	filePartPath := fileName + ".part.minio-go"
+	filePartPath := filePath + ".part.minio-go"
 
 	// If exists, open in append mode. If not create it as a part file.
 	filePart, err := os.OpenFile(filePartPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
@@ -81,11 +83,11 @@ func (c Client) FGetObject(bucketName, objectName, fileName string) error {
 		return err
 	}
 
-	// Close the file before rename.
+	// Close the file before rename, this is specifically needed for Windows users.
 	filePart.Close()
 
 	// Safely completed. Now commit by renaming to actual filename.
-	if err = os.Rename(filePartPath, fileName); err != nil {
+	if err = os.Rename(filePartPath, filePath); err != nil {
 		return err
 	}
 

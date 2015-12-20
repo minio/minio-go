@@ -17,10 +17,5 @@ func (s SignatureType) isV2() bool {
 
 // isV4 - is signature SignatureV4?
 func (s SignatureType) isV4() bool {
-	return s == SignatureV4
-}
-
-// isLatest - is signature Latest?
-func (s SignatureType) isLatest() bool {
-	return s == Latest
+	return s == SignatureV4 || s == Latest
 }
