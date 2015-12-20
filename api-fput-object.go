@@ -17,10 +17,8 @@
 package minio
 
 import (
-	"io"
 	"os"
 	"sort"
-	"sync"
 )
 
 // getUploadID if already present for object name or initiate a request to fetch a new upload id.
@@ -150,22 +148,6 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 	// Calculate the optimal part size for a given file size.
 	partSize := calculatePartSize(fileSize)
 
-	// Error struct sent back upon error.
-	type uploadedPart struct {
-		Part   completePart
-		Closer io.ReadCloser
-		Error  error
-	}
-
-	// Allocate bufferred upload part channel.
-	uploadedPartsCh := make(chan uploadedPart, maxParts)
-
-	// Close all our channels.
-	defer close(uploadedPartsCh)
-
-	// Allocate a new wait group.
-	wg := new(sync.WaitGroup)
-
 	// Seek to the total uploaded size obtained after listing all the parts.
 	if totalUploadedSize > 0 {
 		if _, err := fileData.Seek(totalUploadedSize, 0); err != nil {
@@ -173,65 +155,50 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 		}
 	}
 
-	// done channel for sectionManager is explicitly set to 'nil' since we will be
-	// running the loop till its exhausted.
-	for part := range sectionManager(fileData, fileSize, partSize, enableSha256Sum, nil) {
-		// Account for all parts uploaded simultaneousy.
-		wg.Add(1)
-		part.Number = partNumber
-		// Initiate the part upload goroutine.
-		go func(part partMetadata, wg *sync.WaitGroup, uploadedPartsCh chan<- uploadedPart) {
-			defer wg.Done()
-			if part.Err != nil {
-				uploadedPartsCh <- uploadedPart{
-					Error:  part.Err,
-					Closer: part.ReadCloser,
-				}
-				return
-			}
-			// execute upload part.
-			complPart, err := c.uploadPart(bucketName, objectName, uploadID, part)
-			if err != nil {
-				uploadedPartsCh <- uploadedPart{
-					Error:  err,
-					Closer: part.ReadCloser,
-				}
-				return
-			}
-			// On Success send through both the channels.
-			uploadedPartsCh <- uploadedPart{
-				Part:  complPart,
-				Error: nil,
-			}
-		}(part, wg, uploadedPartsCh)
-		// If any errors return right here.
-		if uploadedPrt, ok := <-uploadedPartsCh; ok {
-			// Uploading failed close the Reader and return error.
-			if uploadedPrt.Error != nil {
-				// Close the part.
-				if uploadedPrt.Closer != nil {
-					uploadedPrt.Closer.Close()
-				}
-				return totalUploadedSize, uploadedPrt.Error
-			}
-			// Save successfully uploaded size.
-			totalUploadedSize += part.Size
-			// Save successfully uploaded part metadatc.
-			completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, uploadedPrt.Part)
+	// Make done channel.
+	doneCh := make(chan struct{})
+	// Close done channel to indicate closure to all go-routines.
+	defer close(doneCh)
+
+	// Loop through all sections of the file.
+	for part := range sectionManager(fileData, fileSize, partSize, enableSha256Sum, doneCh) {
+		// On any error return.
+		if part.Err != nil {
+			return 0, part.Err
 		}
+
+		// Part number to be uploaded.
+		part.Number = partNumber
+
+		// execute upload part.
+		complPart, err := c.uploadPart(bucketName, objectName, uploadID, part)
+		if err != nil {
+			part.ReadCloser.Close()
+			return totalUploadedSize, err
+		}
+
+		// Save successfully uploaded size.
+		totalUploadedSize += part.Size
+
+		// Save successfully uploaded part metadatc.
+		completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, complPart)
+
+		// Increment to next part number.
 		partNumber++
 	}
-	wg.Wait()
-	// if totalUploadedSize is different than the file 'size'.
-	// Do not complete the request throw an error.
+
+	// if totalUploadedSize is different than the file 'size'. Do not complete the request throw an error.
 	if totalUploadedSize != fileSize {
 		return totalUploadedSize, ErrUnexpectedEOF(totalUploadedSize, fileSize, bucketName, objectName)
 	}
+
 	// Sort all completed parts.
 	sort.Sort(completedParts(completeMultipartUpload.Parts))
 	_, err = c.completeMultipartUpload(bucketName, objectName, uploadID, completeMultipartUpload)
 	if err != nil {
 		return totalUploadedSize, err
 	}
+
+	// Return final size.
 	return totalUploadedSize, nil
 }
