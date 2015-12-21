@@ -17,9 +17,10 @@
 package minio
 
 import (
+	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"math"
 	"net/http"
 	"net/url"
 	"strings"
@@ -130,122 +131,177 @@ func (c Client) GetBucketACL(bucketName string) (BucketACL, error) {
 
 // GetObject gets object content from specified bucket.
 // You may also look at GetPartialObject.
-func (c Client) GetObject(bucketName, objectName string) (io.ReadSeeker, error) {
+func (c Client) GetObject(bucketName, objectName string) (io.ReadCloser, ObjectStat, error) {
 	if err := isValidBucketName(bucketName); err != nil {
-		return nil, err
+		return nil, ObjectStat{}, err
 	}
 	if err := isValidObjectName(objectName); err != nil {
-		return nil, err
+		return nil, ObjectStat{}, err
 	}
-	// get object.
-	return newObjectReadSeeker(c, bucketName, objectName), nil
+	// get the whole object as a stream, no seek or resume supported for this.
+	return c.getObject(bucketName, objectName, 0, 0)
 }
 
-// GetPartialObject gets partial object content as specified by the Range.
-//
-// Setting offset and length = 0 will download the full object.
-// For more information about the HTTP Range header,
-// go to http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35
-func (c Client) GetPartialObject(bucketName, objectName string, offset, length int64) (io.ReadSeeker, error) {
+// ReadAtCloser readat closer interface.
+type ReadAtCloser interface {
+	io.ReaderAt
+	io.Closer
+}
+
+// GetObjectPartial returns a io.ReadAt for reading sparse entries.
+func (c Client) GetObjectPartial(bucketName, objectName string) (ReadAtCloser, ObjectStat, error) {
 	if err := isValidBucketName(bucketName); err != nil {
-		return nil, err
+		return nil, ObjectStat{}, err
 	}
 	if err := isValidObjectName(objectName); err != nil {
-		return nil, err
+		return nil, ObjectStat{}, err
 	}
-	// get partial object.
-	return newObjectReadSeeker(c, bucketName, objectName), nil
+	// Send an explicit stat to get the actual object size.
+	objectStat, err := c.StatObject(bucketName, objectName)
+	if err != nil {
+		return nil, ObjectStat{}, err
+	}
+
+	// Create request channel.
+	reqCh := make(chan readAtRequest)
+	// Create response channel.
+	resCh := make(chan readAtResponse)
+	// Create done channel.
+	doneCh := make(chan struct{})
+
+	// This routine feeds partial object data as and when the caller reads.
+	go func() {
+		defer close(reqCh)
+		defer close(resCh)
+
+		// Loop through the incoming control messages and read data.
+		for {
+			select {
+			// When the done channel is closed exit our routine.
+			case <-doneCh:
+				return
+			// Request message.
+			case req := <-reqCh:
+				// Get shortest length.
+				// NOTE: Last remaining bytes are usually smaller than
+				// req.Buffer size. Use that as the final length.
+				length := math.Min(float64(len(req.Buffer)), float64(objectStat.Size-req.Offset))
+				httpReader, _, err := c.getObject(bucketName, objectName, req.Offset, int64(length))
+				if err != nil {
+					resCh <- readAtResponse{
+						Error: err,
+					}
+					return
+				}
+				size, err := httpReader.Read(req.Buffer)
+				resCh <- readAtResponse{
+					Size:  size,
+					Error: err,
+				}
+			}
+		}
+	}()
+	// Return the readerAt backed by routine.
+	return newObjectReadAtCloser(reqCh, resCh, doneCh, objectStat.Size), objectStat, nil
 }
 
-// objectReadSeeker container for io.ReadSeeker.
-type objectReadSeeker struct {
+// response message container to reply back for the request.
+type readAtResponse struct {
+	Size  int
+	Error error
+}
+
+// request message container to communicate with internal go-routine.
+type readAtRequest struct {
+	Buffer []byte // requested bytes.
+	Offset int64  // readAt offset.
+}
+
+// objectReadAtCloser container for io.ReadAtCloser.
+type objectReadAtCloser struct {
 	// mutex.
 	mutex *sync.Mutex
 
-	client     Client
-	reader     io.ReadCloser
-	isRead     bool
-	stat       ObjectStat
-	offset     int64
-	bucketName string
-	objectName string
+	// User allocated and defined.
+	reqCh      chan<- readAtRequest
+	resCh      <-chan readAtResponse
+	doneCh     chan<- struct{}
+	objectSize int64
+
+	// Previous error saved for future calls.
+	prevErr error
 }
 
-// newObjectReadSeeker wraps getObject request returning a io.ReadSeeker.
-func newObjectReadSeeker(client Client, bucket, object string) *objectReadSeeker {
-	return &objectReadSeeker{
+// newObjectReadAtCloser implements a io.ReadSeeker for a HTTP stream.
+func newObjectReadAtCloser(reqCh chan<- readAtRequest, resCh <-chan readAtResponse, doneCh chan<- struct{}, objectSize int64) *objectReadAtCloser {
+	return &objectReadAtCloser{
 		mutex:      new(sync.Mutex),
-		reader:     nil,
-		isRead:     false,
-		client:     client,
-		offset:     0,
-		bucketName: bucket,
-		objectName: object,
+		reqCh:      reqCh,
+		resCh:      resCh,
+		doneCh:     doneCh,
+		objectSize: objectSize,
 	}
 }
 
-// Read reads up to len(p) bytes into p.  It returns the number of bytes
-// read (0 <= n <= len(p)) and any error encountered.  Even if Read
-// returns n < len(p), it may use all of p as scratch space during the call.
-// If some data is available but not len(p) bytes, Read conventionally
-// returns what is available instead of waiting for more.
-//
-// When Read encounters an error or end-of-file condition after
-// successfully reading n > 0 bytes, it returns the number of
-// bytes read.  It may return the (non-nil) error from the same call
-// or return the error (and n == 0) from a subsequent call.
-// An instance of this general case is that a Reader returning
-// a non-zero number of bytes at the end of the input stream may
-// return either err == EOF or err == nil.  The next Read should
-// return 0, EOF.
-func (r *objectReadSeeker) Read(p []byte) (int, error) {
+// ReadAt reads len(b) bytes from the File starting at byte offset off.
+// It returns the number of bytes read and the error, if any.
+// ReadAt always returns a non-nil error when n < len(b).
+// At end of file, that error is io.EOF.
+func (r *objectReadAtCloser) ReadAt(p []byte, offset int64) (int, error) {
+	// Locking.
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	if !r.isRead {
-		reader, _, err := r.client.getObject(r.bucketName, r.objectName, r.offset, 0)
-		if err != nil {
-			return 0, err
+	// prevErr is which was saved in previous operation.
+	if r.prevErr != nil {
+		return 0, r.prevErr
+	}
+
+	// Send current information over control channel to indicate we are ready.
+	reqMsg := readAtRequest{}
+
+	// Send the current offset and bytes requested.
+	reqMsg.Buffer = p
+	reqMsg.Offset = offset
+
+	// Send read request over the control channel.
+	r.reqCh <- reqMsg
+
+	// Get data over the response channel.
+	dataMsg := <-r.resCh
+
+	// Save any error.
+	r.prevErr = dataMsg.Error
+	if dataMsg.Error != nil {
+		if dataMsg.Error == io.EOF {
+			return dataMsg.Size, dataMsg.Error
 		}
-		r.reader = reader
-		r.isRead = true
+		return 0, dataMsg.Error
 	}
-	n, err := r.reader.Read(p)
-	if err == io.EOF {
-		// drain any remaining body, discard it before closing the body.
-		io.Copy(ioutil.Discard, r.reader)
-		r.reader.Close()
-		return n, err
-	}
-	if err != nil {
-		// drain any remaining body, discard it before closing the body.
-		io.Copy(ioutil.Discard, r.reader)
-		r.reader.Close()
-		return 0, err
-	}
-	return n, nil
+	return dataMsg.Size, nil
 }
 
-// Seek sets the offset for the next Read or Write to offset,
-// interpreted according to whence: 0 means relative to the start of
-// the file, 1 means relative to the current offset, and 2 means
-// relative to the end. Seek returns the new offset relative to the
-// start of the file and an error, if any.
+// Closer is the interface that wraps the basic Close method.
 //
-// Seeking to an offset before the start of the file is an error.
-// TODO: whence value of '1' and '2' are not implemented yet.
-func (r *objectReadSeeker) Seek(offset int64, whence int) (int64, error) {
+// The behavior of Close after the first call returns error for
+// subsequent Close() calls.
+func (r *objectReadAtCloser) Close() (err error) {
+	// Locking.
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	r.offset = offset
-	return offset, nil
-}
 
-// Size returns the size of the object.
-func (r *objectReadSeeker) Size() (int64, error) {
-	objectSt, err := r.client.StatObject(r.bucketName, r.objectName)
-	r.stat = objectSt
-	return r.stat.Size, err
+	// prevErr is which was saved in previous operation.
+	if r.prevErr != nil {
+		return r.prevErr
+	}
+
+	// Close successfully.
+	close(r.doneCh)
+
+	// Save this for any subsequent frivolous reads.
+	errMsg := "objectReadAtCloser: is already closed. Bad file descriptor."
+	r.prevErr = errors.New(errMsg)
+	return
 }
 
 // getObject - retrieve object from Object Storage.

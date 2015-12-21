@@ -19,7 +19,6 @@
 package main
 
 import (
-	"io"
 	"log"
 	"os"
 
@@ -29,28 +28,29 @@ import (
 func main() {
 	// Note: my-bucketname, my-objectname and my-testfile are dummy values, please replace them with original values.
 
-	// Requests are always secure by default. set inSecure=true to enable insecure access.
-	// inSecure boolean is the last argument for New().
+	// Requests are always secure (HTTPS) by default. Set insecure=true to enable insecure (HTTP) access.
+	// This boolean value is the last argument for New().
 
-	// New provides a client object backend by automatically detected signature type based
-	// on the provider.
+	// New returns an Amazon S3 compatible client object. API copatibality (v2 or v4) is automatically
+	// determined based on the Endpoint value.
 	s3Client, err := minio.New("play.minio.io:9002", "Q3AM3UQ867SPQQA43P2F", "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG", false)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	reader, stat, err := s3Client.GetPartialObject("my-bucketname", "my-objectname", 0, 10)
+	localFile, err := os.Open("testfile")
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	localfile, err := os.Create("my-testfile")
+	st, err := localFile.Stat()
 	if err != nil {
 		log.Fatalln(err)
 	}
-	defer localfile.Close()
+	defer localFile.Close()
 
-	if _, err = io.CopyN(localfile, reader, stat.Size); err != nil {
+	_, err = s3Client.PutObjectPartial("bucket-name", "objectName", localFile, st.Size(), "text/plain")
+	if err != nil {
 		log.Fatalln(err)
 	}
 }

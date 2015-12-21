@@ -62,22 +62,25 @@ func main() {
 ## Documentation
 
 ### Bucket Operations.
-* [MakeBucket(bucketName, BucketACL) error](examples/s3/makebucket.go)
+* [MakeBucket(bucketName, BucketACL, location) error](examples/s3/makebucket.go)
 * [BucketExists(bucketName) error](examples/s3/bucketexists.go)
 * [RemoveBucket(bucketName) error](examples/s3/removebucket.go)
 * [GetBucketACL(bucketName) (BucketACL, error)](examples/s3/getbucketacl.go)
 * [SetBucketACL(bucketName, BucketACL) error)](examples/s3/setbucketacl.go)
 * [ListBuckets() []BucketStat](examples/s3/listbuckets.go)
-* [ListObjects(bucketName, objectPrefix, recursive) <-chan ObjectStat](examples/s3/listobjects.go)
-* [ListIncompleteUploads(bucketName, prefix, recursive) <-chan ObjectMultipartStat](examples/s3/listincompleteuploads.go)
+* [ListObjects(bucketName, objectPrefix, recursive, chan<- struct{}) <-chan ObjectStat](examples/s3/listobjects.go)
+* [ListIncompleteUploads(bucketName, prefix, recursive, chan<- struct{}) <-chan ObjectMultipartStat](examples/s3/listincompleteuploads.go)
 
 ### Object Operations.
-* [PutObject(bucketName, objectName, contentType, io.ReadSeeker) error](examples/s3/putobject.go)
-* [GetObject(bucketName, objectName) (io.ReadSeeker, error)](examples/s3/getobject.go)
-* [GetPartialObject(bucketName, objectName, offset, length) (io.ReadSeeker, error)](examples/s3/getpartialobject.go)
+* [PutObject(bucketName, objectName, io.Reader, size, contentType) error](examples/s3/putobject.go)
+* [GetObject(bucketName, objectName) (io.ReadCloser, ObjectStat, error)](examples/s3/getobject.go)
 * [StatObject(bucketName, objectName) (ObjectStat, error)](examples/s3/statobject.go)
 * [RemoveObject(bucketName, objectName) error](examples/s3/removeobject.go)
 * [RemoveIncompleteUpload(bucketName, objectName) <-chan error](examples/s3/removeincompleteupload.go)
+
+### File Object Operations.
+* [FPutObject(bucketName, objectName, filePath, contentType) (size, error)](examples/s3/fputobject.go)
+* [FGetObject(bucketName, objectName, filePath) error](examples/s3/fgetobject.go)
 
 ### Presigned Operations.
 * [PresignedGetObject(bucketName, objectName, time.Duration) (string, error)](examples/s3/presignedgetobject.go)

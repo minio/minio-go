@@ -38,7 +38,8 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	reader, err := s3Client.GetObject("my-bucketname", "my-objectname")
+
+	reader, _, err := s3Client.GetObject("my-bucketname", "my-objectname")
 	if err != nil {
 		log.Fatalln(err)
 	}

@@ -38,7 +38,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	if err := s3Client.FPutObject("my-bucketname", "my-objectname", "my-filename.csv", "application/csv"); err != nil {
+	if _, err := s3Client.FPutObject("my-bucketname", "my-objectname", "my-filename.csv", "application/csv"); err != nil {
 		log.Fatalln(err)
 	}
 	log.Println("Successfully uploaded my-filename.csv")

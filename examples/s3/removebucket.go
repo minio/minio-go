@@ -38,7 +38,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
- // This operation will only work if your bucket is empty.
+	// This operation will only work if your bucket is empty.
 	err = s3Client.RemoveBucket("my-bucketname")
 	if err != nil {
 		log.Fatalln(err)

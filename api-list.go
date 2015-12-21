@@ -381,45 +381,30 @@ func (c Client) listMultipartUploadsQuery(bucketName, keyMarker, uploadIDMarker,
 }
 
 // listObjectParts list all object parts recursively.
-func (c Client) listObjectParts(bucketName, objectName, uploadID string, doneCh <-chan struct{}) <-chan objectPartMetadata {
-	// Allocate new list parts channel.
-	objectPartCh := make(chan objectPartMetadata, 1000)
-	// Initiate list parts goroutine.
-	go func(objectPartCh chan<- objectPartMetadata) {
-		defer close(objectPartCh)
-		// part number marker for the next request if IsTruncated is set.
-		var nextPartNumberMarker int
-		for {
-			// Get list of uploaded parts a maximum of 1000 per request.
-			listObjPartsResult, err := c.listObjectPartsQuery(bucketName, objectName, uploadID, nextPartNumberMarker, 1000)
-			if err != nil {
-				objectPartCh <- objectPartMetadata{
-					Err: err,
-				}
-				return
-			}
-			// Loop through all object parts and send over the channel.
-			// Additionally wait on done channel to return the routine.
-			for _, uploadedObjectPart := range listObjPartsResult.ObjectParts {
-				select {
-				// Send individual parts here.
-				case objectPartCh <- uploadedObjectPart:
-				// If done channel return here.
-				case <-doneCh:
-					return
-				}
-			}
-			// Keep part number marker, for the next iteration.
-			nextPartNumberMarker = listObjPartsResult.NextPartNumberMarker
-
-			// Listing ends result is not truncated, return right here.
-			if !listObjPartsResult.IsTruncated {
-				return
-			}
+func (c Client) listObjectParts(bucketName, objectName, uploadID string) (partsInfo map[int]objectPart, err error) {
+	// Part number marker for the next batch of request.
+	var nextPartNumberMarker int
+	partsInfo = make(map[int]objectPart)
+	for {
+		// Get list of uploaded parts a maximum of 1000 per request.
+		listObjPartsResult, err := c.listObjectPartsQuery(bucketName, objectName, uploadID, nextPartNumberMarker, 1000)
+		if err != nil {
+			return nil, err
 		}
-	}(objectPartCh)
-	// Return the channel here.
-	return objectPartCh
+		// Append to parts info.
+		for _, part := range listObjPartsResult.ObjectParts {
+			partsInfo[part.PartNumber] = part
+		}
+		// Keep part number marker, for the next iteration.
+		nextPartNumberMarker = listObjPartsResult.NextPartNumberMarker
+		// Listing ends result is not truncated, return right here.
+		if !listObjPartsResult.IsTruncated {
+			break
+		}
+	}
+
+	// Return all the parts.
+	return partsInfo, nil
 }
 
 // findUploadID lists all incomplete uploads and finds the uploadID of the matching object name.
@@ -443,15 +428,14 @@ func (c Client) findUploadID(bucketName, objectName string) (string, error) {
 }
 
 // getTotalMultipartSize - calculate total uploaded size for the a given multipart object.
-func (c Client) getTotalMultipartSize(bucketName, objectName, uploadID string) (int64, error) {
-	var size int64
+func (c Client) getTotalMultipartSize(bucketName, objectName, uploadID string) (size int64, err error) {
 	// Iterate over all parts and aggregate the size.
-	// NOTE: done Channel is set to 'nil, this will drain go routine until exhaustion.
-	for part := range c.listObjectParts(bucketName, objectName, uploadID, nil) {
-		if part.Err != nil {
-			return 0, part.Err
-		}
-		size += part.Size
+	partsInfo, err := c.listObjectParts(bucketName, objectName, uploadID)
+	if err != nil {
+		return 0, err
+	}
+	for _, partInfo := range partsInfo {
+		size += partInfo.Size
 	}
 	return size, nil
 }
