@@ -21,14 +21,11 @@ import (
 	"encoding/xml"
 	"io"
 	"io/ioutil"
-	"math"
 	"net/http"
 	"net/url"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 )
 
 /// Multipart upload defaults.
@@ -41,9 +38,6 @@ var maxParts = int64(10000)
 
 // maxPartSize - maximum part size for a single multipart upload operation.
 var maxPartSize int64 = 1024 * 1024 * 1024 * 5
-
-// maxConcurrentQueue - max concurrent upload queue, defaults to number of CPUs - 1.
-var maxConcurrentQueue = int(math.Max(float64(runtime.NumCPU())-1, 1))
 
 // completedParts is a collection of parts sortable by their part numbers.
 // used for sorting the uploaded parts before completing the multipart request.
@@ -193,20 +187,13 @@ func (c Client) putLargeObject(bucketName, objectName string, data io.ReadSeeker
 	if err := isValidObjectName(objectName); err != nil {
 		return 0, err
 	}
-	// Find upload id before upload.
-	uploadID, err := c.findUploadID(bucketName, objectName)
+
+	// getUploadID for an object, fetches a new uploadID if necessary.
+	uploadID, err := c.getUploadID(bucketName, objectName, contentType)
 	if err != nil {
 		return 0, err
 	}
-	if uploadID == "" {
-		// Initiate multipart upload.
-		initMultipartUploadResult, err := c.initiateMultipartUpload(bucketName, objectName, contentType)
-		if err != nil {
-			return 0, err
-		}
-		// Save the new upload id.
-		uploadID = initMultipartUploadResult.UploadID
-	}
+
 	// Initiate multipart upload.
 	return c.putParts(bucketName, objectName, uploadID, data, size)
 }
@@ -227,56 +214,14 @@ func (c Client) putParts(bucketName, objectName, uploadID string, data io.ReadSe
 	// total data read and written to server. should be equal to 'size' at the end of the call.
 	var totalUploadedSize int64
 
-	// Starting part number. Always part '1'.
-	partNumber := 1
-	completeMultipartUpload := completeMultipartUpload{}
-	// Done channel is used to communicate with the go routine inside listObjectParts.
-	// It is necessary to close dangling routines inside once we break out of the loop.
-	doneCh := make(chan struct{})
-	for objPart := range c.listObjectParts(bucketName, objectName, uploadID, doneCh) {
-		if objPart.Err != nil {
-			close(doneCh)
-			return 0, objPart.Err
-		}
-		// Verify if there is a hole i.e one of the parts is missing
-		// Break and start uploading from this part.
-		if partNumber != objPart.PartNumber {
-			// Close listObjectParts channel by communicating that we are done.
-			close(doneCh)
-			break
-		}
-		var completedPart completePart
-		completedPart.PartNumber = objPart.PartNumber
-		completedPart.ETag = objPart.ETag
-		completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, completedPart)
-		// Save total uploaded size which will be incremented later.
-		totalUploadedSize += objPart.Size
-		// Increment additively to verify holes in next iteration.
-		partNumber++
+	// gather next part number to be uploaded, total uploaded size and list of all parts uploaded.
+	partNumber, totalUploadedSize, completeMultipartUpload, err := c.getMultipartStat(bucketName, objectName, uploadID)
+	if err != nil {
+		return 0, err
 	}
 
 	// Calculate the optimal part size for a given size.
 	partSize := calculatePartSize(size)
-
-	// Error struct sent back upon error.
-	type uploadedPart struct {
-		Part   completePart
-		Closer io.ReadCloser
-		Error  error
-	}
-
-	// Allocate bufferred upload part channel.
-	uploadedPartsCh := make(chan uploadedPart, maxParts)
-
-	// Limit multipart queue size to max concurrent queue, defaults to NCPUs - 1.
-	mpQueueCh := make(chan struct{}, maxConcurrentQueue)
-
-	// Close all our channels.
-	defer close(mpQueueCh)
-	defer close(uploadedPartsCh)
-
-	// Allocate a new wait group.
-	wg := new(sync.WaitGroup)
 
 	// Seek to the total uploaded size obtained after listing all the parts.
 	if totalUploadedSize > 0 {
@@ -291,59 +236,39 @@ func (c Client) putParts(bucketName, objectName, uploadID string, data io.ReadSe
 		enableSha256Sum = true
 	}
 
+	// Make done channel.
+	doneCh := make(chan struct{})
+	// Close done channel to indicate closure to all go-routines.
+	defer close(doneCh)
+
 	// Chunk all parts at partSize and start uploading.
-	for part := range partsManager(data, partSize, enableSha256Sum) {
-		// Limit to NCPUs-1 parts at a given time.
-		mpQueueCh <- struct{}{}
-		// Account for all parts uploaded simultaneousy.
-		wg.Add(1)
-		part.Number = partNumber
-		// Initiate the part upload goroutine.
-		go func(mpQueueCh <-chan struct{}, part partMetadata, wg *sync.WaitGroup, uploadedPartsCh chan<- uploadedPart) {
-			defer wg.Done()
-			defer func() {
-				<-mpQueueCh
-			}()
-			if part.Err != nil {
-				uploadedPartsCh <- uploadedPart{
-					Error:  part.Err,
-					Closer: part.ReadCloser,
-				}
-				return
-			}
-			// execute upload part.
-			complPart, err := c.uploadPart(bucketName, objectName, uploadID, part)
-			if err != nil {
-				uploadedPartsCh <- uploadedPart{
-					Error:  err,
-					Closer: part.ReadCloser,
-				}
-				return
-			}
-			// On Success send through both the channels.
-			uploadedPartsCh <- uploadedPart{
-				Part:  complPart,
-				Error: nil,
-			}
-		}(mpQueueCh, part, wg, uploadedPartsCh)
-		// If any errors return right here.
-		if uploadedPrt, ok := <-uploadedPartsCh; ok {
-			// Uploading failed close the Reader and return error.
-			if uploadedPrt.Error != nil {
-				// Close the part to remove it from disk.
-				if uploadedPrt.Closer != nil {
-					uploadedPrt.Closer.Close()
-				}
-				return totalUploadedSize, uploadedPrt.Error
-			}
-			// Save successfully uploaded size.
-			totalUploadedSize += part.Size
-			// Save successfully uploaded part metadatc.
-			completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, uploadedPrt.Part)
+	for part := range partsManager(data, partSize, enableSha256Sum, doneCh) {
+		// Any error we return.
+		if part.Err != nil {
+			return 0, part.Err
 		}
+
+		// Current part number to be uploaded.
+		part.Number = partNumber
+
+		// execute upload part.
+		complPart, err := c.uploadPart(bucketName, objectName, uploadID, part)
+		if err != nil {
+			// Close the read closer.
+			part.ReadCloser.Close()
+			return totalUploadedSize, err
+		}
+
+		// Save successfully uploaded size.
+		totalUploadedSize += part.Size
+
+		// Save successfully uploaded part metadata.
+		completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, complPart)
+
+		// Move to next part.
 		partNumber++
 	}
-	wg.Wait()
+
 	// If size is greater than zero verify totalWritten.
 	// if totalWritten is different than the input 'size', do not complete the request throw an error.
 	if size > 0 {
@@ -351,12 +276,15 @@ func (c Client) putParts(bucketName, objectName, uploadID string, data io.ReadSe
 			return totalUploadedSize, ErrUnexpectedEOF(totalUploadedSize, size, bucketName, objectName)
 		}
 	}
+
 	// sort all completed parts.
 	sort.Sort(completedParts(completeMultipartUpload.Parts))
-	_, err := c.completeMultipartUpload(bucketName, objectName, uploadID, completeMultipartUpload)
+	_, err = c.completeMultipartUpload(bucketName, objectName, uploadID, completeMultipartUpload)
 	if err != nil {
 		return totalUploadedSize, err
 	}
+
+	// Return final size.
 	return totalUploadedSize, nil
 }
 

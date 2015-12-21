@@ -241,7 +241,7 @@ func (c Client) newRequest(method string, metadata requestMetadata) (*http.Reque
 	// Set sha256 sum only for non anonymous credentials.
 	if !c.anonymous {
 		// set sha256 sum for signature calculation only with signature version '4'.
-		if c.signature.isV4() || c.signature.isLatest() {
+		if c.signature.isV4() {
 			req.Header.Set("X-Amz-Content-Sha256", hex.EncodeToString(sum256([]byte{})))
 			if metadata.contentSha256Bytes != nil {
 				req.Header.Set("X-Amz-Content-Sha256", hex.EncodeToString(metadata.contentSha256Bytes))
@@ -259,7 +259,7 @@ func (c Client) newRequest(method string, metadata requestMetadata) (*http.Reque
 		if c.signature.isV2() {
 			// Add signature version '2' authorization header.
 			req = SignV2(*req, c.accessKeyID, c.secretAccessKey)
-		} else if c.signature.isV4() || c.signature.isLatest() {
+		} else if c.signature.isV4() {
 			// Add signature version '4' authorization header.
 			req = SignV4(*req, c.accessKeyID, c.secretAccessKey, location)
 		}
@@ -309,28 +309,32 @@ func (c Client) makeTargetURL(bucketName, objectName string, queryValues url.Val
 // CloudStorageClient - Cloud Storage Client interface.
 type CloudStorageClient interface {
 	// Bucket Read/Write/Stat operations.
-	MakeBucket(bucket string, cannedACL BucketACL, location string) error
-	BucketExists(bucket string) error
-	RemoveBucket(bucket string) error
-	SetBucketACL(bucket string, cannedACL BucketACL) error
-	GetBucketACL(bucket string) (BucketACL, error)
+	MakeBucket(bucketName string, cannedACL BucketACL, location string) error
+	BucketExists(bucketName string) error
+	RemoveBucket(bucketName string) error
+	SetBucketACL(bucketName string, cannedACL BucketACL) error
+	GetBucketACL(bucketName string) (BucketACL, error)
 
 	ListBuckets() ([]BucketStat, error)
 	ListObjects(bucket, prefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectStat
 	ListIncompleteUploads(bucket, prefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectMultipartStat
 
 	// Object Read/Write/Stat operations.
-	GetObject(bucket, object string) (io.ReadSeeker, error)
-	GetPartialObject(bucket, object string, offset, length int64) (io.ReadSeeker, error)
-	PutObject(bucket, object string, data io.ReadSeeker, size int64, contentType string) (int64, error)
-	StatObject(bucket, object string) (ObjectStat, error)
-	RemoveObject(bucket, object string) error
-	RemoveIncompleteUpload(bucket, object string) error
+	GetObject(bucketName, objectName string) (io.ReadSeeker, error)
+	GetPartialObject(bucketName, objectName string, offset, length int64) (io.ReadSeeker, error)
+	PutObject(bucketName, objectName string, data io.ReadSeeker, size int64, contentType string) (int64, error)
+	StatObject(bucketName, objectName string) (ObjectStat, error)
+	RemoveObject(bucketName, objectName string) error
+	RemoveIncompleteUpload(bucketName, objectName string) error
 
 	// Presigned operations.
-	PresignedGetObject(bucket, object string, expires time.Duration) (string, error)
-	PresignedPutObject(bucket, object string, expires time.Duration) (string, error)
+	PresignedGetObject(bucketName, objectName string, expires time.Duration) (string, error)
+	PresignedPutObject(bucketName, objectName string, expires time.Duration) (string, error)
 	PresignedPostPolicy(*PostPolicy) (map[string]string, error)
+
+	// File related API.
+	FPutObject(bucketName, objectName, filePath, contentType string) (int64, error)
+	FGetObject(bucketName, objectName, filePath string) error
 
 	// Application info.
 	SetAppInfo(appName, appVersion string)
