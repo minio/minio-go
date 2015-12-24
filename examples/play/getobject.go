@@ -27,6 +27,8 @@ import (
 )
 
 func main() {
+	// Note: my-bucketname, my-objectname and my-testfile are dummy values, please replace them with original values.
+
 	// Requests are always secure by default. set inSecure=true to enable insecure access.
 	// inSecure boolean is the last argument for New().
 
@@ -36,12 +38,12 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	reader, err := s3Client.GetObject("bucke-name", "objectName")
+	reader, err := s3Client.GetObject("my-bucketname", "my-objectname")
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	localfile, err := os.Create("testfile")
+	localfile, err := os.Create("my-testfile")
 	if err != nil {
 		log.Fatalln(err)
 	}

@@ -26,26 +26,29 @@ import (
 )
 
 func main() {
+	// Note: YOUR-ACCESSKEYID, YOUR-SECRETACCESSKEY, my-testfile, my-bucketname and
+	// my-objectname are dummy values, please replace them with original values.
+
 	// Requests are always secure (HTTPS) by default. Set insecure=true to enable insecure (HTTP) access.
 	// This boolean value is the last argument for New().
 
 	// New returns an Amazon S3 compatible client object. API copatibality (v2 or v4) is automatically
 	// determined based on the Endpoint value.
-	s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESS-KEY-HERE", "YOUR-SECRET-KEY-HERE", false)
+	s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", false)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	object, err := os.Open("testfile")
+	object, err := os.Open("my-testfile")
 	if err != nil {
 		log.Fatalln(err)
 	}
 	defer object.Close()
 
 	st, _ := object.Stat()
-	n, err := s3Client.PutObject("bucket-name", "objectName", object, st.Size(), "application/octet-stream")
+	n, err := s3Client.PutObject("my-bucketname", "my-objectname", object, st.Size(), "application/octet-stream")
 	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Println("Uploaded", "objectName", " of size: ", n, "Successfully.")
+	log.Println("Uploaded", "my-objectname", " of size: ", n, "Successfully.")
 }

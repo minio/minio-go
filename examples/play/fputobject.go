@@ -25,6 +25,8 @@ import (
 )
 
 func main() {
+	// Note: my-bucketname, my-objectname and my-filename.csv are dummy values, please replace them with original values.
+
 	// Requests are always secure (HTTPS) by default. Set insecure=true to enable insecure (HTTP) access.
 	// This boolean value is the last argument for New().
 
@@ -35,8 +37,8 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	if err := s3Client.FPutObject("bucket-name", "objectName", "fileName.csv", "application/csv"); err != nil {
+	if err := s3Client.FPutObject("my-bucketname", "my-objectname", "my-filename.csv", "application/csv"); err != nil {
 		log.Fatalln(err)
 	}
-	log.Println("Successfully uploaded fileName.csv")
+	log.Println("Successfully uploaded my-filename.csv")
 }

@@ -26,6 +26,8 @@ import (
 )
 
 func main() {
+	// Note: my-bucketname and my-prefixname are dummy values, please replace them with original values.
+
 	// Requests are always secure by default. set inSecure=true to enable insecure access.
 	// inSecure boolean is the last argument for New().
 
@@ -43,7 +45,7 @@ func main() {
 	defer close(doneCh)
 
 	// List all objects from a bucket-name with a matching prefix.
-	for object := range s3Client.ListObjects("bucket-name", "prefix", true, doneCh) {
+	for object := range s3Client.ListObjects("my-bucketname", "my-prefixname", true, doneCh) {
 		if object.Err != nil {
 			fmt.Println(object.Err)
 			return

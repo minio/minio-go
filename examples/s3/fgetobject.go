@@ -25,18 +25,21 @@ import (
 )
 
 func main() {
+	// Note: YOUR-ACCESSKEYID, YOUR-SECRETACCESSKEY, my-bucketname, my-objectname
+	// and my-filename.csv are dummy values, please replace them with original values.
+
 	// Requests are always secure (HTTPS) by default. Set insecure=true to enable insecure (HTTP) access.
 	// This boolean value is the last argument for New().
 
 	// New returns an Amazon S3 compatible client object. API copatibality (v2 or v4) is automatically
 	// determined based on the Endpoint value.
-	s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESS-KEY-HERE", "YOUR-SECRET-KEY-HERE", false)
+	s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", false)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	if err := s3Client.FGetObject("bucket-name", "objectName", "fileName.csv"); err != nil {
+	if err := s3Client.FGetObject("my-bucketname", "my-objectname", "my-filename.csv"); err != nil {
 		log.Fatalln(err)
 	}
-	log.Println("Successfully saved fileName.csv")
+	log.Println("Successfully saved my-filename.csv")
 }

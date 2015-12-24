@@ -25,6 +25,8 @@ import (
 )
 
 func main() {
+	// Note: my-bucketname is a dummy value, please replace them with original value.
+
 	// Requests are always secure by default. set inSecure=true to enable insecure access.
 	// inSecure boolean is the last argument for New().
 
@@ -35,7 +37,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	err = s3Client.MakeBucket("bucket-name", minio.BucketACL("private"), "us-east-1")
+	err = s3Client.MakeBucket("my-bucketname", minio.BucketACL("private"), "us-east-1")
 	if err != nil {
 		log.Fatalln(err)
 	}
