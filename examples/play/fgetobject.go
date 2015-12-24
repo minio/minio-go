@@ -25,6 +25,8 @@ import (
 )
 
 func main() {
+	// Note: my-bucketname, my-objectname and my-filename.csv are dummy values, please replace them with original values.
+
 	// Requests are always secure by default. set inSecure=true to enable insecure access.
 	// inSecure boolean is the last argument for New().
 

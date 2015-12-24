@@ -25,6 +25,8 @@ import (
 )
 
 func main() {
+	// Note: my-bucketname and my-objectname are dummy values, please replace them with original values.
+
 	// Requests are always secure by default. set inSecure=true to enable insecure access.
 	// inSecure boolean is the last argument for New().
 
@@ -34,7 +36,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = s3Client.RemoveObject("bucket-name", "objectName")
+	err = s3Client.RemoveObject("my-bucketname", "my-objectname")
 	if err != nil {
 		log.Fatalln(err)
 	}

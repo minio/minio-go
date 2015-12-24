@@ -26,6 +26,8 @@ import (
 )
 
 func main() {
+	// Note: my-bucketname and my-objectname are dummy values, please replace them with original values.
+
 	// Requests are always secure by default. set inSecure=true to enable insecure access.
 	// inSecure boolean is the last argument for New().
 
@@ -36,7 +38,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	presignedURL, err := s3Client.PresignedPutObject("bucket-name", "objectName", time.Duration(1000)*time.Second)
+	presignedURL, err := s3Client.PresignedPutObject("my-bucketname", "my-objectname", time.Duration(1000)*time.Second)
 	if err != nil {
 		log.Fatalln(err)
 	}

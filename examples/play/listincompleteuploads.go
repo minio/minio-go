@@ -26,6 +26,8 @@ import (
 )
 
 func main() {
+	// Note: my-bucketname and my-prefixname are dummy values, please replace them with original values.
+
 	// Requests are always secure by default. set inSecure=true to enable insecure access.
 	// inSecure boolean is the last argument for New().
 
@@ -43,7 +45,7 @@ func main() {
 	defer close(doneCh)
 
 	// List all multipart uploads from a bucket-name with a matching prefix.
-	for multipartObject := range s3Client.ListIncompleteUploads("bucket-name", "prefix", true, doneCh) {
+	for multipartObject := range s3Client.ListIncompleteUploads("my-bucketname", "my-prefixname", true, doneCh) {
 		if multipartObject.Err != nil {
 			fmt.Println(multipartObject.Err)
 			return

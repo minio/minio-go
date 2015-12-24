@@ -27,6 +27,8 @@ import (
 )
 
 func main() {
+	// Note: my-bucketname and my-objectname are dummy values, please replace them with original values.
+
 	// Requests are always secure by default. set inSecure=true to enable insecure access.
 	// inSecure boolean is the last argument for New().
 
@@ -38,8 +40,8 @@ func main() {
 	}
 
 	policy := minio.NewPostPolicy()
-	policy.SetBucket("bucket-name")
-	policy.SetKey("objectName")
+	policy.SetBucket("my-bucketname")
+	policy.SetKey("my-objectname")
 	policy.SetExpires(time.Now().UTC().AddDate(0, 0, 10)) // expires in 10 days
 	m, err := s3Client.PresignedPostPolicy(policy)
 	if err != nil {
@@ -50,5 +52,5 @@ func main() {
 		fmt.Printf("-F %s=%s ", k, v)
 	}
 	fmt.Printf("-F file=@/etc/bashrc ")
-	fmt.Printf("https://play.minio.io:9002/bucket-name\n")
+	fmt.Printf("https://play.minio.io:9002/my-bucketname\n")
 }
