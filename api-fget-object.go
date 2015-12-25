@@ -57,8 +57,14 @@ func (c Client) FGetObject(bucketName, objectName, filePath string) error {
 		}
 	}
 
-	// Write to a temporary file "fileName.part.minio-go" before saving.
-	filePartPath := filePath + ".part.minio-go"
+	// Gather md5sum.
+	objectStat, err := c.StatObject(bucketName, objectName)
+	if err != nil {
+		return err
+	}
+
+	// Write to a temporary file "fileName.part.minio" before saving.
+	filePartPath := filePath + objectStat.ETag + ".part.minio"
 
 	// If exists, open in append mode. If not create it as a part file.
 	filePart, err := os.OpenFile(filePartPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)

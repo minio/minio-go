@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"math/rand"
+	"os"
 	"testing"
 	"time"
 
@@ -35,8 +36,12 @@ func randString(n int, src rand.Source) string {
 }
 
 func TestFunctional(t *testing.T) {
-	c, err := minio.New("play.minio.io:9002",
-		"Q3AM3UQ867SPQQA43P2F", "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG", false)
+	c, err := minio.New(
+		"play.minio.io:9002",
+		"Q3AM3UQ867SPQQA43P2F",
+		"zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+		false,
+	)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -49,6 +54,16 @@ func TestFunctional(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
+
+	fileName := randString(60, rand.NewSource(time.Now().UnixNano()))
+	file, err := os.Create(fileName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	for i := 0; i < 10; i++ {
+		file.WriteString(fileName)
+	}
+	file.Close()
 
 	err = c.BucketExists(bucketName)
 	if err != nil {
@@ -74,22 +89,35 @@ func TestFunctional(t *testing.T) {
 	}
 
 	objectName := bucketName + "Minio"
-	readSeeker := bytes.NewReader([]byte("Hello World!"))
+	reader := bytes.NewReader([]byte("Hello World!"))
 
-	n, err := c.PutObject(bucketName, objectName, readSeeker, int64(readSeeker.Len()), "")
+	n, err := c.PutObject(bucketName, objectName, reader, int64(reader.Len()), "")
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
 	if n != int64(len([]byte("Hello World!"))) {
-		t.Fatal("Error: bad length ", n, readSeeker.Len())
+		t.Fatal("Error: bad length ", n, reader.Len())
 	}
 
-	newReadSeeker, err := c.GetObject(bucketName, objectName)
+	newReader, _, err := c.GetObject(bucketName, objectName)
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
 
-	newReadBytes, err := ioutil.ReadAll(newReadSeeker)
+	n, err = c.FPutObject(bucketName, objectName+"-f", fileName, "text/plain")
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+	if n != int64(10*len(fileName)) {
+		t.Fatal("Error: bad length ", n, int64(10*len(fileName)))
+	}
+
+	err = c.FGetObject(bucketName, objectName+"-f", fileName+"-f")
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+
+	newReadBytes, err := ioutil.ReadAll(newReader)
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
@@ -102,6 +130,11 @@ func TestFunctional(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
+	err = c.RemoveObject(bucketName, objectName+"-f")
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+
 	err = c.RemoveBucket(bucketName)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -113,7 +146,13 @@ func TestFunctional(t *testing.T) {
 	}
 
 	if err.Error() != "The specified bucket does not exist." {
-		t.Fatal("Error:", err)
+		t.Fatal("Error: ", err)
 	}
 
+	if err = os.Remove(fileName); err != nil {
+		t.Fatal("Error: ", err)
+	}
+	if err = os.Remove(fileName + "-f"); err != nil {
+		t.Fatal("Error: ", err)
+	}
 }

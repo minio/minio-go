@@ -19,7 +19,6 @@
 package main
 
 import (
-	"io"
 	"log"
 	"os"
 
@@ -40,18 +39,19 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	reader, _, err := s3Client.GetObject("my-bucketname", "my-objectname")
+	localFile, err := os.Open("my-testfile")
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	localfile, err := os.Create("my-testfile")
+	st, err := localFile.Stat()
 	if err != nil {
 		log.Fatalln(err)
 	}
-	defer localfile.Close()
+	defer localFile.Close()
 
-	if _, err = io.Copy(localfile, reader); err != nil {
+	_, err = s3Client.PutObjectPartial("my-bucketname", "my-objectname", localFile, st.Size(), "text/plain")
+	if err != nil {
 		log.Fatalln(err)
 	}
 }

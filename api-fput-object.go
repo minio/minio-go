@@ -17,6 +17,13 @@
 package minio
 
 import (
+	"crypto/md5"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"hash"
+	"io"
+	"io/ioutil"
 	"os"
 	"sort"
 )
@@ -53,56 +60,6 @@ func (c Client) getUploadID(bucketName, objectName, contentType string) (string,
 	return uploadID, nil
 }
 
-// getMultipartStat gather next part number, total uploaded size and list of parts.
-// TODO: reduce number of results.
-func (c Client) getMultipartStat(bucketName, objectName, uploadID string) (int, int64, completeMultipartUpload, error) {
-	// Input validation.
-	if err := isValidBucketName(bucketName); err != nil {
-		return 0, 0, completeMultipartUpload{}, err
-	}
-	if err := isValidObjectName(objectName); err != nil {
-		return 0, 0, completeMultipartUpload{}, err
-	}
-	if uploadID == "" {
-		return 0, 0, completeMultipartUpload{}, ErrInvalidArgument("Upload id cannot be empty.")
-	}
-
-	// total data read and written to server. should be equal to 'size' at the end of the call.
-	var totalUploadedSize int64
-
-	// Starting part number. Always part '1'.
-	partNumber := 1
-	completeMultipartUpload := completeMultipartUpload{}
-
-	// Done channel is used to communicate with the go routine inside listObjectParts.
-	// It is necessary to close dangling routines inside once we break out of the loop.
-	doneCh := make(chan struct{})
-	// Close listObjectParts channel by communicating that we are done.
-	defer close(doneCh)
-
-	for objPart := range c.listObjectParts(bucketName, objectName, uploadID, doneCh) {
-		if objPart.Err != nil {
-			return 0, 0, completeMultipartUpload, objPart.Err
-		}
-		// Verify if there is a hole i.e one of the parts is missing
-		// Break and start uploading from this part.
-		if partNumber != objPart.PartNumber {
-			break
-		}
-		var completedPart completePart
-		completedPart.PartNumber = objPart.PartNumber
-		completedPart.ETag = objPart.ETag
-		completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, completedPart)
-		// Save total uploaded size which will be incremented later.
-		totalUploadedSize += objPart.Size
-		// Increment additively to verify holes in next iteration.
-		partNumber++
-	}
-
-	// Return.
-	return partNumber, totalUploadedSize, completeMultipartUpload, nil
-}
-
 // FPutObject - put object a file.
 func (c Client) FPutObject(bucketName, objectName, filePath, contentType string) (int64, error) {
 	// Input validation.
@@ -119,6 +76,7 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 	if err != nil {
 		return 0, err
 	}
+	defer fileData.Close()
 
 	// Save the file stat.
 	fileStat, err := fileData.Stat()
@@ -128,60 +86,171 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 
 	// Save the file size.
 	fileSize := fileStat.Size()
-	var enableSha256Sum bool
-	if !c.signature.isV2() {
-		enableSha256Sum = true
+	if fileSize > int64(maxMultipartPutObjectSize) {
+		return 0, ErrInvalidArgument("Input file size is bigger than the supported maximum of 5TiB.")
 	}
 
-	// getUploadID for an object, initiates a new request if necessary.
+	// NOTE: Google Cloud Storage multipart Put is not compatible with Amazon S3 APIs.
+	// Current implementation will only upload a maximum of 5GiB to Google Cloud Storage servers.
+	if isGoogleEndpoint(c.endpointURL) {
+		if fileSize <= -1 || fileSize > int64(maxSinglePutObjectSize) {
+			return 0, ErrorResponse{
+				Code:       "NotImplemented",
+				Message:    fmt.Sprintf("Invalid Content-Length %d for file uploads to Google Cloud Storage.", fileSize),
+				Key:        objectName,
+				BucketName: bucketName,
+			}
+		}
+		// Do not compute MD5 for Google Cloud Storage. Uploads upto 5GiB in size.
+		n, err := c.putNoChecksum(bucketName, objectName, fileData, fileSize, contentType)
+		return n, err
+	}
+
+	// NOTE: S3 doesn't allow anonymous multipart requests.
+	if isAmazonEndpoint(c.endpointURL) && c.anonymous {
+		if fileSize <= -1 || fileSize > int64(maxSinglePutObjectSize) {
+			return 0, ErrorResponse{
+				Code:       "NotImplemented",
+				Message:    fmt.Sprintf("For anonymous requests Content-Length cannot be %d.", fileSize),
+				Key:        objectName,
+				BucketName: bucketName,
+			}
+		}
+		// Do not compute MD5 for anonymous requests to Amazon S3. Uploads upto 5GiB in size.
+		n, err := c.putAnonymous(bucketName, objectName, fileData, fileSize, contentType)
+		return n, err
+	}
+
+	// Large file upload is initiated for uploads for input data size
+	// if its greater than 5MiB or data size is negative.
+	if fileSize >= minimumPartSize || fileSize < 0 {
+		n, err := c.fputLargeObject(bucketName, objectName, fileData, fileSize, contentType)
+		return n, err
+	}
+	n, err := c.putSmallObject(bucketName, objectName, fileData, fileSize, contentType)
+	return n, err
+}
+
+// computeHash - calculates MD5 and Sha256 for an input read Seeker.
+func (c Client) computeHash(reader io.ReadSeeker) (md5Sum, sha256Sum []byte, size int64, err error) {
+	// MD5 and Sha256 hasher.
+	var hashMD5, hashSha256 hash.Hash
+	// MD5 and Sha256 hasher.
+	hashMD5 = md5.New()
+	hashWriter := io.MultiWriter(hashMD5)
+	if c.signature.isV4() {
+		hashSha256 = sha256.New()
+		hashWriter = io.MultiWriter(hashMD5, hashSha256)
+	}
+
+	size, err = io.Copy(hashWriter, reader)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+
+	// Seek back reader to the beginning location.
+	if _, err := reader.Seek(0, 0); err != nil {
+		return nil, nil, 0, err
+	}
+
+	// Finalize md5shum and sha256 sum.
+	md5Sum = hashMD5.Sum(nil)
+	if c.signature.isV4() {
+		sha256Sum = hashSha256.Sum(nil)
+	}
+	return md5Sum, sha256Sum, size, nil
+}
+
+func (c Client) fputLargeObject(bucketName, objectName string, fileData *os.File, fileSize int64, contentType string) (int64, error) {
+	// Input validation.
+	if err := isValidBucketName(bucketName); err != nil {
+		return 0, err
+	}
+	if err := isValidObjectName(objectName); err != nil {
+		return 0, err
+	}
+
+	// getUploadID for an object, initiates a new multipart request
+	// if it cannot find any previously partially uploaded object.
 	uploadID, err := c.getUploadID(bucketName, objectName, contentType)
 	if err != nil {
 		return 0, err
 	}
 
-	// gather next part number to be uploaded, total uploaded size and list of all parts uploaded.
-	partNumber, totalUploadedSize, completeMultipartUpload, err := c.getMultipartStat(bucketName, objectName, uploadID)
+	// total data read and written to server. should be equal to 'size' at the end of the call.
+	var totalUploadedSize int64
+
+	// Complete multipart upload.
+	var completeMultipartUpload completeMultipartUpload
+
+	// Fetch previously upload parts and save the total size.
+	partsInfo, err := c.listObjectParts(bucketName, objectName, uploadID)
 	if err != nil {
 		return 0, err
 	}
-
-	// Calculate the optimal part size for a given file size.
-	partSize := calculatePartSize(fileSize)
-
-	// Seek to the total uploaded size obtained after listing all the parts.
-	if totalUploadedSize > 0 {
-		if _, err := fileData.Seek(totalUploadedSize, 0); err != nil {
-			return 0, err
+	// Previous maximum part size
+	var prevMaxPartSize int64
+	// Loop through all parts and calculate totalUploadedSize.
+	for _, partInfo := range partsInfo {
+		totalUploadedSize += partInfo.Size
+		// Choose the maximum part size.
+		if partInfo.Size >= prevMaxPartSize {
+			prevMaxPartSize = partInfo.Size
 		}
 	}
 
-	// Make done channel.
-	doneCh := make(chan struct{})
-	// Close done channel to indicate closure to all go-routines.
-	defer close(doneCh)
+	// Calculate the optimal part size for a given file size.
+	partSize := optimalPartSize(fileSize)
+	// If prevMaxPartSize is set use that.
+	if prevMaxPartSize != 0 {
+		partSize = prevMaxPartSize
+	}
 
-	// Loop through all sections of the file.
-	for part := range sectionManager(fileData, fileSize, partSize, enableSha256Sum, doneCh) {
-		// On any error return.
-		if part.Err != nil {
-			return 0, part.Err
+	// Part number always starts with '1'.
+	partNumber := 1
+
+	// Loop through until EOF.
+	for totalUploadedSize < fileSize {
+		// Get a section reader on a particular offset.
+		sectionReader := io.NewSectionReader(fileData, totalUploadedSize, partSize)
+
+		// Calculates MD5 and Sha256 sum for a section reader.
+		md5Sum, sha256Sum, size, err := c.computeHash(sectionReader)
+		if err != nil {
+			return 0, err
 		}
 
-		// Part number to be uploaded.
-		part.Number = partNumber
+		// Save all the part metadata.
+		partMdata := partMetadata{
+			ReadCloser: ioutil.NopCloser(sectionReader),
+			Size:       size,
+			MD5Sum:     md5Sum,
+			Sha256Sum:  sha256Sum,
+			Number:     partNumber, // Part number to be uploaded.
+		}
 
-		// execute upload part.
-		complPart, err := c.uploadPart(bucketName, objectName, uploadID, part)
+		// If part number already uploaded, move to the next one.
+		if isPartUploaded(objectPart{
+			ETag:       hex.EncodeToString(partMdata.MD5Sum),
+			PartNumber: partMdata.Number,
+		}, partsInfo) {
+			// Close the read closer.
+			partMdata.ReadCloser.Close()
+			continue
+		}
+
+		// Upload the part.
+		objPart, err := c.uploadPart(bucketName, objectName, uploadID, partMdata)
 		if err != nil {
-			part.ReadCloser.Close()
+			partMdata.ReadCloser.Close()
 			return totalUploadedSize, err
 		}
 
 		// Save successfully uploaded size.
-		totalUploadedSize += part.Size
+		totalUploadedSize += partMdata.Size
 
-		// Save successfully uploaded part metadatc.
-		completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, complPart)
+		// Save successfully uploaded part metadata.
+		partsInfo[partMdata.Number] = objPart
 
 		// Increment to next part number.
 		partNumber++
@@ -190,6 +259,14 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 	// if totalUploadedSize is different than the file 'size'. Do not complete the request throw an error.
 	if totalUploadedSize != fileSize {
 		return totalUploadedSize, ErrUnexpectedEOF(totalUploadedSize, fileSize, bucketName, objectName)
+	}
+
+	// Loop over uploaded parts to save them in a Parts array before completing the multipart request.
+	for _, part := range partsInfo {
+		var complPart completePart
+		complPart.ETag = part.ETag
+		complPart.PartNumber = part.PartNumber
+		completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, complPart)
 	}
 
 	// Sort all completed parts.

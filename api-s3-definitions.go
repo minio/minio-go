@@ -90,8 +90,8 @@ type initiator struct {
 	DisplayName string
 }
 
-// objectPartMetadata container for particular part of an object
-type objectPartMetadata struct {
+// objectPart container for particular part of an object
+type objectPart struct {
 	// Part number identifies the part.
 	PartNumber int
 
@@ -124,7 +124,7 @@ type listObjectPartsResult struct {
 
 	// Indicates whether the returned list of parts is truncated.
 	IsTruncated bool
-	ObjectParts []objectPartMetadata `xml:"Part"`
+	ObjectParts []objectPart `xml:"Part"`
 
 	EncodingType string
 }

@@ -29,6 +29,15 @@ import (
 	"unicode/utf8"
 )
 
+// isPartUploaded - true if part is already uploaded.
+func isPartUploaded(objPart objectPart, objectParts map[int]objectPart) (isUploaded bool) {
+	_, isUploaded = objectParts[objPart.PartNumber]
+	if isUploaded {
+		isUploaded = (objPart.ETag == objectParts[objPart.PartNumber].ETag)
+	}
+	return
+}
+
 // getEndpointURL - construct a new endpoint.
 func getEndpointURL(endpoint string, inSecure bool) (*url.URL, error) {
 	if strings.Contains(endpoint, ":") {
@@ -235,13 +244,14 @@ func isValidObjectPrefix(objectPrefix string) error {
 	return nil
 }
 
-// calculatePartSize - calculate the optimal part size for the given objectSize.
+// optimalPartSize - calculate the optimal part size for the given objectSize.
 //
 // NOTE: Assumption here is that for any object to be uploaded to any S3 compatible
 // object storage it will have the following parameters as constants.
 //
 //  maxParts - 10000
-//  maximumPartSize - 5GB
+//  minimumPartSize - 5MiB
+//  maximumPartSize - 5GiB
 //
 // if the partSize after division with maxParts is greater than minimumPartSize
 // then choose miniumPartSize as the new part size, if not return minimumPartSize.
@@ -252,8 +262,8 @@ func isValidObjectPrefix(objectPrefix string) error {
 // - if it happens to be that partSize is indeed bigger
 //   than the maximum part size just return maxPartSize.
 //
-func calculatePartSize(objectSize int64) int64 {
-	// if object size is -1 choose part size as 5GB.
+func optimalPartSize(objectSize int64) int64 {
+	// if object size is -1 choose part size as 5GiB.
 	if objectSize == -1 {
 		return maxPartSize
 	}

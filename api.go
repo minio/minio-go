@@ -320,21 +320,24 @@ type CloudStorageClient interface {
 	ListIncompleteUploads(bucket, prefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectMultipartStat
 
 	// Object Read/Write/Stat operations.
-	GetObject(bucketName, objectName string) (io.ReadSeeker, error)
-	GetPartialObject(bucketName, objectName string, offset, length int64) (io.ReadSeeker, error)
-	PutObject(bucketName, objectName string, data io.ReadSeeker, size int64, contentType string) (int64, error)
+	GetObject(bucketName, objectName string) (reader io.ReadCloser, stat ObjectStat, err error)
+	PutObject(bucketName, objectName string, data io.Reader, size int64, contentType string) (n int64, err error)
 	StatObject(bucketName, objectName string) (ObjectStat, error)
 	RemoveObject(bucketName, objectName string) error
 	RemoveIncompleteUpload(bucketName, objectName string) error
 
-	// Presigned operations.
-	PresignedGetObject(bucketName, objectName string, expires time.Duration) (string, error)
-	PresignedPutObject(bucketName, objectName string, expires time.Duration) (string, error)
-	PresignedPostPolicy(*PostPolicy) (map[string]string, error)
+	// Object Read/Write for sparse upload.
+	GetObjectPartial(bucketName, objectName string) (reader ReadAtCloser, stat ObjectStat, err error)
+	PutObjectPartial(bucketName, objectName string, data ReadAtCloser, size int64, contentType string) (n int64, err error)
 
-	// File related API.
-	FPutObject(bucketName, objectName, filePath, contentType string) (int64, error)
+	// File to Object API.
+	FPutObject(bucketName, objectName, filePath, contentType string) (n int64, err error)
 	FGetObject(bucketName, objectName, filePath string) error
+
+	// Presigned operations.
+	PresignedGetObject(bucketName, objectName string, expires time.Duration) (presignedURL string, err error)
+	PresignedPutObject(bucketName, objectName string, expires time.Duration) (presignedURL string, err error)
+	PresignedPostPolicy(*PostPolicy) (formData map[string]string, err error)
 
 	// Application info.
 	SetAppInfo(appName, appVersion string)

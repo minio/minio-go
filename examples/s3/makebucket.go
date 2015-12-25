@@ -26,7 +26,7 @@ import (
 
 func main() {
 	// Note: YOUR-ACCESSKEYID, YOUR-SECRETACCESSKEY and my-bucketname are
- // dummy values, please replace them with original values.
+	// dummy values, please replace them with original values.
 
 	// Requests are always secure (HTTPS) by default. Set insecure=true to enable insecure (HTTP) access.
 	// This boolean value is the last argument for New().

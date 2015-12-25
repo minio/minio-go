@@ -19,6 +19,7 @@
 package main
 
 import (
+	"errors"
 	"io"
 	"log"
 	"os"
@@ -35,23 +36,57 @@ func main() {
 
 	// New returns an Amazon S3 compatible client object. API copatibality (v2 or v4) is automatically
 	// determined based on the Endpoint value.
-	s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", false)
+	s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESS-KEY-HERE", "YOUR-SECRET-KEY-HERE", false)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	reader, stat, err := s3Client.GetPartialObject("my-bucketname", "my-objectname", 0, 10)
+	reader, stat, err := s3Client.GetObjectPartial("my-bucketname", "my-objectname")
 	if err != nil {
 		log.Fatalln(err)
 	}
+	defer reader.Close()
 
-	localfile, err := os.Create("my-testfile")
+	localFile, err := os.OpenFile("my-testfile", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	defer localfile.Close()
 
-	if _, err = io.CopyN(localfile, reader, stat.Size); err != nil {
+	st, err := localFile.Stat()
+	if err != nil {
 		log.Fatalln(err)
+	}
+
+	readAtOffset := st.Size()
+	readAtBuffer := make([]byte, 5*1024*1024)
+
+	// For loop.
+	for {
+		readAtSize, rerr := reader.ReadAt(readAtBuffer, readAtOffset)
+		if rerr != nil {
+			if rerr != io.EOF {
+				log.Fatalln(rerr)
+			}
+		}
+		writeSize, werr := localFile.Write(readAtBuffer[:readAtSize])
+		if werr != nil {
+			log.Fatalln(werr)
+		}
+		if readAtSize != writeSize {
+			log.Fatalln(errors.New("Something really bad happened here."))
+		}
+		readAtOffset += int64(writeSize)
+		if rerr == io.EOF {
+			break
+		}
+	}
+
+	// totalWritten size.
+	totalWritten := readAtOffset
+
+	// If found mismatch error out.
+	if totalWritten != stat.Size {
+		log.Fatalln(errors.New("Something really bad happened here."))
 	}
 }
