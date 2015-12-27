@@ -45,6 +45,10 @@ func (c Client) RemoveBucket(bucketName string) error {
 			return HTTPRespToErrorResponse(resp, bucketName, "")
 		}
 	}
+
+	// Remove the location from cache on a successful delete.
+	c.bucketLocCache.Delete(bucketName)
+
 	return nil
 }
 

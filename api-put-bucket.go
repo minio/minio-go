@@ -55,6 +55,11 @@ func (c Client) MakeBucket(bucketName string, acl BucketACL, location string) er
 		return ErrInvalidArgument("Unrecognized ACL " + acl.String())
 	}
 
+	// If location is empty, treat is a default region 'us-east-1'.
+	if location == "" {
+		location = "us-east-1"
+	}
+
 	// Instantiate the request.
 	req, err := c.makeBucketRequest(bucketName, acl, location)
 	if err != nil {
@@ -73,6 +78,10 @@ func (c Client) MakeBucket(bucketName string, acl BucketACL, location string) er
 			return HTTPRespToErrorResponse(resp, bucketName, "")
 		}
 	}
+
+	// Save the location into cache on a succesful makeBucket response.
+	c.bucketLocCache.Set(bucketName, location)
+
 	// Return.
 	return nil
 }
@@ -89,7 +98,17 @@ func (c Client) makeBucketRequest(bucketName string, acl BucketACL, location str
 
 	// Set get bucket location always as path style.
 	targetURL := c.endpointURL
-	targetURL.Path = "/" + bucketName
+	if bucketName != "" {
+		// If endpoint supports virtual host style use that always.
+		// Currently only S3 and Google Cloud Storage would support this.
+		if isVirtualHostSupported(c.endpointURL) {
+			targetURL.Host = bucketName + "/" + c.endpointURL.Host
+			targetURL.Path = "/"
+		} else {
+			// If not fall back to using path style.
+			targetURL.Path = "/" + bucketName
+		}
+	}
 
 	// get a new HTTP request for the method.
 	req, err := http.NewRequest("PUT", targetURL.String(), nil)
@@ -106,18 +125,13 @@ func (c Client) makeBucketRequest(bucketName string, acl BucketACL, location str
 	// set UserAgent for the request.
 	c.setUserAgent(req)
 
-	// if location is 'us-east-1' no need to apply location constraint on the bucket.
-	if location == "us-east-1" {
-		location = ""
-	}
-
 	// set sha256 sum for signature calculation only with signature version '4'.
 	if c.signature.isV4() {
 		req.Header.Set("X-Amz-Content-Sha256", hex.EncodeToString(sum256([]byte{})))
 	}
 
-	// If location is set use to create bucket location config.
-	if location != "" {
+	// If location is not 'us-east-1' create bucket location config.
+	if location != "us-east-1" && location != "" {
 		createBucketConfig := new(createBucketConfiguration)
 		createBucketConfig.Location = location
 		var createBucketConfigBytes []byte
@@ -135,6 +149,8 @@ func (c Client) makeBucketRequest(bucketName string, acl BucketACL, location str
 
 	// Sign the request.
 	if c.signature.isV4() {
+		// Signature calculated for MakeBucket request should be for 'us-east-1',
+		// regardless of the bucket's location constraint.
 		req = SignV4(*req, c.accessKeyID, c.secretAccessKey, "us-east-1")
 	} else if c.signature.isV2() {
 		req = SignV2(*req, c.accessKeyID, c.secretAccessKey)
@@ -197,6 +213,7 @@ func (c Client) SetBucketACL(bucketName string, acl BucketACL) error {
 			return HTTPRespToErrorResponse(resp, bucketName, "")
 		}
 	}
+
 	// return
 	return nil
 }
