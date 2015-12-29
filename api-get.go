@@ -17,6 +17,7 @@
 package minio
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -185,7 +186,7 @@ func (c Client) GetObjectPartial(bucketName, objectName string) (ReadAtCloser, O
 				// Get shortest length.
 				// NOTE: Last remaining bytes are usually smaller than
 				// req.Buffer size. Use that as the final length.
-				length := math.Min(float64(len(req.Buffer)), float64(objectStat.Size-req.Offset))
+				length := math.Min(float64(req.Buffer.Len()), float64(objectStat.Size-req.Offset))
 				httpReader, _, err := c.getObject(bucketName, objectName, req.Offset, int64(length))
 				if err != nil {
 					resCh <- readAtResponse{
@@ -193,9 +194,9 @@ func (c Client) GetObjectPartial(bucketName, objectName string) (ReadAtCloser, O
 					}
 					return
 				}
-				size, err := httpReader.Read(req.Buffer)
+				size, err := io.CopyN(req.Buffer, httpReader, int64(length))
 				resCh <- readAtResponse{
-					Size:  size,
+					Size:  int(size),
 					Error: err,
 				}
 			}
@@ -213,8 +214,8 @@ type readAtResponse struct {
 
 // request message container to communicate with internal go-routine.
 type readAtRequest struct {
-	Buffer []byte // requested bytes.
-	Offset int64  // readAt offset.
+	Buffer *bytes.Buffer
+	Offset int64 // readAt offset.
 }
 
 // objectReadAtCloser container for io.ReadAtCloser.
@@ -227,6 +228,7 @@ type objectReadAtCloser struct {
 	resCh      <-chan readAtResponse
 	doneCh     chan<- struct{}
 	objectSize int64
+	totalRead  int64
 
 	// Previous error saved for future calls.
 	prevErr error
@@ -247,10 +249,15 @@ func newObjectReadAtCloser(reqCh chan<- readAtRequest, resCh <-chan readAtRespon
 // It returns the number of bytes read and the error, if any.
 // ReadAt always returns a non-nil error when n < len(b).
 // At end of file, that error is io.EOF.
-func (r *objectReadAtCloser) ReadAt(p []byte, offset int64) (int, error) {
+func (r *objectReadAtCloser) ReadAt(b []byte, offset int64) (int, error) {
 	// Locking.
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
+
+	// if offset is negative and offset is greater than object size we return EOF.
+	if offset < 0 || offset > r.objectSize {
+		return 0, io.EOF
+	}
 
 	// prevErr is which was saved in previous operation.
 	if r.prevErr != nil {
@@ -261,7 +268,7 @@ func (r *objectReadAtCloser) ReadAt(p []byte, offset int64) (int, error) {
 	reqMsg := readAtRequest{}
 
 	// Send the current offset and bytes requested.
-	reqMsg.Buffer = p
+	reqMsg.Buffer = bytes.NewBuffer(b)
 	reqMsg.Offset = offset
 
 	// Send read request over the control channel.
@@ -270,15 +277,23 @@ func (r *objectReadAtCloser) ReadAt(p []byte, offset int64) (int, error) {
 	// Get data over the response channel.
 	dataMsg := <-r.resCh
 
+	// Keep track of total bytes read.
+	r.totalRead += int64(dataMsg.Size)
+
+	if dataMsg.Error == nil {
+		// If total bytes read is equal to objectSize
+		// we have reached end of file, we return io.EOF.
+		if r.totalRead == r.objectSize {
+			// Save EOF.
+			r.prevErr = io.EOF
+			return dataMsg.Size, io.EOF
+		}
+		return dataMsg.Size, nil
+	}
+
 	// Save any error.
 	r.prevErr = dataMsg.Error
-	if dataMsg.Error != nil {
-		if dataMsg.Error == io.EOF {
-			return dataMsg.Size, dataMsg.Error
-		}
-		return 0, dataMsg.Error
-	}
-	return dataMsg.Size, nil
+	return dataMsg.Size, dataMsg.Error
 }
 
 // Closer is the interface that wraps the basic Close method.
