@@ -51,7 +51,11 @@ func randString(n int, src rand.Source) string {
 	return string(b[0:30])
 }
 
-func TestFunctional(t *testing.T) {
+func TestGetObjectPartialFunctional(t *testing.T) {
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Connect and make sure bucket exists.
 	c, err := minio.New(
 		"play.minio.io:9002",
 		"Q3AM3UQ867SPQQA43P2F",
@@ -66,7 +70,110 @@ func TestFunctional(t *testing.T) {
 	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
 
 	// Enable tracing, write to stdout.
-	c.TraceOn(nil)
+	// c.TraceOn(nil)
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
+
+	// make a new bucket.
+	err = c.MakeBucket(bucketName, "private", "us-east-1")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+
+	// generate data
+	buf := make([]byte, rand.Intn(1<<19))
+
+	// save the data
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()))
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "binary/octet-stream")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
+
+	if n != int64(len(buf)) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), n)
+	}
+
+	// read the data back
+	r, st, err := c.GetObjectPartial(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
+
+	if st.Size != int64(len(buf)) {
+		t.Fatalf("Error: number of bytes in stat does not match, want %v, got %v\n",
+			len(buf), st.Size)
+	}
+
+	offset := int64(32000)
+
+	// read directly
+	buf2 := make([]byte, 512)
+	buf3 := make([]byte, 512)
+	buf4 := make([]byte, 512)
+
+	m, err := r.ReadAt(buf2, offset)
+	if err != nil {
+		t.Fatal("Error:", err, len(buf2), offset)
+	}
+	if m != len(buf2) {
+		t.Fatalf("Error: ReadAt read shorter bytes before reaching EOF, want %v, got %v\n", m, len(buf2))
+	}
+	m, err = r.ReadAt(buf3, offset)
+	if err != nil {
+		t.Fatal("Error:", err, len(buf3), offset)
+	}
+	if m != len(buf3) {
+		t.Fatalf("Error: ReadAt read shorter bytes before reaching EOF, want %v, got %v\n", m, len(buf3))
+	}
+	if !bytes.Equal(buf2, buf3) {
+		t.Fatal("Error: Incorrect read between two ReadAt from same offset.")
+	}
+	m, err = r.ReadAt(buf4, offset)
+	if err != nil {
+		t.Fatal("Error:", err, len(buf4), offset)
+	}
+	if m != len(buf4) {
+		t.Fatalf("Error: ReadAt read shorter bytes before reaching EOF, want %v, got %v\n", m, len(buf4))
+	}
+	if !bytes.Equal(buf2, buf4) {
+		t.Fatal("Error: Incorrect read between two ReadAt from same offset.")
+	}
+
+	buf5 := make([]byte, n)
+	// Read the whole object.
+	m, err = r.ReadAt(buf5, 0)
+	if err != nil {
+		t.Fatal("Error:", err, len(buf5))
+	}
+	if m != len(buf5) {
+		t.Fatalf("Error: ReadAt read shorter bytes before reaching EOF, want %v, got %v\n", m, len(buf5))
+	}
+	if !bytes.Equal(buf, buf5) {
+		t.Fatal("Error: Incorrect data read in GetObject, than what was previously upoaded.")
+	}
+}
+
+func TestFunctional(t *testing.T) {
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	c, err := minio.New(
+		"play.minio.io:9002",
+		"Q3AM3UQ867SPQQA43P2F",
+		"zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+		false,
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Enable tracing, write to stdout.
+	// c.TraceOn(nil)
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
@@ -83,8 +190,14 @@ func TestFunctional(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	for i := 0; i < 10; i++ {
-		file.WriteString(fileName)
+	var totalSize int64
+	for i := 0; i < 3; i++ {
+		buf := make([]byte, rand.Intn(1<<19))
+		n, err := file.Write(buf)
+		if err != nil {
+			t.Fatal("Error:", err)
+		}
+		totalSize += int64(n)
 	}
 	file.Close()
 
@@ -131,13 +244,16 @@ func TestFunctional(t *testing.T) {
 	}
 
 	objectName := bucketName + "unique"
-	reader := bytes.NewReader([]byte("Hello World!"))
+
+	// generate data
+	buf := make([]byte, rand.Intn(1<<19))
+	reader := bytes.NewReader(buf)
 
 	n, err := c.PutObject(bucketName, objectName, reader, int64(reader.Len()), "")
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
-	if n != int64(len([]byte("Hello World!"))) {
+	if n != int64(len(buf)) {
 		t.Fatal("Error: bad length ", n, reader.Len())
 	}
 
@@ -150,8 +266,8 @@ func TestFunctional(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
-	if n != int64(10*len(fileName)) {
-		t.Fatal("Error: bad length ", n, int64(10*len(fileName)))
+	if n != totalSize {
+		t.Fatal("Error: bad length ", n, totalSize)
 	}
 
 	err = c.FGetObject(bucketName, objectName+"-f", fileName+"-f")
@@ -164,7 +280,7 @@ func TestFunctional(t *testing.T) {
 		t.Fatal("Error: ", err)
 	}
 
-	if !bytes.Equal(newReadBytes, []byte("Hello World!")) {
+	if !bytes.Equal(newReadBytes, buf) {
 		t.Fatal("Error: bytes invalid.")
 	}
 
