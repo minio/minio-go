@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"net/url"
 	"strings"
@@ -182,11 +181,15 @@ func (c Client) GetObjectPartial(bucketName, objectName string) (ReadAtCloser, O
 				return
 			// Request message.
 			case req := <-reqCh:
-				// Get shortest length.
-				// NOTE: Last remaining bytes are usually smaller than
-				// req.Buffer size. Use that as the final length.
-				length := math.Min(float64(len(req.Buffer)), float64(objectStat.Size-req.Offset))
-				httpReader, _, err := c.getObject(bucketName, objectName, req.Offset, int64(length))
+				// Length will be one more than the buffer length so that after Read()
+				// err is not set to io.EOF.
+				length := int64(len(req.Buffer) + 1)
+				// Make sure that we don't request data past the object's size.
+				remainingLength := objectStat.Size - req.Offset
+				if remainingLength < length {
+					length = remainingLength
+				}
+				httpReader, _, err := c.getObject(bucketName, objectName, req.Offset, length)
 				if err != nil {
 					resCh <- readAtResponse{
 						Error: err,
