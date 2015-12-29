@@ -1,3 +1,19 @@
+/*
+ * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2015 Minio, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package minio_test
 
 import (
@@ -47,14 +63,21 @@ func TestFunctional(t *testing.T) {
 	}
 
 	// Set user agent.
-	c.SetAppInfo("Test", "0.1.0")
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
 
+	// Enable tracing, write to stdout.
+	c.TraceOn(nil)
+
+	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
+
+	// make a new bucket.
 	err = c.MakeBucket(bucketName, "private", "us-east-1")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
 
+	// generate a random file name.
 	fileName := randString(60, rand.NewSource(time.Now().UnixNano()))
 	file, err := os.Create(fileName)
 	if err != nil {
@@ -65,30 +88,49 @@ func TestFunctional(t *testing.T) {
 	}
 	file.Close()
 
+	// verify if bucket exits and you have access.
 	err = c.BucketExists(bucketName)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
 
+	// make the bucket 'public read/write'.
 	err = c.SetBucketACL(bucketName, "public-read-write")
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 
+	// get the previously set acl.
 	acl, err := c.GetBucketACL(bucketName)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
+
+	// acl must be 'public read/write'.
 	if acl != minio.BucketACL("public-read-write") {
 		t.Fatal("Error:", acl)
 	}
 
-	_, err = c.ListBuckets()
+	// list all buckets.
+	buckets, err := c.ListBuckets()
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 
-	objectName := bucketName + "Minio"
+	// Verify if previously created bucket is listed in list buckets.
+	bucketFound := false
+	for _, bucket := range buckets {
+		if bucket.Name == bucketName {
+			bucketFound = true
+		}
+	}
+
+	// If bucket not found error out.
+	if !bucketFound {
+		t.Fatal("Error: bucket ", bucketName, "not found")
+	}
+
+	objectName := bucketName + "unique"
 	reader := bytes.NewReader([]byte("Hello World!"))
 
 	n, err := c.PutObject(bucketName, objectName, reader, int64(reader.Len()), "")

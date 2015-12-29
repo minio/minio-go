@@ -55,7 +55,7 @@ func (c Client) GetBucketACL(bucketName string) (BucketACL, error) {
 	}
 
 	// Initiate the request.
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.do(req)
 	defer closeResponse(resp)
 	if err != nil {
 		return "", err
@@ -340,7 +340,7 @@ func (c Client) getObject(bucketName, objectName string, offset, length int64) (
 		return nil, ObjectStat{}, err
 	}
 	// Execute the request.
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.do(req)
 	if err != nil {
 		return nil, ObjectStat{}, err
 	}
