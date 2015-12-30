@@ -18,6 +18,7 @@ package minio_test
 
 import (
 	"bytes"
+	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -82,7 +83,7 @@ func TestGetObjectPartialFunctional(t *testing.T) {
 	}
 
 	// generate data
-	buf := make([]byte, rand.Intn(1<<19))
+	buf := make([]byte, rand.Intn(1<<20))
 
 	// save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()))
@@ -106,7 +107,7 @@ func TestGetObjectPartialFunctional(t *testing.T) {
 			len(buf), st.Size)
 	}
 
-	offset := int64(32000)
+	offset := int64(2048)
 
 	// read directly
 	buf2 := make([]byte, 512)
@@ -115,14 +116,14 @@ func TestGetObjectPartialFunctional(t *testing.T) {
 
 	m, err := r.ReadAt(buf2, offset)
 	if err != nil {
-		t.Fatal("Error:", err, len(buf2), offset)
+		t.Fatal("Error:", err, st.Size, len(buf2), offset)
 	}
 	if m != len(buf2) {
 		t.Fatalf("Error: ReadAt read shorter bytes before reaching EOF, want %v, got %v\n", m, len(buf2))
 	}
 	m, err = r.ReadAt(buf3, offset)
 	if err != nil {
-		t.Fatal("Error:", err, len(buf3), offset)
+		t.Fatal("Error:", err, st.Size, len(buf3), offset)
 	}
 	if m != len(buf3) {
 		t.Fatalf("Error: ReadAt read shorter bytes before reaching EOF, want %v, got %v\n", m, len(buf3))
@@ -132,7 +133,7 @@ func TestGetObjectPartialFunctional(t *testing.T) {
 	}
 	m, err = r.ReadAt(buf4, offset)
 	if err != nil {
-		t.Fatal("Error:", err, len(buf4), offset)
+		t.Fatal("Error:", err, st.Size, len(buf4), offset)
 	}
 	if m != len(buf4) {
 		t.Fatalf("Error: ReadAt read shorter bytes before reaching EOF, want %v, got %v\n", m, len(buf4))
@@ -145,13 +146,24 @@ func TestGetObjectPartialFunctional(t *testing.T) {
 	// Read the whole object.
 	m, err = r.ReadAt(buf5, 0)
 	if err != nil {
-		t.Fatal("Error:", err, len(buf5))
+		if err != io.EOF {
+			t.Fatal("Error:", err, len(buf5))
+		}
 	}
 	if m != len(buf5) {
 		t.Fatalf("Error: ReadAt read shorter bytes before reaching EOF, want %v, got %v\n", m, len(buf5))
 	}
 	if !bytes.Equal(buf, buf5) {
 		t.Fatal("Error: Incorrect data read in GetObject, than what was previously upoaded.")
+	}
+
+	buf6 := make([]byte, n+1)
+	// Read the whole object and beyond.
+	_, err = r.ReadAt(buf6, 0)
+	if err != nil {
+		if err != io.EOF {
+			t.Fatal("Error:", err, len(buf6))
+		}
 	}
 }
 

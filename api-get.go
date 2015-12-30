@@ -228,7 +228,6 @@ type objectReadAtCloser struct {
 	resCh      <-chan readAtResponse
 	doneCh     chan<- struct{}
 	objectSize int64
-	totalRead  int64
 
 	// Previous error saved for future calls.
 	prevErr error
@@ -254,8 +253,8 @@ func (r *objectReadAtCloser) ReadAt(b []byte, offset int64) (int, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	// if offset is negative and offset is greater than object size we return EOF.
-	if offset < 0 || offset > r.objectSize {
+	// if offset is negative and offset is greater than or equal to object size we return EOF.
+	if offset < 0 || offset >= r.objectSize {
 		return 0, io.EOF
 	}
 
@@ -277,15 +276,13 @@ func (r *objectReadAtCloser) ReadAt(b []byte, offset int64) (int, error) {
 	// Get data over the response channel.
 	dataMsg := <-r.resCh
 
-	// Keep track of total bytes read.
-	r.totalRead += int64(dataMsg.Size)
+	// Bytes read.
+	bytesRead := int64(dataMsg.Size)
 
 	if dataMsg.Error == nil {
-		// If total bytes read is equal to objectSize
+		// If offset+bytes read is equal to objectSize
 		// we have reached end of file, we return io.EOF.
-		if r.totalRead == r.objectSize {
-			// Save EOF.
-			r.prevErr = io.EOF
+		if offset+bytesRead == r.objectSize {
 			return dataMsg.Size, io.EOF
 		}
 		return dataMsg.Size, nil
