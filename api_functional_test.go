@@ -21,6 +21,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -274,6 +275,15 @@ func TestFunctional(t *testing.T) {
 		t.Fatal("Error: ", err)
 	}
 
+	newReadBytes, err := ioutil.ReadAll(newReader)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+
+	if !bytes.Equal(newReadBytes, buf) {
+		t.Fatal("Error: bytes mismatch.")
+	}
+
 	n, err = c.FPutObject(bucketName, objectName+"-f", fileName, "text/plain")
 	if err != nil {
 		t.Fatal("Error: ", err)
@@ -287,13 +297,53 @@ func TestFunctional(t *testing.T) {
 		t.Fatal("Error: ", err)
 	}
 
-	newReadBytes, err := ioutil.ReadAll(newReader)
+	presignedGetURL, err := c.PresignedGetObject(bucketName, objectName, 3600*time.Second)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+
+	resp, err := http.Get(presignedGetURL)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatal("Error: ", resp.Status)
+	}
+	newPresignedBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+	if !bytes.Equal(newPresignedBytes, buf) {
+		t.Fatal("Error: bytes mismatch.")
+	}
+
+	presignedPutURL, err := c.PresignedPutObject(bucketName, objectName+"-presigned", 3600*time.Second)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+	buf = make([]byte, rand.Intn(1<<20))
+	req, err := http.NewRequest("PUT", presignedPutURL, bytes.NewReader(buf))
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+	httpClient := &http.Client{}
+	resp, err = httpClient.Do(req)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+
+	newReader, _, err = c.GetObject(bucketName, objectName+"-presigned")
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+
+	newReadBytes, err = ioutil.ReadAll(newReader)
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
 
 	if !bytes.Equal(newReadBytes, buf) {
-		t.Fatal("Error: bytes invalid.")
+		t.Fatal("Error: bytes mismatch.")
 	}
 
 	err = c.RemoveObject(bucketName, objectName)
@@ -301,6 +351,10 @@ func TestFunctional(t *testing.T) {
 		t.Fatal("Error: ", err)
 	}
 	err = c.RemoveObject(bucketName, objectName+"-f")
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+	err = c.RemoveObject(bucketName, objectName+"-presigned")
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
