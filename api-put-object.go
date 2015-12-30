@@ -189,12 +189,13 @@ func (c Client) hashCopy(writer io.ReadWriteSeeker, data io.Reader, partSize int
 	// Copies to input at writer.
 	size, err = io.CopyN(hashWriter, data, partSize)
 	if err != nil {
+		// If not EOF return error right here.
 		if err != io.EOF {
 			return nil, nil, 0, err
 		}
 	}
 
-	// Seek back to beginning of input.
+	// Seek back to beginning of input, any error fail right here.
 	if _, err := writer.Seek(0, 0); err != nil {
 		return nil, nil, 0, err
 	}
@@ -204,7 +205,7 @@ func (c Client) hashCopy(writer io.ReadWriteSeeker, data io.Reader, partSize int
 	if c.signature.isV4() {
 		sha256Sum = hashSha256.Sum(nil)
 	}
-	return md5Sum, sha256Sum, size, nil
+	return md5Sum, sha256Sum, size, err
 }
 
 // putLargeObject uploads files bigger than 5 mega bytes.
@@ -261,11 +262,6 @@ func (c Client) putLargeObject(bucketName, objectName string, data io.Reader, si
 
 	// Loop through until EOF.
 	for {
-		// We have reached EOF, break out.
-		if totalUploadedSize == size {
-			break
-		}
-
 		// Initialize a new temporary file.
 		tmpFile, err := newTempFile("multiparts$-putobject")
 		if err != nil {
@@ -273,10 +269,10 @@ func (c Client) putLargeObject(bucketName, objectName string, data io.Reader, si
 		}
 
 		// Calculates MD5 and Sha256 sum while copying partSize bytes into tmpFile.
-		md5Sum, sha256Sum, size, err := c.hashCopy(tmpFile, data, partSize)
-		if err != nil {
-			if err != io.EOF {
-				return 0, err
+		md5Sum, sha256Sum, size, rErr := c.hashCopy(tmpFile, data, partSize)
+		if rErr != nil {
+			if rErr != io.EOF {
+				return 0, rErr
 			}
 		}
 
@@ -315,6 +311,11 @@ func (c Client) putLargeObject(bucketName, objectName string, data io.Reader, si
 
 		// Move to next part.
 		partNumber++
+
+		// If read error was an EOF, break out of the loop.
+		if rErr == io.EOF {
+			break
+		}
 	}
 
 	// If size is greater than zero verify totalWritten.
