@@ -221,7 +221,7 @@ func (c Client) fputLargeObject(bucketName, objectName string, fileData *os.File
 		}
 
 		// Save all the part metadata.
-		partMdata := partMetadata{
+		prtData := partData{
 			ReadCloser: ioutil.NopCloser(sectionReader),
 			Size:       size,
 			MD5Sum:     md5Sum,
@@ -231,26 +231,26 @@ func (c Client) fputLargeObject(bucketName, objectName string, fileData *os.File
 
 		// If part number already uploaded, move to the next one.
 		if isPartUploaded(objectPart{
-			ETag:       hex.EncodeToString(partMdata.MD5Sum),
-			PartNumber: partMdata.Number,
+			ETag:       hex.EncodeToString(prtData.MD5Sum),
+			PartNumber: prtData.Number,
 		}, partsInfo) {
 			// Close the read closer.
-			partMdata.ReadCloser.Close()
+			prtData.ReadCloser.Close()
 			continue
 		}
 
 		// Upload the part.
-		objPart, err := c.uploadPart(bucketName, objectName, uploadID, partMdata)
+		objPart, err := c.uploadPart(bucketName, objectName, uploadID, prtData)
 		if err != nil {
-			partMdata.ReadCloser.Close()
+			prtData.ReadCloser.Close()
 			return totalUploadedSize, err
 		}
 
 		// Save successfully uploaded size.
-		totalUploadedSize += partMdata.Size
+		totalUploadedSize += prtData.Size
 
 		// Save successfully uploaded part metadata.
-		partsInfo[partMdata.Number] = objPart
+		partsInfo[prtData.Number] = objPart
 
 		// Increment to next part number.
 		partNumber++
