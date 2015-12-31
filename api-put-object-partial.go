@@ -219,9 +219,6 @@ func (c Client) putPartialLargeObject(bucketName, objectName string, data ReadAt
 		return 0, err
 	}
 
-	// Cleanup any previously left stale files, as the function exits.
-	defer cleanupStaleTempfiles("multiparts$-putobject-partial")
-
 	// getUploadID for an object, initiates a new multipart request
 	// if it cannot find any previously partially uploaded object.
 	uploadID, err := c.getUploadID(bucketName, objectName, contentType)
