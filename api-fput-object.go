@@ -93,7 +93,7 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 	// NOTE: Google Cloud Storage multipart Put is not compatible with Amazon S3 APIs.
 	// Current implementation will only upload a maximum of 5GiB to Google Cloud Storage servers.
 	if isGoogleEndpoint(c.endpointURL) {
-		if fileSize <= -1 || fileSize > int64(maxSinglePutObjectSize) {
+		if fileSize > int64(maxSinglePutObjectSize) {
 			return 0, ErrorResponse{
 				Code:       "NotImplemented",
 				Message:    fmt.Sprintf("Invalid Content-Length %d for file uploads to Google Cloud Storage.", fileSize),
@@ -108,7 +108,7 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 
 	// NOTE: S3 doesn't allow anonymous multipart requests.
 	if isAmazonEndpoint(c.endpointURL) && c.anonymous {
-		if fileSize <= -1 || fileSize > int64(maxSinglePutObjectSize) {
+		if fileSize > int64(maxSinglePutObjectSize) {
 			return 0, ErrorResponse{
 				Code:       "NotImplemented",
 				Message:    fmt.Sprintf("For anonymous requests Content-Length cannot be %d.", fileSize),
@@ -123,7 +123,7 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 
 	// Large file upload is initiated for uploads for input data size
 	// if its greater than 5MiB or data size is negative.
-	if fileSize >= minimumPartSize || fileSize < 0 {
+	if fileSize >= minimumPartSize {
 		n, err := c.fputLargeObject(bucketName, objectName, fileData, fileSize, contentType)
 		return n, err
 	}
@@ -234,6 +234,7 @@ func (c Client) fputLargeObject(bucketName, objectName string, fileData *os.File
 			ETag:       hex.EncodeToString(prtData.MD5Sum),
 			PartNumber: prtData.Number,
 		}, partsInfo) {
+			partNumber++
 			// Close the read closer.
 			prtData.ReadCloser.Close()
 			continue

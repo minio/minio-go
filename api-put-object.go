@@ -298,6 +298,7 @@ func (c Client) putLargeObject(bucketName, objectName string, data io.Reader, si
 			ETag:       hex.EncodeToString(prtData.MD5Sum),
 			PartNumber: partNumber,
 		}, partsInfo) {
+			partNumber++
 			// Close the read closer.
 			prtData.ReadCloser.Close()
 			continue
