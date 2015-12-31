@@ -271,14 +271,26 @@ func TestFunctional(t *testing.T) {
 
 	// generate data
 	buf := make([]byte, rand.Intn(1<<19))
-	reader := bytes.NewReader(buf)
+	_, err = io.ReadFull(crand.Reader, buf)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
 
-	n, err := c.PutObject(bucketName, objectName, reader, int64(reader.Len()), "")
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "")
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
 	if n != int64(len(buf)) {
-		t.Fatal("Error: bad length ", n, reader.Len())
+		t.Fatal("Error: bad length ", n, len(buf))
+	}
+
+	n, err = c.PutObject(bucketName, objectName+"-nolength", bytes.NewReader(buf), -1, "binary/octet-stream")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName+"-nolength")
+	}
+
+	if n != int64(len(buf)) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), n)
 	}
 
 	newReader, _, err := c.GetObject(bucketName, objectName)
@@ -333,6 +345,10 @@ func TestFunctional(t *testing.T) {
 		t.Fatal("Error: ", err)
 	}
 	buf = make([]byte, rand.Intn(1<<20))
+	_, err = io.ReadFull(crand.Reader, buf)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
 	req, err := http.NewRequest("PUT", presignedPutURL, bytes.NewReader(buf))
 	if err != nil {
 		t.Fatal("Error: ", err)
@@ -365,25 +381,25 @@ func TestFunctional(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
+	err = c.RemoveObject(bucketName, objectName+"-nolength")
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
 	err = c.RemoveObject(bucketName, objectName+"-presigned")
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
-
 	err = c.RemoveBucket(bucketName)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-
 	err = c.RemoveBucket("bucket1")
 	if err == nil {
 		t.Fatal("Error:")
 	}
-
 	if err.Error() != "The specified bucket does not exist." {
 		t.Fatal("Error: ", err)
 	}
-
 	if err = os.Remove(fileName); err != nil {
 		t.Fatal("Error: ", err)
 	}
