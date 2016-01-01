@@ -226,9 +226,6 @@ func (c Client) putLargeObject(bucketName, objectName string, data io.Reader, si
 		return 0, err
 	}
 
-	// Cleanup any previously left stale files, as the function exits.
-	defer cleanupStaleTempfiles("multiparts$-putobject")
-
 	// getUploadID for an object, initiates a new multipart request
 	// if it cannot find any previously partially uploaded object.
 	uploadID, err := c.getUploadID(bucketName, objectName, contentType)
@@ -251,7 +248,6 @@ func (c Client) putLargeObject(bucketName, objectName string, data io.Reader, si
 	var prevMaxPartSize int64
 	// Loop through all parts and calculate totalUploadedSize.
 	for _, partInfo := range partsInfo {
-		totalUploadedSize += partInfo.Size
 		// Choose the maximum part size.
 		if partInfo.Size >= prevMaxPartSize {
 			prevMaxPartSize = partInfo.Size
@@ -265,11 +261,14 @@ func (c Client) putLargeObject(bucketName, objectName string, data io.Reader, si
 		partSize = prevMaxPartSize
 	}
 
-	// Part number always starts with '1'.
-	partNumber := 1
+	// Part number always starts with '0'.
+	partNumber := 0
 
 	// Loop through until EOF.
 	for {
+		// Increment part number.
+		partNumber++
+
 		// Initialize a new temporary file.
 		tmpFile, err := newTempFile("multiparts$-putobject")
 		if err != nil {
@@ -293,45 +292,28 @@ func (c Client) putLargeObject(bucketName, objectName string, data io.Reader, si
 			Number:     partNumber, // Current part number to be uploaded.
 		}
 
-		// If part number already uploaded, move to the next one.
-		if isPartUploaded(objectPart{
+		// If part not uploaded proceed to upload.
+		if !isPartUploaded(objectPart{
 			ETag:       hex.EncodeToString(prtData.MD5Sum),
 			PartNumber: partNumber,
 		}, partsInfo) {
-			partNumber++
-			// Close the read closer.
-			prtData.ReadCloser.Close()
-			continue
+			// execute upload part.
+			objPart, err := c.uploadPart(bucketName, objectName, uploadID, prtData)
+			if err != nil {
+				// Close the read closer.
+				prtData.ReadCloser.Close()
+				return 0, err
+			}
+			// Save successfully uploaded part metadata.
+			partsInfo[prtData.Number] = objPart
 		}
 
-		// execute upload part.
-		objPart, err := c.uploadPart(bucketName, objectName, uploadID, prtData)
-		if err != nil {
-			// Close the read closer.
-			prtData.ReadCloser.Close()
-			return totalUploadedSize, err
-		}
-
-		// Save successfully uploaded size.
-		totalUploadedSize += prtData.Size
-
-		// Save successfully uploaded part metadata.
-		partsInfo[prtData.Number] = objPart
-
-		// Move to next part.
-		partNumber++
+		// Close the read closer.
+		prtData.ReadCloser.Close()
 
 		// If read error was an EOF, break out of the loop.
 		if rErr == io.EOF {
 			break
-		}
-	}
-
-	// If size is greater than zero verify totalWritten.
-	// if totalWritten is different than the input 'size', do not complete the request throw an error.
-	if size > 0 {
-		if totalUploadedSize != size {
-			return totalUploadedSize, ErrUnexpectedEOF(totalUploadedSize, size, bucketName, objectName)
 		}
 	}
 
@@ -341,6 +323,21 @@ func (c Client) putLargeObject(bucketName, objectName string, data io.Reader, si
 		complPart.ETag = part.ETag
 		complPart.PartNumber = part.PartNumber
 		completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, complPart)
+		// Save successfully uploaded size.
+		totalUploadedSize += part.Size
+	}
+
+	// If size is greater than zero verify totalUploadedSize. if totalUploadedSize is
+	// different than the input 'size', do not complete the request throw an error.
+	if size > 0 {
+		if totalUploadedSize != size {
+			return totalUploadedSize, ErrUnexpectedEOF(totalUploadedSize, size, bucketName, objectName)
+		}
+	}
+
+	// If partNumber is different than total list of parts, error out.
+	if partNumber != len(completeMultipartUpload.Parts) {
+		return totalUploadedSize, ErrInvalidParts(partNumber, len(completeMultipartUpload.Parts))
 	}
 
 	// Sort all completed parts.
@@ -399,11 +396,15 @@ func (c Client) putObject(bucketName, objectName string, putObjData putObjectDat
 			return ObjectStat{}, HTTPRespToErrorResponse(resp, bucketName, objectName)
 		}
 	}
+
 	var metadata ObjectStat
-	// Trim off the odd double quotes from ETag.
-	metadata.ETag = strings.Trim(resp.Header.Get("ETag"), "\"")
+	// Trim off the odd double quotes from ETag in the beginning and end.
+	metadata.ETag = strings.TrimPrefix(resp.Header.Get("ETag"), "\"")
+	metadata.ETag = strings.TrimSuffix(metadata.ETag, "\"")
 	// A success here means data was written to server successfully.
 	metadata.Size = putObjData.Size
+
+	// Return here.
 	return metadata, nil
 }
 
@@ -506,8 +507,11 @@ func (c Client) uploadPart(bucketName, objectName, uploadID string, uploadingPar
 	}
 	// Once successfully uploaded, return completed part.
 	objPart := objectPart{}
+	objPart.Size = uploadingPart.Size
 	objPart.PartNumber = uploadingPart.Number
-	objPart.ETag = resp.Header.Get("ETag")
+	// Trim off the odd double quotes from ETag in the beginning and end.
+	objPart.ETag = strings.TrimPrefix(resp.Header.Get("ETag"), "\"")
+	objPart.ETag = strings.TrimSuffix(objPart.ETag, "\"")
 	return objPart, nil
 }
 
