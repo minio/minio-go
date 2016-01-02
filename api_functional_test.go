@@ -19,6 +19,7 @@ package minio_test
 import (
 	"bytes"
 	crand "crypto/rand"
+	"errors"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -54,9 +55,9 @@ func randString(n int, src rand.Source) string {
 	return string(b[0:30])
 }
 
-func TestResumableFPutObject(t *testing.T) {
+func TestRemovePartiallyUploaded(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping resumable tests with short runs")
+		t.Skip("skipping function tests for short runs")
 	}
 
 	// Seed random based on current time.
@@ -64,9 +65,9 @@ func TestResumableFPutObject(t *testing.T) {
 
 	// Connect and make sure bucket exists.
 	c, err := minio.New(
-		"play.minio.io:9002",
-		"Q3AM3UQ867SPQQA43P2F",
-		"zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+		"s3.amazonaws.com",
+		os.Getenv("ACCESS_KEY"),
+		os.Getenv("SECRET_KEY"),
 		false,
 	)
 	if err != nil {
@@ -77,7 +78,72 @@ func TestResumableFPutObject(t *testing.T) {
 	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
 
 	// Enable tracing, write to stdout.
-	// c.TraceOn(nil)
+	// c.TraceOn(os.Stderr)
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
+
+	// make a new bucket.
+	err = c.MakeBucket(bucketName, "private", "us-east-1")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+
+	reader, writer := io.Pipe()
+	go func() {
+		i := 0
+		for i < 25 {
+			_, err = io.CopyN(writer, crand.Reader, 128*1024)
+			if err != nil {
+				t.Fatal("Error:", err, bucketName)
+			}
+			i++
+		}
+		writer.CloseWithError(errors.New("Proactively closed to be verified later."))
+	}()
+
+	objectName := bucketName + "-resumable"
+	_, err = c.PutObject(bucketName, objectName, reader, "application/octet-stream")
+	if err == nil {
+		t.Fatal("Error: PutObject should fail.")
+	}
+	if err.Error() != "Proactively closed to be verified later." {
+		t.Fatal("Error:", err)
+	}
+	err = c.RemoveIncompleteUpload(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+}
+
+func TestResumableFPutObject(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping functional tests for the short runs")
+	}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Connect and make sure bucket exists.
+	c, err := minio.New(
+		"s3.amazonaws.com",
+		os.Getenv("ACCESS_KEY"),
+		os.Getenv("SECRET_KEY"),
+		false,
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Enable tracing, write to stdout.
+	// c.TraceOn(os.Stderr)
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
@@ -93,7 +159,10 @@ func TestResumableFPutObject(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 
-	n, _ := io.CopyN(file, crand.Reader, 11*1024*1024)
+	n, err := io.CopyN(file, crand.Reader, 11*1024*1024)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
 	if n != int64(11*1024*1024) {
 		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", 11*1024*1024, n)
 	}
@@ -129,7 +198,7 @@ func TestResumableFPutObject(t *testing.T) {
 
 func TestResumablePutObject(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping resumable tests with short runs")
+		t.Skip("skipping functional tests for the short runs")
 	}
 
 	// Seed random based on current time.
@@ -137,20 +206,20 @@ func TestResumablePutObject(t *testing.T) {
 
 	// Connect and make sure bucket exists.
 	c, err := minio.New(
-		"play.minio.io:9002",
-		"Q3AM3UQ867SPQQA43P2F",
-		"zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+		"s3.amazonaws.com",
+		os.Getenv("ACCESS_KEY"),
+		os.Getenv("SECRET_KEY"),
 		false,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
 	// Set user agent.
 	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
-
-	// Enable tracing, write to stdout.
-	// c.TraceOn(nil)
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
@@ -171,7 +240,7 @@ func TestResumablePutObject(t *testing.T) {
 
 	objectName := bucketName + "-resumable"
 	reader := bytes.NewReader(buf)
-	n, err := c.PutObject(bucketName, objectName, reader, int64(reader.Len()), "application/octet-stream")
+	n, err := c.PutObject(bucketName, objectName, reader, "application/octet-stream")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
@@ -190,26 +259,30 @@ func TestResumablePutObject(t *testing.T) {
 	}
 }
 
-func TestGetObjectPartialFunctional(t *testing.T) {
+func TestGetObjectReadSeekFunctional(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping functional tests for short runs")
+	}
+
 	// Seed random based on current time.
 	rand.Seed(time.Now().Unix())
 
 	// Connect and make sure bucket exists.
 	c, err := minio.New(
-		"play.minio.io:9002",
-		"Q3AM3UQ867SPQQA43P2F",
-		"zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+		"s3.amazonaws.com",
+		os.Getenv("ACCESS_KEY"),
+		os.Getenv("SECRET_KEY"),
 		false,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
 	// Set user agent.
 	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
-
-	// Enable tracing, write to stdout.
-	// c.TraceOn(nil)
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
@@ -230,7 +303,7 @@ func TestGetObjectPartialFunctional(t *testing.T) {
 
 	// save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()))
-	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "binary/octet-stream")
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
@@ -240,11 +313,128 @@ func TestGetObjectPartialFunctional(t *testing.T) {
 	}
 
 	// read the data back
-	r, st, err := c.GetObjectPartial(bucketName, objectName)
+	r, err := c.GetObject(bucketName, objectName)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
 
+	st, err := r.Stat()
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
+	if st.Size != int64(len(buf)) {
+		t.Fatalf("Error: number of bytes in stat does not match, want %v, got %v\n",
+			len(buf), st.Size)
+	}
+
+	offset := int64(2048)
+	n, err = r.Seek(offset, 0)
+	if err != nil {
+		t.Fatal("Error:", err, offset)
+	}
+	if n != offset {
+		t.Fatalf("Error: number of bytes seeked does not match, want %v, got %v\n",
+			offset, n)
+	}
+	n, err = r.Seek(0, 1)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if n != offset {
+		t.Fatalf("Error: number of current seek does not match, want %v, got %v\n",
+			offset, n)
+	}
+	_, err = r.Seek(offset, 2)
+	if err == nil {
+		t.Fatal("Error: seek on positive offset for whence '2' should error out")
+	}
+	n, err = r.Seek(-offset, 2)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if n != 0 {
+		t.Fatalf("Error: number of bytes seeked back does not match, want 0, got %v\n", n)
+	}
+	var buffer bytes.Buffer
+	if _, err = io.CopyN(&buffer, r, st.Size); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if !bytes.Equal(buf, buffer.Bytes()) {
+		t.Fatal("Error: Incorrect read bytes v/s original buffer.")
+	}
+	err = c.RemoveObject(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+}
+
+func TestGetObjectReadAtFunctional(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping functional tests for the short runs")
+	}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Connect and make sure bucket exists.
+	c, err := minio.New(
+		"s3.amazonaws.com",
+		os.Getenv("ACCESS_KEY"),
+		os.Getenv("SECRET_KEY"),
+		false,
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
+
+	// make a new bucket.
+	err = c.MakeBucket(bucketName, "private", "us-east-1")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+
+	// generate data more than 32K
+	buf := make([]byte, rand.Intn(1<<20)+32*1024)
+
+	_, err = io.ReadFull(crand.Reader, buf)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// save the data
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()))
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
+
+	if n != int64(len(buf)) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), n)
+	}
+
+	// read the data back
+	r, err := c.GetObject(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
+
+	st, err := r.Stat()
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
 	if st.Size != int64(len(buf)) {
 		t.Fatalf("Error: number of bytes in stat does not match, want %v, got %v\n",
 			len(buf), st.Size)
@@ -324,24 +514,28 @@ func TestGetObjectPartialFunctional(t *testing.T) {
 }
 
 func TestFunctional(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping functional tests for the short runs")
+	}
+
 	// Seed random based on current time.
 	rand.Seed(time.Now().Unix())
 
 	c, err := minio.New(
-		"play.minio.io:9002",
-		"Q3AM3UQ867SPQQA43P2F",
-		"zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+		"s3.amazonaws.com",
+		os.Getenv("ACCESS_KEY"),
+		os.Getenv("SECRET_KEY"),
 		false,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 
+	// Enable to debug
+	// c.TraceOn(os.Stderr)
+
 	// Set user agent.
 	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
-
-	// Enable tracing, write to stdout.
-	// c.TraceOn(nil)
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
@@ -394,6 +588,9 @@ func TestFunctional(t *testing.T) {
 
 	// list all buckets.
 	buckets, err := c.ListBuckets()
+	if len(buckets) == 0 {
+		t.Fatal("Error: list buckets cannot be empty", buckets)
+	}
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -420,7 +617,7 @@ func TestFunctional(t *testing.T) {
 		t.Fatal("Error: ", err)
 	}
 
-	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "")
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "")
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
@@ -428,7 +625,7 @@ func TestFunctional(t *testing.T) {
 		t.Fatal("Error: bad length ", n, len(buf))
 	}
 
-	n, err = c.PutObject(bucketName, objectName+"-nolength", bytes.NewReader(buf), -1, "binary/octet-stream")
+	n, err = c.PutObject(bucketName, objectName+"-nolength", bytes.NewReader(buf), "binary/octet-stream")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName+"-nolength")
 	}
@@ -437,7 +634,7 @@ func TestFunctional(t *testing.T) {
 		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), n)
 	}
 
-	newReader, _, err := c.GetObject(bucketName, objectName)
+	newReader, err := c.GetObject(bucketName, objectName)
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
@@ -451,15 +648,7 @@ func TestFunctional(t *testing.T) {
 		t.Fatal("Error: bytes mismatch.")
 	}
 
-	n, err = c.FPutObject(bucketName, objectName+"-f", fileName, "text/plain")
-	if err != nil {
-		t.Fatal("Error: ", err)
-	}
-	if n != totalSize {
-		t.Fatal("Error: bad length ", n, totalSize)
-	}
-
-	err = c.FGetObject(bucketName, objectName+"-f", fileName+"-f")
+	err = c.FGetObject(bucketName, objectName, fileName+"-f")
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
@@ -503,7 +692,7 @@ func TestFunctional(t *testing.T) {
 		t.Fatal("Error: ", err)
 	}
 
-	newReader, _, err = c.GetObject(bucketName, objectName+"-presigned")
+	newReader, err = c.GetObject(bucketName, objectName+"-presigned")
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
@@ -537,11 +726,11 @@ func TestFunctional(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	err = c.RemoveBucket("bucket1")
+	err = c.RemoveBucket(bucketName)
 	if err == nil {
 		t.Fatal("Error:")
 	}
-	if err.Error() != "The specified bucket does not exist." {
+	if err.Error() != "The specified bucket does not exist" {
 		t.Fatal("Error: ", err)
 	}
 	if err = os.Remove(fileName); err != nil {

@@ -17,11 +17,59 @@
 package minio
 
 import (
+	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 )
 
-func TestSignature(t *testing.T) {
+func TestSignatureCalculation(t *testing.T) {
+	req, err := http.NewRequest("GET", "https://s3.amazonaws.com", nil)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	req = SignV4(*req, "", "", "us-east-1")
+	if req.Header.Get("Authorization") != "" {
+		t.Fatal("Error: anonymous credentials should not have Authorization header.")
+	}
+
+	req = PreSignV4(*req, "", "", "us-east-1", 0)
+	if strings.Contains(req.URL.RawQuery, "X-Amz-Signature") {
+		t.Fatal("Error: anonymous credentials should not have Signature query resource.")
+	}
+
+	req = SignV2(*req, "", "")
+	if req.Header.Get("Authorization") != "" {
+		t.Fatal("Error: anonymous credentials should not have Authorization header.")
+	}
+
+	req = PreSignV2(*req, "", "", 0)
+	if strings.Contains(req.URL.RawQuery, "Signature") {
+		t.Fatal("Error: anonymous credentials should not have Signature query resource.")
+	}
+
+	req = SignV4(*req, "ACCESS-KEY", "SECRET-KEY", "us-east-1")
+	if req.Header.Get("Authorization") == "" {
+		t.Fatal("Error: normal credentials should have Authorization header.")
+	}
+
+	req = PreSignV4(*req, "ACCESS-KEY", "SECRET-KEY", "us-east-1", 0)
+	if !strings.Contains(req.URL.RawQuery, "X-Amz-Signature") {
+		t.Fatal("Error: normal credentials should have Signature query resource.")
+	}
+
+	req = SignV2(*req, "ACCESS-KEY", "SECRET-KEY")
+	if req.Header.Get("Authorization") == "" {
+		t.Fatal("Error: normal credentials should have Authorization header.")
+	}
+
+	req = PreSignV2(*req, "ACCESS-KEY", "SECRET-KEY", 0)
+	if !strings.Contains(req.URL.RawQuery, "Signature") {
+		t.Fatal("Error: normal credentials should not have Signature query resource.")
+	}
+}
+
+func TestSignatureType(t *testing.T) {
 	clnt := Client{}
 	if !clnt.signature.isV4() {
 		t.Fatal("Error")
