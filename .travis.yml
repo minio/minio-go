@@ -5,9 +5,15 @@ os:
 - linux
 - osx
 
+before_install:
+  - go get github.com/axw/gocov/gocov
+  - go get github.com/mattn/goveralls
+  - if ! go get github.com/golang/tools/cmd/cover; then go get golang.org/x/tools/cmd/cover; fi
+
 env:
 - ARCH=x86_64
 - ARCH=i686
+- COVERALLS_TOKEN=bXvaQmW8EdLwpvzjeI3YU1LaHRRGL006b
 
 go:
 - 1.5.1
@@ -15,8 +21,12 @@ go:
 
 script:
 - go vet ./...
-- go test -test.short -race -v ./...
+- go test -test.short -v -covermode=count -coverprofile=profile.cov ./...
+- $HOME/gopath/bin/goveralls -coverprofile=profile.cov -service=travis-ci
 
 notifications:
   slack:
     secure: HrOX2k6F/sEl6Rr4m5vHOdJCIwV42be0kz1Jy/WSMvrl/fQ8YkldKviLeWh4aWt1kclsYhNQ4FqGML+RIZYsdOqej4fAw9Vi5pZkI1MzPJq0UjrtMqkqzvD90eDGQYCKwaXjEIN8cohwJeb6X0B0HKAd9sqJW5GH5SwnhH5WWP8=
+
+after_success:
+  - coveralls
