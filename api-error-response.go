@@ -17,7 +17,6 @@
 package minio
 
 import (
-	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"net/http"
@@ -62,7 +61,6 @@ type ErrorResponse struct {
 //   reader, stat, err := s3.GetObject(...)
 //   if err != nil {
 //      resp := s3.ToErrorResponse(err)
-//      fmt.Println(resp.ToXML())
 //   }
 //   ...
 func ToErrorResponse(err error) ErrorResponse {
@@ -72,24 +70,6 @@ func ToErrorResponse(err error) ErrorResponse {
 	default:
 		return ErrorResponse{}
 	}
-}
-
-// ToXML - Returns errorResponse xml marshalled as string.
-func (e ErrorResponse) ToXML() string {
-	b, err := xml.Marshal(&e)
-	if err != nil {
-		panic(err)
-	}
-	return string(b)
-}
-
-// ToJSON - Returns errorResponse json marshalled as string
-func (e ErrorResponse) ToJSON() string {
-	b, err := json.Marshal(&e)
-	if err != nil {
-		panic(err)
-	}
-	return string(b)
 }
 
 // Error - Returns HTTP error string

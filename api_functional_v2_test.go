@@ -31,31 +31,8 @@ import (
 	"github.com/minio/minio-go"
 )
 
-const letterBytes = "abcdefghijklmnopqrstuvwxyz01234569"
-const (
-	letterIdxBits = 6                    // 6 bits to represent a letter index
-	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
-	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
-)
-
-func randString(n int, src rand.Source) string {
-	b := make([]byte, n)
-	// A rand.Int63() generates 63 random bits, enough for letterIdxMax letters!
-	for i, cache, remain := n-1, src.Int63(), letterIdxMax; i >= 0; {
-		if remain == 0 {
-			cache, remain = src.Int63(), letterIdxMax
-		}
-		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
-			b[i] = letterBytes[idx]
-			i--
-		}
-		cache >>= letterIdxBits
-		remain--
-	}
-	return string(b[0:30])
-}
-
-func TestRemovePartiallyUploaded(t *testing.T) {
+// Tests removing partially uploaded objects.
+func TestRemovePartiallyUploadedV2(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping function tests for short runs")
 	}
@@ -64,7 +41,7 @@ func TestRemovePartiallyUploaded(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Connect and make sure bucket exists.
-	c, err := minio.New(
+	c, err := minio.NewV2(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
@@ -120,7 +97,8 @@ func TestRemovePartiallyUploaded(t *testing.T) {
 	}
 }
 
-func TestResumableFPutObject(t *testing.T) {
+// Tests resumable file based put object multipart upload.
+func TestResumableFPutObjectV2(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping functional tests for the short runs")
 	}
@@ -196,7 +174,8 @@ func TestResumableFPutObject(t *testing.T) {
 	}
 }
 
-func TestResumablePutObject(t *testing.T) {
+// Tests resumable put object multipart upload.
+func TestResumablePutObjectV2(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping functional tests for the short runs")
 	}
@@ -259,7 +238,8 @@ func TestResumablePutObject(t *testing.T) {
 	}
 }
 
-func TestGetObjectReadSeekFunctional(t *testing.T) {
+// Tests get object ReaderSeeker interface methods.
+func TestGetObjectReadSeekFunctionalV2(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping functional tests for short runs")
 	}
@@ -287,13 +267,13 @@ func TestGetObjectReadSeekFunctional(t *testing.T) {
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
 
-	// make a new bucket.
+	// Make a new bucket.
 	err = c.MakeBucket(bucketName, "private", "us-east-1")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
 
-	// generate data more than 32K
+	// Generate data more than 32K
 	buf := make([]byte, rand.Intn(1<<20)+32*1024)
 
 	_, err = io.ReadFull(crand.Reader, buf)
@@ -301,7 +281,7 @@ func TestGetObjectReadSeekFunctional(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 
-	// save the data
+	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()))
 	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
 	if err != nil {
@@ -312,7 +292,7 @@ func TestGetObjectReadSeekFunctional(t *testing.T) {
 		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), n)
 	}
 
-	// read the data back
+	// Read the data back
 	r, err := c.GetObject(bucketName, objectName)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
@@ -372,7 +352,8 @@ func TestGetObjectReadSeekFunctional(t *testing.T) {
 	}
 }
 
-func TestGetObjectReadAtFunctional(t *testing.T) {
+// Tests get object ReaderAt interface methods.
+func TestGetObjectReadAtFunctionalV2(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping functional tests for the short runs")
 	}
@@ -400,13 +381,13 @@ func TestGetObjectReadAtFunctional(t *testing.T) {
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
 
-	// make a new bucket.
+	// Make a new bucket.
 	err = c.MakeBucket(bucketName, "private", "us-east-1")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
 
-	// generate data more than 32K
+	// Generate data more than 32K
 	buf := make([]byte, rand.Intn(1<<20)+32*1024)
 
 	_, err = io.ReadFull(crand.Reader, buf)
@@ -414,7 +395,7 @@ func TestGetObjectReadAtFunctional(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 
-	// save the data
+	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()))
 	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
 	if err != nil {
@@ -425,7 +406,7 @@ func TestGetObjectReadAtFunctional(t *testing.T) {
 		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), n)
 	}
 
-	// read the data back
+	// Read the data back
 	r, err := c.GetObject(bucketName, objectName)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
@@ -442,7 +423,7 @@ func TestGetObjectReadAtFunctional(t *testing.T) {
 
 	offset := int64(2048)
 
-	// read directly
+	// Read directly
 	buf2 := make([]byte, 512)
 	buf3 := make([]byte, 512)
 	buf4 := make([]byte, 512)
@@ -513,7 +494,8 @@ func TestGetObjectReadAtFunctional(t *testing.T) {
 	}
 }
 
-func TestFunctional(t *testing.T) {
+// Tests comprehensive list of all methods.
+func TestFunctionalV2(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping functional tests for the short runs")
 	}
@@ -540,13 +522,13 @@ func TestFunctional(t *testing.T) {
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
 
-	// make a new bucket.
+	// Make a new bucket.
 	err = c.MakeBucket(bucketName, "private", "us-east-1")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
 
-	// generate a random file name.
+	// Generate a random file name.
 	fileName := randString(60, rand.NewSource(time.Now().UnixNano()))
 	file, err := os.Create(fileName)
 	if err != nil {
@@ -563,30 +545,30 @@ func TestFunctional(t *testing.T) {
 	}
 	file.Close()
 
-	// verify if bucket exits and you have access.
+	// Verify if bucket exits and you have access.
 	err = c.BucketExists(bucketName)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
 
-	// make the bucket 'public read/write'.
+	// Make the bucket 'public read/write'.
 	err = c.SetBucketACL(bucketName, "public-read-write")
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 
-	// get the previously set acl.
+	// Get the previously set acl.
 	acl, err := c.GetBucketACL(bucketName)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 
-	// acl must be 'public read/write'.
+	// ACL must be 'public read/write'.
 	if acl != minio.BucketACL("public-read-write") {
 		t.Fatal("Error:", acl)
 	}
 
-	// list all buckets.
+	// List all buckets.
 	buckets, err := c.ListBuckets()
 	if len(buckets) == 0 {
 		t.Fatal("Error: list buckets cannot be empty", buckets)
@@ -610,7 +592,7 @@ func TestFunctional(t *testing.T) {
 
 	objectName := bucketName + "unique"
 
-	// generate data
+	// Generate data
 	buf := make([]byte, rand.Intn(1<<19))
 	_, err = io.ReadFull(crand.Reader, buf)
 	if err != nil {
@@ -632,6 +614,33 @@ func TestFunctional(t *testing.T) {
 
 	if n != int64(len(buf)) {
 		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), n)
+	}
+
+	// Instantiate a done channel to close all listing.
+	doneCh := make(chan struct{})
+	defer close(doneCh)
+
+	objFound := false
+	isRecursive := true // Recursive is true.
+	for obj := range c.ListObjects(bucketName, objectName, isRecursive, doneCh) {
+		if obj.Key == objectName {
+			objFound = true
+			break
+		}
+	}
+	if !objFound {
+		t.Fatal("Error: object " + objectName + " not found.")
+	}
+
+	incompObjNotFound := true
+	for objIncompl := range c.ListIncompleteUploads(bucketName, objectName, isRecursive, doneCh) {
+		if objIncompl.Key != "" {
+			incompObjNotFound = false
+			break
+		}
+	}
+	if !incompObjNotFound {
+		t.Fatal("Error: unexpected dangling incomplete upload found.")
 	}
 
 	newReader, err := c.GetObject(bucketName, objectName)
