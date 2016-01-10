@@ -17,42 +17,66 @@
 package minio
 
 import (
-	"bytes"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 )
 
-// getReaderSize gets the size of the underlying reader, if possible.
+// getReaderSize - Determine the size of Reader if available.
 func getReaderSize(reader io.Reader) (size int64, err error) {
+	var result []reflect.Value
 	size = -1
 	if reader != nil {
-		switch v := reader.(type) {
-		case *bytes.Buffer:
-			size = int64(v.Len())
-		case *bytes.Reader:
-			size = int64(v.Len())
-		case *strings.Reader:
-			size = int64(v.Len())
-		case *os.File:
-			var st os.FileInfo
-			st, err = v.Stat()
-			if err != nil {
-				return 0, err
+		// Verify if there is a method by name 'Len'.
+		lenFn := reflect.ValueOf(reader).MethodByName("Len")
+		if lenFn.IsValid() {
+			if lenFn.Kind() == reflect.Func {
+				// Call the 'Len' function and save its return value.
+				result = lenFn.Call([]reflect.Value{})
+				if result != nil && len(result) == 1 {
+					lenValue := result[0]
+					if lenValue.IsValid() {
+						switch lenValue.Kind() {
+						case reflect.Int:
+							fallthrough
+						case reflect.Int8:
+							fallthrough
+						case reflect.Int16:
+							fallthrough
+						case reflect.Int32:
+							fallthrough
+						case reflect.Int64:
+							size = lenValue.Int()
+						}
+					}
+				}
 			}
-			size = st.Size()
-		case *Object:
-			var st ObjectInfo
-			st, err = v.Stat()
-			if err != nil {
-				return 0, err
+		} else {
+			// Fallback to Stat() method, two possible Stat() structs
+			// exist.
+			switch v := reader.(type) {
+			case *os.File:
+				var st os.FileInfo
+				st, err = v.Stat()
+				if err != nil {
+					return
+				}
+				size = st.Size()
+			case *Object:
+				var st ObjectInfo
+				st, err = v.Stat()
+				if err != nil {
+					return
+				}
+				size = st.Size
 			}
-			size = st.Size
 		}
 	}
-	return size, nil
+	// Returns the size here.
+	return size, err
 }
 
 // completedParts is a collection of parts sortable by their part numbers.

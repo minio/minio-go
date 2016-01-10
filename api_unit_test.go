@@ -17,13 +17,101 @@
 package minio
 
 import (
+	"bytes"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 )
 
+type customReader struct{}
+
+func (c *customReader) Read(p []byte) (n int, err error) {
+	return 0, nil
+}
+
+func (c *customReader) Len() (n int) {
+	return 10
+}
+
+// Tests getReaderSize() various reflection possibility.
+func TestGetReaderSize(t *testing.T) {
+	var reader io.Reader
+	size, err := getReaderSize(reader)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if size != -1 {
+		t.Fatal("Reader doesn't have any length.")
+	}
+
+	bytesReader := bytes.NewReader([]byte("Hello World"))
+	size, err = getReaderSize(bytesReader)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if size != int64(len("Hello World")) {
+		t.Fatalf("Reader length doesn't match got: %v, want: %v", size, len("Hello World"))
+	}
+
+	size, err = getReaderSize(new(customReader))
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if size != int64(10) {
+		t.Fatalf("Reader length doesn't match got: %v, want: %v", size, 10)
+	}
+
+	stringsReader := strings.NewReader("Hello World")
+	size, err = getReaderSize(stringsReader)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if size != int64(len("Hello World")) {
+		t.Fatalf("Reader length doesn't match got: %v, want: %v", size, len("Hello World"))
+	}
+
+	// Create request channel.
+	reqCh := make(chan readRequest)
+	// Create response channel.
+	resCh := make(chan readResponse)
+	// Create done channel.
+	doneCh := make(chan struct{})
+	// objectInfo.
+	objectInfo := ObjectInfo{Size: 10}
+	objectReader := newObject(reqCh, resCh, doneCh, objectInfo)
+	defer objectReader.Close()
+
+	size, err = getReaderSize(objectReader)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if size == -1 {
+		t.Fatal("Reader length invalid.")
+	}
+
+	fileReader, err := ioutil.TempFile(os.TempDir(), "prefix")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	defer fileReader.Close()
+	defer os.RemoveAll(fileReader.Name())
+
+	size, err = getReaderSize(fileReader)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if size == -1 {
+		t.Fatal("Reader length invalid.")
+	}
+
+}
+
+// Tests url encoding.
 func TestEncodeURL2Path(t *testing.T) {
 	type urlStrings struct {
 		objName        string
@@ -66,6 +154,7 @@ func TestEncodeURL2Path(t *testing.T) {
 	}
 }
 
+// Tests error response structure.
 func TestErrorResponse(t *testing.T) {
 	var err error
 	err = ErrorResponse{
@@ -90,6 +179,7 @@ func TestErrorResponse(t *testing.T) {
 	}
 }
 
+// Tests signature calculation.
 func TestSignatureCalculation(t *testing.T) {
 	req, err := http.NewRequest("GET", "https://s3.amazonaws.com", nil)
 	if err != nil {
@@ -136,6 +226,7 @@ func TestSignatureCalculation(t *testing.T) {
 	}
 }
 
+// Tests signature type.
 func TestSignatureType(t *testing.T) {
 	clnt := Client{}
 	if !clnt.signature.isV4() {
@@ -154,7 +245,8 @@ func TestSignatureType(t *testing.T) {
 	}
 }
 
-func TestACLTypes(t *testing.T) {
+// Tests bucket acl types.
+func TestBucketACLTypes(t *testing.T) {
 	want := map[string]bool{
 		"private":            true,
 		"public-read":        true,
@@ -169,6 +261,7 @@ func TestACLTypes(t *testing.T) {
 	}
 }
 
+// Tests optimal part size.
 func TestPartSize(t *testing.T) {
 	var maxPartSize int64 = 1024 * 1024 * 1024 * 5
 	partSize := optimalPartSize(5000000000000000000)
@@ -183,6 +276,7 @@ func TestPartSize(t *testing.T) {
 	}
 }
 
+// Tests url encoding.
 func TestURLEncoding(t *testing.T) {
 	type urlStrings struct {
 		name        string
@@ -223,6 +317,7 @@ func TestURLEncoding(t *testing.T) {
 	}
 }
 
+// Tests constructing valid endpoint url.
 func TestGetEndpointURL(t *testing.T) {
 	if _, err := getEndpointURL("s3.amazonaws.com", false); err != nil {
 		t.Fatal("Error:", err)
@@ -241,7 +336,8 @@ func TestGetEndpointURL(t *testing.T) {
 	}
 }
 
-func TestValidIP(t *testing.T) {
+// Tests valid ip address.
+func TestValidIPAddr(t *testing.T) {
 	type validIP struct {
 		ip    string
 		valid bool
@@ -273,6 +369,7 @@ func TestValidIP(t *testing.T) {
 	}
 }
 
+// Tests valid endpoint domain.
 func TestValidEndpointDomain(t *testing.T) {
 	type validEndpoint struct {
 		endpointDomain string
@@ -329,6 +426,7 @@ func TestValidEndpointDomain(t *testing.T) {
 	}
 }
 
+// Tests valid endpoint url.
 func TestValidEndpointURL(t *testing.T) {
 	type validURL struct {
 		url   string
