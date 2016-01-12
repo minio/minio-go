@@ -54,7 +54,7 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 
 	// Check for largest object size allowed.
 	if fileSize > int64(maxMultipartPutObjectSize) {
-		return 0, ErrEntityTooLarge(fileSize, bucketName, objectName)
+		return 0, ErrEntityTooLarge(fileSize, maxMultipartPutObjectSize, bucketName, objectName)
 	}
 
 	// NOTE: Google Cloud Storage multipart Put is not compatible with Amazon S3 APIs.
@@ -87,7 +87,7 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 	}
 
 	// Small object upload is initiated for uploads for input data size smaller than 5MiB.
-	if fileSize < minimumPartSize {
+	if fileSize < minPartSize {
 		return c.putObjectSingle(bucketName, objectName, fileReader, fileSize, contentType)
 	}
 	// Upload all large objects as multipart.
@@ -99,7 +99,7 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 		if errResp.Code == "NotImplemented" {
 			// If size of file is greater than '5GiB' fail.
 			if fileSize > maxSinglePutObjectSize {
-				return 0, ErrEntityTooLarge(fileSize, bucketName, objectName)
+				return 0, ErrEntityTooLarge(fileSize, maxSinglePutObjectSize, bucketName, objectName)
 			}
 			// Fall back to uploading as single PutObject operation.
 			return c.putObjectSingle(bucketName, objectName, fileReader, fileSize, contentType)
@@ -139,9 +139,6 @@ func (c Client) putObjectMultipartFromFile(bucketName, objectName string, fileRe
 	// Complete multipart upload.
 	var completeMultipartUpload completeMultipartUpload
 
-	// Previous maximum part size
-	var prevMaxPartSize int64
-
 	// A map of all uploaded parts.
 	var partsInfo = make(map[int]objectPart)
 
@@ -149,17 +146,16 @@ func (c Client) putObjectMultipartFromFile(bucketName, objectName string, fileRe
 	// previously uploaded parts info.
 	if !isNew {
 		// Fetch previously upload parts and maximum part size.
-		partsInfo, _, prevMaxPartSize, _, err = c.getPartsInfo(bucketName, objectName, uploadID)
+		partsInfo, err = c.listObjectParts(bucketName, objectName, uploadID)
 		if err != nil {
 			return 0, err
 		}
 	}
 
-	// Calculate the optimal part size for a given file size.
-	partSize := optimalPartSize(fileSize)
-	// Use prevMaxPartSize if available.
-	if prevMaxPartSize != 0 {
-		partSize = prevMaxPartSize
+	// Calculate the optimal parts info for a given size.
+	totalPartsCount, partSize, _, err := optimalPartInfo(fileSize)
+	if err != nil {
+		return 0, err
 	}
 
 	// Part number always starts with '0'.
@@ -183,6 +179,7 @@ func (c Client) putObjectMultipartFromFile(bucketName, objectName string, fileRe
 		if !isPartUploaded(objectPart{
 			ETag:       hex.EncodeToString(md5Sum),
 			PartNumber: partNumber,
+			Size:       size,
 		}, partsInfo) {
 			// Proceed to upload the part.
 			objPart, err := c.uploadPart(bucketName, objectName, uploadID, ioutil.NopCloser(sectionReader), partNumber, md5Sum, sha256Sum, size)
@@ -210,8 +207,8 @@ func (c Client) putObjectMultipartFromFile(bucketName, objectName string, fileRe
 		completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, complPart)
 	}
 
-	// Verify if partNumber is different than total list of parts.
-	if partNumber != len(completeMultipartUpload.Parts) {
+	// Verify if totalPartsCount is not equal to total list of parts.
+	if totalPartsCount != len(completeMultipartUpload.Parts) {
 		return totalUploadedSize, ErrInvalidParts(partNumber, len(completeMultipartUpload.Parts))
 	}
 

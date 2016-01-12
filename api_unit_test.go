@@ -263,16 +263,42 @@ func TestBucketACLTypes(t *testing.T) {
 
 // Tests optimal part size.
 func TestPartSize(t *testing.T) {
-	var maxPartSize int64 = 1024 * 1024 * 1024 * 5
-	partSize := optimalPartSize(5000000000000000000)
-	if partSize > minimumPartSize {
-		if partSize > maxPartSize {
-			t.Fatal("invalid result, cannot be bigger than maxPartSize 5GiB")
-		}
+	totalPartsCount, partSize, lastPartSize, err := optimalPartInfo(5000000000000000000)
+	if err == nil {
+		t.Fatal("Error: should fail")
 	}
-	partSize = optimalPartSize(50000000000)
-	if partSize > minimumPartSize {
-		t.Fatal("invalid result, cannot be bigger than minimumPartSize 5MiB")
+	totalPartsCount, partSize, lastPartSize, err = optimalPartInfo(5497558138880)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+	if totalPartsCount != 9987 {
+		t.Fatalf("Error: expecting total parts count of 9987: got %v instead", totalPartsCount)
+	}
+	if partSize != 550502400 {
+		t.Fatalf("Error: expecting part size of 550502400: got %v instead", partSize)
+	}
+	if lastPartSize != 241172480 {
+		t.Fatalf("Error: expecting last part size of 241172480: got %v instead", lastPartSize)
+	}
+	totalPartsCount, partSize, lastPartSize, err = optimalPartInfo(5000000000)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if partSize != minPartSize {
+		t.Fatalf("Error: expecting part size of %v: got %v instead", minPartSize, partSize)
+	}
+	totalPartsCount, partSize, lastPartSize, err = optimalPartInfo(-1)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if totalPartsCount != 9987 {
+		t.Fatalf("Error: expecting total parts count of 9987: got %v instead", totalPartsCount)
+	}
+	if partSize != 550502400 {
+		t.Fatalf("Error: expecting part size of 550502400: got %v instead", partSize)
+	}
+	if lastPartSize != 241172480 {
+		t.Fatalf("Error: expecting last part size of 241172480: got %v instead", lastPartSize)
 	}
 }
 

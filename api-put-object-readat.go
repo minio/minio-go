@@ -57,9 +57,6 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 	// Complete multipart upload.
 	var completeMultipartUpload completeMultipartUpload
 
-	// Previous maximum part size
-	var prevMaxPartSize int64
-
 	// Previous part number.
 	var prevPartNumber int
 
@@ -68,24 +65,27 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 
 	// Fetch all parts info previously uploaded.
 	if !isNew {
-		partsInfo, totalUploadedSize, prevMaxPartSize, prevPartNumber, err = c.getPartsInfo(bucketName, objectName, uploadID)
+		partsInfo, err = c.listObjectParts(bucketName, objectName, uploadID)
 		if err != nil {
 			return 0, err
 		}
 	}
 
-	// Calculate the optimal part size for a given file size.
-	partSize := optimalPartSize(size)
-	// If prevMaxPartSize is set use that.
-	if prevMaxPartSize != 0 {
-		partSize = prevMaxPartSize
+	// Calculate the optimal parts info for a given size.
+	totalPartsCount, partSize, _, err := optimalPartInfo(size)
+	if err != nil {
+		return 0, err
 	}
 
 	// MD5 and SHA256 hasher.
 	var hashMD5, hashSHA256 hash.Hash
 
-	// Part number always starts with prevPartNumber + 1. i.e The next part number.
-	partNumber := prevPartNumber + 1
+	// Part number always starts with '1', moves to prevPartNumber if
+	// exists and is non zero.
+	partNumber := 1
+	if prevPartNumber != 0 {
+		partNumber = prevPartNumber
+	}
 
 	// Upload each part until totalUploadedSize reaches input reader size.
 	for totalUploadedSize < size {
@@ -178,6 +178,11 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 		complPart.ETag = part.ETag
 		complPart.PartNumber = part.PartNumber
 		completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, complPart)
+	}
+
+	// Verify if totalPartsCount is not equal to total list of parts.
+	if totalPartsCount != len(completeMultipartUpload.Parts) {
+		return totalUploadedSize, ErrInvalidParts(partNumber, len(completeMultipartUpload.Parts))
 	}
 
 	// Sort all completed parts.
