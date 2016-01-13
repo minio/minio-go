@@ -117,7 +117,7 @@ func (c Client) PutObject(bucketName, objectName string, reader io.Reader, conte
 
 	// Check for largest object size allowed.
 	if size > int64(maxMultipartPutObjectSize) {
-		return 0, ErrEntityTooLarge(size, bucketName, objectName)
+		return 0, ErrEntityTooLarge(size, maxMultipartPutObjectSize, bucketName, objectName)
 	}
 
 	// NOTE: Google Cloud Storage does not implement Amazon S3 Compatible multipart PUT.
@@ -132,7 +132,7 @@ func (c Client) PutObject(bucketName, objectName string, reader io.Reader, conte
 			}
 		}
 		if size > maxSinglePutObjectSize {
-			return 0, ErrEntityTooLarge(size, bucketName, objectName)
+			return 0, ErrEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
 		}
 		// Do not compute MD5 for Google Cloud Storage. Uploads upto 5GiB in size.
 		return c.putObjectNoChecksum(bucketName, objectName, reader, size, contentType)
@@ -149,14 +149,14 @@ func (c Client) PutObject(bucketName, objectName string, reader io.Reader, conte
 			}
 		}
 		if size > maxSinglePutObjectSize {
-			return 0, ErrEntityTooLarge(size, bucketName, objectName)
+			return 0, ErrEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
 		}
 		// Do not compute MD5 for anonymous requests to Amazon S3. Uploads upto 5GiB in size.
 		return c.putObjectNoChecksum(bucketName, objectName, reader, size, contentType)
 	}
 
 	// putSmall object.
-	if size < minimumPartSize && size > 0 {
+	if size < minPartSize && size > 0 {
 		return c.putObjectSingle(bucketName, objectName, reader, size, contentType)
 	}
 	// For all sizes greater than 5MiB do multipart.
@@ -168,7 +168,7 @@ func (c Client) PutObject(bucketName, objectName string, reader io.Reader, conte
 		if errResp.Code == "NotImplemented" {
 			// Verify if size of reader is greater than '5GiB'.
 			if size > maxSinglePutObjectSize {
-				return 0, ErrEntityTooLarge(size, bucketName, objectName)
+				return 0, ErrEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
 			}
 			// Fall back to uploading as single PutObject operation.
 			return c.putObjectSingle(bucketName, objectName, reader, size, contentType)
@@ -189,7 +189,7 @@ func (c Client) putObjectNoChecksum(bucketName, objectName string, reader io.Rea
 		return 0, err
 	}
 	if size > maxSinglePutObjectSize {
-		return 0, ErrEntityTooLarge(size, bucketName, objectName)
+		return 0, ErrEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
 	}
 	// This function does not calculate sha256 and md5sum for payload.
 	// Execute put object.
@@ -214,7 +214,7 @@ func (c Client) putObjectSingle(bucketName, objectName string, reader io.Reader,
 		return 0, err
 	}
 	if size > maxSinglePutObjectSize {
-		return 0, ErrEntityTooLarge(size, bucketName, objectName)
+		return 0, ErrEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
 	}
 	// If size is a stream, upload upto 5GiB.
 	if size <= -1 {
@@ -258,7 +258,7 @@ func (c Client) putObjectDo(bucketName, objectName string, reader io.ReadCloser,
 	}
 
 	if size > maxSinglePutObjectSize {
-		return ObjectInfo{}, ErrEntityTooLarge(size, bucketName, objectName)
+		return ObjectInfo{}, ErrEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
 	}
 
 	if strings.TrimSpace(contentType) == "" {

@@ -54,9 +54,13 @@ func sumHMAC(key []byte, data []byte) []byte {
 
 // isPartUploaded - true if part is already uploaded.
 func isPartUploaded(objPart objectPart, objectParts map[int]objectPart) (isUploaded bool) {
-	_, isUploaded = objectParts[objPart.PartNumber]
+	uploadedPart, isUploaded := objectParts[objPart.PartNumber]
+	// if size mismatches part should be uploaded.
+	if objPart.Size != uploadedPart.Size {
+		isUploaded = false
+	}
 	if isUploaded {
-		isUploaded = (objPart.ETag == objectParts[objPart.PartNumber].ETag)
+		isUploaded = (objPart.ETag == uploadedPart.ETag)
 	}
 	return
 }
@@ -265,39 +269,6 @@ func isValidObjectPrefix(objectPrefix string) error {
 		return ErrInvalidObjectPrefix("Object prefix with non UTF-8 strings are not supported.")
 	}
 	return nil
-}
-
-// optimalPartSize - calculate the optimal part size for the given objectSize.
-//
-// NOTE: Assumption here is that for any object to be uploaded to any S3 compatible
-// object storage it will have the following parameters as constants.
-//
-//  maxParts - 10000
-//  minimumPartSize - 5MiB
-//  maximumPartSize - 5GiB
-//
-// if the partSize after division with maxParts is greater than minimumPartSize
-// then choose miniumPartSize as the new part size, if not return minimumPartSize.
-//
-// Special cases
-//
-// - if input object size is -1 then return maxPartSize.
-// - if it happens to be that partSize is indeed bigger
-//   than the maximum part size just return maxPartSize.
-func optimalPartSize(objectSize int64) int64 {
-	// if object size is -1 choose part size as 5GiB.
-	if objectSize == -1 {
-		return maxPartSize
-	}
-	// make sure last part has enough buffer and handle this poperly.
-	partSize := (objectSize / (maxParts - 1))
-	if partSize > minimumPartSize {
-		if partSize > maxPartSize {
-			return maxPartSize
-		}
-		return partSize
-	}
-	return minimumPartSize
 }
 
 // urlEncodePath encode the strings from UTF-8 byte representations to HTML hex escape sequences
