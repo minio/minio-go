@@ -34,7 +34,7 @@ func (c *customReader) Read(p []byte) (n int, err error) {
 	return 0, nil
 }
 
-func (c *customReader) Len() (n int) {
+func (c *customReader) Size() (n int64) {
 	return 10
 }
 

@@ -171,9 +171,11 @@ func (c Client) putObjectMultipartStream(bucketName, objectName string, reader i
 		completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, complPart)
 	}
 
-	// Verify if totalPartsCount is not equal to total list of parts.
-	if totalPartsCount != len(completeMultipartUpload.Parts) {
-		return totalUploadedSize, ErrInvalidParts(partNumber, len(completeMultipartUpload.Parts))
+	if size > 0 {
+		// Verify if totalPartsCount is not equal to total list of parts.
+		if totalPartsCount != len(completeMultipartUpload.Parts) {
+			return totalUploadedSize, ErrInvalidParts(partNumber, len(completeMultipartUpload.Parts))
+		}
 	}
 
 	// Sort all completed parts.
