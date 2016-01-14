@@ -33,30 +33,53 @@ type missingPart struct {
 
 // getMissingPartsInfo missing parts info map.
 func (c Client) getMissingPartsInfo(uploadedParts map[int]objectPart, size int64, totalPartsCount int, partSize int64, lastPartSize int64) (missingPartsInfo map[int]missingPart) {
+	// Allocate missing parts map.
 	missingPartsInfo = make(map[int]missingPart)
+	// partNumber always starts with '1'.
 	partNumber := 1
+	// Used for readability, lastPartNumber is always
+	// totalPartsCount.
+	lastPartNumber := totalPartsCount
+	// Loops through until totalPartsCount and generates all the
+	// missing parts in a map.
 	for partNumber <= totalPartsCount {
 		uploadedPart, ok := uploadedParts[partNumber]
 		if !ok {
+			// If partNumber was not uploaded we calculate the missing
+			// part offset and size.
 			var missingPrt missingPart
-			if partNumber == totalPartsCount {
+			// As a special case if partNumber is lastPartNumber, we
+			// calculate the offset based on the file size.
+			if partNumber == lastPartNumber {
 				missingPrt.readAtOffset = (size - lastPartSize)
 				missingPrt.missingPartSize = lastPartSize
 			} else {
+				// For all other part numbers we calculate offset
+				// based on multiples of partSize.
 				missingPrt.readAtOffset = int64(partNumber-1) * partSize
 				missingPrt.missingPartSize = partSize
 			}
+			// Save the missing part.
 			missingPartsInfo[partNumber] = missingPrt
 		} else {
-			if uploadedPart.PartNumber == totalPartsCount {
+			// As a special case if partNumber is lastPartNumber, we
+			// verify if the previously uploaded size is equal to
+			// lastPartSize. If not treat it as missing part and
+			// reupload.
+			if uploadedPart.PartNumber == lastPartNumber {
 				if uploadedPart.Size != lastPartSize {
+					// Save the missing part.
 					missingPartsInfo[uploadedPart.PartNumber] = missingPart{
 						readAtOffset:    (size - lastPartSize),
 						missingPartSize: lastPartSize,
 					}
 				}
 			} else {
+				// For all other cases verify if the previously
+				// uploaded size is equal to partSize. If not treat it
+				// as missing part and reupload.
 				if uploadedPart.Size != partSize {
+					// Save the missing part.
 					missingPartsInfo[uploadedPart.PartNumber] = missingPart{
 						readAtOffset:    int64(uploadedPart.PartNumber-1) * partSize,
 						missingPartSize: partSize,
@@ -64,8 +87,10 @@ func (c Client) getMissingPartsInfo(uploadedParts map[int]objectPart, size int64
 				}
 			}
 		}
+		// Increment part number here.
 		partNumber++
 	}
+	// Return the calculated missing parts.
 	return missingPartsInfo
 }
 
@@ -121,9 +146,9 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 	// MD5 and SHA256 hasher.
 	var hashMD5, hashSHA256 hash.Hash
 
+	// Get all the missing parts.
 	missingPartsInfo := c.getMissingPartsInfo(partsInfo, size, totalPartsCount, partSize, lastPartSize)
-	// Upload each part until totalUploadedSize reaches input reader
-	// size.
+	// Upload all the missing parts.
 	for partNumber, missingPrt := range missingPartsInfo {
 		// Initialize a new temporary file.
 		tmpFile, err := newTempFile("multiparts$-putobject-partial")

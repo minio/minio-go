@@ -146,6 +146,12 @@ func (c Client) putObjectMultipartStream(bucketName, objectName string, reader i
 		// Save successfully uploaded size.
 		totalUploadedSize += prtSize
 
+		// For unknown size, Read EOF we break away.
+		// We do not have to upload till totalPartsCount.
+		if size < 0 && rErr == io.EOF {
+			break
+		}
+
 		// Increment part number.
 		partNumber++
 	}
