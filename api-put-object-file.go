@@ -158,19 +158,15 @@ func (c Client) putObjectMultipartFromFile(bucketName, objectName string, fileRe
 		return 0, err
 	}
 
-	// Part number always starts with '0'.
-	partNumber := 0
+	// Part number always starts with '1'.
+	partNumber := 1
 
-	// Upload each part until fileSize.
-	for totalUploadedSize < fileSize {
-		// Increment part number.
-		partNumber++
-
+	for partNumber <= totalPartsCount {
 		// Get a section reader on a particular offset.
 		sectionReader := io.NewSectionReader(fileReader, totalUploadedSize, partSize)
 
 		// Calculates MD5 and SHA256 sum for a section reader.
-		md5Sum, sha256Sum, size, err := c.computeHash(sectionReader)
+		md5Sum, sha256Sum, prtSize, err := c.computeHash(sectionReader)
 		if err != nil {
 			return 0, err
 		}
@@ -179,10 +175,10 @@ func (c Client) putObjectMultipartFromFile(bucketName, objectName string, fileRe
 		if !isPartUploaded(objectPart{
 			ETag:       hex.EncodeToString(md5Sum),
 			PartNumber: partNumber,
-			Size:       size,
+			Size:       prtSize,
 		}, partsInfo) {
 			// Proceed to upload the part.
-			objPart, err := c.uploadPart(bucketName, objectName, uploadID, ioutil.NopCloser(sectionReader), partNumber, md5Sum, sha256Sum, size)
+			objPart, err := c.uploadPart(bucketName, objectName, uploadID, ioutil.NopCloser(sectionReader), partNumber, md5Sum, sha256Sum, prtSize)
 			if err != nil {
 				return totalUploadedSize, err
 			}
@@ -191,7 +187,10 @@ func (c Client) putObjectMultipartFromFile(bucketName, objectName string, fileRe
 		}
 
 		// Save successfully uploaded size.
-		totalUploadedSize += size
+		totalUploadedSize += prtSize
+
+		// Increment part number.
+		partNumber++
 	}
 
 	// Verify if we uploaded all data.

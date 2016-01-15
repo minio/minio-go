@@ -30,11 +30,11 @@ func getReaderSize(reader io.Reader) (size int64, err error) {
 	var result []reflect.Value
 	size = -1
 	if reader != nil {
-		// Verify if there is a method by name 'Len'.
-		lenFn := reflect.ValueOf(reader).MethodByName("Len")
+		// Verify if there is a method by name 'Size'.
+		lenFn := reflect.ValueOf(reader).MethodByName("Size")
 		if lenFn.IsValid() {
 			if lenFn.Kind() == reflect.Func {
-				// Call the 'Len' function and save its return value.
+				// Call the 'Size' function and save its return value.
 				result = lenFn.Call([]reflect.Value{})
 				if result != nil && len(result) == 1 {
 					lenValue := result[0]

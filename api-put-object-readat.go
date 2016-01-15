@@ -25,6 +25,75 @@ import (
 	"sort"
 )
 
+// missing Parts info container.
+type missingPart struct {
+	readAtOffset    int64
+	missingPartSize int64
+}
+
+// getMissingPartsInfo missing parts info map.
+func (c Client) getMissingPartsInfo(uploadedParts map[int]objectPart, size int64, totalPartsCount int, partSize int64, lastPartSize int64) (missingPartsInfo map[int]missingPart) {
+	// Allocate missing parts map.
+	missingPartsInfo = make(map[int]missingPart)
+	// partNumber always starts with '1'.
+	partNumber := 1
+	// Used for readability, lastPartNumber is always
+	// totalPartsCount.
+	lastPartNumber := totalPartsCount
+	// Loops through until totalPartsCount and generates all the
+	// missing parts in a map.
+	for partNumber <= totalPartsCount {
+		uploadedPart, ok := uploadedParts[partNumber]
+		if !ok {
+			// If partNumber was not uploaded we calculate the missing
+			// part offset and size.
+			var missingPrt missingPart
+			// As a special case if partNumber is lastPartNumber, we
+			// calculate the offset based on the file size.
+			if partNumber == lastPartNumber {
+				missingPrt.readAtOffset = (size - lastPartSize)
+				missingPrt.missingPartSize = lastPartSize
+			} else {
+				// For all other part numbers we calculate offset
+				// based on multiples of partSize.
+				missingPrt.readAtOffset = int64(partNumber-1) * partSize
+				missingPrt.missingPartSize = partSize
+			}
+			// Save the missing part.
+			missingPartsInfo[partNumber] = missingPrt
+		} else {
+			// As a special case if partNumber is lastPartNumber, we
+			// verify if the previously uploaded size is equal to
+			// lastPartSize. If not treat it as missing part and
+			// reupload.
+			if uploadedPart.PartNumber == lastPartNumber {
+				if uploadedPart.Size != lastPartSize {
+					// Save the missing part.
+					missingPartsInfo[uploadedPart.PartNumber] = missingPart{
+						readAtOffset:    (size - lastPartSize),
+						missingPartSize: lastPartSize,
+					}
+				}
+			} else {
+				// For all other cases verify if the previously
+				// uploaded size is equal to partSize. If not treat it
+				// as missing part and reupload.
+				if uploadedPart.Size != partSize {
+					// Save the missing part.
+					missingPartsInfo[uploadedPart.PartNumber] = missingPart{
+						readAtOffset:    int64(uploadedPart.PartNumber-1) * partSize,
+						missingPartSize: partSize,
+					}
+				}
+			}
+		}
+		// Increment part number here.
+		partNumber++
+	}
+	// Return the calculated missing parts.
+	return missingPartsInfo
+}
+
 // putObjectMultipartFromReadAt - Uploads files bigger than 5MiB. Supports reader
 // of type which implements io.ReaderAt interface (ReadAt method).
 //
@@ -57,9 +126,6 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 	// Complete multipart upload.
 	var completeMultipartUpload completeMultipartUpload
 
-	// Previous part number.
-	var prevPartNumber int
-
 	// A map of all uploaded parts.
 	var partsInfo = make(map[int]objectPart)
 
@@ -72,7 +138,7 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 	}
 
 	// Calculate the optimal parts info for a given size.
-	totalPartsCount, partSize, _, err := optimalPartInfo(size)
+	totalPartsCount, partSize, lastPartSize, err := optimalPartInfo(size)
 	if err != nil {
 		return 0, err
 	}
@@ -80,15 +146,10 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 	// MD5 and SHA256 hasher.
 	var hashMD5, hashSHA256 hash.Hash
 
-	// Part number always starts with '1', moves to prevPartNumber if
-	// exists and is non zero.
-	partNumber := 1
-	if prevPartNumber != 0 {
-		partNumber = prevPartNumber
-	}
-
-	// Upload each part until totalUploadedSize reaches input reader size.
-	for totalUploadedSize < size {
+	// Get all the missing parts.
+	missingPartsInfo := c.getMissingPartsInfo(partsInfo, size, totalPartsCount, partSize, lastPartSize)
+	// Upload all the missing parts.
+	for partNumber, missingPrt := range missingPartsInfo {
 		// Initialize a new temporary file.
 		tmpFile, err := newTempFile("multiparts$-putobject-partial")
 		if err != nil {
@@ -105,7 +166,7 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 		writer := io.MultiWriter(tmpFile, hashWriter)
 
 		// Choose totalUploadedSize as the current readAtOffset.
-		readAtOffset := totalUploadedSize
+		readAtOffset := missingPrt.readAtOffset
 
 		// Read until partSize.
 		var totalReadPartSize int64
@@ -116,7 +177,7 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 		// Following block reads data at an offset from the input
 		// reader and copies data to into local temporary file.
 		// Temporary file data is limited to the partSize.
-		for totalReadPartSize < partSize {
+		for totalReadPartSize < missingPrt.missingPartSize {
 			readAtSize, rerr := reader.ReadAt(readAtBuffer, readAtOffset)
 			if rerr != nil {
 				if rerr != io.EOF {
@@ -150,26 +211,16 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 		}
 
 		// Proceed to upload the part.
-		objPart, err := c.uploadPart(bucketName, objectName, uploadID, tmpFile, partNumber, md5Sum, sha256Sum, totalReadPartSize)
+		objPart, err := c.uploadPart(bucketName, objectName, uploadID, tmpFile, partNumber, md5Sum,
+			sha256Sum, totalReadPartSize)
 		if err != nil {
 			// Close the read closer.
 			tmpFile.Close()
 			return totalUploadedSize, err
 		}
 
-		// Save successfully uploaded size.
-		totalUploadedSize += totalReadPartSize
-
 		// Save successfully uploaded part metadata.
 		partsInfo[partNumber] = objPart
-
-		// Move to next part.
-		partNumber++
-	}
-
-	// Verify if we uploaded all the data.
-	if totalUploadedSize != size {
-		return totalUploadedSize, ErrUnexpectedEOF(totalUploadedSize, size, bucketName, objectName)
 	}
 
 	// Loop over uploaded parts to save them in a Parts array before completing the multipart request.
@@ -177,12 +228,18 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 		var complPart completePart
 		complPart.ETag = part.ETag
 		complPart.PartNumber = part.PartNumber
+		totalUploadedSize += part.Size
 		completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, complPart)
+	}
+
+	// Verify if we uploaded all the data.
+	if totalUploadedSize != size {
+		return totalUploadedSize, ErrUnexpectedEOF(totalUploadedSize, size, bucketName, objectName)
 	}
 
 	// Verify if totalPartsCount is not equal to total list of parts.
 	if totalPartsCount != len(completeMultipartUpload.Parts) {
-		return totalUploadedSize, ErrInvalidParts(partNumber, len(completeMultipartUpload.Parts))
+		return totalUploadedSize, ErrInvalidParts(totalPartsCount, len(completeMultipartUpload.Parts))
 	}
 
 	// Sort all completed parts.
