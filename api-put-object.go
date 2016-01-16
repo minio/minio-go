@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"runtime"
 	"strings"
 )
 
@@ -62,6 +63,30 @@ func getReaderSize(reader io.Reader) (size int64, err error) {
 				var st os.FileInfo
 				st, err = v.Stat()
 				if err != nil {
+					// Handle this case specially for "windows",
+					// certain files for example 'Stdin', 'Stdout' and
+					// 'Stderr' it is not allowed to fetch file information.
+					if runtime.GOOS == "windows" {
+						if strings.Contains(err.Error(), "GetFileInformationByHandle") {
+							return -1, nil
+						}
+					}
+					return
+				}
+				// Ignore if input is a directory, throw an error.
+				if st.Mode().IsDir() {
+					return -1, ErrInvalidArgument("Input file cannot be a directory.")
+				}
+				// Ignore 'Stdin', 'Stdout' and 'Stderr', since they
+				// represent *os.File type but internally do not
+				// implement Seekable calls. Ignore them and treat
+				// them like a stream with unknown length.
+				switch st.Name() {
+				case "stdin":
+					fallthrough
+				case "stdout":
+					fallthrough
+				case "stderr":
 					return
 				}
 				size = st.Size()
@@ -109,7 +134,7 @@ func (c Client) PutObject(bucketName, objectName string, reader io.Reader, conte
 		return 0, err
 	}
 
-	// get reader size.
+	// Get reader size.
 	size, err := getReaderSize(reader)
 	if err != nil {
 		return 0, err

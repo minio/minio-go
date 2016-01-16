@@ -38,7 +38,7 @@ func (c *customReader) Size() (n int64) {
 	return 10
 }
 
-// Tests getReaderSize() various reflection possibility.
+// Tests getReaderSize() for various Reader types.
 func TestGetReaderSize(t *testing.T) {
 	var reader io.Reader
 	size, err := getReaderSize(reader)
@@ -46,7 +46,7 @@ func TestGetReaderSize(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	if size != -1 {
-		t.Fatal("Reader doesn't have any length.")
+		t.Fatal("Reader shouldn't have any length.")
 	}
 
 	bytesReader := bytes.NewReader([]byte("Hello World"))
@@ -90,8 +90,8 @@ func TestGetReaderSize(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if size == -1 {
-		t.Fatal("Reader length invalid.")
+	if size != int64(10) {
+		t.Fatalf("Reader length doesn't match got: %v, want: %v", size, 10)
 	}
 
 	fileReader, err := ioutil.TempFile(os.TempDir(), "prefix")
@@ -106,9 +106,40 @@ func TestGetReaderSize(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	if size == -1 {
-		t.Fatal("Reader length invalid.")
+		t.Fatal("Reader length for file cannot be -1.")
 	}
 
+	// Verify for standard input, output and error file descriptors.
+	size, err = getReaderSize(os.Stdin)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if size != -1 {
+		t.Fatal("Stdin should have length of -1.")
+	}
+	size, err = getReaderSize(os.Stdout)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if size != -1 {
+		t.Fatal("Stdout should have length of -1.")
+	}
+	size, err = getReaderSize(os.Stderr)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if size != -1 {
+		t.Fatal("Stderr should have length of -1.")
+	}
+	file, err := os.Open(os.TempDir())
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	defer file.Close()
+	size, err = getReaderSize(file)
+	if err == nil {
+		t.Fatal("Input file as directory should throw an error.")
+	}
 }
 
 // Tests url encoding.
