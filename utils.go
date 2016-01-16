@@ -52,19 +52,6 @@ func sumHMAC(key []byte, data []byte) []byte {
 	return hash.Sum(nil)
 }
 
-// isPartUploaded - true if part is already uploaded.
-func isPartUploaded(objPart objectPart, objectParts map[int]objectPart) (isUploaded bool) {
-	uploadedPart, isUploaded := objectParts[objPart.PartNumber]
-	// if size mismatches part should be uploaded.
-	if objPart.Size != uploadedPart.Size {
-		isUploaded = false
-	}
-	if isUploaded {
-		isUploaded = (objPart.ETag == uploadedPart.ETag)
-	}
-	return
-}
-
 // getEndpointURL - construct a new endpoint.
 func getEndpointURL(endpoint string, inSecure bool) (*url.URL, error) {
 	if strings.Contains(endpoint, ":") {
