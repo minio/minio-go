@@ -171,8 +171,8 @@ func (c Client) putObjectMultipartFromFile(bucketName, objectName string, fileRe
 			return 0, err
 		}
 
-		// Verify if part was not uploaded.
-		if !isPartUploaded(objectPart{
+		// Verify if part should be uploaded.
+		if shouldUploadPart(objectPart{
 			ETag:       hex.EncodeToString(md5Sum),
 			PartNumber: partNumber,
 			Size:       prtSize,

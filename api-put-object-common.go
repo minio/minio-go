@@ -43,6 +43,24 @@ func isReadAt(reader io.Reader) (ok bool) {
 	return
 }
 
+// shouldUploadPart - verify if part should be uploaded.
+func shouldUploadPart(objPart objectPart, objectParts map[int]objectPart) bool {
+	// If part not found should upload the part.
+	uploadedPart, found := objectParts[objPart.PartNumber]
+	if !found {
+		return true
+	}
+	// if size mismatches should upload the part.
+	if objPart.Size != uploadedPart.Size {
+		return true
+	}
+	// if md5sum mismatches should upload the part.
+	if objPart.ETag == uploadedPart.ETag {
+		return true
+	}
+	return false
+}
+
 // optimalPartInfo - calculate the optimal part info for a given
 // object size.
 //
