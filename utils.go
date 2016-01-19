@@ -142,9 +142,16 @@ func closeResponse(resp *http.Response) {
 	}
 }
 
-// isVirtualHostSupported - verify if host supports virtual hosted style.
-// Currently only Amazon S3 and Google Cloud Storage would support this.
-func isVirtualHostSupported(endpointURL *url.URL) bool {
+// isVirtualHostSupported - verifies if bucketName can be part of
+// virtual host. Currently only Amazon S3 and Google Cloud Storage would
+// support this.
+func isVirtualHostSupported(endpointURL *url.URL, bucketName string) bool {
+	// bucketName can be valid but '.' in the hostname will fail SSL
+	// certificate validation. So do not use host-style for such buckets.
+	if endpointURL.Scheme == "https" && strings.Contains(bucketName, ".") {
+		return false
+	}
+	// Return true for all other cases
 	return isAmazonEndpoint(endpointURL) || isGoogleEndpoint(endpointURL)
 }
 
@@ -203,13 +210,9 @@ func isValidExpiry(expires time.Duration) error {
 	return nil
 }
 
-/// Excerpts from - http://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html
-/// When using virtual hosted–style buckets with SSL, the SSL wild card
-/// certificate only matches buckets that do not contain periods.
-/// To work around this, use HTTP or write your own certificate verification logic.
-
-// We decided to not support bucketNames with '.' in them.
-var validBucketName = regexp.MustCompile(`^[a-z0-9][a-z0-9\-]{1,61}[a-z0-9]$`)
+// We support '.' with bucket names but we fallback to using path
+// style requests instead for such buckets.
+var validBucketName = regexp.MustCompile(`^[a-z0-9][a-z0-9\.\-]{1,61}[a-z0-9]$`)
 
 // isValidBucketName - verify bucket name in accordance with
 //  - http://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html
