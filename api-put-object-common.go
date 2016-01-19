@@ -95,7 +95,7 @@ func optimalPartInfo(objectSize int64) (totalPartsCount int, partSize int64, las
 }
 
 // hashCopyN - Calculates Md5sum and SHA256sum for upto partSize amount of bytes.
-func (c Client) hashCopyN(writer io.ReadWriteSeeker, reader io.Reader, partSize int64) (md5Sum, sha256Sum []byte, size int64, err error) {
+func (c Client) hashCopyN(writer io.ReadWriter, reader io.Reader, partSize int64) (md5Sum, sha256Sum []byte, size int64, err error) {
 	// MD5 and SHA256 hasher.
 	var hashMD5, hashSHA256 hash.Hash
 	// MD5 and SHA256 hasher.
@@ -113,11 +113,6 @@ func (c Client) hashCopyN(writer io.ReadWriteSeeker, reader io.Reader, partSize 
 		if err != io.EOF {
 			return nil, nil, 0, err
 		}
-	}
-
-	// Seek back to beginning of input, any error fail right here.
-	if _, err := writer.Seek(0, 0); err != nil {
-		return nil, nil, 0, err
 	}
 
 	// Finalize md5shum and sha256 sum.

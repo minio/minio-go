@@ -17,11 +17,13 @@
 package minio
 
 import (
+	"bytes"
 	"crypto/md5"
 	"crypto/sha256"
 	"errors"
 	"hash"
 	"io"
+	"io/ioutil"
 	"sort"
 )
 
@@ -98,6 +100,9 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 	// partNumber always starts with '1'.
 	partNumber := 1
 
+	// Initialize a temporary buffer.
+	tmpBuffer := new(bytes.Buffer)
+
 	// Upload all the missing parts.
 	for partNumber <= lastPartNumber {
 		// Verify object if its uploaded.
@@ -134,12 +139,6 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 			missingPartSize = lastPartSize
 		}
 
-		// Initialize a new temporary file.
-		tmpFile, err := newTempFile("multiparts$-putobject-partial")
-		if err != nil {
-			return 0, err
-		}
-
 		// Create a hash multiwriter.
 		hashMD5 = md5.New()
 		hashWriter := io.MultiWriter(hashMD5)
@@ -147,7 +146,7 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 			hashSHA256 = sha256.New()
 			hashWriter = io.MultiWriter(hashMD5, hashSHA256)
 		}
-		writer := io.MultiWriter(tmpFile, hashWriter)
+		writer := io.MultiWriter(tmpBuffer, hashWriter)
 
 		// Read until partSize.
 		var totalReadPartSize int64
@@ -179,11 +178,6 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 			}
 		}
 
-		// Seek back to beginning of the temporary file.
-		if _, err := tmpFile.Seek(0, 0); err != nil {
-			return 0, err
-		}
-
 		var md5Sum, sha256Sum []byte
 		md5Sum = hashMD5.Sum(nil)
 		// Signature version '4'.
@@ -192,11 +186,11 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 		}
 
 		// Proceed to upload the part.
-		objPart, err := c.uploadPart(bucketName, objectName, uploadID, tmpFile, partNumber, md5Sum,
-			sha256Sum, totalReadPartSize)
+		objPart, err := c.uploadPart(bucketName, objectName, uploadID, ioutil.NopCloser(tmpBuffer),
+			partNumber, md5Sum, sha256Sum, totalReadPartSize)
 		if err != nil {
-			// Close the read closer.
-			tmpFile.Close()
+			// Reset the buffer upon any error.
+			tmpBuffer.Reset()
 			return totalUploadedSize, err
 		}
 
@@ -205,6 +199,9 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 
 		// Increment part number here after successful part upload.
 		partNumber++
+
+		// Reset the buffer.
+		tmpBuffer.Reset()
 	}
 
 	// Loop over uploaded parts to save them in a Parts array before completing the multipart request.

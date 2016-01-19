@@ -17,6 +17,7 @@
 package minio
 
 import (
+	"bytes"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -245,19 +246,34 @@ func (c Client) putObjectSingle(bucketName, objectName string, reader io.Reader,
 	if size <= -1 {
 		size = maxSinglePutObjectSize
 	}
-	// Initialize a new temporary file.
-	tmpFile, err := newTempFile("single$-putobject-single")
-	if err != nil {
-		return 0, err
+	var md5Sum, sha256Sum []byte
+	var readCloser io.ReadCloser
+	if size <= minPartSize {
+		// Initialize a new temporary buffer.
+		tmpBuffer := new(bytes.Buffer)
+		md5Sum, sha256Sum, size, err = c.hashCopyN(tmpBuffer, reader, size)
+		readCloser = ioutil.NopCloser(tmpBuffer)
+	} else {
+		// Initialize a new temporary file.
+		tmpFile, err := newTempFile("single$-putobject-single")
+		if err != nil {
+			return 0, err
+		}
+		md5Sum, sha256Sum, size, err = c.hashCopyN(tmpFile, reader, size)
+		// Seek back to beginning of the temporary file.
+		if _, err := tmpFile.Seek(0, 0); err != nil {
+			return 0, err
+		}
+		readCloser = tmpFile
 	}
-	md5Sum, sha256Sum, size, err := c.hashCopyN(tmpFile, reader, size)
+	// Return error if its not io.EOF.
 	if err != nil {
 		if err != io.EOF {
 			return 0, err
 		}
 	}
 	// Execute put object.
-	st, err := c.putObjectDo(bucketName, objectName, tmpFile, md5Sum, sha256Sum, size, contentType)
+	st, err := c.putObjectDo(bucketName, objectName, readCloser, md5Sum, sha256Sum, size, contentType)
 	if err != nil {
 		return 0, err
 	}

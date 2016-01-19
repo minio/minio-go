@@ -108,15 +108,13 @@ func (c Client) putObjectMultipartStream(bucketName, objectName string, reader i
 	// Part number always starts with '1'.
 	partNumber := 1
 
-	for partNumber <= totalPartsCount {
-		// Initialize a new temporary file.
-		tmpFile, err := newTempFile("multiparts$-putobject-stream")
-		if err != nil {
-			return 0, err
-		}
+	// Initialize a temporary buffer.
+	tmpBuffer := new(bytes.Buffer)
 
-		// Calculates MD5 and SHA256 sum while copying partSize bytes into tmpFile.
-		md5Sum, sha256Sum, prtSize, rErr := c.hashCopyN(tmpFile, reader, partSize)
+	for partNumber <= totalPartsCount {
+		// Calculates MD5 and SHA256 sum while copying partSize bytes
+		// into tmpBuffer.
+		md5Sum, sha256Sum, prtSize, rErr := c.hashCopyN(tmpBuffer, reader, partSize)
 		if rErr != nil {
 			if rErr != io.EOF {
 				return 0, rErr
@@ -130,18 +128,19 @@ func (c Client) putObjectMultipartStream(bucketName, objectName string, reader i
 			Size:       prtSize,
 		}, partsInfo) {
 			// Proceed to upload the part.
-			objPart, err := c.uploadPart(bucketName, objectName, uploadID, tmpFile, partNumber, md5Sum, sha256Sum, prtSize)
+			objPart, err := c.uploadPart(bucketName, objectName, uploadID, ioutil.NopCloser(tmpBuffer), partNumber,
+				md5Sum, sha256Sum, prtSize)
 			if err != nil {
-				// Close the temporary file upon any error.
-				tmpFile.Close()
+				// Reset the temporary buffer upon any error.
+				tmpBuffer.Reset()
 				return 0, err
 			}
 			// Save successfully uploaded part metadata.
 			partsInfo[partNumber] = objPart
 		}
 
-		// Close the temporary file.
-		tmpFile.Close()
+		// Reset the temporary buffer.
+		tmpBuffer.Reset()
 
 		// Save successfully uploaded size.
 		totalUploadedSize += prtSize
