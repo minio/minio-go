@@ -142,6 +142,48 @@ func TestGetReaderSize(t *testing.T) {
 	}
 }
 
+// Tests valid hosts for location.
+func TestValidBucketLocation(t *testing.T) {
+	s3Hosts := []struct {
+		bucketLocation string
+		endpoint       string
+	}{
+		{"us-east-1", "s3.amazonaws.com"},
+		{"unknown", "s3.amazonaws.com"},
+		{"ap-southeast-1", "s3-ap-southeast-1.amazonaws.com"},
+	}
+	for _, s3Host := range s3Hosts {
+		endpoint := getS3Endpoint(s3Host.bucketLocation)
+		if endpoint != s3Host.endpoint {
+			t.Fatal("Error: invalid bucket location", endpoint)
+		}
+	}
+}
+
+// Tests valid bucket names.
+func TestBucketNames(t *testing.T) {
+	buckets := []struct {
+		name  string
+		valid error
+	}{
+		{".mybucket", ErrInvalidBucketName("Bucket name cannot start or end with a '.' dot.")},
+		{"mybucket.", ErrInvalidBucketName("Bucket name cannot start or end with a '.' dot.")},
+		{"mybucket-", ErrInvalidBucketName("Bucket name contains invalid characters.")},
+		{"my", ErrInvalidBucketName("Bucket name cannot be smaller than 3 characters.")},
+		{"", ErrInvalidBucketName("Bucket name cannot be empty.")},
+		{"my.bucket.com", nil},
+		{"my-bucket", nil},
+		{"123my-bucket", nil},
+	}
+
+	for _, b := range buckets {
+		err := isValidBucketName(b.name)
+		if err != b.valid {
+			t.Fatal("Error:", err)
+		}
+	}
+}
+
 // Tests temp file.
 func TestTempFile(t *testing.T) {
 	tmpFile, err := newTempFile("testing")
