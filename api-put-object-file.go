@@ -68,7 +68,7 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 				BucketName: bucketName,
 			}
 		}
-		// Do not compute MD5 for Google Cloud Storage. Uploads upto 5GiB in size.
+		// Do not compute MD5 for Google Cloud Storage. Uploads up to 5GiB in size.
 		return c.putObjectNoChecksum(bucketName, objectName, fileReader, fileSize, contentType)
 	}
 
@@ -82,7 +82,8 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 				BucketName: bucketName,
 			}
 		}
-		// Do not compute MD5 for anonymous requests to Amazon S3. Uploads upto 5GiB in size.
+		// Do not compute MD5 for anonymous requests to Amazon
+		// S3. Uploads up to 5GiB in size.
 		return c.putObjectNoChecksum(bucketName, objectName, fileReader, fileSize, contentType)
 	}
 

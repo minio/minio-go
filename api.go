@@ -77,7 +77,7 @@ const (
 )
 
 // NewV2 - instantiate minio client with Amazon S3 signature version
-// '2' compatiblity.
+// '2' compatibility.
 func NewV2(endpoint string, accessKeyID, secretAccessKey string, insecure bool) (CloudStorageClient, error) {
 	clnt, err := privateNew(endpoint, accessKeyID, secretAccessKey, insecure)
 	if err != nil {

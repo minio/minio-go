@@ -160,7 +160,7 @@ func (c Client) PutObject(bucketName, objectName string, reader io.Reader, conte
 		if size > maxSinglePutObjectSize {
 			return 0, ErrEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
 		}
-		// Do not compute MD5 for Google Cloud Storage. Uploads upto 5GiB in size.
+		// Do not compute MD5 for Google Cloud Storage. Uploads up to 5GiB in size.
 		return c.putObjectNoChecksum(bucketName, objectName, reader, size, contentType)
 	}
 
@@ -177,7 +177,8 @@ func (c Client) PutObject(bucketName, objectName string, reader io.Reader, conte
 		if size > maxSinglePutObjectSize {
 			return 0, ErrEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
 		}
-		// Do not compute MD5 for anonymous requests to Amazon S3. Uploads upto 5GiB in size.
+		// Do not compute MD5 for anonymous requests to Amazon
+		// S3. Uploads up to 5GiB in size.
 		return c.putObjectNoChecksum(bucketName, objectName, reader, size, contentType)
 	}
 
@@ -242,7 +243,7 @@ func (c Client) putObjectSingle(bucketName, objectName string, reader io.Reader,
 	if size > maxSinglePutObjectSize {
 		return 0, ErrEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
 	}
-	// If size is a stream, upload upto 5GiB.
+	// If size is a stream, upload up to 5GiB.
 	if size <= -1 {
 		size = maxSinglePutObjectSize
 	}

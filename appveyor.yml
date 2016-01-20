@@ -18,11 +18,14 @@ install:
   - go env
   - go get -u github.com/golang/lint/golint
   - go get -u golang.org/x/tools/cmd/vet
+  - go get github.com/alecthomas/gometalinter
+  - gometalinter --install --update
   - go get -u github.com/remyoudompheng/go-misc/deadcode
 
 # to run your custom scripts instead of automatic MSBuild
 build_script:
   - go vet ./...
+  - gometalinter .
   - gofmt -s -l .
   - golint github.com/minio/minio-go...
   - deadcode
