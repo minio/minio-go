@@ -171,6 +171,7 @@ func TestBucketNames(t *testing.T) {
 		{"mybucket-", ErrInvalidBucketName("Bucket name contains invalid characters.")},
 		{"my", ErrInvalidBucketName("Bucket name cannot be smaller than 3 characters.")},
 		{"", ErrInvalidBucketName("Bucket name cannot be empty.")},
+		{"my..bucket", ErrInvalidBucketName("Bucket name cannot have successive periods.")},
 		{"my.bucket.com", nil},
 		{"my-bucket", nil},
 		{"123my-bucket", nil},

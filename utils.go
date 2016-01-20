@@ -229,6 +229,9 @@ func isValidBucketName(bucketName string) error {
 	if bucketName[0] == '.' || bucketName[len(bucketName)-1] == '.' {
 		return ErrInvalidBucketName("Bucket name cannot start or end with a '.' dot.")
 	}
+	if match, _ := regexp.MatchString("\\.\\.", bucketName); match == true {
+		return ErrInvalidBucketName("Bucket name cannot have successive periods.")
+	}
 	if !validBucketName.MatchString(bucketName) {
 		return ErrInvalidBucketName("Bucket name contains invalid characters.")
 	}
