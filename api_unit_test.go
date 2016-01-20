@@ -136,7 +136,7 @@ func TestGetReaderSize(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	defer file.Close()
-	size, err = getReaderSize(file)
+	_, err = getReaderSize(file)
 	if err == nil {
 		t.Fatal("Input file as directory should throw an error.")
 	}

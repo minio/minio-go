@@ -90,7 +90,10 @@ func (c Client) FGetObject(bucketName, objectName, filePath string) error {
 	}
 
 	// Close the file before rename, this is specifically needed for Windows users.
-	filePart.Close()
+	err = filePart.Close()
+	if err != nil {
+		return err
+	}
 
 	// Safely completed. Now commit by renaming to actual filename.
 	if err = os.Rename(filePartPath, filePath); err != nil {

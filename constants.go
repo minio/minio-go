@@ -37,6 +37,6 @@ const maxSinglePutObjectSize = 1024 * 1024 * 1024 * 5
 // Multipart operation.
 const maxMultipartPutObjectSize = 1024 * 1024 * 1024 * 1024 * 5
 
-// optimalReadAtBufferSize - optimal buffer 5MiB used for reading
-// through ReadAt operation.
-const optimalReadAtBufferSize = 1024 * 1024 * 5
+// optimalReadBufferSize - optimal buffer 5MiB used for reading
+// through Read operation.
+const optimalReadBufferSize = 1024 * 1024 * 5

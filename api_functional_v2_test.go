@@ -181,6 +181,118 @@ func TestRemovePartiallyUploadedV2(t *testing.T) {
 	}
 }
 
+// Tests resumable put object cloud to cloud.
+func TestResumbalePutObjectV2(t *testing.T) {
+	// By passing 'go test -short' skips these tests.
+	if testing.Short() {
+		t.Skip("skipping functional tests for the short runs")
+	}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Connect and make sure bucket exists.
+	c, err := minio.New(
+		"s3.amazonaws.com",
+		os.Getenv("ACCESS_KEY"),
+		os.Getenv("SECRET_KEY"),
+		false,
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Enable tracing, write to stdout.
+	// c.TraceOn(os.Stderr)
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "private", "us-east-1")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+
+	// Create a temporary file.
+	file, err := ioutil.TempFile(os.TempDir(), "resumable")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Copy 11MiB worth of random data.
+	n, err := io.CopyN(file, crand.Reader, 11*1024*1024)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if n != int64(11*1024*1024) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", 11*1024*1024, n)
+	}
+
+	// Close the file pro-actively for windows.
+	if err = file.Close(); err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// New object name.
+	objectName := bucketName + "-resumable"
+
+	// Upload the file.
+	n, err = c.FPutObject(bucketName, objectName, file.Name(), "application/octet-stream")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if n != int64(11*1024*1024) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", 11*1024*1024, n)
+	}
+
+	// Get the uploaded object.
+	reader, err := c.GetObject(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Upload now cloud to cloud.
+	n, err = c.PutObject(bucketName, objectName+"-put", reader, "application/octest-stream")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Get object info.
+	objInfo, err := reader.Stat()
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if n != objInfo.Size {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", objInfo.Size, n)
+	}
+
+	// Remove all temp files, objects and bucket.
+	err = c.RemoveObject(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+
+	err = c.RemoveObject(bucketName, objectName+"-put")
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	err = os.Remove(file.Name())
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+}
+
 // Tests resumable file based put object multipart upload.
 func TestResumableFPutObjectV2(t *testing.T) {
 	if testing.Short() {
@@ -618,14 +730,12 @@ func TestFunctionalV2(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	var totalSize int64
 	for i := 0; i < 3; i++ {
 		buf := make([]byte, rand.Intn(1<<19))
-		n, err := file.Write(buf)
+		_, err = file.Write(buf)
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
-		totalSize += int64(n)
 	}
 	file.Close()
 

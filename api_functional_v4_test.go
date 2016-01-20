@@ -55,6 +55,58 @@ func randString(n int, src rand.Source) string {
 	return string(b[0:30])
 }
 
+// Tests various bucket supported formats.
+func TestMakeBucketRegions(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping functional tests for short runs")
+	}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Connect and make sure bucket exists.
+	c, err := minio.New(
+		"s3.amazonaws.com",
+		os.Getenv("ACCESS_KEY"),
+		os.Getenv("SECRET_KEY"),
+		false,
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
+
+	// Make a new bucket in 'eu-central-1'.
+	if err = c.MakeBucket(bucketName, "private", "eu-central-1"); err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+
+	if err = c.RemoveBucket(bucketName); err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+
+	// Make a new bucket with '.' in its name, in 'us-west-2'. This
+	// request is internally staged into a path style instead of
+	// virtual host style.
+	if err = c.MakeBucket(bucketName+".withperiod", "private", "us-west-2"); err != nil {
+		t.Fatal("Error:", err, bucketName+".withperiod")
+	}
+
+	// Remove the newly created bucket.
+	if err = c.RemoveBucket(bucketName + ".withperiod"); err != nil {
+		t.Fatal("Error:", err, bucketName+".withperiod")
+	}
+}
+
+// Test get object reader to not throw error on being closed twice.
 func TestGetObjectClosedTwice(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping functional tests for short runs")
@@ -184,7 +236,10 @@ func TestRemovePartiallyUploaded(t *testing.T) {
 			}
 			i++
 		}
-		writer.CloseWithError(errors.New("Proactively closed to be verified later."))
+		err = writer.CloseWithError(errors.New("Proactively closed to be verified later."))
+		if err != nil {
+			t.Fatal("Error:", err)
+		}
 	}()
 
 	objectName := bucketName + "-resumable"
@@ -200,6 +255,117 @@ func TestRemovePartiallyUploaded(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+}
+
+// Tests resumable put object cloud to cloud.
+func TestResumbalePutObject(t *testing.T) {
+	// By passing 'go test -short' skips these tests.
+	if testing.Short() {
+		t.Skip("skipping functional tests for the short runs")
+	}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Connect and make sure bucket exists.
+	c, err := minio.New(
+		"s3.amazonaws.com",
+		os.Getenv("ACCESS_KEY"),
+		os.Getenv("SECRET_KEY"),
+		false,
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Enable tracing, write to stdout.
+	// c.TraceOn(os.Stderr)
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "private", "us-east-1")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+
+	// Create a temporary file.
+	file, err := ioutil.TempFile(os.TempDir(), "resumable")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Copy 11MiB worth of random data.
+	n, err := io.CopyN(file, crand.Reader, 11*1024*1024)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if n != int64(11*1024*1024) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", 11*1024*1024, n)
+	}
+
+	// Close the file pro-actively for windows.
+	if err = file.Close(); err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// New object name.
+	objectName := bucketName + "-resumable"
+
+	// Upload the file.
+	n, err = c.FPutObject(bucketName, objectName, file.Name(), "application/octet-stream")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if n != int64(11*1024*1024) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", 11*1024*1024, n)
+	}
+
+	// Get the uploaded object.
+	reader, err := c.GetObject(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Upload now cloud to cloud.
+	n, err = c.PutObject(bucketName, objectName+"-put", reader, "application/octest-stream")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Get object info.
+	objInfo, err := reader.Stat()
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if n != objInfo.Size {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", objInfo.Size, n)
+	}
+
+	// Remove all temp files, objects and bucket.
+	err = c.RemoveObject(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+
+	err = c.RemoveObject(bucketName, objectName+"-put")
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	err = os.Remove(file.Name())
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -253,6 +419,12 @@ func TestResumableFPutObject(t *testing.T) {
 		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", 11*1024*1024, n)
 	}
 
+	// Close the file pro-actively for windows.
+	err = file.Close()
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
 	objectName := bucketName + "-resumable"
 
 	n, err = c.FPutObject(bucketName, objectName, file.Name(), "application/octet-stream")
@@ -262,9 +434,6 @@ func TestResumableFPutObject(t *testing.T) {
 	if n != int64(11*1024*1024) {
 		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", 11*1024*1024, n)
 	}
-
-	// Close the file pro-actively for windows.
-	file.Close()
 
 	err = c.RemoveObject(bucketName, objectName)
 	if err != nil {
@@ -642,14 +811,12 @@ func TestFunctional(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	var totalSize int64
 	for i := 0; i < 3; i++ {
 		buf := make([]byte, rand.Intn(1<<19))
-		n, err := file.Write(buf)
+		_, err = file.Write(buf)
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
-		totalSize += int64(n)
 	}
 	file.Close()
 

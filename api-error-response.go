@@ -182,19 +182,6 @@ func ErrEntityTooSmall(totalSize int64, bucketName, objectName string) error {
 	}
 }
 
-// ErrUnexpectedShortRead - Unexpected shorter read of input buffer from
-// target.
-func ErrUnexpectedShortRead(totalRead, totalSize int64, bucketName, objectName string) error {
-	msg := fmt.Sprintf("Data read ‘%s’ is shorter than the size ‘%s’ of input buffer.",
-		strconv.FormatInt(totalRead, 10), strconv.FormatInt(totalSize, 10))
-	return ErrorResponse{
-		Code:       "UnexpectedShortRead",
-		Message:    msg,
-		BucketName: bucketName,
-		Key:        objectName,
-	}
-}
-
 // ErrUnexpectedEOF - Unexpected end of file reached.
 func ErrUnexpectedEOF(totalRead, totalSize int64, bucketName, objectName string) error {
 	msg := fmt.Sprintf("Data read ‘%s’ is not equal to the size ‘%s’ of the input Reader.",

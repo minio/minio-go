@@ -135,8 +135,11 @@ func (c Client) PutObject(bucketName, objectName string, reader io.Reader, conte
 		return 0, err
 	}
 
+	// Size of the object.
+	var size int64
+
 	// Get reader size.
-	size, err := getReaderSize(reader)
+	size, err = getReaderSize(reader)
 	if err != nil {
 		return 0, err
 	}
@@ -256,13 +259,14 @@ func (c Client) putObjectSingle(bucketName, objectName string, reader io.Reader,
 		readCloser = ioutil.NopCloser(tmpBuffer)
 	} else {
 		// Initialize a new temporary file.
-		tmpFile, err := newTempFile("single$-putobject-single")
+		var tmpFile *tempFile
+		tmpFile, err = newTempFile("single$-putobject-single")
 		if err != nil {
 			return 0, err
 		}
 		md5Sum, sha256Sum, size, err = c.hashCopyN(tmpFile, reader, size)
 		// Seek back to beginning of the temporary file.
-		if _, err := tmpFile.Seek(0, 0); err != nil {
+		if _, err = tmpFile.Seek(0, 0); err != nil {
 			return 0, err
 		}
 		readCloser = tmpFile

@@ -18,10 +18,6 @@ package minio
 
 import (
 	"bytes"
-	"crypto/md5"
-	"crypto/sha256"
-	"errors"
-	"hash"
 	"io"
 	"io/ioutil"
 	"sort"
@@ -71,7 +67,7 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 	var totalUploadedSize int64
 
 	// Complete multipart upload.
-	var completeMultipartUpload completeMultipartUpload
+	var complMultipartUpload completeMultipartUpload
 
 	// A map of all uploaded parts.
 	var partsInfo = make(map[int]objectPart)
@@ -90,9 +86,6 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 		return 0, err
 	}
 
-	// MD5 and SHA256 hasher.
-	var hashMD5, hashSHA256 hash.Hash
-
 	// Used for readability, lastPartNumber is always
 	// totalPartsCount.
 	lastPartNumber := totalPartsCount
@@ -102,6 +95,9 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 
 	// Initialize a temporary buffer.
 	tmpBuffer := new(bytes.Buffer)
+
+	// Read defaults to reading at 5MiB buffer.
+	readBuffer := make([]byte, optimalReadBufferSize)
 
 	// Upload all the missing parts.
 	for partNumber <= lastPartNumber {
@@ -129,65 +125,31 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 		// If partNumber was not uploaded we calculate the missing
 		// part offset and size. For all other part numbers we
 		// calculate offset based on multiples of partSize.
-		readAtOffset := int64(partNumber-1) * partSize
+		readOffset := int64(partNumber-1) * partSize
 		missingPartSize := partSize
 
 		// As a special case if partNumber is lastPartNumber, we
 		// calculate the offset based on the last part size.
 		if partNumber == lastPartNumber {
-			readAtOffset = (size - lastPartSize)
+			readOffset = (size - lastPartSize)
 			missingPartSize = lastPartSize
 		}
 
-		// Create a hash multiwriter.
-		hashMD5 = md5.New()
-		hashWriter := io.MultiWriter(hashMD5)
-		if c.signature.isV4() {
-			hashSHA256 = sha256.New()
-			hashWriter = io.MultiWriter(hashMD5, hashSHA256)
-		}
-		writer := io.MultiWriter(tmpBuffer, hashWriter)
+		// Get a section reader on a particular offset.
+		sectionReader := io.NewSectionReader(reader, readOffset, missingPartSize)
 
-		// Read until partSize.
-		var totalReadPartSize int64
-
-		// ReadAt defaults to reading at 5MiB buffer.
-		readAtBuffer := make([]byte, optimalReadAtBufferSize)
-
-		// Following block reads data at an offset from the input
-		// reader and copies data to into local temporary file.
-		// Temporary file data is limited to the partSize.
-		for totalReadPartSize < missingPartSize {
-			readAtSize, rerr := reader.ReadAt(readAtBuffer, readAtOffset)
-			if rerr != nil {
-				if rerr != io.EOF {
-					return 0, rerr
-				}
-			}
-			writeSize, werr := writer.Write(readAtBuffer[:readAtSize])
-			if werr != nil {
-				return 0, werr
-			}
-			if readAtSize != writeSize {
-				return 0, errors.New("Something really bad happened here. " + reportIssue)
-			}
-			readAtOffset += int64(writeSize)
-			totalReadPartSize += int64(writeSize)
-			if rerr == io.EOF {
-				break
-			}
-		}
-
+		// Calculates MD5 and SHA256 sum for a section reader.
 		var md5Sum, sha256Sum []byte
-		md5Sum = hashMD5.Sum(nil)
-		// Signature version '4'.
-		if c.signature.isV4() {
-			sha256Sum = hashSHA256.Sum(nil)
+		var prtSize int64
+		md5Sum, sha256Sum, prtSize, err = c.hashCopyBuffer(tmpBuffer, sectionReader, readBuffer)
+		if err != nil {
+			return 0, err
 		}
 
 		// Proceed to upload the part.
-		objPart, err := c.uploadPart(bucketName, objectName, uploadID, ioutil.NopCloser(tmpBuffer),
-			partNumber, md5Sum, sha256Sum, totalReadPartSize)
+		var objPart objectPart
+		objPart, err = c.uploadPart(bucketName, objectName, uploadID, ioutil.NopCloser(tmpBuffer),
+			partNumber, md5Sum, sha256Sum, prtSize)
 		if err != nil {
 			// Reset the buffer upon any error.
 			tmpBuffer.Reset()
@@ -210,7 +172,7 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 		complPart.ETag = part.ETag
 		complPart.PartNumber = part.PartNumber
 		totalUploadedSize += part.Size
-		completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, complPart)
+		complMultipartUpload.Parts = append(complMultipartUpload.Parts, complPart)
 	}
 
 	// Verify if we uploaded all the data.
@@ -219,13 +181,13 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 	}
 
 	// Verify if totalPartsCount is not equal to total list of parts.
-	if totalPartsCount != len(completeMultipartUpload.Parts) {
-		return totalUploadedSize, ErrInvalidParts(totalPartsCount, len(completeMultipartUpload.Parts))
+	if totalPartsCount != len(complMultipartUpload.Parts) {
+		return totalUploadedSize, ErrInvalidParts(totalPartsCount, len(complMultipartUpload.Parts))
 	}
 
 	// Sort all completed parts.
-	sort.Sort(completedParts(completeMultipartUpload.Parts))
-	_, err = c.completeMultipartUpload(bucketName, objectName, uploadID, completeMultipartUpload)
+	sort.Sort(completedParts(complMultipartUpload.Parts))
+	_, err = c.completeMultipartUpload(bucketName, objectName, uploadID, complMultipartUpload)
 	if err != nil {
 		return totalUploadedSize, err
 	}

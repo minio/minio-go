@@ -444,10 +444,6 @@ func (c Client) setUserAgent(req *http.Request) {
 
 // makeTargetURL make a new target url.
 func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, queryValues url.Values) (*url.URL, error) {
-	// Save if target url will have buckets which suppport virtual
-	// host.
-	isVirtualHostStyle := isVirtualHostSupported(c.endpointURL, bucketName)
-
 	// Save host.
 	host := c.endpointURL.Host
 	// For Amazon S3 endpoint, try to fetch location based endpoint.
@@ -462,6 +458,9 @@ func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, que
 	// Make URL only if bucketName is available, otherwise use the
 	// endpoint URL.
 	if bucketName != "" {
+		// Save if target url will have buckets which suppport virtual host.
+		isVirtualHostStyle := isVirtualHostSupported(c.endpointURL, bucketName)
+
 		// If endpoint supports virtual host style use that always.
 		// Currently only S3 and Google Cloud Storage would support
 		// virtual host style.
