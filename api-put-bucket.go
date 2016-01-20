@@ -42,11 +42,6 @@ import (
 // For Amazon S3 for more supported regions - http://docs.aws.amazon.com/general/latest/gr/rande.html
 // For Google Cloud Storage for more supported regions - https://cloud.google.com/storage/docs/bucket-locations
 func (c Client) MakeBucket(bucketName string, acl BucketACL, location string) error {
-	// Validate if request is made on anonymous requests.
-	if c.anonymous {
-		return ErrInvalidArgument("Make bucket cannot be issued with anonymous credentials.")
-	}
-
 	// Validate the input arguments.
 	if err := isValidBucketName(bucketName); err != nil {
 		return err

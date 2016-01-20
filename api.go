@@ -223,7 +223,7 @@ type requestMetadata struct {
 
 // Filter out signature value from Authorization header.
 func (c Client) filterSignature(req *http.Request) {
-	// For anonymous requests return here.
+	// For anonymous requests, no need to filter.
 	if c.anonymous {
 		return
 	}
