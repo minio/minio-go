@@ -47,7 +47,7 @@ func (c Client) ListBuckets() ([]BucketInfo, error) {
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return nil, HTTPRespToErrorResponse(resp, "", "")
+			return nil, httpRespToErrorResponse(resp, "", "")
 		}
 	}
 	listAllMyBucketsResult := listAllMyBucketsResult{}
@@ -222,7 +222,7 @@ func (c Client) listObjectsQuery(bucketName, objectPrefix, objectMarker, delimit
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return listBucketResult{}, HTTPRespToErrorResponse(resp, bucketName, "")
+			return listBucketResult{}, httpRespToErrorResponse(resp, bucketName, "")
 		}
 	}
 	// Decode listBuckets XML.
@@ -404,7 +404,7 @@ func (c Client) listMultipartUploadsQuery(bucketName, keyMarker, uploadIDMarker,
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return listMultipartUploadsResult{}, HTTPRespToErrorResponse(resp, bucketName, "")
+			return listMultipartUploadsResult{}, httpRespToErrorResponse(resp, bucketName, "")
 		}
 	}
 	// Decode response body.
@@ -526,7 +526,7 @@ func (c Client) listObjectPartsQuery(bucketName, objectName, uploadID string, pa
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return listObjectPartsResult{}, HTTPRespToErrorResponse(resp, bucketName, objectName)
+			return listObjectPartsResult{}, httpRespToErrorResponse(resp, bucketName, objectName)
 		}
 	}
 	// Decode list object parts XML.

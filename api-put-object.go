@@ -338,7 +338,7 @@ func (c Client) putObjectDo(bucketName, objectName string, reader io.ReadCloser,
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return ObjectInfo{}, HTTPRespToErrorResponse(resp, bucketName, objectName)
+			return ObjectInfo{}, httpRespToErrorResponse(resp, bucketName, objectName)
 		}
 	}
 

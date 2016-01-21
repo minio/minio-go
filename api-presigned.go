@@ -100,7 +100,7 @@ func (c Client) PresignedPostPolicy(p *PostPolicy) (map[string]string, error) {
 			p.formData["AWSAccessKeyId"] = c.accessKeyID
 		}
 		// Sign the policy.
-		p.formData["signature"] = PostPresignSignatureV2(policyBase64, c.secretAccessKey)
+		p.formData["signature"] = postPresignSignatureV2(policyBase64, c.secretAccessKey)
 		return p.formData, nil
 	}
 
@@ -139,6 +139,6 @@ func (c Client) PresignedPostPolicy(p *PostPolicy) (map[string]string, error) {
 	p.formData["x-amz-algorithm"] = signV4Algorithm
 	p.formData["x-amz-credential"] = credential
 	p.formData["x-amz-date"] = t.Format(iso8601DateFormat)
-	p.formData["x-amz-signature"] = PostPresignSignatureV4(policyBase64, t, c.secretAccessKey, location)
+	p.formData["x-amz-signature"] = postPresignSignatureV4(policyBase64, t, c.secretAccessKey, location)
 	return p.formData, nil
 }

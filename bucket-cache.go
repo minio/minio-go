@@ -90,7 +90,7 @@ func (c Client) getBucketLocation(bucketName string) (string, error) {
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return "", HTTPRespToErrorResponse(resp, bucketName, "")
+			return "", httpRespToErrorResponse(resp, bucketName, "")
 		}
 	}
 
@@ -146,9 +146,9 @@ func (c Client) getBucketLocationRequest(bucketName string) (*http.Request, erro
 
 	// Sign the request.
 	if c.signature.isV4() {
-		req = SignV4(*req, c.accessKeyID, c.secretAccessKey, "us-east-1")
+		req = signV4(*req, c.accessKeyID, c.secretAccessKey, "us-east-1")
 	} else if c.signature.isV2() {
-		req = SignV2(*req, c.accessKeyID, c.secretAccessKey)
+		req = signV2(*req, c.accessKeyID, c.secretAccessKey)
 	}
 	return req, nil
 }

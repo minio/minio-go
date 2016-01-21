@@ -232,7 +232,7 @@ func (c Client) initiateMultipartUpload(bucketName, objectName, contentType stri
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return initiateMultipartUploadResult{}, HTTPRespToErrorResponse(resp, bucketName, objectName)
+			return initiateMultipartUploadResult{}, httpRespToErrorResponse(resp, bucketName, objectName)
 		}
 	}
 	// Decode xml for new multipart upload.
@@ -296,7 +296,7 @@ func (c Client) uploadPart(bucketName, objectName, uploadID string, reader io.Re
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return objectPart{}, HTTPRespToErrorResponse(resp, bucketName, objectName)
+			return objectPart{}, httpRespToErrorResponse(resp, bucketName, objectName)
 		}
 	}
 	// Once successfully uploaded, return completed part.
@@ -354,7 +354,7 @@ func (c Client) completeMultipartUpload(bucketName, objectName, uploadID string,
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return completeMultipartUploadResult{}, HTTPRespToErrorResponse(resp, bucketName, objectName)
+			return completeMultipartUploadResult{}, httpRespToErrorResponse(resp, bucketName, objectName)
 		}
 	}
 	// Decode completed multipart upload response on success.
