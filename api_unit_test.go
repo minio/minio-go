@@ -267,7 +267,7 @@ func TestErrorResponse(t *testing.T) {
 	var bucketName, objectName string
 
 	// Should fail with invalid argument.
-	err = HTTPRespToErrorResponse(httpResponse, bucketName, objectName)
+	err = httpRespToErrorResponse(httpResponse, bucketName, objectName)
 	errResp = ToErrorResponse(err)
 	if errResp.Code != "InvalidArgument" {
 		t.Fatal("Empty response input should return invalid argument.")
@@ -280,42 +280,42 @@ func TestSignatureCalculation(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	req = SignV4(*req, "", "", "us-east-1")
+	req = signV4(*req, "", "", "us-east-1")
 	if req.Header.Get("Authorization") != "" {
 		t.Fatal("Error: anonymous credentials should not have Authorization header.")
 	}
 
-	req = PreSignV4(*req, "", "", "us-east-1", 0)
+	req = preSignV4(*req, "", "", "us-east-1", 0)
 	if strings.Contains(req.URL.RawQuery, "X-Amz-Signature") {
 		t.Fatal("Error: anonymous credentials should not have Signature query resource.")
 	}
 
-	req = SignV2(*req, "", "")
+	req = signV2(*req, "", "")
 	if req.Header.Get("Authorization") != "" {
 		t.Fatal("Error: anonymous credentials should not have Authorization header.")
 	}
 
-	req = PreSignV2(*req, "", "", 0)
+	req = preSignV2(*req, "", "", 0)
 	if strings.Contains(req.URL.RawQuery, "Signature") {
 		t.Fatal("Error: anonymous credentials should not have Signature query resource.")
 	}
 
-	req = SignV4(*req, "ACCESS-KEY", "SECRET-KEY", "us-east-1")
+	req = signV4(*req, "ACCESS-KEY", "SECRET-KEY", "us-east-1")
 	if req.Header.Get("Authorization") == "" {
 		t.Fatal("Error: normal credentials should have Authorization header.")
 	}
 
-	req = PreSignV4(*req, "ACCESS-KEY", "SECRET-KEY", "us-east-1", 0)
+	req = preSignV4(*req, "ACCESS-KEY", "SECRET-KEY", "us-east-1", 0)
 	if !strings.Contains(req.URL.RawQuery, "X-Amz-Signature") {
 		t.Fatal("Error: normal credentials should have Signature query resource.")
 	}
 
-	req = SignV2(*req, "ACCESS-KEY", "SECRET-KEY")
+	req = signV2(*req, "ACCESS-KEY", "SECRET-KEY")
 	if req.Header.Get("Authorization") == "" {
 		t.Fatal("Error: normal credentials should have Authorization header.")
 	}
 
-	req = PreSignV2(*req, "ACCESS-KEY", "SECRET-KEY", 0)
+	req = preSignV2(*req, "ACCESS-KEY", "SECRET-KEY", 0)
 	if !strings.Contains(req.URL.RawQuery, "Signature") {
 		t.Fatal("Error: normal credentials should not have Signature query resource.")
 	}

@@ -70,7 +70,7 @@ func (c Client) MakeBucket(bucketName string, acl BucketACL, location string) er
 
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return HTTPRespToErrorResponse(resp, bucketName, "")
+			return httpRespToErrorResponse(resp, bucketName, "")
 		}
 	}
 
@@ -146,9 +146,9 @@ func (c Client) makeBucketRequest(bucketName string, acl BucketACL, location str
 	if c.signature.isV4() {
 		// Signature calculated for MakeBucket request should be for 'us-east-1',
 		// regardless of the bucket's location constraint.
-		req = SignV4(*req, c.accessKeyID, c.secretAccessKey, "us-east-1")
+		req = signV4(*req, c.accessKeyID, c.secretAccessKey, "us-east-1")
 	} else if c.signature.isV2() {
-		req = SignV2(*req, c.accessKeyID, c.secretAccessKey)
+		req = signV2(*req, c.accessKeyID, c.secretAccessKey)
 	}
 
 	// Return signed request.
@@ -205,7 +205,7 @@ func (c Client) SetBucketACL(bucketName string, acl BucketACL) error {
 	if resp != nil {
 		// if error return.
 		if resp.StatusCode != http.StatusOK {
-			return HTTPRespToErrorResponse(resp, bucketName, "")
+			return httpRespToErrorResponse(resp, bucketName, "")
 		}
 	}
 

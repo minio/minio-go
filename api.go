@@ -376,10 +376,10 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 		}
 		if c.signature.isV2() {
 			// Presign URL with signature v2.
-			req = PreSignV2(*req, c.accessKeyID, c.secretAccessKey, metadata.expires)
+			req = preSignV2(*req, c.accessKeyID, c.secretAccessKey, metadata.expires)
 		} else {
 			// Presign URL with signature v4.
-			req = PreSignV4(*req, c.accessKeyID, c.secretAccessKey, location, metadata.expires)
+			req = preSignV4(*req, c.accessKeyID, c.secretAccessKey, location, metadata.expires)
 		}
 		return req, nil
 	}
@@ -423,10 +423,10 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 	if !c.anonymous {
 		if c.signature.isV2() {
 			// Add signature version '2' authorization header.
-			req = SignV2(*req, c.accessKeyID, c.secretAccessKey)
+			req = signV2(*req, c.accessKeyID, c.secretAccessKey)
 		} else if c.signature.isV4() {
 			// Add signature version '4' authorization header.
-			req = SignV4(*req, c.accessKeyID, c.secretAccessKey, location)
+			req = signV4(*req, c.accessKeyID, c.secretAccessKey, location)
 		}
 	}
 
