@@ -135,8 +135,11 @@ func (c Client) PutObject(bucketName, objectName string, reader io.Reader, conte
 		return 0, err
 	}
 
+	// Size of the object.
+	var size int64
+
 	// Get reader size.
-	size, err := getReaderSize(reader)
+	size, err = getReaderSize(reader)
 	if err != nil {
 		return 0, err
 	}
@@ -160,7 +163,7 @@ func (c Client) PutObject(bucketName, objectName string, reader io.Reader, conte
 		if size > maxSinglePutObjectSize {
 			return 0, ErrEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
 		}
-		// Do not compute MD5 for Google Cloud Storage. Uploads upto 5GiB in size.
+		// Do not compute MD5 for Google Cloud Storage. Uploads up to 5GiB in size.
 		return c.putObjectNoChecksum(bucketName, objectName, reader, size, contentType)
 	}
 
@@ -177,7 +180,8 @@ func (c Client) PutObject(bucketName, objectName string, reader io.Reader, conte
 		if size > maxSinglePutObjectSize {
 			return 0, ErrEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
 		}
-		// Do not compute MD5 for anonymous requests to Amazon S3. Uploads upto 5GiB in size.
+		// Do not compute MD5 for anonymous requests to Amazon
+		// S3. Uploads up to 5GiB in size.
 		return c.putObjectNoChecksum(bucketName, objectName, reader, size, contentType)
 	}
 
@@ -242,7 +246,7 @@ func (c Client) putObjectSingle(bucketName, objectName string, reader io.Reader,
 	if size > maxSinglePutObjectSize {
 		return 0, ErrEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
 	}
-	// If size is a stream, upload upto 5GiB.
+	// If size is a stream, upload up to 5GiB.
 	if size <= -1 {
 		size = maxSinglePutObjectSize
 	}
@@ -255,13 +259,14 @@ func (c Client) putObjectSingle(bucketName, objectName string, reader io.Reader,
 		readCloser = ioutil.NopCloser(tmpBuffer)
 	} else {
 		// Initialize a new temporary file.
-		tmpFile, err := newTempFile("single$-putobject-single")
+		var tmpFile *tempFile
+		tmpFile, err = newTempFile("single$-putobject-single")
 		if err != nil {
 			return 0, err
 		}
 		md5Sum, sha256Sum, size, err = c.hashCopyN(tmpFile, reader, size)
 		// Seek back to beginning of the temporary file.
-		if _, err := tmpFile.Seek(0, 0); err != nil {
+		if _, err = tmpFile.Seek(0, 0); err != nil {
 			return 0, err
 		}
 		readCloser = tmpFile

@@ -136,7 +136,7 @@ func TestGetReaderSize(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	defer file.Close()
-	size, err = getReaderSize(file)
+	_, err = getReaderSize(file)
 	if err == nil {
 		t.Fatal("Input file as directory should throw an error.")
 	}
@@ -171,6 +171,7 @@ func TestBucketNames(t *testing.T) {
 		{"mybucket-", ErrInvalidBucketName("Bucket name contains invalid characters.")},
 		{"my", ErrInvalidBucketName("Bucket name cannot be smaller than 3 characters.")},
 		{"", ErrInvalidBucketName("Bucket name cannot be empty.")},
+		{"my..bucket", ErrInvalidBucketName("Bucket name cannot have successive periods.")},
 		{"my.bucket.com", nil},
 		{"my-bucket", nil},
 		{"123my-bucket", nil},

@@ -68,7 +68,7 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 				BucketName: bucketName,
 			}
 		}
-		// Do not compute MD5 for Google Cloud Storage. Uploads upto 5GiB in size.
+		// Do not compute MD5 for Google Cloud Storage. Uploads up to 5GiB in size.
 		return c.putObjectNoChecksum(bucketName, objectName, fileReader, fileSize, contentType)
 	}
 
@@ -82,7 +82,8 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 				BucketName: bucketName,
 			}
 		}
-		// Do not compute MD5 for anonymous requests to Amazon S3. Uploads upto 5GiB in size.
+		// Do not compute MD5 for anonymous requests to Amazon
+		// S3. Uploads up to 5GiB in size.
 		return c.putObjectNoChecksum(bucketName, objectName, fileReader, fileSize, contentType)
 	}
 
@@ -117,7 +118,7 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 // against MD5SUM of each individual parts. This function also
 // effectively utilizes file system capabilities of reading from
 // specific sections and not having to create temporary files.
-func (c Client) putObjectMultipartFromFile(bucketName, objectName string, fileReader *os.File, fileSize int64, contentType string) (int64, error) {
+func (c Client) putObjectMultipartFromFile(bucketName, objectName string, fileReader io.ReaderAt, fileSize int64, contentType string) (int64, error) {
 	// Input validation.
 	if err := isValidBucketName(bucketName); err != nil {
 		return 0, err
@@ -166,7 +167,9 @@ func (c Client) putObjectMultipartFromFile(bucketName, objectName string, fileRe
 		sectionReader := io.NewSectionReader(fileReader, totalUploadedSize, partSize)
 
 		// Calculates MD5 and SHA256 sum for a section reader.
-		md5Sum, sha256Sum, prtSize, err := c.computeHash(sectionReader)
+		var md5Sum, sha256Sum []byte
+		var prtSize int64
+		md5Sum, sha256Sum, prtSize, err = c.computeHash(sectionReader)
 		if err != nil {
 			return 0, err
 		}
@@ -178,7 +181,9 @@ func (c Client) putObjectMultipartFromFile(bucketName, objectName string, fileRe
 			Size:       prtSize,
 		}, partsInfo) {
 			// Proceed to upload the part.
-			objPart, err := c.uploadPart(bucketName, objectName, uploadID, ioutil.NopCloser(sectionReader), partNumber, md5Sum, sha256Sum, prtSize)
+			var objPart objectPart
+			objPart, err = c.uploadPart(bucketName, objectName, uploadID, ioutil.NopCloser(sectionReader), partNumber,
+				md5Sum, sha256Sum, prtSize)
 			if err != nil {
 				return totalUploadedSize, err
 			}

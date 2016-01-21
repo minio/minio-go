@@ -77,7 +77,7 @@ func (c Client) putObjectMultipartStream(bucketName, objectName string, reader i
 	var totalUploadedSize int64
 
 	// Complete multipart upload.
-	var completeMultipartUpload completeMultipartUpload
+	var complMultipartUpload completeMultipartUpload
 
 	// A map of all previously uploaded parts.
 	var partsInfo = make(map[int]objectPart)
@@ -128,7 +128,8 @@ func (c Client) putObjectMultipartStream(bucketName, objectName string, reader i
 			Size:       prtSize,
 		}, partsInfo) {
 			// Proceed to upload the part.
-			objPart, err := c.uploadPart(bucketName, objectName, uploadID, ioutil.NopCloser(tmpBuffer), partNumber,
+			var objPart objectPart
+			objPart, err = c.uploadPart(bucketName, objectName, uploadID, ioutil.NopCloser(tmpBuffer), partNumber,
 				md5Sum, sha256Sum, prtSize)
 			if err != nil {
 				// Reset the temporary buffer upon any error.
@@ -167,19 +168,19 @@ func (c Client) putObjectMultipartStream(bucketName, objectName string, reader i
 		var complPart completePart
 		complPart.ETag = part.ETag
 		complPart.PartNumber = part.PartNumber
-		completeMultipartUpload.Parts = append(completeMultipartUpload.Parts, complPart)
+		complMultipartUpload.Parts = append(complMultipartUpload.Parts, complPart)
 	}
 
 	if size > 0 {
 		// Verify if totalPartsCount is not equal to total list of parts.
-		if totalPartsCount != len(completeMultipartUpload.Parts) {
-			return totalUploadedSize, ErrInvalidParts(partNumber, len(completeMultipartUpload.Parts))
+		if totalPartsCount != len(complMultipartUpload.Parts) {
+			return totalUploadedSize, ErrInvalidParts(partNumber, len(complMultipartUpload.Parts))
 		}
 	}
 
 	// Sort all completed parts.
-	sort.Sort(completedParts(completeMultipartUpload.Parts))
-	_, err = c.completeMultipartUpload(bucketName, objectName, uploadID, completeMultipartUpload)
+	sort.Sort(completedParts(complMultipartUpload.Parts))
+	_, err = c.completeMultipartUpload(bucketName, objectName, uploadID, complMultipartUpload)
 	if err != nil {
 		return totalUploadedSize, err
 	}

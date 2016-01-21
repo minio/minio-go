@@ -94,8 +94,42 @@ func optimalPartInfo(objectSize int64) (totalPartsCount int, partSize int64, las
 	return totalPartsCount, partSize, lastPartSize, nil
 }
 
-// hashCopyN - Calculates Md5sum and SHA256sum for upto partSize amount of bytes.
-func (c Client) hashCopyN(writer io.ReadWriter, reader io.Reader, partSize int64) (md5Sum, sha256Sum []byte, size int64, err error) {
+// hashCopyBuffer is identical to hashCopyN except that it stages
+// through the provided buffer (if one is required) rather than
+// allocating a temporary one. If buf is nil, one is allocated for 5MiB.
+func (c Client) hashCopyBuffer(writer io.Writer, reader io.Reader, buf []byte) (md5Sum, sha256Sum []byte, size int64, err error) {
+	// MD5 and SHA256 hasher.
+	var hashMD5, hashSHA256 hash.Hash
+	// MD5 and SHA256 hasher.
+	hashMD5 = md5.New()
+	hashWriter := io.MultiWriter(writer, hashMD5)
+	if c.signature.isV4() {
+		hashSHA256 = sha256.New()
+		hashWriter = io.MultiWriter(writer, hashMD5, hashSHA256)
+	}
+
+	// Allocate buf if not initialized.
+	if buf == nil {
+		buf = make([]byte, optimalReadBufferSize)
+	}
+
+	// Using io.CopyBuffer to copy in large buffers, default buffer
+	// for io.Copy of 32KiB is too small.
+	size, err = io.CopyBuffer(hashWriter, reader, buf)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+
+	// Finalize md5 sum and sha256 sum.
+	md5Sum = hashMD5.Sum(nil)
+	if c.signature.isV4() {
+		sha256Sum = hashSHA256.Sum(nil)
+	}
+	return md5Sum, sha256Sum, size, err
+}
+
+// hashCopyN - Calculates Md5sum and SHA256sum for up to partSize amount of bytes.
+func (c Client) hashCopyN(writer io.Writer, reader io.Reader, partSize int64) (md5Sum, sha256Sum []byte, size int64, err error) {
 	// MD5 and SHA256 hasher.
 	var hashMD5, hashSHA256 hash.Hash
 	// MD5 and SHA256 hasher.
@@ -158,8 +192,12 @@ func (c Client) getUploadID(bucketName, objectName, contentType string) (uploadI
 	return uploadID, isNew, nil
 }
 
-// computeHash - Calculates MD5 and SHA256 for an input read Seeker.
-func (c Client) computeHash(reader io.ReadSeeker) (md5Sum, sha256Sum []byte, size int64, err error) {
+// computeHashBuffer - Calculates MD5 and SHA256 for an input read
+// Seeker is identical to computeHash except that it stages
+// through the provided buffer (if one is required) rather than
+// allocating a temporary one. If buf is nil, it uses a temporary
+// buffer.
+func (c Client) computeHashBuffer(reader io.ReadSeeker, buf []byte) (md5Sum, sha256Sum []byte, size int64, err error) {
 	// MD5 and SHA256 hasher.
 	var hashMD5, hashSHA256 hash.Hash
 	// MD5 and SHA256 hasher.
@@ -170,9 +208,17 @@ func (c Client) computeHash(reader io.ReadSeeker) (md5Sum, sha256Sum []byte, siz
 		hashWriter = io.MultiWriter(hashMD5, hashSHA256)
 	}
 
-	size, err = io.Copy(hashWriter, reader)
-	if err != nil {
-		return nil, nil, 0, err
+	// If no buffer is provided, no need to allocate just use io.Copy.
+	if buf == nil {
+		size, err = io.Copy(hashWriter, reader)
+		if err != nil {
+			return nil, nil, 0, err
+		}
+	} else {
+		size, err = io.CopyBuffer(hashWriter, reader, buf)
+		if err != nil {
+			return nil, nil, 0, err
+		}
 	}
 
 	// Seek back reader to the beginning location.
@@ -186,4 +232,9 @@ func (c Client) computeHash(reader io.ReadSeeker) (md5Sum, sha256Sum []byte, siz
 		sha256Sum = hashSHA256.Sum(nil)
 	}
 	return md5Sum, sha256Sum, size, nil
+}
+
+// computeHash - Calculates MD5 and SHA256 for an input read Seeker.
+func (c Client) computeHash(reader io.ReadSeeker) (md5Sum, sha256Sum []byte, size int64, err error) {
+	return c.computeHashBuffer(reader, nil)
 }
