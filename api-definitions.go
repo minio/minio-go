@@ -21,9 +21,9 @@ import "time"
 // BucketInfo container for bucket metadata.
 type BucketInfo struct {
 	// The name of the bucket.
-	Name string
+	Name string `json:"name"`
 	// Date the bucket was created.
-	CreationDate time.Time
+	CreationDate time.Time `json:"creation_date"`
 }
 
 // ObjectInfo container for object metadata.
