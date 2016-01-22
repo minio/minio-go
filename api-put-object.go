@@ -127,90 +127,12 @@ func (a completedParts) Less(i, j int) bool { return a[i].PartNumber < a[j].Part
 //
 // NOTE: For anonymous requests Amazon S3 doesn't allow multipart upload. So we fall back to single PUT operation.
 func (c Client) PutObject(bucketName, objectName string, reader io.Reader, contentType string) (n int64, err error) {
-	// Input validation.
-	if err := isValidBucketName(bucketName); err != nil {
-		return 0, err
-	}
-	if err := isValidObjectName(objectName); err != nil {
-		return 0, err
-	}
-
-	// Size of the object.
-	var size int64
-
-	// Get reader size.
-	size, err = getReaderSize(reader)
-	if err != nil {
-		return 0, err
-	}
-
-	// Check for largest object size allowed.
-	if size > int64(maxMultipartPutObjectSize) {
-		return 0, ErrEntityTooLarge(size, maxMultipartPutObjectSize, bucketName, objectName)
-	}
-
-	// NOTE: Google Cloud Storage does not implement Amazon S3 Compatible multipart PUT.
-	// So we fall back to single PUT operation with the maximum limit of 5GiB.
-	if isGoogleEndpoint(c.endpointURL) {
-		if size <= -1 {
-			return 0, ErrorResponse{
-				Code:       "NotImplemented",
-				Message:    "Content-Length cannot be negative for file uploads to Google Cloud Storage.",
-				Key:        objectName,
-				BucketName: bucketName,
-			}
-		}
-		if size > maxSinglePutObjectSize {
-			return 0, ErrEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
-		}
-		// Do not compute MD5 for Google Cloud Storage. Uploads up to 5GiB in size.
-		return c.putObjectNoChecksum(bucketName, objectName, reader, size, contentType)
-	}
-
-	// NOTE: S3 doesn't allow anonymous multipart requests.
-	if isAmazonEndpoint(c.endpointURL) && c.anonymous {
-		if size <= -1 {
-			return 0, ErrorResponse{
-				Code:       "NotImplemented",
-				Message:    "Content-Length cannot be negative for anonymous requests.",
-				Key:        objectName,
-				BucketName: bucketName,
-			}
-		}
-		if size > maxSinglePutObjectSize {
-			return 0, ErrEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
-		}
-		// Do not compute MD5 for anonymous requests to Amazon
-		// S3. Uploads up to 5GiB in size.
-		return c.putObjectNoChecksum(bucketName, objectName, reader, size, contentType)
-	}
-
-	// putSmall object.
-	if size < minPartSize && size > 0 {
-		return c.putObjectSingle(bucketName, objectName, reader, size, contentType)
-	}
-	// For all sizes greater than 5MiB do multipart.
-	n, err = c.putObjectMultipart(bucketName, objectName, reader, size, contentType)
-	if err != nil {
-		errResp := ToErrorResponse(err)
-		// Verify if multipart functionality is not available, if not
-		// fall back to single PutObject operation.
-		if errResp.Code == "NotImplemented" {
-			// Verify if size of reader is greater than '5GiB'.
-			if size > maxSinglePutObjectSize {
-				return 0, ErrEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
-			}
-			// Fall back to uploading as single PutObject operation.
-			return c.putObjectSingle(bucketName, objectName, reader, size, contentType)
-		}
-		return n, err
-	}
-	return n, nil
+	return c.PutObjectWithProgress(bucketName, objectName, reader, contentType, nil)
 }
 
 // putObjectNoChecksum special function used Google Cloud Storage. This special function
 // is used for Google Cloud Storage since Google's multipart API is not S3 compatible.
-func (c Client) putObjectNoChecksum(bucketName, objectName string, reader io.Reader, size int64, contentType string) (n int64, err error) {
+func (c Client) putObjectNoChecksum(bucketName, objectName string, reader io.Reader, size int64, contentType string, progress io.Reader) (n int64, err error) {
 	// Input validation.
 	if err := isValidBucketName(bucketName); err != nil {
 		return 0, err
@@ -221,6 +143,11 @@ func (c Client) putObjectNoChecksum(bucketName, objectName string, reader io.Rea
 	if size > maxSinglePutObjectSize {
 		return 0, ErrEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
 	}
+
+	// Update progress reader appropriately to the latest offset as we
+	// read from the source.
+	reader = newHook(reader, progress)
+
 	// This function does not calculate sha256 and md5sum for payload.
 	// Execute put object.
 	st, err := c.putObjectDo(bucketName, objectName, ioutil.NopCloser(reader), nil, nil, size, contentType)
@@ -235,7 +162,7 @@ func (c Client) putObjectNoChecksum(bucketName, objectName string, reader io.Rea
 
 // putObjectSingle is a special function for uploading single put object request.
 // This special function is used as a fallback when multipart upload fails.
-func (c Client) putObjectSingle(bucketName, objectName string, reader io.Reader, size int64, contentType string) (n int64, err error) {
+func (c Client) putObjectSingle(bucketName, objectName string, reader io.Reader, size int64, contentType string, progress io.Reader) (n int64, err error) {
 	// Input validation.
 	if err := isValidBucketName(bucketName); err != nil {
 		return 0, err
@@ -275,6 +202,12 @@ func (c Client) putObjectSingle(bucketName, objectName string, reader io.Reader,
 	if err != nil {
 		if err != io.EOF {
 			return 0, err
+		}
+	}
+	// Progress the reader to the size.
+	if progress != nil {
+		if _, err = io.CopyN(ioutil.Discard, progress, size); err != nil {
+			return size, err
 		}
 	}
 	// Execute put object.

@@ -513,6 +513,9 @@ type CloudStorageClient interface {
 	FPutObject(bucketName, objectName, filePath, contentType string) (n int64, err error)
 	FGetObject(bucketName, objectName, filePath string) error
 
+	// PutObjectWithProgress for progress.
+	PutObjectWithProgress(bucketName, objectName string, reader io.Reader, contentType string, progress io.Reader) (n int64, err error)
+
 	// Presigned operations.
 	PresignedGetObject(bucketName, objectName string, expires time.Duration) (presignedURL string, err error)
 	PresignedPutObject(bucketName, objectName string, expires time.Duration) (presignedURL string, err error)
