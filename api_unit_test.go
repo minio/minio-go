@@ -340,17 +340,17 @@ func TestSignatureType(t *testing.T) {
 	}
 }
 
-// Tests bucket acl types.
-func TestBucketACLTypes(t *testing.T) {
+// Tests bucket policy types.
+func TestBucketPolicyTypes(t *testing.T) {
 	want := map[string]bool{
-		"private":            true,
-		"public-read":        true,
-		"public-read-write":  true,
-		"authenticated-read": true,
-		"invalid":            false,
+		"none":      true,
+		"readonly":  true,
+		"writeonly": true,
+		"readwrite": true,
+		"invalid":   false,
 	}
-	for acl, ok := range want {
-		if BucketACL(acl).isValidBucketACL() != ok {
+	for bucketPolicy, ok := range want {
+		if BucketPolicy(bucketPolicy).isValidBucketPolicy() != ok {
 			t.Fatal("Error")
 		}
 	}
