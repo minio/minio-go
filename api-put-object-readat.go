@@ -47,7 +47,7 @@ func shouldUploadPartReadAt(objPart objectPart, objectParts map[int]objectPart) 
 // temporary files for staging all the data, these temporary files are
 // cleaned automatically when the caller i.e http client closes the
 // stream after uploading all the contents successfully.
-func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, reader io.ReaderAt, size int64, contentType string) (n int64, err error) {
+func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, reader io.ReaderAt, size int64, contentType string, progress io.Reader) (n int64, err error) {
 	// Input validation.
 	if err := isValidBucketName(bucketName); err != nil {
 		return 0, err
@@ -119,6 +119,12 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 		if !shouldUploadPartReadAt(verifyObjPart, partsInfo) {
 			// Increment part number when not uploaded.
 			partNumber++
+			if progress != nil {
+				// Update the progress reader for the skipped part.
+				if _, err = io.CopyN(ioutil.Discard, progress, verifyObjPart.Size); err != nil {
+					return 0, err
+				}
+			}
 			continue
 		}
 
@@ -146,14 +152,19 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 			return 0, err
 		}
 
+		var reader io.Reader
+		// Update progress reader appropriately to the latest offset
+		// as we read from the source.
+		reader = newHook(tmpBuffer, progress)
+
 		// Proceed to upload the part.
 		var objPart objectPart
-		objPart, err = c.uploadPart(bucketName, objectName, uploadID, ioutil.NopCloser(tmpBuffer),
+		objPart, err = c.uploadPart(bucketName, objectName, uploadID, ioutil.NopCloser(reader),
 			partNumber, md5Sum, sha256Sum, prtSize)
 		if err != nil {
 			// Reset the buffer upon any error.
 			tmpBuffer.Reset()
-			return totalUploadedSize, err
+			return 0, err
 		}
 
 		// Save successfully uploaded part metadata.

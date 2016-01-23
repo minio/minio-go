@@ -69,7 +69,7 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 			}
 		}
 		// Do not compute MD5 for Google Cloud Storage. Uploads up to 5GiB in size.
-		return c.putObjectNoChecksum(bucketName, objectName, fileReader, fileSize, contentType)
+		return c.putObjectNoChecksum(bucketName, objectName, fileReader, fileSize, contentType, nil)
 	}
 
 	// NOTE: S3 doesn't allow anonymous multipart requests.
@@ -84,15 +84,15 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 		}
 		// Do not compute MD5 for anonymous requests to Amazon
 		// S3. Uploads up to 5GiB in size.
-		return c.putObjectNoChecksum(bucketName, objectName, fileReader, fileSize, contentType)
+		return c.putObjectNoChecksum(bucketName, objectName, fileReader, fileSize, contentType, nil)
 	}
 
 	// Small object upload is initiated for uploads for input data size smaller than 5MiB.
 	if fileSize < minPartSize {
-		return c.putObjectSingle(bucketName, objectName, fileReader, fileSize, contentType)
+		return c.putObjectSingle(bucketName, objectName, fileReader, fileSize, contentType, nil)
 	}
 	// Upload all large objects as multipart.
-	n, err = c.putObjectMultipartFromFile(bucketName, objectName, fileReader, fileSize, contentType)
+	n, err = c.putObjectMultipartFromFile(bucketName, objectName, fileReader, fileSize, contentType, nil)
 	if err != nil {
 		errResp := ToErrorResponse(err)
 		// Verify if multipart functionality is not available, if not
@@ -103,7 +103,7 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 				return 0, ErrEntityTooLarge(fileSize, maxSinglePutObjectSize, bucketName, objectName)
 			}
 			// Fall back to uploading as single PutObject operation.
-			return c.putObjectSingle(bucketName, objectName, fileReader, fileSize, contentType)
+			return c.putObjectSingle(bucketName, objectName, fileReader, fileSize, contentType, nil)
 		}
 		return n, err
 	}
@@ -118,7 +118,7 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 // against MD5SUM of each individual parts. This function also
 // effectively utilizes file system capabilities of reading from
 // specific sections and not having to create temporary files.
-func (c Client) putObjectMultipartFromFile(bucketName, objectName string, fileReader io.ReaderAt, fileSize int64, contentType string) (int64, error) {
+func (c Client) putObjectMultipartFromFile(bucketName, objectName string, fileReader io.ReaderAt, fileSize int64, contentType string, progress io.Reader) (int64, error) {
 	// Input validation.
 	if err := isValidBucketName(bucketName); err != nil {
 		return 0, err
@@ -174,6 +174,11 @@ func (c Client) putObjectMultipartFromFile(bucketName, objectName string, fileRe
 			return 0, err
 		}
 
+		var reader io.Reader
+		// Update progress reader appropriately to the latest offset
+		// as we read from the source.
+		reader = newHook(sectionReader, progress)
+
 		// Verify if part should be uploaded.
 		if shouldUploadPart(objectPart{
 			ETag:       hex.EncodeToString(md5Sum),
@@ -182,13 +187,20 @@ func (c Client) putObjectMultipartFromFile(bucketName, objectName string, fileRe
 		}, partsInfo) {
 			// Proceed to upload the part.
 			var objPart objectPart
-			objPart, err = c.uploadPart(bucketName, objectName, uploadID, ioutil.NopCloser(sectionReader), partNumber,
+			objPart, err = c.uploadPart(bucketName, objectName, uploadID, ioutil.NopCloser(reader), partNumber,
 				md5Sum, sha256Sum, prtSize)
 			if err != nil {
 				return totalUploadedSize, err
 			}
 			// Save successfully uploaded part metadata.
 			partsInfo[partNumber] = objPart
+		} else {
+			// Update the progress reader for the skipped part.
+			if progress != nil {
+				if _, err = io.CopyN(ioutil.Discard, progress, prtSize); err != nil {
+					return totalUploadedSize, err
+				}
+			}
 		}
 
 		// Save successfully uploaded size.
