@@ -282,7 +282,7 @@ func TestRemovePartiallyUploaded(t *testing.T) {
 			}
 			i++
 		}
-		err = writer.CloseWithError(errors.New("Proactively closed to be verified later."))
+		err := writer.CloseWithError(errors.New("Proactively closed to be verified later."))
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
