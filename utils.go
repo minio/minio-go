@@ -183,7 +183,7 @@ func isValidEndpointURL(endpointURL *url.URL) error {
 		return ErrInvalidArgument("Endpoint url cannot be empty.")
 	}
 	if endpointURL.Path != "/" && endpointURL.Path != "" {
-		return ErrInvalidArgument("Endpoing url cannot have fully qualified paths.")
+		return ErrInvalidArgument("Endpoint url cannot have fully qualified paths.")
 	}
 	if strings.Contains(endpointURL.Host, ".amazonaws.com") {
 		if !isAmazonEndpoint(endpointURL) {
