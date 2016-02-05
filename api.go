@@ -491,26 +491,17 @@ func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, que
 // CloudStorageClient - Cloud Storage Client interface.
 type CloudStorageClient interface {
 	// Bucket Read/Write/Stat operations.
-	MakeBucket(bucketName string, cannedACL BucketACL, location string) error
-	BucketExists(bucketName string) error
-	RemoveBucket(bucketName string) error
-	SetBucketACL(bucketName string, cannedACL BucketACL) error
-	GetBucketACL(bucketName string) (BucketACL, error)
+	BucketOperator
+	BucketACLOperator
+	ObjectOperator
+	FileOperator
 
-	ListBuckets() ([]BucketInfo, error)
-	ListObjects(bucket, prefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectInfo
 	ListIncompleteUploads(bucket, prefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectMultipartInfo
 
 	// Object Read/Write/Stat operations.
-	GetObject(bucketName, objectName string) (reader *Object, err error)
-	PutObject(bucketName, objectName string, reader io.Reader, contentType string) (n int64, err error)
-	StatObject(bucketName, objectName string) (ObjectInfo, error)
-	RemoveObject(bucketName, objectName string) error
 	RemoveIncompleteUpload(bucketName, objectName string) error
 
 	// File to Object API.
-	FPutObject(bucketName, objectName, filePath, contentType string) (n int64, err error)
-	FGetObject(bucketName, objectName, filePath string) error
 
 	// PutObjectWithProgress for progress.
 	PutObjectWithProgress(bucketName, objectName string, reader io.Reader, contentType string, progress io.Reader) (n int64, err error)
