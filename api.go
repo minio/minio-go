@@ -29,7 +29,6 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
-	"time"
 )
 
 // Client implements Amazon S3 compatible methods.
@@ -78,7 +77,7 @@ const (
 
 // NewV2 - instantiate minio client with Amazon S3 signature version
 // '2' compatibility.
-func NewV2(endpoint string, accessKeyID, secretAccessKey string, insecure bool) (CloudStorageClient, error) {
+func NewV2(endpoint string, accessKeyID, secretAccessKey string, insecure bool) (*Client, error) {
 	clnt, err := privateNew(endpoint, accessKeyID, secretAccessKey, insecure)
 	if err != nil {
 		return nil, err
@@ -90,7 +89,7 @@ func NewV2(endpoint string, accessKeyID, secretAccessKey string, insecure bool) 
 
 // NewV4 - instantiate minio client with Amazon S3 signature version
 // '4' compatibility.
-func NewV4(endpoint string, accessKeyID, secretAccessKey string, insecure bool) (CloudStorageClient, error) {
+func NewV4(endpoint string, accessKeyID, secretAccessKey string, insecure bool) (*Client, error) {
 	clnt, err := privateNew(endpoint, accessKeyID, secretAccessKey, insecure)
 	if err != nil {
 		return nil, err
@@ -102,7 +101,7 @@ func NewV4(endpoint string, accessKeyID, secretAccessKey string, insecure bool) 
 
 // New - instantiate minio client Client, adds automatic verification
 // of signature.
-func New(endpoint string, accessKeyID, secretAccessKey string, insecure bool) (CloudStorageClient, error) {
+func New(endpoint string, accessKeyID, secretAccessKey string, insecure bool) (*Client, error) {
 	clnt, err := privateNew(endpoint, accessKeyID, secretAccessKey, insecure)
 	if err != nil {
 		return nil, err
@@ -112,7 +111,7 @@ func New(endpoint string, accessKeyID, secretAccessKey string, insecure bool) (C
 	if isGoogleEndpoint(clnt.endpointURL) {
 		clnt.signature = SignatureV2
 	}
-	// If Amazon S3 set to signature v2.
+	// If Amazon S3 set to signature v2.n
 	if isAmazonEndpoint(clnt.endpointURL) {
 		clnt.signature = SignatureV4
 	}
@@ -492,47 +491,4 @@ func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, que
 	}
 
 	return u, nil
-}
-
-// CloudStorageClient - Cloud Storage Client interface.
-type CloudStorageClient interface {
-	// Bucket Read/Write/Stat operations.
-	MakeBucket(bucketName string, cannedACL BucketACL, location string) error
-	BucketExists(bucketName string) error
-	RemoveBucket(bucketName string) error
-	SetBucketACL(bucketName string, cannedACL BucketACL) error
-	GetBucketACL(bucketName string) (BucketACL, error)
-
-	ListBuckets() ([]BucketInfo, error)
-	ListObjects(bucket, prefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectInfo
-	ListIncompleteUploads(bucket, prefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectMultipartInfo
-
-	// Object Read/Write/Stat operations.
-	GetObject(bucketName, objectName string) (reader *Object, err error)
-	PutObject(bucketName, objectName string, reader io.Reader, contentType string) (n int64, err error)
-	StatObject(bucketName, objectName string) (ObjectInfo, error)
-	RemoveObject(bucketName, objectName string) error
-	RemoveIncompleteUpload(bucketName, objectName string) error
-
-	// File to Object API.
-	FPutObject(bucketName, objectName, filePath, contentType string) (n int64, err error)
-	FGetObject(bucketName, objectName, filePath string) error
-
-	// PutObjectWithProgress for progress.
-	PutObjectWithProgress(bucketName, objectName string, reader io.Reader, contentType string, progress io.Reader) (n int64, err error)
-
-	// Presigned operations.
-	PresignedGetObject(bucketName, objectName string, expires time.Duration, reqParams url.Values) (presignedURL string, err error)
-	PresignedPutObject(bucketName, objectName string, expires time.Duration) (presignedURL string, err error)
-	PresignedPostPolicy(*PostPolicy) (formData map[string]string, err error)
-
-	// Application info.
-	SetAppInfo(appName, appVersion string)
-
-	// Set custom transport.
-	SetCustomTransport(customTransport http.RoundTripper)
-
-	// HTTP tracing methods.
-	TraceOn(traceOutput io.Writer)
-	TraceOff()
 }
