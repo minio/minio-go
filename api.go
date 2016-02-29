@@ -139,10 +139,10 @@ func privateNew(endpoint, accessKeyID, secretAccessKey string, insecure bool) (*
 
 	// Instantiate http client and bucket location cache.
 	clnt.httpClient = &http.Client{
-		// Setting a sensible time out of 30secs to wait for response
-		// headers. Request is pro-actively cancelled after 30secs
-		// with no response.
-		Timeout:   30 * time.Second,
+		// Setting a sensible time out of 2minutes to wait for response
+		// headers. Request is pro-actively cancelled after 2minutes
+		// if no response was received from server.
+		Timeout:   2 * time.Minute,
 		Transport: http.DefaultTransport,
 	}
 
@@ -401,7 +401,10 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 		req.Body = metadata.contentBody
 	}
 
-	// set UserAgent for the request.
+	// set 'Expect' header for the request.
+	req.Header.Set("Expect", "100-continue")
+
+	// set 'User-Agent' header for the request.
 	c.setUserAgent(req)
 
 	// Set all headers.
