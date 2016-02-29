@@ -87,26 +87,26 @@ func (c Client) StatObject(bucketName, objectName string) (ObjectInfo, error) {
 	size, err := strconv.ParseInt(resp.Header.Get("Content-Length"), 10, 64)
 	if err != nil {
 		return ObjectInfo{}, ErrorResponse{
-			Code:            "InternalError",
-			Message:         "Content-Length is invalid. " + reportIssue,
-			BucketName:      bucketName,
-			Key:             objectName,
-			RequestID:       resp.Header.Get("x-amz-request-id"),
-			HostID:          resp.Header.Get("x-amz-id-2"),
-			AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
+			Code:       "InternalError",
+			Message:    "Content-Length is invalid. " + reportIssue,
+			BucketName: bucketName,
+			Key:        objectName,
+			RequestID:  resp.Header.Get("x-amz-request-id"),
+			HostID:     resp.Header.Get("x-amz-id-2"),
+			Region:     resp.Header.Get("x-amz-bucket-region"),
 		}
 	}
 	// Parse Last-Modified has http time format.
 	date, err := time.Parse(http.TimeFormat, resp.Header.Get("Last-Modified"))
 	if err != nil {
 		return ObjectInfo{}, ErrorResponse{
-			Code:            "InternalError",
-			Message:         "Last-Modified time format is invalid. " + reportIssue,
-			BucketName:      bucketName,
-			Key:             objectName,
-			RequestID:       resp.Header.Get("x-amz-request-id"),
-			HostID:          resp.Header.Get("x-amz-id-2"),
-			AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
+			Code:       "InternalError",
+			Message:    "Last-Modified time format is invalid. " + reportIssue,
+			BucketName: bucketName,
+			Key:        objectName,
+			RequestID:  resp.Header.Get("x-amz-request-id"),
+			HostID:     resp.Header.Get("x-amz-id-2"),
+			Region:     resp.Header.Get("x-amz-bucket-region"),
 		}
 	}
 	// Fetch content type if any present.

@@ -47,7 +47,7 @@ type ErrorResponse struct {
 
 	// Region where the bucket is located. This header is returned
 	// only in HEAD bucket and ListObjects response.
-	AmzBucketRegion string
+	Region string
 }
 
 // ToErrorResponse - Returns parsed ErrorResponse struct from body and
@@ -98,51 +98,51 @@ func httpRespToErrorResponse(resp *http.Response, bucketName, objectName string)
 		case http.StatusNotFound:
 			if objectName == "" {
 				errResp = ErrorResponse{
-					Code:            "NoSuchBucket",
-					Message:         "The specified bucket does not exist.",
-					BucketName:      bucketName,
-					RequestID:       resp.Header.Get("x-amz-request-id"),
-					HostID:          resp.Header.Get("x-amz-id-2"),
-					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
+					Code:       "NoSuchBucket",
+					Message:    "The specified bucket does not exist.",
+					BucketName: bucketName,
+					RequestID:  resp.Header.Get("x-amz-request-id"),
+					HostID:     resp.Header.Get("x-amz-id-2"),
+					Region:     resp.Header.Get("x-amz-bucket-region"),
 				}
 			} else {
 				errResp = ErrorResponse{
-					Code:            "NoSuchKey",
-					Message:         "The specified key does not exist.",
-					BucketName:      bucketName,
-					Key:             objectName,
-					RequestID:       resp.Header.Get("x-amz-request-id"),
-					HostID:          resp.Header.Get("x-amz-id-2"),
-					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
+					Code:       "NoSuchKey",
+					Message:    "The specified key does not exist.",
+					BucketName: bucketName,
+					Key:        objectName,
+					RequestID:  resp.Header.Get("x-amz-request-id"),
+					HostID:     resp.Header.Get("x-amz-id-2"),
+					Region:     resp.Header.Get("x-amz-bucket-region"),
 				}
 			}
 		case http.StatusForbidden:
 			errResp = ErrorResponse{
-				Code:            "AccessDenied",
-				Message:         "Access Denied.",
-				BucketName:      bucketName,
-				Key:             objectName,
-				RequestID:       resp.Header.Get("x-amz-request-id"),
-				HostID:          resp.Header.Get("x-amz-id-2"),
-				AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
+				Code:       "AccessDenied",
+				Message:    "Access Denied.",
+				BucketName: bucketName,
+				Key:        objectName,
+				RequestID:  resp.Header.Get("x-amz-request-id"),
+				HostID:     resp.Header.Get("x-amz-id-2"),
+				Region:     resp.Header.Get("x-amz-bucket-region"),
 			}
 		case http.StatusConflict:
 			errResp = ErrorResponse{
-				Code:            "Conflict",
-				Message:         "Bucket not empty.",
-				BucketName:      bucketName,
-				RequestID:       resp.Header.Get("x-amz-request-id"),
-				HostID:          resp.Header.Get("x-amz-id-2"),
-				AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
+				Code:       "Conflict",
+				Message:    "Bucket not empty.",
+				BucketName: bucketName,
+				RequestID:  resp.Header.Get("x-amz-request-id"),
+				HostID:     resp.Header.Get("x-amz-id-2"),
+				Region:     resp.Header.Get("x-amz-bucket-region"),
 			}
 		default:
 			errResp = ErrorResponse{
-				Code:            resp.Status,
-				Message:         resp.Status,
-				BucketName:      bucketName,
-				RequestID:       resp.Header.Get("x-amz-request-id"),
-				HostID:          resp.Header.Get("x-amz-id-2"),
-				AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
+				Code:       resp.Status,
+				Message:    resp.Status,
+				BucketName: bucketName,
+				RequestID:  resp.Header.Get("x-amz-request-id"),
+				HostID:     resp.Header.Get("x-amz-id-2"),
+				Region:     resp.Header.Get("x-amz-bucket-region"),
 			}
 		}
 	}

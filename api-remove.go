@@ -149,13 +149,13 @@ func (c Client) abortMultipartUpload(bucketName, objectName, uploadID string) er
 				// This is needed specifically for abort and it cannot
 				// be converged into default case.
 				errorResponse = ErrorResponse{
-					Code:            "NoSuchUpload",
-					Message:         "The specified multipart upload does not exist.",
-					BucketName:      bucketName,
-					Key:             objectName,
-					RequestID:       resp.Header.Get("x-amz-request-id"),
-					HostID:          resp.Header.Get("x-amz-id-2"),
-					AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
+					Code:       "NoSuchUpload",
+					Message:    "The specified multipart upload does not exist.",
+					BucketName: bucketName,
+					Key:        objectName,
+					RequestID:  resp.Header.Get("x-amz-request-id"),
+					HostID:     resp.Header.Get("x-amz-id-2"),
+					Region:     resp.Header.Get("x-amz-bucket-region"),
 				}
 			default:
 				return httpRespToErrorResponse(resp, bucketName, objectName)
