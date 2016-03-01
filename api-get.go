@@ -83,12 +83,12 @@ func (c Client) GetBucketACL(bucketName string) (BucketACL, error) {
 	if !isGoogleEndpoint(c.endpointURL) {
 		if policy.AccessControlList.Grant == nil {
 			errorResponse := ErrorResponse{
-				Code:            "InternalError",
-				Message:         "Access control Grant list is empty. " + reportIssue,
-				BucketName:      bucketName,
-				RequestID:       resp.Header.Get("x-amz-request-id"),
-				HostID:          resp.Header.Get("x-amz-id-2"),
-				AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
+				Code:       "InternalError",
+				Message:    "Access control Grant list is empty. " + reportIssue,
+				BucketName: bucketName,
+				RequestID:  resp.Header.Get("x-amz-request-id"),
+				HostID:     resp.Header.Get("x-amz-id-2"),
+				Region:     resp.Header.Get("x-amz-bucket-region"),
 			}
 			return "", errorResponse
 		}
@@ -513,11 +513,11 @@ func (c Client) getObject(bucketName, objectName string, offset, length int64) (
 	if err != nil {
 		msg := "Last-Modified time format not recognized. " + reportIssue
 		return nil, ObjectInfo{}, ErrorResponse{
-			Code:            "InternalError",
-			Message:         msg,
-			RequestID:       resp.Header.Get("x-amz-request-id"),
-			HostID:          resp.Header.Get("x-amz-id-2"),
-			AmzBucketRegion: resp.Header.Get("x-amz-bucket-region"),
+			Code:      "InternalError",
+			Message:   msg,
+			RequestID: resp.Header.Get("x-amz-request-id"),
+			HostID:    resp.Header.Get("x-amz-id-2"),
+			Region:    resp.Header.Get("x-amz-bucket-region"),
 		}
 	}
 	// Get content-type.
