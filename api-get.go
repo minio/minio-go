@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"net/url"
 	"strings"
@@ -171,7 +170,11 @@ func (c Client) GetObject(bucketName, objectName string) (*Object, error) {
 				// Get shortest length.
 				// NOTE: Last remaining bytes are usually smaller than
 				// req.Buffer size. Use that as the final length.
-				length := math.Min(float64(len(req.Buffer)), float64(objectInfo.Size-req.Offset))
+				// Don't use Math.min() here to avoid converting int64 to float64
+				length := int64(len(req.Buffer))
+				if objectInfo.Size-req.Offset < length {
+					length = objectInfo.Size - req.Offset
+				}
 				httpReader, _, err := c.getObject(bucketName, objectName, req.Offset, int64(length))
 				if err != nil {
 					resCh <- readResponse{
