@@ -146,17 +146,6 @@ func httpRespToErrorResponse(resp *http.Response, bucketName, objectName string)
 			}
 		}
 	}
-
-	// AccessDenied without a signature mismatch code, usually means
-	// that the bucket policy has certain restrictions where some API
-	// operations are not allowed. Handle this case so that top level
-	// callers can interpret this easily and fall back if needed to a
-	// lower functionality call. Read each individual API specific
-	// code for such fallbacks.
-	if errResp.Code == "AccessDenied" && errResp.Message == "Access Denied" {
-		errResp.Code = "NotImplemented"
-		errResp.Message = "Operation is not allowed according to your bucket policy."
-	}
 	return errResp
 }
 
