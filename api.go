@@ -355,9 +355,6 @@ func (c Client) do(req *http.Request) (*http.Response, error) {
 // request upon any error up to maxRetries attempts in a binomially
 // delayed manner using a standard back off algorithm.
 func (c Client) executeMethod(method string, metadata requestMetadata) (res *http.Response, err error) {
-	// Initialize binomial duration.
-	binomial := &binomialDuration{Factor: 2, Start: 1 * time.Second}
-
 	var isRetryable bool     // Indicates if request can be retried.
 	var bodySeeker io.Seeker // Extracted seeker from io.Reader.
 	if metadata.contentBody != nil {
@@ -369,42 +366,34 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 	// error until maxRetries have been exhausted, retry attempts are
 	// performed after waiting for a given period of time in a
 	// binomial fashion.
-	err = retry(func(attempt int) (bool, error) {
+	for range newRetryTimer(MaxRetry, time.Second) {
 		if isRetryable {
 			// Seek back to beginning for each attempt.
 			if _, err = bodySeeker.Seek(0, 0); err != nil {
 				// If seek failed, no need to retry.
-				return false, err
+				return nil, err
 			}
 		}
 		// Instantiate a new request.
-		var req *http.Request
-		req, err = c.newRequest(method, metadata)
+		req, err := c.newRequest(method, metadata)
+		// FIXME: Only retry for network and server busy errors.
 		if err != nil {
-			// Wait and retry.
-			goto error
+			continue // Retry.
 		}
+
 		// Initiate the request.
 		res, err = c.do(req)
+		// FIXME: Only retry for network and server busy errors.
 		if err != nil {
-			// Wait and retry.
-			goto error
+			continue
 		}
-		if res != nil {
-			switch res.StatusCode {
-			case http.StatusOK, http.StatusNoContent, http.StatusPartialContent:
-				// For successful response break out.
-				return false, nil
-			}
-			// For all errors.
-			err = httpRespToErrorResponse(res, metadata.bucketName, metadata.objectName)
+
+		switch res.StatusCode {
+		case http.StatusOK, http.StatusNoContent, http.StatusPartialContent:
+			// For successful response break out.
+			return res, nil
 		}
-		// Upon error control reaches here.
-	error:
-		// Wait here for the new binomial duration.
-		time.Sleep(binomial.Duration())
-		return attempt < MaxRetries, err
-	})
+	}
 	return res, err
 }
 
