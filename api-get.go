@@ -1,5 +1,5 @@
 /*
- * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2015 Minio, Inc.
+ * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2015, 2016 Minio, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,17 +48,11 @@ func (c Client) GetBucketACL(bucketName string) (BucketACL, error) {
 	urlValues := make(url.Values)
 	urlValues.Set("acl", "")
 
-	// Instantiate a new request.
-	req, err := c.newRequest("GET", requestMetadata{
+	// Execute GET acl on bucketName.
+	resp, err := c.executeMethod("GET", requestMetadata{
 		bucketName:  bucketName,
 		queryValues: urlValues,
 	})
-	if err != nil {
-		return "", err
-	}
-
-	// Initiate the request.
-	resp, err := c.do(req)
 	defer closeResponse(resp)
 	if err != nil {
 		return "", err
@@ -484,17 +478,12 @@ func (c Client) getObject(bucketName, objectName string, offset, length int64) (
 		customHeader.Set("Range", fmt.Sprintf("bytes=%d", length))
 	}
 
-	// Instantiate a new request.
-	req, err := c.newRequest("GET", requestMetadata{
+	// Execute GET on objectName.
+	resp, err := c.executeMethod("GET", requestMetadata{
 		bucketName:   bucketName,
 		objectName:   objectName,
 		customHeader: customHeader,
 	})
-	if err != nil {
-		return nil, ObjectInfo{}, err
-	}
-	// Execute the request.
-	resp, err := c.do(req)
 	if err != nil {
 		return nil, ObjectInfo{}, err
 	}

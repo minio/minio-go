@@ -1,5 +1,5 @@
 /*
- * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2015 Minio, Inc.
+ * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2015, 2016 Minio, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,15 +29,11 @@ func (c Client) BucketExists(bucketName string) error {
 	if err := isValidBucketName(bucketName); err != nil {
 		return err
 	}
-	// Instantiate a new request.
-	req, err := c.newRequest("HEAD", requestMetadata{
+
+	// Execute HEAD on bucketName.
+	resp, err := c.executeMethod("HEAD", requestMetadata{
 		bucketName: bucketName,
 	})
-	if err != nil {
-		return err
-	}
-	// Initiate the request.
-	resp, err := c.do(req)
 	defer closeResponse(resp)
 	if err != nil {
 		return err
@@ -59,16 +55,12 @@ func (c Client) StatObject(bucketName, objectName string) (ObjectInfo, error) {
 	if err := isValidObjectName(objectName); err != nil {
 		return ObjectInfo{}, err
 	}
-	// Instantiate a new request.
-	req, err := c.newRequest("HEAD", requestMetadata{
+
+	// Execute HEAD on objectName.
+	resp, err := c.executeMethod("HEAD", requestMetadata{
 		bucketName: bucketName,
 		objectName: objectName,
 	})
-	if err != nil {
-		return ObjectInfo{}, err
-	}
-	// Initiate the request.
-	resp, err := c.do(req)
 	defer closeResponse(resp)
 	if err != nil {
 		return ObjectInfo{}, err
