@@ -454,6 +454,11 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 			}
 		}
 
+		// Verify if http status code is retryable.
+		if isHTTPStatusRetryable(res.StatusCode) {
+			continue // Retry.
+		}
+
 		// For errors verify if its retryable otherwise fail quickly.
 		errResponse := ToErrorResponse(httpRespToErrorResponse(res, metadata.bucketName, metadata.objectName))
 		// Bucket region if set in error response, we can retry the

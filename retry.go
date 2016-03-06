@@ -18,6 +18,7 @@ package minio
 
 import (
 	"net"
+	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -46,7 +47,6 @@ func (c Client) newRetryTimer(maxRetry int, unit time.Duration, cap time.Duratio
 		}
 		if jitter > MaxJitter {
 			jitter = MaxJitter
-
 		}
 
 		//sleep = random_between(0, min(cap, base * 2 ** attempt))
@@ -93,6 +93,18 @@ func isS3CodeRetryable(s3Code string) bool {
 	case "RequestLimitExceeded", "RequestThrottled", "InternalError":
 		fallthrough
 	case "ExpiredToken", "ExpiredTokenException":
+		return true
+	}
+	return false
+}
+
+// isHTTPStatusRetryable - is HTTP error code retryable.
+func isHTTPStatusRetryable(status int) bool {
+	switch status {
+	case 429, // http.StatusTooManyRequests is not part of the Go 1.5 library, yet
+		http.StatusInternalServerError,
+		http.StatusBadGateway,
+		http.StatusServiceUnavailable:
 		return true
 	}
 	return false
