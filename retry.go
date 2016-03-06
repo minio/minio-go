@@ -38,3 +38,16 @@ func newRetryTimer(maxRetry int, unit time.Duration) <-chan int {
 	}()
 	return attemptCh
 }
+
+// isS3CodeRetryable - is s3 error code retryable.
+func isS3CodeRetryable(s3Code string) bool {
+	switch s3Code {
+	case "RequestError", "RequestTimeout", "Throttling", "ThrottlingException":
+		fallthrough
+	case "RequestLimitExceeded", "RequestThrottled", "InternalError":
+		fallthrough
+	case "ExpiredToken", "ExpiredTokenException":
+		return true
+	}
+	return false
+}

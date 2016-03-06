@@ -330,7 +330,7 @@ func (c Client) dumpHTTP(req *http.Request, resp *http.Response) error {
 
 // do - execute http request.
 func (c Client) do(req *http.Request) (*http.Response, error) {
-	// execute the request.
+	// do the request.
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		// Handle this specifically for now until future Golang
@@ -341,6 +341,13 @@ func (c Client) do(req *http.Request) (*http.Response, error) {
 		}
 		return resp, err
 	}
+
+	// Response cannot be non-nil, report if its the case.
+	if resp == nil {
+		msg := "Response is empty. " + reportIssue
+		return nil, ErrInvalidArgument(msg)
+	}
+
 	// If trace is enabled, dump http request and response.
 	if c.isTraceEnabled {
 		err = c.dumpHTTP(req, resp)
@@ -378,19 +385,29 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 		// Instantiate a new request.
 		var req *http.Request
 		req, err = c.newRequest(method, metadata)
-		// FIXME: Only retry for network and server busy errors.
 		if err != nil {
+			errResponse := ToErrorResponse(err)
+			if !isS3CodeRetryable(errResponse.Code) {
+				return nil, err
+			}
 			continue // Retry.
 		}
 
 		// Initiate the request.
 		res, err = c.do(req)
-		// FIXME: Only retry for network and server busy errors.
 		if err != nil {
-			continue
+			// Fail quickly here, no need to retry.
+			return nil, err
 		}
 
 		switch res.StatusCode {
+		default:
+			// For errors verify if its retryable otherwise fail quickly.
+			errResponse := ToErrorResponse(httpRespToErrorResponse(res, metadata.bucketName, metadata.objectName))
+			if !isS3CodeRetryable(errResponse.Code) {
+				return nil, err
+			}
+			continue
 		case http.StatusOK, http.StatusNoContent, http.StatusPartialContent:
 			// For successful response break out.
 			return res, nil
