@@ -337,7 +337,11 @@ func (c Client) do(req *http.Request) (*http.Response, error) {
 		// versions fix this issue properly.
 		urlErr, ok := err.(*url.Error)
 		if ok && strings.Contains(urlErr.Err.Error(), "EOF") {
-			return nil, fmt.Errorf("Connection closed by foreign host %s. Retry again.", urlErr.URL)
+			return nil, &url.Error{
+				Op:  urlErr.Op,
+				URL: urlErr.URL,
+				Err: fmt.Errorf("Connection closed by foreign host %s. Retry again.", urlErr.URL),
+			}
 		}
 		return nil, err
 	}
@@ -373,8 +377,6 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 	// error until maxRetries have been exhausted, retry attempts are
 	// performed after waiting for a given period of time in a
 	// binomial fashion.
-	//
-	// FIXME: Handle network related errors.
 	for range newRetryTimer(MaxRetry, time.Second) {
 		if isRetryable {
 			// Seek back to beginning for each attempt.
@@ -398,7 +400,11 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 		// Initiate the request.
 		res, err = c.do(req)
 		if err != nil {
-			// Fail quickly here, no need to retry.
+			// For supported network errors - retry.
+			if isNetErrorRetryable(err) {
+				continue
+			}
+			// For no other errors, return here.
 			return nil, err
 		}
 

@@ -18,6 +18,7 @@ package minio
 
 import (
 	"math"
+	"net"
 	"time"
 )
 
@@ -37,6 +38,15 @@ func newRetryTimer(maxRetry int, unit time.Duration) <-chan int {
 		}
 	}()
 	return attemptCh
+}
+
+// isNetErrorRetryable - is network error retryable.
+func isNetErrorRetryable(err error) bool {
+	switch err.(type) {
+	case *net.DNSError, *net.OpError, net.UnknownNetworkError:
+		return true
+	}
+	return false
 }
 
 // isS3CodeRetryable - is s3 error code retryable.
