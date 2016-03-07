@@ -339,7 +339,7 @@ func (c Client) do(req *http.Request) (*http.Response, error) {
 		if ok && strings.Contains(urlErr.Err.Error(), "EOF") {
 			return nil, fmt.Errorf("Connection closed by foreign host %s. Retry again.", urlErr.URL)
 		}
-		return resp, err
+		return nil, err
 	}
 
 	// Response cannot be non-nil, report if its the case.
@@ -373,6 +373,8 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 	// error until maxRetries have been exhausted, retry attempts are
 	// performed after waiting for a given period of time in a
 	// binomial fashion.
+	//
+	// FIXME: Handle network related errors.
 	for range newRetryTimer(MaxRetry, time.Second) {
 		if isRetryable {
 			// Seek back to beginning for each attempt.
@@ -404,8 +406,14 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 		default:
 			// For errors verify if its retryable otherwise fail quickly.
 			errResponse := ToErrorResponse(httpRespToErrorResponse(res, metadata.bucketName, metadata.objectName))
+			// Bucket region if set in error response, we can retry the request
+			// with the new region.
+			if res.StatusCode == http.StatusBadRequest && errResponse.Region != "" {
+				c.bucketLocCache.Set(metadata.bucketName, errResponse.Region)
+				continue
+			}
 			if !isS3CodeRetryable(errResponse.Code) {
-				return nil, err
+				return res, err
 			}
 			continue
 		case http.StatusOK, http.StatusNoContent, http.StatusPartialContent:

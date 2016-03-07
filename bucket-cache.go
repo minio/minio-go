@@ -90,7 +90,20 @@ func (c Client) getBucketLocation(bucketName string) (string, error) {
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return "", httpRespToErrorResponse(resp, bucketName, "")
+			err = httpRespToErrorResponse(resp, bucketName, "")
+			errResp := ToErrorResponse(err)
+			// AccessDenied without a signature mismatch code,
+			// usually means that the bucket policy has certain
+			// restrictions where some API operations are not
+			// allowed. Handle this case so that top level callers can
+			// interpret this easily and fall back if needed to a
+			// lower functionality call. Read each individual API
+			// specific code for such fallbacks.
+			if errResp.Code == "AccessDenied" && errResp.Message == "Access Denied" {
+				// In this case return as "us-east-1" and let the call fail.
+				return "us-east-1", nil
+			}
+			return "", err
 		}
 	}
 
