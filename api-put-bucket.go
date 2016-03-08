@@ -74,7 +74,7 @@ func (c Client) MakeBucket(bucketName string, acl BucketACL, location string) er
 		}
 	}
 
-	// Save the location into cache on a successfull makeBucket response.
+	// Save the location into cache on a successful makeBucket response.
 	c.bucketLocCache.Set(bucketName, location)
 
 	// Return.
