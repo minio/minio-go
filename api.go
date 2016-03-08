@@ -412,16 +412,19 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 		default:
 			// For errors verify if its retryable otherwise fail quickly.
 			errResponse := ToErrorResponse(httpRespToErrorResponse(res, metadata.bucketName, metadata.objectName))
-			// Bucket region if set in error response, we can retry the request
-			// with the new region.
-			if res.StatusCode == http.StatusBadRequest && errResponse.Region != "" {
-				c.bucketLocCache.Set(metadata.bucketName, errResponse.Region)
-				continue
-			}
 			if !isS3CodeRetryable(errResponse.Code) {
 				return res, err
 			}
 			continue
+		case http.StatusBadRequest, http.StatusForbidden:
+			// For errors verify if its retryable otherwise fail quickly.
+			errResponse := ToErrorResponse(httpRespToErrorResponse(res, metadata.bucketName, metadata.objectName))
+			// Bucket region if set in error response, we can retry the request
+			// with the new region.
+			if errResponse.Region != "" {
+				c.bucketLocCache.Set(metadata.bucketName, errResponse.Region)
+				continue
+			}
 		case http.StatusOK, http.StatusNoContent, http.StatusPartialContent:
 			// For successful response break out.
 			return res, nil
