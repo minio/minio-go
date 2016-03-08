@@ -362,6 +362,13 @@ func (c Client) do(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
+// List of success status.
+var successStatus = []int{
+	http.StatusOK,
+	http.StatusNoContent,
+	http.StatusPartialContent,
+}
+
 // executeMethod - instantiates a given method, and retries the
 // request upon any error up to maxRetries attempts in a binomially
 // delayed manner using a standard back off algorithm.
@@ -391,44 +398,45 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 		req, err = c.newRequest(method, metadata)
 		if err != nil {
 			errResponse := ToErrorResponse(err)
-			if !isS3CodeRetryable(errResponse.Code) {
-				return nil, err
+			if isS3CodeRetryable(errResponse.Code) {
+				continue // Retry.
 			}
-			continue // Retry.
+			return nil, err
 		}
 
 		// Initiate the request.
 		res, err = c.do(req)
 		if err != nil {
-			// For supported network errors - retry.
+			// For supported network errors verify.
 			if isNetErrorRetryable(err) {
-				continue
+				continue // Retry.
 			}
-			// For no other errors, return here.
+			// For other errors, return here no need to retry.
 			return nil, err
 		}
 
-		switch res.StatusCode {
-		default:
-			// For errors verify if its retryable otherwise fail quickly.
-			errResponse := ToErrorResponse(httpRespToErrorResponse(res, metadata.bucketName, metadata.objectName))
-			if !isS3CodeRetryable(errResponse.Code) {
-				return res, err
+		// For any known successful http status, return quickly.
+		for _, httpStatus := range successStatus {
+			if httpStatus == res.StatusCode {
+				return res, nil
 			}
-			continue
-		case http.StatusBadRequest, http.StatusForbidden:
-			// For errors verify if its retryable otherwise fail quickly.
-			errResponse := ToErrorResponse(httpRespToErrorResponse(res, metadata.bucketName, metadata.objectName))
-			// Bucket region if set in error response, we can retry the request
-			// with the new region.
-			if errResponse.Region != "" {
-				c.bucketLocCache.Set(metadata.bucketName, errResponse.Region)
-				continue
-			}
-		case http.StatusOK, http.StatusNoContent, http.StatusPartialContent:
-			// For successful response break out.
-			return res, nil
 		}
+
+		// For errors verify if its retryable otherwise fail quickly.
+		errResponse := ToErrorResponse(httpRespToErrorResponse(res, metadata.bucketName, metadata.objectName))
+		// Bucket region if set in error response, we can retry the
+		// request with the new region.
+		if errResponse.Region != "" {
+			c.bucketLocCache.Set(metadata.bucketName, errResponse.Region)
+			continue // Retry.
+		}
+
+		// Verify if error response code is retryable.
+		if isS3CodeRetryable(errResponse.Code) {
+			continue // Retry.
+		}
+		// For all other cases break out of the retry loop.
+		break
 	}
 	return res, err
 }
