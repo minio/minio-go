@@ -205,12 +205,6 @@ func (c Client) putObjectSingle(bucketName, objectName string, reader io.Reader,
 			return 0, err
 		}
 	}
-	// Progress the reader to the size.
-	if progress != nil {
-		if _, err = io.CopyN(ioutil.Discard, progress, size); err != nil {
-			return size, err
-		}
-	}
 	// Execute put object.
 	st, err := c.putObjectDo(bucketName, objectName, reader, md5Sum, sha256Sum, size, contentType)
 	if err != nil {
@@ -218,6 +212,12 @@ func (c Client) putObjectSingle(bucketName, objectName string, reader io.Reader,
 	}
 	if st.Size != size {
 		return 0, ErrUnexpectedEOF(st.Size, size, bucketName, objectName)
+	}
+	// Progress the reader to the size if putObjectDo is successful.
+	if progress != nil {
+		if _, err = io.CopyN(ioutil.Discard, progress, size); err != nil {
+			return size, err
+		}
 	}
 	return size, nil
 }
