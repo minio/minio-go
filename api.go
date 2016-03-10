@@ -384,7 +384,7 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 	// error until maxRetries have been exhausted, retry attempts are
 	// performed after waiting for a given period of time in a
 	// binomial fashion.
-	for range newRetryTimer(MaxRetry, time.Second) {
+	for range newRetryTimer(MaxRetry, time.Second, time.Second*30, MaxJitter) {
 		if isRetryable {
 			// Seek back to beginning for each attempt.
 			if _, err = bodySeeker.Seek(0, 0); err != nil {

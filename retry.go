@@ -17,24 +17,34 @@
 package minio
 
 import (
-	"math"
+	"math/rand"
 	"net"
 	"time"
 )
 
 // MaxRetry is the maximum number of retries before stopping.
-var MaxRetry = 3
+var MaxRetry = 5
 
-// newRetryTimer creates a timer with binomially increasing delays
+// MaxJitter will randomize over the full exponential backoff time
+const MaxJitter = 1.0
+
+// NoJitter disables the use of jitter for randomizing the exponential backoff time
+const NoJitter = 0.0
+
+// initalize our own instance of a random generator with the current time
+var random = rand.New(rand.NewSource(time.Now().UnixNano()))
+
+// newRetryTimer creates a timer with exponentially increasing delays
 // until the maximum retry attempts are reached.
-func newRetryTimer(maxRetry int, unit time.Duration) <-chan int {
+func newRetryTimer(maxRetry int, unit time.Duration, cap time.Duration, jitter float64) <-chan int {
 	attemptCh := make(chan int)
 	go func() {
 		defer close(attemptCh)
 		for i := 0; i < maxRetry; i++ {
-			// Grow the interval at a binomial rate.
-			time.Sleep(time.Second * time.Duration(math.Pow(2, float64(i))))
 			attemptCh <- i + 1 // Attempts start from 1.
+			// Grow the interval at an exponential rate,
+			// starting at unit and capping at cap
+			time.Sleep(exponentialBackoffWait(unit, i, cap, jitter))
 		}
 	}()
 	return attemptCh
@@ -47,6 +57,27 @@ func isNetErrorRetryable(err error) bool {
 		return true
 	}
 	return false
+}
+
+// computes the exponential backoff duration according to
+// https://www.awsarchitectureblog.com/2015/03/backoff.html
+func exponentialBackoffWait(base time.Duration, attempt int, cap time.Duration, jitter float64) time.Duration {
+	// normalize jitter to the range [0, 1.0]
+	if jitter < NoJitter {
+		jitter = NoJitter
+	}
+	if jitter > MaxJitter {
+		jitter = MaxJitter
+	}
+	//sleep = random_between(0, min(cap, base * 2 ** attempt))
+	sleep := base * time.Duration(1<<uint(attempt))
+	if sleep > cap {
+		sleep = cap
+	}
+	if jitter != NoJitter {
+		sleep -= time.Duration(random.Float64() * float64(sleep) * jitter)
+	}
+	return sleep
 }
 
 // isS3CodeRetryable - is s3 error code retryable.
