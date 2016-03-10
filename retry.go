@@ -31,13 +31,14 @@ const MaxJitter = 1.0
 // NoJitter disables the use of jitter for randomizing the exponential backoff time
 const NoJitter = 0.0
 
-// initalize our own instance of a random generator with the current time
-var random = rand.New(rand.NewSource(time.Now().UnixNano()))
-
 // newRetryTimer creates a timer with exponentially increasing delays
 // until the maximum retry attempts are reached.
 func newRetryTimer(maxRetry int, unit time.Duration, cap time.Duration, jitter float64) <-chan int {
 	attemptCh := make(chan int)
+
+	// Seed random function with current unix nano time.
+	rand.Seed(time.Now().UTC().UnixNano())
+
 	go func() {
 		defer close(attemptCh)
 		for i := 0; i < maxRetry; i++ {
@@ -75,7 +76,7 @@ func exponentialBackoffWait(base time.Duration, attempt int, cap time.Duration, 
 		sleep = cap
 	}
 	if jitter != NoJitter {
-		sleep -= time.Duration(random.Float64() * float64(sleep) * jitter)
+		sleep -= time.Duration(rand.Float64() * float64(sleep) * jitter)
 	}
 	return sleep
 }
