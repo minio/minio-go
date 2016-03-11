@@ -37,36 +37,37 @@ const NoJitter = 0.0
 func (c Client) newRetryTimer(maxRetry int, unit time.Duration, cap time.Duration, jitter float64) <-chan int {
 	attemptCh := make(chan int)
 
+	// computes the exponential backoff duration according to
+	// https://www.awsarchitectureblog.com/2015/03/backoff.html
+	exponentialBackoffWait := func(attempt int) time.Duration {
+		// normalize jitter to the range [0, 1.0]
+		if jitter < NoJitter {
+			jitter = NoJitter
+		}
+		if jitter > MaxJitter {
+			jitter = MaxJitter
+
+		}
+
+		//sleep = random_between(0, min(cap, base * 2 ** attempt))
+		sleep := unit * time.Duration(1<<uint(attempt))
+		if sleep > cap {
+			sleep = cap
+		}
+		if jitter != NoJitter {
+			sleep -= time.Duration(c.random.Float64() * float64(sleep) * jitter)
+		}
+		return sleep
+	}
+
 	go func() {
 		defer close(attemptCh)
 		for i := 0; i < maxRetry; i++ {
 			attemptCh <- i + 1 // Attempts start from 1.
-			randomNum := c.random.Float64()
-			time.Sleep(exponentialBackoffWait(unit, i, cap, jitter, randomNum))
+			time.Sleep(exponentialBackoffWait(i))
 		}
 	}()
 	return attemptCh
-}
-
-// computes the exponential backoff duration according to
-// https://www.awsarchitectureblog.com/2015/03/backoff.html
-func exponentialBackoffWait(base time.Duration, attempt int, cap time.Duration, jitter float64, randomNum float64) time.Duration {
-	// normalize jitter to the range [0, 1.0]
-	if jitter < NoJitter {
-		jitter = NoJitter
-	}
-	if jitter > MaxJitter {
-		jitter = MaxJitter
-	}
-	//sleep = random_between(0, min(cap, base * 2 ** attempt))
-	sleep := base * time.Duration(1<<uint(attempt))
-	if sleep > cap {
-		sleep = cap
-	}
-	if jitter != NoJitter {
-		sleep -= time.Duration(randomNum * float64(sleep) * jitter)
-	}
-	return sleep
 }
 
 // isNetErrorRetryable - is network error retryable.
