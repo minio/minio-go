@@ -17,7 +17,6 @@
 package minio
 
 import (
-	"math/rand"
 	"net"
 	"net/url"
 	"strings"
@@ -35,22 +34,39 @@ const NoJitter = 0.0
 
 // newRetryTimer creates a timer with exponentially increasing delays
 // until the maximum retry attempts are reached.
-func newRetryTimer(maxRetry int, unit time.Duration, cap time.Duration, jitter float64) <-chan int {
+func (c Client) newRetryTimer(maxRetry int, unit time.Duration, cap time.Duration, jitter float64) <-chan int {
 	attemptCh := make(chan int)
-
-	// Seed random function with current unix nano time.
-	rand.Seed(time.Now().UTC().UnixNano())
 
 	go func() {
 		defer close(attemptCh)
 		for i := 0; i < maxRetry; i++ {
 			attemptCh <- i + 1 // Attempts start from 1.
-			// Grow the interval at an exponential rate,
-			// starting at unit and capping at cap
-			time.Sleep(exponentialBackoffWait(unit, i, cap, jitter))
+			randomNum := c.random.Float64()
+			time.Sleep(exponentialBackoffWait(unit, i, cap, jitter, randomNum))
 		}
 	}()
 	return attemptCh
+}
+
+// computes the exponential backoff duration according to
+// https://www.awsarchitectureblog.com/2015/03/backoff.html
+func exponentialBackoffWait(base time.Duration, attempt int, cap time.Duration, jitter float64, randomNum float64) time.Duration {
+	// normalize jitter to the range [0, 1.0]
+	if jitter < NoJitter {
+		jitter = NoJitter
+	}
+	if jitter > MaxJitter {
+		jitter = MaxJitter
+	}
+	//sleep = random_between(0, min(cap, base * 2 ** attempt))
+	sleep := base * time.Duration(1<<uint(attempt))
+	if sleep > cap {
+		sleep = cap
+	}
+	if jitter != NoJitter {
+		sleep -= time.Duration(randomNum * float64(sleep) * jitter)
+	}
+	return sleep
 }
 
 // isNetErrorRetryable - is network error retryable.
@@ -66,27 +82,6 @@ func isNetErrorRetryable(err error) bool {
 		}
 	}
 	return false
-}
-
-// computes the exponential backoff duration according to
-// https://www.awsarchitectureblog.com/2015/03/backoff.html
-func exponentialBackoffWait(base time.Duration, attempt int, cap time.Duration, jitter float64) time.Duration {
-	// normalize jitter to the range [0, 1.0]
-	if jitter < NoJitter {
-		jitter = NoJitter
-	}
-	if jitter > MaxJitter {
-		jitter = MaxJitter
-	}
-	//sleep = random_between(0, min(cap, base * 2 ** attempt))
-	sleep := base * time.Duration(1<<uint(attempt))
-	if sleep > cap {
-		sleep = cap
-	}
-	if jitter != NoJitter {
-		sleep -= time.Duration(rand.Float64() * float64(sleep) * jitter)
-	}
-	return sleep
 }
 
 // isS3CodeRetryable - is s3 error code retryable.

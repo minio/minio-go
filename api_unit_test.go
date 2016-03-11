@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -611,14 +612,14 @@ func TestExponentialBackoff(t *testing.T) {
 		time.Second * 20, // cap at 20s
 	}
 	for i, w := range want {
-		got := exponentialBackoffWait(time.Second, i, time.Second*20, NoJitter)
+		got := exponentialBackoffWait(time.Second, i, time.Second*20, NoJitter, rand.Float64())
 		if got != w {
 			t.Fatalf("Error: jitter: NoJitter, %v, got %v, want %v", i, got, w)
 		}
 	}
 	for _, jitter := range []float64{0.2, 0.5, MaxJitter} {
 		for i, w := range want {
-			got := exponentialBackoffWait(time.Second, i, time.Second*20, jitter)
+			got := exponentialBackoffWait(time.Second, i, time.Second*20, jitter, rand.Float64())
 			min := w - time.Duration(float64(w)*jitter)
 			if got < min || got > w {
 				t.Fatalf("Error: jitter: %v, %v, got %v, want [%v, %v]", jitter, i, got, min, w)
