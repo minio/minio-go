@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -57,9 +58,12 @@ type Client struct {
 	httpClient     *http.Client
 	bucketLocCache *bucketLocationCache
 
-	// Advanced functionality
+	// Advanced functionality.
 	isTraceEnabled bool
 	traceOutput    io.Writer
+
+	// Random seed.
+	random *rand.Rand
 }
 
 // Global constants.
@@ -147,7 +151,11 @@ func privateNew(endpoint, accessKeyID, secretAccessKey string, insecure bool) (*
 		Transport: http.DefaultTransport,
 	}
 
+	// Instantiae bucket location cache.
 	clnt.bucketLocCache = newBucketLocationCache()
+
+	// Introduce a new random seed.
+	clnt.random = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 
 	// Return.
 	return clnt, nil
@@ -384,7 +392,7 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 	// error until maxRetries have been exhausted, retry attempts are
 	// performed after waiting for a given period of time in a
 	// binomial fashion.
-	for range newRetryTimer(MaxRetry, time.Second, time.Second*30, MaxJitter) {
+	for range c.newRetryTimer(MaxRetry, time.Second, time.Second*30, MaxJitter) {
 		if isRetryable {
 			// Seek back to beginning for each attempt.
 			if _, err = bodySeeker.Seek(0, 0); err != nil {
