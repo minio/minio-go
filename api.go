@@ -31,6 +31,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -124,6 +125,29 @@ func New(endpoint string, accessKeyID, secretAccessKey string, insecure bool) (*
 	return clnt, nil
 }
 
+// lockedRandSource provides protected rand source, implements rand.Source interface.
+type lockedRandSource struct {
+	lk  sync.Mutex
+	src rand.Source
+}
+
+// Int63 returns a non-negative pseudo-random 63-bit integer as an
+// int64.
+func (r *lockedRandSource) Int63() (n int64) {
+	r.lk.Lock()
+	n = r.src.Int63()
+	r.lk.Unlock()
+	return
+}
+
+// Seed uses the provided seed value to initialize the generator to a
+// deterministic state.
+func (r *lockedRandSource) Seed(seed int64) {
+	r.lk.Lock()
+	r.src.Seed(seed)
+	r.lk.Unlock()
+}
+
 func privateNew(endpoint, accessKeyID, secretAccessKey string, insecure bool) (*Client, error) {
 	// construct endpoint.
 	endpointURL, err := getEndpointURL(endpoint, insecure)
@@ -154,8 +178,8 @@ func privateNew(endpoint, accessKeyID, secretAccessKey string, insecure bool) (*
 	// Instantiae bucket location cache.
 	clnt.bucketLocCache = newBucketLocationCache()
 
-	// Introduce a new random seed.
-	clnt.random = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
+	// Introduce a new locked random seed.
+	clnt.random = rand.New(&lockedRandSource{src: rand.NewSource(time.Now().UTC().UnixNano())})
 
 	// Return.
 	return clnt, nil
