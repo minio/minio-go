@@ -659,13 +659,37 @@ func TestGetObjectReadSeekFunctional(t *testing.T) {
 	if n != 0 {
 		t.Fatalf("Error: number of bytes seeked back does not match, want 0, got %v\n", n)
 	}
-	var buffer bytes.Buffer
-	if _, err = io.CopyN(&buffer, r, st.Size); err != nil {
-		t.Fatal("Error:", err)
+
+	var buffer1 bytes.Buffer
+	if n, err = io.CopyN(&buffer1, r, st.Size); err != nil {
+		if err != io.EOF {
+			t.Fatal("Error:", err)
+		}
 	}
-	if !bytes.Equal(buf, buffer.Bytes()) {
+	if !bytes.Equal(buf, buffer1.Bytes()) {
 		t.Fatal("Error: Incorrect read bytes v/s original buffer.")
 	}
+
+	// Seek again and read again.
+	n, err = r.Seek(offset-1, 0)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if n != (offset - 1) {
+		t.Fatalf("Error: number of bytes seeked back does not match, want %v, got %v\n", offset-1, n)
+	}
+
+	var buffer2 bytes.Buffer
+	if n, err = io.CopyN(&buffer2, r, st.Size); err != nil {
+		if err != io.EOF {
+			t.Fatal("Error:", err)
+		}
+	}
+	// Verify now lesser bytes.
+	if !bytes.Equal(buf[2047:], buffer2.Bytes()) {
+		t.Fatal("Error: Incorrect read bytes v/s original buffer.")
+	}
+
 	err = c.RemoveObject(bucketName, objectName)
 	if err != nil {
 		t.Fatal("Error: ", err)
