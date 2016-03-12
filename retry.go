@@ -85,15 +85,22 @@ func isNetErrorRetryable(err error) bool {
 	return false
 }
 
+// List of S3 codes which are retryable.
+var s3CodesRetryable = map[string]struct{}{
+	"RequestError":          {},
+	"RequestTimeout":        {},
+	"Throttling":            {},
+	"ThrottlingException":   {},
+	"RequestLimitExceeded":  {},
+	"RequestThrottled":      {},
+	"InternalError":         {},
+	"ExpiredToken":          {},
+	"ExpiredTokenException": {},
+	// Add more s3 codes here.
+}
+
 // isS3CodeRetryable - is s3 error code retryable.
-func isS3CodeRetryable(s3Code string) bool {
-	switch s3Code {
-	case "RequestError", "RequestTimeout", "Throttling", "ThrottlingException":
-		fallthrough
-	case "RequestLimitExceeded", "RequestThrottled", "InternalError":
-		fallthrough
-	case "ExpiredToken", "ExpiredTokenException":
-		return true
-	}
-	return false
+func isS3CodeRetryable(s3Code string) (ok bool) {
+	_, ok = s3CodesRetryable[s3Code]
+	return ok
 }
