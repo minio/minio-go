@@ -85,8 +85,8 @@ func isNetErrorRetryable(err error) bool {
 	return false
 }
 
-// List of S3 codes which are retryable.
-var s3CodesRetryable = map[string]struct{}{
+// List of AWS S3 error codes which are retryable.
+var retryableS3Codes = map[string]struct{}{
 	"RequestError":          {},
 	"RequestTimeout":        {},
 	"Throttling":            {},
@@ -96,23 +96,26 @@ var s3CodesRetryable = map[string]struct{}{
 	"InternalError":         {},
 	"ExpiredToken":          {},
 	"ExpiredTokenException": {},
-	// Add more s3 codes here.
+	// Add more AWS S3 codes here.
 }
 
 // isS3CodeRetryable - is s3 error code retryable.
 func isS3CodeRetryable(s3Code string) (ok bool) {
-	_, ok = s3CodesRetryable[s3Code]
+	_, ok = retryableS3Codes[s3Code]
 	return ok
 }
 
+// List of HTTP status codes which are retryable.
+var retryableHTTPStatusCodes = map[int]struct{}{
+	429: {}, // http.StatusTooManyRequests is not part of the Go 1.5 library, yet
+	http.StatusInternalServerError: {},
+	http.StatusBadGateway:          {},
+	http.StatusServiceUnavailable:  {},
+	// Add more HTTP status codes here.
+}
+
 // isHTTPStatusRetryable - is HTTP error code retryable.
-func isHTTPStatusRetryable(status int) bool {
-	switch status {
-	case 429, // http.StatusTooManyRequests is not part of the Go 1.5 library, yet
-		http.StatusInternalServerError,
-		http.StatusBadGateway,
-		http.StatusServiceUnavailable:
-		return true
-	}
-	return false
+func isHTTPStatusRetryable(httpStatusCode int) (ok bool) {
+	_, ok = retryableHTTPStatusCodes[httpStatusCode]
+	return ok
 }
