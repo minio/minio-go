@@ -467,6 +467,12 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 		if isS3CodeRetryable(errResponse.Code) {
 			continue // Retry.
 		}
+
+		// Verify if http status code is retryable.
+		if isHTTPStatusRetryable(res.StatusCode) {
+			continue // Retry.
+		}
+
 		// For all other cases break out of the retry loop.
 		break
 	}
