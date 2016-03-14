@@ -119,3 +119,15 @@ func isHTTPStatusRetryable(httpStatusCode int) (ok bool) {
 	_, ok = retryableHTTPStatusCodes[httpStatusCode]
 	return ok
 }
+
+// isHTTPStatusRetryable - is HTTP error code retryable.
+func isHTTPStatusRetryable(status int) bool {
+	switch status {
+	case 429, // http.StatusTooManyRequests is not part of the Go 1.5 library, yet
+		http.StatusInternalServerError,
+		http.StatusBadGateway,
+		http.StatusServiceUnavailable:
+		return true
+	}
+	return false
+}
