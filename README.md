@@ -61,6 +61,10 @@ func main() {
 
 ## Documentation
 
+[API documentation](./API.md)
+
+## Examples
+
 ### Bucket Operations.
 * [MakeBucket(bucketName, BucketACL, location) error](examples/s3/makebucket.go)
 * [BucketExists(bucketName) error](examples/s3/bucketexists.go)
