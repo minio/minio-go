@@ -86,10 +86,10 @@ func TestMakeBucketError(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
 
 	// Make a new bucket in 'eu-central-1'.
-	if err = c.MakeBucket(bucketName, "private", "eu-central-1"); err != nil {
+	if err = c.MakeBucket(bucketName, "eu-central-1"); err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
-	if err = c.MakeBucket(bucketName, "private", "eu-central-1"); err == nil {
+	if err = c.MakeBucket(bucketName, "eu-central-1"); err == nil {
 		t.Fatal("Error: make bucket should should fail for", bucketName)
 	}
 	// Verify valid error response from server.
@@ -132,7 +132,7 @@ func TestMakeBucketRegions(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
 
 	// Make a new bucket in 'eu-central-1'.
-	if err = c.MakeBucket(bucketName, "private", "eu-central-1"); err != nil {
+	if err = c.MakeBucket(bucketName, "eu-central-1"); err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
 
@@ -143,7 +143,7 @@ func TestMakeBucketRegions(t *testing.T) {
 	// Make a new bucket with '.' in its name, in 'us-west-2'. This
 	// request is internally staged into a path style instead of
 	// virtual host style.
-	if err = c.MakeBucket(bucketName+".withperiod", "private", "us-west-2"); err != nil {
+	if err = c.MakeBucket(bucketName+".withperiod", "us-west-2"); err != nil {
 		t.Fatal("Error:", err, bucketName+".withperiod")
 	}
 
@@ -183,7 +183,7 @@ func TestGetObjectClosedTwice(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
 
 	// Make a new bucket.
-	err = c.MakeBucket(bucketName, "private", "us-east-1")
+	err = c.MakeBucket(bucketName, "us-east-1")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -268,7 +268,7 @@ func TestRemovePartiallyUploaded(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
 
 	// Make a new bucket.
-	err = c.MakeBucket(bucketName, "private", "us-east-1")
+	err = c.MakeBucket(bucketName, "us-east-1")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -338,7 +338,7 @@ func TestResumablePutObject(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
 
 	// Make a new bucket.
-	err = c.MakeBucket(bucketName, "private", "us-east-1")
+	err = c.MakeBucket(bucketName, "us-east-1")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -448,7 +448,7 @@ func TestResumableFPutObject(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
 
 	// Make a new bucket.
-	err = c.MakeBucket(bucketName, "private", "us-east-1")
+	err = c.MakeBucket(bucketName, "us-east-1")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -528,7 +528,7 @@ func TestGetObjectReadSeekFunctional(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
 
 	// Make a new bucket.
-	err = c.MakeBucket(bucketName, "private", "us-east-1")
+	err = c.MakeBucket(bucketName, "us-east-1")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -666,7 +666,7 @@ func TestGetObjectReadAtFunctional(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
 
 	// Make a new bucket.
-	err = c.MakeBucket(bucketName, "private", "us-east-1")
+	err = c.MakeBucket(bucketName, "us-east-1")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -807,7 +807,7 @@ func TestFunctional(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
 
 	// Make a new bucket.
-	err = c.MakeBucket(bucketName, "private", "us-east-1")
+	err = c.MakeBucket(bucketName, "us-east-1")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -834,20 +834,9 @@ func TestFunctional(t *testing.T) {
 	}
 
 	// Make the bucket 'public read/write'.
-	err = c.SetBucketACL(bucketName, "public-read-write")
+	err = c.SetBucketPolicy(bucketName, "", minio.BucketPolicyReadWrite)
 	if err != nil {
 		t.Fatal("Error:", err)
-	}
-
-	// Get the previously set acl.
-	acl, err := c.GetBucketACL(bucketName)
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
-
-	// ACL must be 'public read/write'.
-	if acl != minio.BucketACL("public-read-write") {
-		t.Fatal("Error:", acl)
 	}
 
 	// List all buckets.

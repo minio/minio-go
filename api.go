@@ -454,10 +454,14 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 			}
 		}
 
-		// Verify if http status code is retryable.
-		if isHTTPStatusRetryable(res.StatusCode) {
-			continue // Retry.
+		// Read the body to be saved later.
+		errBodyBytes, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return nil, err
 		}
+		// Save the body.
+		errBodySeeker := bytes.NewReader(errBodyBytes)
+		res.Body = ioutil.NopCloser(errBodySeeker)
 
 		// For errors verify if its retryable otherwise fail quickly.
 		errResponse := ToErrorResponse(httpRespToErrorResponse(res, metadata.bucketName, metadata.objectName))
@@ -477,6 +481,10 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 		if isHTTPStatusRetryable(res.StatusCode) {
 			continue // Retry.
 		}
+
+		// Save the body back again.
+		errBodySeeker.Seek(0, 0) // Seek back to starting point.
+		res.Body = ioutil.NopCloser(errBodySeeker)
 
 		// For all other cases break out of the retry loop.
 		break

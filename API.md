@@ -23,12 +23,11 @@ func main() {
 s3Client can be used to perform operations on S3 storage. APIs are described below.
 
 ### Bucket operations
+
 * [`MakeBucket`](#MakeBucket)
 * [`ListBuckets`](#ListBuckets)
 * [`BucketExists`](#BucketExists)
 * [`RemoveBucket`](#RemoveBucket)
-* [`GetBucketACL`](#GetBucketACL)
-* [`SetBucketACL`](#SetBucketACL)
 * [`ListObjects`](#ListObjects)
 * [`ListIncompleteUploads`](#ListIncompleteUploads)
 
@@ -41,8 +40,15 @@ s3Client can be used to perform operations on S3 storage. APIs are described bel
 * [`RemoveIncompleteUpload`](#RemoveIncompleteUpload)
 
 ### File operations.
+
 * [`FPutObject`](#FPutObject)
 * [`FGetObject`](#FPutObject)
+
+### Bucket policy operations.
+
+* [`SetBucketPolicy`](#SetBucketPolicy)
+* [`GetBucketPolicy`](#GetBucketPolicy)
+* [`RemoveBucketPolicy`](#RemoveBucketPolicy)
 
 ### Presigned operations
 
@@ -99,7 +105,7 @@ __Arguments__
 
 __Example__
 ```go
-err := s3Client.BucketExists('mybucket')
+err := s3Client.BucketExists("mybucket")
 if err != nil {
     fmt.Println(err)
     return
@@ -122,34 +128,53 @@ if err != nil {
 }
 ```
 ---------------------------------------
-<a name="GetBucketACL">
-#### GetBucketACL(bucketName)
-Get access permissions.
+<a name="GetBucketPolicy">
+#### GetBucketPolicy(bucketName, objectPrefix)
+Get access permissions on a bucket or a prefix.
 
 __Arguments__
 * `bucketName` _string_ : name of the bucket
+* `objectPrefix` _string_ : name of the object prefix
 
 __Example__
 ```go
-bucketACL, err := s3Client.GetBucketACL('mybucket')
+bucketPolicy, err := s3Client.GetBucketPolicy("mybucket")
 if err != nil {
     fmt.Println(err)
     return
 }
-fmt.Println("Access permissions for mybucket is", bucketACL)
+fmt.Println("Access permissions for mybucket is", bucketPolicy)
 ```
 ---------------------------------------
-<a name="SetBucketACL">
-#### SetBucketACL(bucketname, acl)
-Set access permissions.
+<a name="SetBucketPolicy">
+#### SetBucketPolicy(bucketname, objectPrefix, policy)
+Set access permissions on bucket or an object prefix.
 
 __Arguments__
 * `bucketName` _string_: name of the bucket
-* `acl` _string_: acl can be _private_, _public-read_, _public-read-write_, _authenticated-read_
+* `objectPrefix` _string_ : name of the object prefix
+* `policy` _BucketPolicy_: policy can be _non_, _readonly_, _readwrite_, _writeonly_
 
 __Example__
 ```go
-err := s3Client.SetBucketACL('mybucket', 'public-read-write')
+err := s3Client.SetBucketPolicy("mybucket", "myprefix", "readwrite")
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
+---------------------------------------
+<a name="RemoveBucketPolicy">
+#### RemoveBucketPolicy(bucketname, objectPrefix)
+Remove existing permissions on bucket or an object prefix.
+
+__Arguments__
+* `bucketName` _string_: name of the bucket
+* `objectPrefix` _string_ : name of the object prefix
+
+__Example__
+```go
+err := s3Client.RemoveBucketPolicy("mybucket", "myprefix")
 if err != nil {
     fmt.Println(err)
     return
@@ -340,7 +365,7 @@ __Return Value__
 
 __Example__
 ```go
-objInfo, err := s3Client.StatObject('mybucket', 'photo.jpg')
+objInfo, err := s3Client.StatObject("mybucket", "photo.jpg")
 if err != nil {
     fmt.Println(err)
     return
@@ -358,7 +383,7 @@ __Arguments__
 
 __Example__
 ```go
-err := s3Client.RemoveObject('mybucket', 'photo.jpg')
+err := s3Client.RemoveObject("mybucket", "photo.jpg")
 if err != nil {
     fmt.Println(err)
     return
@@ -375,7 +400,7 @@ __Arguments__
 
 __Example__
 ```go
-err := s3Client.RemoveIncompleteUpload('mybucket', 'photo.jpg')
+err := s3Client.RemoveIncompleteUpload("mybucket", "photo.jpg")
 if err != nil {
     fmt.Println(err)
     return
@@ -449,7 +474,7 @@ policy.SetKey("my-objectname")
 policy.SetExpires(time.Now().UTC().AddDate(0, 0, 10)) // expires in 10 days
 
 // Only allow 'png' images.
-policy.SetContentType('image/png')
+policy.SetContentType("image/png")
 
 // Only allow content size in range 1KB to 1MB.
 policy.SetContentLengthRange(1024, 1024*1024)
