@@ -18,6 +18,7 @@ package minio
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
@@ -114,9 +115,12 @@ func (c Client) makeBucketRequest(bucketName string, location string) (*http.Req
 		}
 		createBucketConfigBuffer := bytes.NewBuffer(createBucketConfigBytes)
 		req.Body = ioutil.NopCloser(createBucketConfigBuffer)
-		req.ContentLength = int64(createBucketConfigBuffer.Len())
+		req.ContentLength = int64(len(createBucketConfigBytes))
+		// Set content-md5.
+		req.Header.Set("Content-Md5", base64.StdEncoding.EncodeToString(sumMD5(createBucketConfigBytes)))
 		if c.signature.isV4() {
-			req.Header.Set("X-Amz-Content-Sha256", hex.EncodeToString(sum256(createBucketConfigBuffer.Bytes())))
+			// Set sha256.
+			req.Header.Set("X-Amz-Content-Sha256", hex.EncodeToString(sum256(createBucketConfigBytes)))
 		}
 	}
 

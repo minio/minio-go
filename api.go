@@ -573,7 +573,7 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 
 	// set md5Sum for content protection.
 	if metadata.contentMD5Bytes != nil {
-		req.Header.Set("Content-MD5", base64.StdEncoding.EncodeToString(metadata.contentMD5Bytes))
+		req.Header.Set("Content-Md5", base64.StdEncoding.EncodeToString(metadata.contentMD5Bytes))
 	}
 
 	// Sign the request for all authenticated requests.
