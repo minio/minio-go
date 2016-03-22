@@ -38,7 +38,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	err = s3Client.SetBucketPolicy("my-bucketname", "my-objectprefix", minio.BucketPolicyPublic)
+	err = s3Client.SetBucketPolicy("my-bucketname", "my-objectprefix", minio.BucketPolicyReadWrite)
 	if err != nil {
 		log.Fatalln(err)
 	}
