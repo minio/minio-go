@@ -1,5 +1,5 @@
 /*
- * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2015, 2016 Minio, Inc.
+ * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2016 Minio, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,36 +19,50 @@ package minio
 import "net/http"
 
 // CopyObject - copy a source object into a new object with the provided name in the provided bucket
-func (c Client) CopyObject(bucketName, objectName string, xAmzHeaders http.Header) (copyObjectResult, error) {
+func (c Client) CopyObject(bucketName string, objectName string, objectSource string, cpCond CopyConditions) error {
 	// Input validation.
 	if err := isValidBucketName(bucketName); err != nil {
-		return copyObjectResult{}, err
+		return err
 	}
 	if err := isValidObjectName(objectName); err != nil {
-		return copyObjectResult{}, err
+		return err
 	}
+	if objectSource == "" {
+		return ErrInvalidArgument("Object source cannot be empty.")
+	}
+
+	// customHeaders apply headers.
+	customHeaders := make(http.Header)
+	for _, cond := range cpCond.conditions {
+		customHeaders.Set(cond.key, cond.value)
+	}
+
+	// Set copy source.
+	customHeaders.Set("x-amz-copy-source", objectSource)
 
 	// Execute PUT on objectName.
 	resp, err := c.executeMethod("PUT", requestMetadata{
 		bucketName:   bucketName,
 		objectName:   objectName,
-		customHeader: xAmzHeaders,
+		customHeader: customHeaders,
 	})
 	defer closeResponse(resp)
 	if err != nil {
-		return copyObjectResult{}, err
+		return err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return copyObjectResult{}, httpRespToErrorResponse(resp, bucketName, objectName)
+			return httpRespToErrorResponse(resp, bucketName, objectName)
 		}
 	}
 
 	// Decode copy response on success.
-	copyObjectResult := copyObjectResult{}
-	err = xmlDecoder(resp.Body, &copyObjectResult)
+	cpObjRes := copyObjectResult{}
+	err = xmlDecoder(resp.Body, &cpObjRes)
 	if err != nil {
-		return copyObjectResult, err
+		return err
 	}
-	return copyObjectResult, nil
+
+	// Return nil on success.
+	return nil
 }

@@ -26,7 +26,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -958,12 +957,18 @@ func TestCopyObjectV2(t *testing.T) {
 			len(buf), n)
 	}
 
-	// Make headers for the copy.
-	xAmzHeaders := make(http.Header)
-	xAmzHeaders.Set("x-amz-copy-source", bucketName+"/"+objectName)
+	// Set copy conditions.
+	copyConds := minio.NewCopyConditions()
+	err = copyConds.SetModified(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Copy source.
+	copySource := bucketName + "/" + objectName
 
 	// Perform the Copy
-	res, err := c.CopyObject(bucketName+"-copy", objectName+"-copy", xAmzHeaders)
+	err = c.CopyObject(bucketName+"-copy", objectName+"-copy", copySource, copyConds)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName+"-copy", objectName+"-copy")
 	}
@@ -994,13 +999,6 @@ func TestCopyObjectV2(t *testing.T) {
 	if objInfo.ETag != objInfoCopy.ETag {
 		t.Fatalf("Error: ETags do not match, want %v, got %v\n",
 			objInfoCopy.ETag, objInfo.ETag)
-	}
-	// Trim double quotes from copyObjectResult ETag field to compare
-	copyObjectETag := strings.TrimPrefix(res.ETag, "\"")
-	copyObjectETag = strings.TrimSuffix(copyObjectETag, "\"")
-	if copyObjectETag != objInfo.ETag {
-		t.Fatalf("Error: ETags do not match, want %v, got %v\n",
-			objInfo.ETag, copyObjectETag)
 	}
 
 	// Remove all objects and buckets
