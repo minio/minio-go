@@ -167,13 +167,12 @@ func isVirtualHostSupported(endpointURL *url.URL, bucketName string) bool {
 
 // Match if it is exactly Amazon S3 endpoint.
 func isAmazonEndpoint(endpointURL *url.URL) bool {
-	if endpointURL == nil {
+	if endpointURL == nil || strings.Contains(endpointURL.Host, ":") {
 		return false
 	}
-	if endpointURL.Host == "s3.amazonaws.com" {
-		return true
-	}
-	return false
+	endpoint := regexp.MustCompile("(s3|s3-([a-z]{2})-([a-z]+)-([0-9]{1})).amazonaws.com")
+	return endpoint.MatchString(endpointURL.Host)
+
 }
 
 // Match if it is exactly Google cloud storage endpoint.
