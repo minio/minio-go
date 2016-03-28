@@ -498,7 +498,6 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 	if method == "" {
 		method = "POST"
 	}
-
 	// Gather location only if bucketName is present.
 	location := "us-east-1" // Default all other requests to "us-east-1".
 	if metadata.bucketName != "" {
