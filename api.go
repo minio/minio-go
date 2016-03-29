@@ -220,6 +220,13 @@ func (c *Client) SetCustomTransport(customHTTPTransport http.RoundTripper) {
 	}
 }
 
+// SetClientTimeout - set http client timeout.
+func (c *Client) SetClientTimeout(timeout time.Duration) {
+	if c.httpClient != nil {
+		c.httpClient.Timeout = timeout
+	}
+}
+
 // TraceOn - enable HTTP tracing.
 func (c *Client) TraceOn(outputStream io.Writer) {
 	// if outputStream is nil then default to os.Stdout.
