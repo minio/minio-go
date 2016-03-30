@@ -897,6 +897,132 @@ func TestGetObjectReadAtFunctionalV2(t *testing.T) {
 	}
 }
 
+// Tests copy object
+func TestCopyObjectV2(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping functional tests for short runs")
+	}
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object
+	c, err := minio.NewV2(
+		"s3.amazonaws.com",
+		os.Getenv("ACCESS_KEY"),
+		os.Getenv("SECRET_KEY"),
+		false,
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
+
+	// Make a new bucket in 'us-east-1' (source bucket).
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+
+	// Make a new bucket in 'us-east-1' (destination bucket).
+	err = c.MakeBucket(bucketName+"-copy", "us-east-1")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName+"-copy")
+	}
+
+	// Generate data more than 32K
+	buf := make([]byte, rand.Intn(1<<20)+32*1024)
+
+	_, err = io.ReadFull(crand.Reader, buf)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Save the data
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()))
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
+
+	if n != int64(len(buf)) {
+		t.Fatalf("Error: number of bytes does not match want %v, got %v",
+			len(buf), n)
+	}
+
+	// Set copy conditions.
+	copyConds := minio.NewCopyConditions()
+	err = copyConds.SetModified(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Copy source.
+	copySource := bucketName + "/" + objectName
+
+	// Perform the Copy
+	err = c.CopyObject(bucketName+"-copy", objectName+"-copy", copySource, copyConds)
+	if err != nil {
+		t.Fatal("Error:", err, bucketName+"-copy", objectName+"-copy")
+	}
+
+	// Source object
+	reader, err := c.GetObject(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	// Destination object
+	readerCopy, err := c.GetObject(bucketName+"-copy", objectName+"-copy")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	// Check the various fields of source object against destination object.
+	objInfo, err := reader.Stat()
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	objInfoCopy, err := readerCopy.Stat()
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if objInfo.Size != objInfoCopy.Size {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n",
+			objInfo.Size, objInfoCopy.Size)
+	}
+	if objInfo.ETag != objInfoCopy.ETag {
+		t.Fatalf("Error: ETags do not match, want %v, got %v\n",
+			objInfoCopy.ETag, objInfo.ETag)
+	}
+
+	// Remove all objects and buckets
+	err = c.RemoveObject(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	err = c.RemoveObject(bucketName+"-copy", objectName+"-copy")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	err = c.RemoveBucket(bucketName + "-copy")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+}
+
 // Tests comprehensive list of all methods.
 func TestFunctionalV2(t *testing.T) {
 	if testing.Short() {
