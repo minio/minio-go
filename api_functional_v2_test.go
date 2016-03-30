@@ -341,6 +341,154 @@ func TestResumablePutObjectV2(t *testing.T) {
 
 }
 
+// Tests FPutObject hidden contentType setting
+func TestFPutObjectV2(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping functional tests for short runs")
+	}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.NewV2(
+		"s3.amazonaws.com",
+		os.Getenv("ACCESS_KEY"),
+		os.Getenv("SECRET_KEY"),
+		false,
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+
+	// Make a temp file with 11*1024*1024 bytes of data.
+	file, err := ioutil.TempFile(os.TempDir(), "FPutObjectTest")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	n, err := io.CopyN(file, crand.Reader, 11*1024*1024)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if n != int64(11*1024*1024) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", 11*1024*1024, n)
+	}
+
+	// Close the file pro-actively for windows.
+	err = file.Close()
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Set base object name
+	objectName := bucketName + "FPutObject"
+
+	// Perform standard FPutObject with contentType provided (Expecting application/octet-stream)
+	n, err = c.FPutObject(bucketName, objectName+"-standard", file.Name(), "application/octet-stream")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if n != int64(11*1024*1024) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", 11*1024*1024, n)
+	}
+
+	// Perform FPutObject with no contentType provided (Expecting application/octet-stream)
+	n, err = c.FPutObject(bucketName, objectName+"-Octet", file.Name(), "")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if n != int64(11*1024*1024) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", 11*1024*1024, n)
+	}
+
+	// Add extension to temp file name
+	fileName := file.Name()
+	err = os.Rename(file.Name(), fileName+".gtar")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Perform FPutObject with no contentType provided (Expecting application/x-gtar)
+	n, err = c.FPutObject(bucketName, objectName+"-GTar", fileName+".gtar", "")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if n != int64(11*1024*1024) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", 11*1024*1024, n)
+	}
+
+	// Check headers
+	rStandard, err := c.StatObject(bucketName, objectName+"-standard")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName+"-standard")
+	}
+	if rStandard.ContentType != "application/octet-stream" {
+		t.Fatalf("Error: Content-Type headers mismatched, want %v, got %v\n",
+			"application/octet-stream", rStandard.ContentType)
+	}
+
+	rOctet, err := c.StatObject(bucketName, objectName+"-Octet")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName+"-Octet")
+	}
+	if rOctet.ContentType != "application/octet-stream" {
+		t.Fatalf("Error: Content-Type headers mismatched, want %v, got %v\n",
+			"application/octet-stream", rStandard.ContentType)
+	}
+
+	rGTar, err := c.StatObject(bucketName, objectName+"-GTar")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName+"-GTar")
+	}
+	if rGTar.ContentType != "application/x-gtar" {
+		t.Fatalf("Error: Content-Type headers mismatched, want %v, got %v\n",
+			"application/x-gtar", rStandard.ContentType)
+	}
+
+	// Remove all objects and bucket and temp file
+	err = c.RemoveObject(bucketName, objectName+"-standard")
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+
+	err = c.RemoveObject(bucketName, objectName+"-Octet")
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+
+	err = c.RemoveObject(bucketName, objectName+"-GTar")
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	err = os.Remove(fileName + ".gtar")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+}
+
 // Tests resumable file based put object multipart upload.
 func TestResumableFPutObjectV2(t *testing.T) {
 	if testing.Short() {
@@ -744,6 +892,132 @@ func TestGetObjectReadAtFunctionalV2(t *testing.T) {
 		t.Fatal("Error: ", err)
 	}
 	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+}
+
+// Tests copy object
+func TestCopyObjectV2(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping functional tests for short runs")
+	}
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object
+	c, err := minio.NewV2(
+		"s3.amazonaws.com",
+		os.Getenv("ACCESS_KEY"),
+		os.Getenv("SECRET_KEY"),
+		false,
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
+
+	// Make a new bucket in 'us-east-1' (source bucket).
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+
+	// Make a new bucket in 'us-east-1' (destination bucket).
+	err = c.MakeBucket(bucketName+"-copy", "us-east-1")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName+"-copy")
+	}
+
+	// Generate data more than 32K
+	buf := make([]byte, rand.Intn(1<<20)+32*1024)
+
+	_, err = io.ReadFull(crand.Reader, buf)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Save the data
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()))
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
+
+	if n != int64(len(buf)) {
+		t.Fatalf("Error: number of bytes does not match want %v, got %v",
+			len(buf), n)
+	}
+
+	// Set copy conditions.
+	copyConds := minio.NewCopyConditions()
+	err = copyConds.SetModified(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Copy source.
+	copySource := bucketName + "/" + objectName
+
+	// Perform the Copy
+	err = c.CopyObject(bucketName+"-copy", objectName+"-copy", copySource, copyConds)
+	if err != nil {
+		t.Fatal("Error:", err, bucketName+"-copy", objectName+"-copy")
+	}
+
+	// Source object
+	reader, err := c.GetObject(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	// Destination object
+	readerCopy, err := c.GetObject(bucketName+"-copy", objectName+"-copy")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	// Check the various fields of source object against destination object.
+	objInfo, err := reader.Stat()
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	objInfoCopy, err := readerCopy.Stat()
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if objInfo.Size != objInfoCopy.Size {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n",
+			objInfo.Size, objInfoCopy.Size)
+	}
+	if objInfo.ETag != objInfoCopy.ETag {
+		t.Fatalf("Error: ETags do not match, want %v, got %v\n",
+			objInfoCopy.ETag, objInfo.ETag)
+	}
+
+	// Remove all objects and buckets
+	err = c.RemoveObject(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	err = c.RemoveObject(bucketName+"-copy", objectName+"-copy")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	err = c.RemoveBucket(bucketName + "-copy")
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
