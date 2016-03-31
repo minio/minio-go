@@ -735,7 +735,7 @@ func TestGetObjectReadSeekFunctionalV2(t *testing.T) {
 	}
 
 	var buffer2 bytes.Buffer
-	if n, err = io.CopyN(&buffer2, r, st.Size); err != nil {
+	if _, err = io.CopyN(&buffer2, r, st.Size); err != nil {
 		if err != io.EOF {
 			t.Fatal("Error:", err)
 		}
