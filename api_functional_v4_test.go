@@ -1107,12 +1107,54 @@ func TestFunctional(t *testing.T) {
 		t.Fatal("Error:", err, bucketName)
 	}
 
+	// Asserting the default bucket policy.
+	policy, err := c.GetBucketPolicy(bucketName, "")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if policy != "none" {
+		t.Fatalf("Default bucket policy incorrect")
+	}
+	// Set the bucket policy to 'public readonly'.
+	err = c.SetBucketPolicy(bucketName, "", minio.BucketPolicyReadOnly)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	// should return policy `readonly`.
+	policy, err = c.GetBucketPolicy(bucketName, "")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if policy != "readonly" {
+		t.Fatalf("Expected bucket policy to be readonly")
+	}
+
+	// Make the bucket 'public writeonly'.
+	err = c.SetBucketPolicy(bucketName, "", minio.BucketPolicyWriteOnly)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	// should return policy `writeonly`.
+	policy, err = c.GetBucketPolicy(bucketName, "")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if policy != "writeonly" {
+		t.Fatalf("Expected bucket policy to be writeonly")
+	}
 	// Make the bucket 'public read/write'.
 	err = c.SetBucketPolicy(bucketName, "", minio.BucketPolicyReadWrite)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-
+	// should return policy `readwrite`.
+	policy, err = c.GetBucketPolicy(bucketName, "")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if policy != "readwrite" {
+		t.Fatalf("Expected bucket policy to be readwrite")
+	}
 	// List all buckets.
 	buckets, err := c.ListBuckets()
 	if len(buckets) == 0 {
