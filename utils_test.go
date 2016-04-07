@@ -36,7 +36,9 @@ func TestGetEndpointURL(t *testing.T) {
 		shouldPass bool
 	}{
 		{"s3.amazonaws.com", false, "https://s3.amazonaws.com", nil, true},
+		{"s3.cn-north-1.amazonaws.com.cn", false, "https://s3.cn-north-1.amazonaws.com.cn", nil, true},
 		{"s3.amazonaws.com", true, "http://s3.amazonaws.com", nil, true},
+		{"s3.cn-north-1.amazonaws.com.cn", true, "http://s3.cn-north-1.amazonaws.com.cn", nil, true},
 		{"192.168.1.1:9000", true, "http://192.168.1.1:9000", nil, true},
 		{"192.168.1.1:9000", false, "https://192.168.1.1:9000", nil, true},
 		{"192.168.1.1::9000", false, "", fmt.Errorf("too many colons in address %s", "192.168.1.1::9000"), false},
@@ -81,6 +83,7 @@ func TestIsValidDomain(t *testing.T) {
 		result bool
 	}{
 		{"s3.amazonaws.com", true},
+		{"s3.cn-north-1.amazonaws.com.cn", true},
 		{"s3.amazonaws.com_", false},
 		{"%$$$", false},
 		{"s3.amz.test.com", true},
@@ -111,6 +114,7 @@ func TestIsValidEndpointURL(t *testing.T) {
 		{"", nil, true},
 		{"/", nil, true},
 		{"https://s3.amazonaws.com", nil, true},
+		{"https://s3.cn-north-1.amazonaws.com.cn", nil, true},
 		{"https://s3.amazonaws.com/", nil, true},
 		{"https://storage.googleapis.com/", nil, true},
 		{"192.168.1.1", fmt.Errorf("Endpoint url cannot have fully qualified paths."), false},
@@ -175,6 +179,7 @@ func TestIsVirtualHostSupported(t *testing.T) {
 		result bool
 	}{
 		{"https://s3.amazonaws.com", "my-bucket", true},
+		{"https://s3.cn-north-1.amazonaws.com.cn", "my-bucket", true},
 		{"https://s3.amazonaws.com", "my-bucket.", false},
 		{"https://amazons3.amazonaws.com", "my-bucket.", false},
 		{"https://storage.googleapis.com/", "my-bucket", true},
@@ -206,10 +211,12 @@ func TestIsAmazonEndpoint(t *testing.T) {
 		{"https://storage.googleapis.com", false},
 		{"storage.googleapis.com", false},
 		{"s3.amazonaws.com", false},
-		{"https://s3.amazonaws.com", true},
 		{"https://amazons3.amazonaws.com", false},
 		{"-192.168.1.1", false},
 		{"260.192.1.1", false},
+		// valid inputs.
+		{"https://s3.amazonaws.com", true},
+		{"https://s3.cn-north-1.amazonaws.com.cn", true},
 	}
 
 	for i, testCase := range testCases {
@@ -218,6 +225,41 @@ func TestIsAmazonEndpoint(t *testing.T) {
 			t.Fatalf("Test %d: Fatal err \"%s\"", i+1, e.Error())
 		}
 		result := isAmazonEndpoint(endPoint)
+		if testCase.result != result {
+			t.Errorf("Test %d: Expected isAmazonEndpoint to be '%v' for input \"%s\", but found it to be '%v' instead", i+1, testCase.result, testCase.url, result)
+		}
+	}
+
+}
+
+// Tests validate Amazon S3 China endpoint validator.
+func TestIsAmazonChinaEndpoint(t *testing.T) {
+	testCases := []struct {
+		url string
+		// Expected result.
+		result bool
+	}{
+		{"https://192.168.1.1", false},
+		{"192.168.1.1", false},
+		{"http://storage.googleapis.com", false},
+		{"https://storage.googleapis.com", false},
+		{"storage.googleapis.com", false},
+		{"s3.amazonaws.com", false},
+		{"https://amazons3.amazonaws.com", false},
+		{"-192.168.1.1", false},
+		{"260.192.1.1", false},
+		// s3.amazonaws.com is not a valid Amazon S3 China end point.
+		{"https://s3.amazonaws.com", false},
+		// valid input.
+		{"https://s3.cn-north-1.amazonaws.com.cn", true},
+	}
+
+	for i, testCase := range testCases {
+		endPoint, e := url.Parse(testCase.url)
+		if e != nil {
+			t.Fatalf("Test %d: Fatal err \"%s\"", i+1, e.Error())
+		}
+		result := isAmazonChinaEndpoint(endPoint)
 		if testCase.result != result {
 			t.Errorf("Test %d: Expected isAmazonEndpoint to be '%v' for input \"%s\", but found it to be '%v' instead", i+1, testCase.result, testCase.url, result)
 		}
@@ -234,13 +276,15 @@ func TestIsGoogleEndpoint(t *testing.T) {
 	}{
 		{"192.168.1.1", false},
 		{"https://192.168.1.1", false},
-		{"http://storage.googleapis.com", true},
-		{"https://storage.googleapis.com", true},
 		{"s3.amazonaws.com", false},
 		{"http://s3.amazonaws.com", false},
 		{"https://s3.amazonaws.com", false},
+		{"https://s3.cn-north-1.amazonaws.com.cn", false},
 		{"-192.168.1.1", false},
 		{"260.192.1.1", false},
+		// valid inputs.
+		{"http://storage.googleapis.com", true},
+		{"https://storage.googleapis.com", true},
 	}
 
 	for i, testCase := range testCases {
