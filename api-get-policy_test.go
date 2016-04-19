@@ -77,7 +77,7 @@ func generatePolicyResponse(resp *http.Response, policy BucketAccessPolicy) (*ht
 
 }
 
-// Tests the processing of GetPolicy resposne from server.
+// Tests the processing of GetPolicy response from server.
 func TestProcessBucketPolicyResopnse(t *testing.T) {
 	bucketAccesPolicies := []BucketAccessPolicy{
 		{Version: "1.0"},
@@ -139,6 +139,5 @@ func TestProcessBucketPolicyResopnse(t *testing.T) {
 				t.Errorf("Test %d: The expected BucketPolicy doesnt match the actual BucketPolicy", i+1)
 			}
 		}
-
 	}
 }
