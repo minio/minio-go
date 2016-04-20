@@ -419,11 +419,14 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 		bodySeeker, isRetryable = metadata.contentBody.(io.Seeker)
 	}
 
-	// Retry executes the following function body if request has an
-	// error until maxRetries have been exhausted, retry attempts are
-	// performed after waiting for a given period of time in a
-	// binomial fashion.
-	for range c.newRetryTimer(MaxRetry, time.Second, time.Second*30, MaxJitter) {
+	// Blank indentifier is kept here on purpose since 'range' without
+	// blank identifiers is only supported since go1.4
+	// https://golang.org/doc/go1.4#forrange.
+	for _ = range c.newRetryTimer(MaxRetry, time.Second, time.Second*30, MaxJitter) {
+		// Retry executes the following function body if request has an
+		// error until maxRetries have been exhausted, retry attempts are
+		// performed after waiting for a given period of time in a
+		// binomial fashion.
 		if isRetryable {
 			// Seek back to beginning for each attempt.
 			if _, err = bodySeeker.Seek(0, 0); err != nil {
