@@ -73,13 +73,24 @@ func (c Client) newRetryTimer(maxRetry int, unit time.Duration, cap time.Duratio
 // isNetErrorRetryable - is network error retryable.
 func isNetErrorRetryable(err error) bool {
 	switch err.(type) {
-	case *net.DNSError, *net.OpError, net.UnknownNetworkError:
-		return true
-	case *url.Error:
-		// For a URL error, where it replies back "connection closed"
-		// retry again.
-		if strings.Contains(err.Error(), "Connection closed by foreign host") {
+	case net.Error:
+		switch err.(type) {
+		case *net.DNSError, *net.OpError, net.UnknownNetworkError:
 			return true
+		case *url.Error:
+			// For a URL error, where it replies back "connection closed"
+			// retry again.
+			if strings.Contains(err.Error(), "Connection closed by foreign host") {
+				return true
+			}
+		default:
+			if strings.Contains(err.Error(), "net/http: TLS handshake timeout") {
+				// If error is - tlsHandshakeTimeoutError, retry.
+				return true
+			} else if strings.Contains(err.Error(), "i/o timeout") {
+				// If error is - tcp timeoutError, retry.
+				return true
+			}
 		}
 	}
 	return false
