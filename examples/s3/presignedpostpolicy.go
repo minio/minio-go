@@ -43,15 +43,17 @@ func main() {
 	policy := minio.NewPostPolicy()
 	policy.SetBucket("my-bucketname")
 	policy.SetKey("my-objectname")
-	policy.SetExpires(time.Now().UTC().AddDate(0, 0, 10)) // expires in 10 days
-	m, err := s3Client.PresignedPostPolicy(policy)
+	// Expires in 10 days.
+	policy.SetExpires(time.Now().UTC().AddDate(0, 0, 10))
+	// Returns form data for POST form request.
+	url, formData, err := s3Client.PresignedPostPolicy(policy)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	fmt.Printf("curl ")
-	for k, v := range m {
+	for k, v := range formData {
 		fmt.Printf("-F %s=%s ", k, v)
 	}
 	fmt.Printf("-F file=@/etc/bash.bashrc ")
-	fmt.Printf("https://my-bucketname.s3.amazonaws.com\n")
+	fmt.Printf("%s\n", url)
 }

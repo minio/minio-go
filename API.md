@@ -446,7 +446,7 @@ if err != nil {
 ### Presigned operations
 ---------------------------------------
 <a name="PresignedGetObject">
-#### PresignedGetObject(bucketName, objectName string, expiry time.Duration, reqParams url.Values) error
+#### PresignedGetObject(bucketName, objectName string, expiry time.Duration, reqParams url.Values) (*url.URL, error)
 Generate a presigned URL for GET.
 
 __Parameters__
@@ -471,7 +471,7 @@ if err != nil {
 
 ---------------------------------------
 <a name="PresignedPutObject">
-#### PresignedPutObject(bucketName string, objectName string, expiry time.Duration) (string, error)
+#### PresignedPutObject(bucketName string, objectName string, expiry time.Duration) (*url.URL, error)
 Generate a presigned URL for PUT.
 <blockquote>
 NOTE: you can upload to S3 only with specified object name.
@@ -494,7 +494,7 @@ if err != nil {
 
 ---------------------------------------
 <a name="PresignedPostPolicy">
-#### PresignedPostPolicy(policy PostPolicy) (map[string]string, error)
+#### PresignedPostPolicy(policy PostPolicy) (*url.URL, map[string]string, error)
 PresignedPostPolicy we can provide policies specifying conditions restricting
 what you want to allow in a POST request, such as bucket name where objects can be
 uploaded, key name prefixes that you want to allow for the object being created and more.
@@ -517,7 +517,7 @@ policy.SetContentLengthRange(1024, 1024*1024)
 ```
 Get the POST form key/value object:
 ```go
-formData, err := s3Client.PresignedPostPolicy(policy)
+url, formData, err := s3Client.PresignedPostPolicy(policy)
 if err != nil {
     fmt.Println(err)
     return
@@ -531,5 +531,5 @@ for k, v := range m {
     fmt.Printf("-F %s=%s ", k, v)
 }
 fmt.Printf("-F file=@/etc/bash.bashrc ")
-fmt.Printf("https://my-bucketname.s3.amazonaws.com\n")
+fmt.Printf("%s\n", url)
 ```
