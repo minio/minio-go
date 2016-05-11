@@ -1256,7 +1256,7 @@ func TestFunctional(t *testing.T) {
 	}
 
 	// Verify if presigned url works.
-	resp, err := http.Get(presignedGetURL)
+	resp, err := http.Get(presignedGetURL.String())
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
@@ -1279,7 +1279,7 @@ func TestFunctional(t *testing.T) {
 		t.Fatal("Error: ", err)
 	}
 	// Verify if presigned url works.
-	resp, err = http.Get(presignedGetURL)
+	resp, err = http.Get(presignedGetURL.String())
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
@@ -1306,7 +1306,7 @@ func TestFunctional(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
-	req, err := http.NewRequest("PUT", presignedPutURL, bytes.NewReader(buf))
+	req, err := http.NewRequest("PUT", presignedPutURL.String(), bytes.NewReader(buf))
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
