@@ -568,10 +568,15 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 		req.Body = ioutil.NopCloser(metadata.contentBody)
 	}
 
-	// set 'Expect' header for the request.
-	req.Header.Set("Expect", "100-continue")
+	// FIXEM: Enable this when Google Cloud Storage properly supports 100-continue.
+	// Skip setting 'expect' header for Google Cloud Storage, there
+	// are some known issues - https://github.com/restic/restic/issues/520
+	if !isGoogleEndpoint(c.endpointURL) {
+		// Set 'Expect' header for the request.
+		req.Header.Set("Expect", "100-continue")
+	}
 
-	// set 'User-Agent' header for the request.
+	// Set 'User-Agent' header for the request.
 	c.setUserAgent(req)
 
 	// Set all headers.
