@@ -84,8 +84,8 @@ const (
 
 // NewV2 - instantiate minio client with Amazon S3 signature version
 // '2' compatibility.
-func NewV2(endpoint string, accessKeyID, secretAccessKey string, insecure bool) (*Client, error) {
-	clnt, err := privateNew(endpoint, accessKeyID, secretAccessKey, insecure)
+func NewV2(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*Client, error) {
+	clnt, err := privateNew(endpoint, accessKeyID, secretAccessKey, secure)
 	if err != nil {
 		return nil, err
 	}
@@ -96,8 +96,8 @@ func NewV2(endpoint string, accessKeyID, secretAccessKey string, insecure bool) 
 
 // NewV4 - instantiate minio client with Amazon S3 signature version
 // '4' compatibility.
-func NewV4(endpoint string, accessKeyID, secretAccessKey string, insecure bool) (*Client, error) {
-	clnt, err := privateNew(endpoint, accessKeyID, secretAccessKey, insecure)
+func NewV4(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*Client, error) {
+	clnt, err := privateNew(endpoint, accessKeyID, secretAccessKey, secure)
 	if err != nil {
 		return nil, err
 	}
@@ -108,8 +108,8 @@ func NewV4(endpoint string, accessKeyID, secretAccessKey string, insecure bool) 
 
 // New - instantiate minio client Client, adds automatic verification
 // of signature.
-func New(endpoint string, accessKeyID, secretAccessKey string, insecure bool) (*Client, error) {
-	clnt, err := privateNew(endpoint, accessKeyID, secretAccessKey, insecure)
+func New(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*Client, error) {
+	clnt, err := privateNew(endpoint, accessKeyID, secretAccessKey, secure)
 	if err != nil {
 		return nil, err
 	}
@@ -148,9 +148,9 @@ func (r *lockedRandSource) Seed(seed int64) {
 	r.lk.Unlock()
 }
 
-func privateNew(endpoint, accessKeyID, secretAccessKey string, insecure bool) (*Client, error) {
+func privateNew(endpoint, accessKeyID, secretAccessKey string, secure bool) (*Client, error) {
 	// construct endpoint.
-	endpointURL, err := getEndpointURL(endpoint, insecure)
+	endpointURL, err := getEndpointURL(endpoint, secure)
 	if err != nil {
 		return nil, err
 	}

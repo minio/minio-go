@@ -70,7 +70,7 @@ func TestMakeBucketError(t *testing.T) {
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		false,
+		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -116,7 +116,7 @@ func TestMakeBucketRegions(t *testing.T) {
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		false,
+		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -167,7 +167,7 @@ func TestGetObjectClosedTwice(t *testing.T) {
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		false,
+		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -252,7 +252,7 @@ func TestRemovePartiallyUploaded(t *testing.T) {
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		false,
+		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -322,7 +322,7 @@ func TestResumablePutObject(t *testing.T) {
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		false,
+		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -432,7 +432,7 @@ func TestResumableFPutObject(t *testing.T) {
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		false,
+		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -512,7 +512,7 @@ func TestFPutObject(t *testing.T) {
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		false,
+		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -660,7 +660,7 @@ func TestGetObjectReadSeekFunctional(t *testing.T) {
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		false,
+		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -798,7 +798,7 @@ func TestGetObjectReadAtFunctional(t *testing.T) {
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		false,
+		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -939,7 +939,7 @@ func TestCopyObject(t *testing.T) {
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		false,
+		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -1065,7 +1065,7 @@ func TestFunctional(t *testing.T) {
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		false,
+		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
