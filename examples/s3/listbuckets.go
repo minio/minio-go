@@ -28,7 +28,7 @@ func main() {
 	// Note: YOUR-ACCESSKEYID and YOUR-SECRETACCESSKEY are
 	// dummy values, please replace them with original values.
 
-	// Requests are always secure (HTTPS) by default. Set insecure=true to enable insecure (HTTP) access.
+	// Requests are always secure (HTTPS) by default. Set secure=false to enable insecure (HTTP) access.
 	// This boolean value is the last argument for New().
 
 	// New returns an Amazon S3 compatible client object. API compatibility (v2 or v4) is automatically
