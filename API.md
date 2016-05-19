@@ -12,7 +12,8 @@ import (
 )
 
 func main() {
-    s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", false)
+    secure := true // Make HTTPS requests by default.
+    s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", secure)
     if err !!= nil {
         fmt.Println(err)
         return
