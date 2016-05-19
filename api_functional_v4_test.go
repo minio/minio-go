@@ -1025,10 +1025,6 @@ func TestCopyObject(t *testing.T) {
 		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n",
 			objInfo.Size, objInfoCopy.Size)
 	}
-	if objInfo.ETag != objInfoCopy.ETag {
-		t.Fatalf("Error: ETags do not match, want %v, got %v\n",
-			objInfoCopy.ETag, objInfo.ETag)
-	}
 
 	// Remove all objects and buckets
 	err = c.RemoveObject(bucketName, objectName)
