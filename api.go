@@ -168,10 +168,6 @@ func privateNew(endpoint, accessKeyID, secretAccessKey string, secure bool) (*Cl
 
 	// Instantiate http client and bucket location cache.
 	clnt.httpClient = &http.Client{
-		// Setting a sensible time out of 2minutes to wait for response
-		// headers. Request is pro-actively cancelled after 2minutes
-		// if no response was received from server.
-		Timeout:   2 * time.Minute,
 		Transport: http.DefaultTransport,
 	}
 
@@ -217,13 +213,6 @@ func (c *Client) SetCustomTransport(customHTTPTransport http.RoundTripper) {
 	//
 	if c.httpClient != nil {
 		c.httpClient.Transport = customHTTPTransport
-	}
-}
-
-// SetClientTimeout - set http client timeout.
-func (c *Client) SetClientTimeout(timeout time.Duration) {
-	if c.httpClient != nil {
-		c.httpClient.Timeout = timeout
 	}
 }
 
