@@ -207,9 +207,10 @@ func isBucketPolicyReadOnly(statements []Statement, bucketName string, objectPre
 // Removes read write bucket policy if found.
 func removeBucketPolicyStatementReadWrite(statements []Statement, bucketName string, objectPrefix string) []Statement {
 	var newStatements []Statement
+	var bucketResourceStatementRemoved bool
 	for _, statement := range statements {
 		for _, resource := range statement.Resources {
-			if resource == awsResourcePrefix+bucketName {
+			if resource == awsResourcePrefix+bucketName && !bucketResourceStatementRemoved {
 				var newActions []string
 				for _, action := range statement.Actions {
 					switch action {
@@ -219,6 +220,7 @@ func removeBucketPolicyStatementReadWrite(statements []Statement, bucketName str
 					newActions = append(newActions, action)
 				}
 				statement.Actions = newActions
+				bucketResourceStatementRemoved = true
 			} else if resource == awsResourcePrefix+bucketName+"/"+objectPrefix+"*" {
 				var newActions []string
 				for _, action := range statement.Actions {
@@ -241,9 +243,10 @@ func removeBucketPolicyStatementReadWrite(statements []Statement, bucketName str
 // Removes write only bucket policy if found.
 func removeBucketPolicyStatementWriteOnly(statements []Statement, bucketName string, objectPrefix string) []Statement {
 	var newStatements []Statement
+	var bucketResourceStatementRemoved bool
 	for _, statement := range statements {
 		for _, resource := range statement.Resources {
-			if resource == awsResourcePrefix+bucketName {
+			if resource == awsResourcePrefix+bucketName && !bucketResourceStatementRemoved {
 				var newActions []string
 				for _, action := range statement.Actions {
 					switch action {
@@ -253,6 +256,7 @@ func removeBucketPolicyStatementWriteOnly(statements []Statement, bucketName str
 					newActions = append(newActions, action)
 				}
 				statement.Actions = newActions
+				bucketResourceStatementRemoved = true
 			} else if resource == awsResourcePrefix+bucketName+"/"+objectPrefix+"*" {
 				var newActions []string
 				for _, action := range statement.Actions {
@@ -275,9 +279,10 @@ func removeBucketPolicyStatementWriteOnly(statements []Statement, bucketName str
 // Removes read only bucket policy if found.
 func removeBucketPolicyStatementReadOnly(statements []Statement, bucketName string, objectPrefix string) []Statement {
 	var newStatements []Statement
+	var bucketResourceStatementRemoved bool
 	for _, statement := range statements {
 		for _, resource := range statement.Resources {
-			if resource == awsResourcePrefix+bucketName {
+			if resource == awsResourcePrefix+bucketName && !bucketResourceStatementRemoved {
 				var newActions []string
 				for _, action := range statement.Actions {
 					switch action {
@@ -287,6 +292,7 @@ func removeBucketPolicyStatementReadOnly(statements []Statement, bucketName stri
 					newActions = append(newActions, action)
 				}
 				statement.Actions = newActions
+				bucketResourceStatementRemoved = true
 			} else if resource == awsResourcePrefix+bucketName+"/"+objectPrefix+"*" {
 				var newActions []string
 				for _, action := range statement.Actions {
