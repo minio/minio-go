@@ -393,6 +393,7 @@ func TestRemoveBucketPolicyStatementReadOnly(t *testing.T) {
 	}{
 		{"my-bucket", "", []Statement{}, emptyStatement},
 		{"read-only-bucket", "", setReadOnlyStatement("read-only-bucket", ""), emptyStatement},
+		{"my-bucket", "abc/", append(setReadOnlyStatement("my-bucket", "abc/"), setReadOnlyStatement("my-bucket", "def/")...), setReadOnlyStatement("my-bucket", "def/")},
 	}
 	for i, testCase := range testCases {
 		actualStatements := removeBucketPolicyStatementReadOnly(testCase.inputStatements, testCase.bucketName, testCase.objectPrefix)
@@ -414,6 +415,7 @@ func TestRemoveBucketPolicyStatementWriteOnly(t *testing.T) {
 	}{
 		{"my-bucket", "", []Statement{}, emptyStatement},
 		{"write-only-bucket", "", setWriteOnlyStatement("write-only-bucket", ""), emptyStatement},
+		{"my-bucket", "abc/", append(setWriteOnlyStatement("my-bucket", "abc/"), setWriteOnlyStatement("my-bucket", "def/")...), setWriteOnlyStatement("my-bucket", "def/")},
 	}
 	for i, testCase := range testCases {
 		actualStatements := removeBucketPolicyStatementWriteOnly(testCase.inputStatements, testCase.bucketName, testCase.objectPrefix)
@@ -435,6 +437,7 @@ func TestRemoveBucketPolicyStatementReadWrite(t *testing.T) {
 	}{
 		{"my-bucket", "", []Statement{}, emptyStatement},
 		{"read-write-bucket", "", setReadWriteStatement("read-write-bucket", ""), emptyStatement},
+		{"my-bucket", "abc/", append(setReadWriteStatement("my-bucket", "abc/"), setReadWriteStatement("my-bucket", "def/")...), setReadWriteStatement("my-bucket", "def/")},
 	}
 	for i, testCase := range testCases {
 		actualStatements := removeBucketPolicyStatementReadWrite(testCase.inputStatements, testCase.bucketName, testCase.objectPrefix)
