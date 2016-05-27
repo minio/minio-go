@@ -428,7 +428,6 @@ func TestRemoveBucketPolicyStatementReadOnly(t *testing.T) {
 	}
 	for i, testCase := range testCases {
 		actualStatements := removeBucketPolicyStatementReadOnly(testCase.inputStatements, testCase.bucketName, testCase.objectPrefix)
-		// empty statement is expected after the invocation of removeBucketPolicyStatement().
 		if !reflect.DeepEqual(testCase.expectedStatements, actualStatements) {
 			t.Errorf("Test %d: Expected policy statements doesn't match the actual one", i+1)
 		}
@@ -451,7 +450,6 @@ func TestRemoveBucketPolicyStatementWriteOnly(t *testing.T) {
 	}
 	for i, testCase := range testCases {
 		actualStatements := removeBucketPolicyStatementWriteOnly(testCase.inputStatements, testCase.bucketName, testCase.objectPrefix)
-		// empty statement is expected after the invocation of removeBucketPolicyStatement().
 		if !reflect.DeepEqual(testCase.expectedStatements, actualStatements) {
 			t.Errorf("Test %d: Expected policy statements doesn't match the actual one", i+1)
 		}
@@ -474,7 +472,6 @@ func TestRemoveBucketPolicyStatementReadWrite(t *testing.T) {
 	}
 	for i, testCase := range testCases {
 		actualStatements := removeBucketPolicyStatementReadWrite(testCase.inputStatements, testCase.bucketName, testCase.objectPrefix)
-		// empty statement is expected after the invocation of removeBucketPolicyStatement().
 		if !reflect.DeepEqual(testCase.expectedStatements, actualStatements) {
 			t.Errorf("Test %d: Expected policy statements doesn't match the actual one", i+1)
 		}
@@ -558,7 +555,6 @@ func TestIsBucketPolicyReadOnly(t *testing.T) {
 	}
 	for i, testCase := range testCases {
 		actualResult := isBucketPolicyReadOnly(testCase.inputStatements, testCase.bucketName, testCase.objectPrefix)
-		// empty statement is expected after the invocation of removeBucketPolicyStatement().
 		if testCase.expectedResult != actualResult {
 			t.Errorf("Test %d: Expected isBucketPolicyReadonly to '%v', but instead found '%v'", i+1, testCase.expectedResult, actualResult)
 		}
@@ -585,7 +581,6 @@ func TestIsBucketPolicyReadWrite(t *testing.T) {
 	}
 	for i, testCase := range testCases {
 		actualResult := isBucketPolicyReadWrite(testCase.inputStatements, testCase.bucketName, testCase.objectPrefix)
-		// empty statement is expected after the invocation of removeBucketPolicyStatement().
 		if testCase.expectedResult != actualResult {
 			t.Errorf("Test %d: Expected isBucketPolicyReadonly to '%v', but instead found '%v'", i+1, testCase.expectedResult, actualResult)
 		}
@@ -613,7 +608,6 @@ func TestIsBucketPolicyWriteOnly(t *testing.T) {
 	}
 	for i, testCase := range testCases {
 		actualResult := isBucketPolicyWriteOnly(testCase.inputStatements, testCase.bucketName, testCase.objectPrefix)
-		// empty statement is expected after the invocation of removeBucketPolicyStatement().
 		if testCase.expectedResult != actualResult {
 			t.Errorf("Test %d: Expected isBucketPolicyReadonly to '%v', but instead found '%v'", i+1, testCase.expectedResult, actualResult)
 		}
