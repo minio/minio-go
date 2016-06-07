@@ -105,7 +105,7 @@ func TestGeneratePolicyStatement(t *testing.T) {
 		err        error
 	}{
 		{BucketPolicy("my-policy"), "my-bucket", "", []Statement{}, false, ErrInvalidArgument(fmt.Sprintf("Invalid bucket policy provided. %s", BucketPolicy("my-policy")))},
-		{BucketPolicyNone, "my-bucket", "", []Statement{}, true, nil},
+		{BucketPolicyNone, "my-bucket", "", setPseudoNoneStatement("my-bucket", ""), true, nil},
 		{BucketPolicyReadOnly, "read-only-bucket", "", setReadOnlyStatement("read-only-bucket", ""), true, nil},
 		{BucketPolicyWriteOnly, "write-only-bucket", "", setWriteOnlyStatement("write-only-bucket", ""), true, nil},
 		{BucketPolicyReadWrite, "read-write-bucket", "", setReadWriteStatement("read-write-bucket", ""), true, nil},
