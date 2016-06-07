@@ -117,6 +117,16 @@ var (
 	}
 )
 
+// None actions.
+var (
+	noneBucketActions = []string{
+		"s3:NoneBucket",
+	}
+	noneObjectActions = []string{
+		"s3:None",
+	}
+)
+
 // subsetActions returns true if the first array is completely
 // contained in the second array. There must be at least
 // the same number of duplicate values in second as there
@@ -438,7 +448,8 @@ func generatePolicyStatement(bucketPolicy BucketPolicy, bucketName, objectPrefix
 	}
 	var statements []Statement
 	if bucketPolicy == BucketPolicyNone {
-		return []Statement{}, nil
+		// Get none policy
+		statements = setPseudoNoneStatement(bucketName, objectPrefix)
 	} else if bucketPolicy == BucketPolicyReadWrite {
 		// Get read-write policy.
 		statements = setReadWriteStatement(bucketName, objectPrefix)
@@ -504,6 +515,25 @@ func setWriteOnlyStatement(bucketName, objectPrefix string) []Statement {
 	objectResourceStatement.Principal.AWS = []string{"*"}
 	objectResourceStatement.Resources = []string{fmt.Sprintf("%s%s", awsResourcePrefix, bucketName+"/"+objectPrefix+"*")}
 	objectResourceStatement.Actions = writeOnlyObjectActions
+	// Save the write only policy.
+	statements = append(statements, bucketResourceStatement, objectResourceStatement)
+	return statements
+}
+
+// Obtain statements for none BucketPolicy.
+func setPseudoNoneStatement(bucketName, objectPrefix string) []Statement {
+	bucketResourceStatement := Statement{}
+	objectResourceStatement := Statement{}
+	statements := []Statement{}
+	// Write only policy.
+	bucketResourceStatement.Effect = "Allow"
+	bucketResourceStatement.Principal.AWS = []string{"*"}
+	bucketResourceStatement.Resources = []string{fmt.Sprintf("%s%s", awsResourcePrefix, bucketName)}
+	bucketResourceStatement.Actions = noneBucketActions
+	objectResourceStatement.Effect = "Allow"
+	objectResourceStatement.Principal.AWS = []string{"*"}
+	objectResourceStatement.Resources = []string{fmt.Sprintf("%s%s", awsResourcePrefix, bucketName+"/"+objectPrefix+"*")}
+	objectResourceStatement.Actions = noneObjectActions
 	// Save the write only policy.
 	statements = append(statements, bucketResourceStatement, objectResourceStatement)
 	return statements
