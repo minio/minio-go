@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/xml"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -351,11 +352,31 @@ func (c Client) completeMultipartUpload(bucketName, objectName, uploadID string,
 			return completeMultipartUploadResult{}, httpRespToErrorResponse(resp, bucketName, objectName)
 		}
 	}
+
+	// Read resp.Body into a []bytes to parse for Error response inside the body
+	var b []byte
+	b, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return completeMultipartUploadResult{}, err
+	}
 	// Decode completed multipart upload response on success.
 	completeMultipartUploadResult := completeMultipartUploadResult{}
-	err = xmlDecoder(resp.Body, &completeMultipartUploadResult)
+	err = xmlDecoder(bytes.NewReader(b), &completeMultipartUploadResult)
 	if err != nil {
+		// xml parsing failure due to presence an ill-formed xml fragment
 		return completeMultipartUploadResult, err
+	} else if completeMultipartUploadResult.Bucket == "" {
+		// xml's Decode method ignores well-formed xml that don't apply to the type of value supplied.
+		// In this case, it would leave completeMultipartUploadResult with the corresponding zero-values
+		// of the members.
+
+		// Decode completed multipart upload response on failure
+		completeMultipartUploadErr := completeMultipartUploadErr{}
+		err = xmlDecoder(bytes.NewReader(b), &completeMultipartUploadErr)
+		if err != nil {
+			return completeMultipartUploadResult, err
+		}
+		return completeMultipartUploadResult, errors.New(completeMultipartUploadErr.Code)
 	}
 	return completeMultipartUploadResult, nil
 }
