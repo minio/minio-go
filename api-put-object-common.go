@@ -68,7 +68,7 @@ func shouldUploadPart(objPart objectPart, objectParts map[int]objectPart) bool {
 // NOTE: Assumption here is that for any object to be uploaded to any S3 compatible
 // object storage it will have the following parameters as constants.
 //
-//  maxPartsCount - 10000
+//  maxPartsCount - 1000000
 //  minPartSize - 5MiB
 //  maxMultipartPutObjectSize - 5TiB
 //
