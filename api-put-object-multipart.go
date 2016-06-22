@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/xml"
-	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -371,12 +370,13 @@ func (c Client) completeMultipartUpload(bucketName, objectName, uploadID string,
 		// of the members.
 
 		// Decode completed multipart upload response on failure
-		completeMultipartUploadErr := completeMultipartUploadErr{}
+		completeMultipartUploadErr := ErrorResponse{}
 		err = xmlDecoder(bytes.NewReader(b), &completeMultipartUploadErr)
 		if err != nil {
+			// xml parsing failure due to presence an ill-formed xml fragment
 			return completeMultipartUploadResult, err
 		}
-		return completeMultipartUploadResult, errors.New(completeMultipartUploadErr.Code)
+		return completeMultipartUploadResult, completeMultipartUploadErr
 	}
 	return completeMultipartUploadResult, nil
 }

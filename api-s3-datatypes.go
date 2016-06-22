@@ -156,15 +156,6 @@ type completeMultipartUploadResult struct {
 	ETag     string
 }
 
-// completeMultipartUploadErr container for complete multipart upload
-// error
-type completeMultipartUploadErr struct {
-	Code      string
-	Message   string
-	HostId    string
-	RequestId string
-}
-
 // completePart sub container lists individual part numbers and their
 // md5sum, part of completeMultipartUpload.
 type completePart struct {
