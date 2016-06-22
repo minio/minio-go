@@ -41,6 +41,19 @@ type commonPrefix struct {
 	Prefix string
 }
 
+// S3 offers a range of storage classes designed for
+// different use cases, following list captures these.
+const (
+	// General purpose.
+	// s3StandardStorageClass = "STANDARD"
+	// Infrequent access.
+	// s3InfrequentStorageClass = "STANDARD_IA"
+	// Reduced redundancy access.
+	// s3RedundancyStorageClass = "REDUCED_REDUNDANCY"
+	// Archive access.
+	s3GlacierStorageClass = "GLACIER"
+)
+
 // listBucketResult container for listObjects response.
 type listBucketResult struct {
 	// A response can contain CommonPrefixes only if you have
