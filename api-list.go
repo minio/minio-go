@@ -118,6 +118,15 @@ func (c Client) ListObjects(bucketName, objectPrefix string, recursive bool, don
 
 			// If contents are available loop through and send over channel.
 			for _, object := range result.Contents {
+				// is object on AWS Glacier?.
+				// Operations will fail if the S3 object has a storage class of
+				// GLACIER and it involves copying from S3 to S3, downloading from S3,
+				// or moving where S3 is the source (the delete will actually succeed,
+				// but we do not want fail to transfer the file and then successfully
+				// delete it).
+				if object.StorageClass == s3GlacierStorageClass {
+					continue
+				}
 				// Save the marker.
 				marker = object.Key
 				select {

@@ -60,7 +60,7 @@ type ObjectMultipartInfo struct {
 	Owner     owner
 
 	// The type of storage to use for the object. Defaults to 'STANDARD'.
-	StorageClass string
+	StorageClass string // Supports only STANDARD, REDUCED_REDUNDANCY.
 
 	// Key of the object for which the multipart upload was initiated.
 	Key string
