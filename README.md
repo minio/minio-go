@@ -5,7 +5,7 @@ The Minio Golang Client SDK provides simple APIs to access any Amazon S3 compati
 - AWS Signature Version 4
    - Amazon S3
    - Minio
- - AWS Signature Version 2
+- AWS Signature Version 2
    - Google Cloud Storage (Compatibility Mode)
    - Openstack Swift + Swift3 middleware
    - Ceph Object Gateway
@@ -23,12 +23,16 @@ $ go get -u github.com/minio/minio-go
 ```
 ## Initialize Minio Client
 You need four items in order to connect to Minio object storage server.
-| Params     | Description |  
-| :------- | :------------ |  
-| endpoint| URL to object storage service. |  
-| accessKeyID | Access key is like user ID that uniquely identifies your account.   |   
-| secretAccessKey| Secret key is the password to your account.|
-|secure|Set this value to 'true' to enable secure (HTTPS) access.|
+
+
+
+| Params  | Description| 
+| :---         |     :---     |
+| endpoint   | URL to object storage service.   | 
+| accessKeyID | Access key is like user ID that uniquely identifies your account. |   
+| secretAccessKey | Secret key is the password to your account. |
+|secure | Set this value to 'true' to enable secure (HTTPS) access. |
+
 
 ```go
 package main
