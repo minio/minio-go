@@ -163,8 +163,8 @@ func (c Client) SetBucketPolicy(bucketName string, objectPrefix string, bucketPo
 	}
 	// For bucket policy set to 'none' we need to remove the policy.
 	if bucketPolicy == BucketPolicyNone && policy.Statements == nil {
-		// No policies to set, return success.
-		return nil
+		// No policy exists on the given prefix so return with ErrNoSuchBucketPolicy.
+		return ErrNoSuchBucketPolicy(fmt.Sprintf("No policy exists on %s/%s", bucketName, objectPrefix))
 	}
 	// Remove any previous policies at this path.
 	statements := removeBucketPolicyStatement(policy.Statements, bucketName, objectPrefix)
