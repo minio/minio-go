@@ -142,14 +142,24 @@ func closeResponse(resp *http.Response) {
 	// If resp.Body is not closed, the Client's underlying RoundTripper
 	// (typically Transport) may not be able to re-use a persistent TCP
 	// connection to the server for a subsequent "keep-alive" request.
-	if resp != nil && resp.Body != nil {
+	if resp != nil {
 		// Drain any remaining Body and then close the connection.
 		// Without this closing connection would disallow re-using
 		// the same connection for future uses.
 		//  - http://stackoverflow.com/a/17961593/4465767
-		io.Copy(ioutil.Discard, resp.Body)
-		resp.Body.Close()
+		closeReader(resp.Body)
 	}
+}
+
+// closeReader - closes the readCloser safely based on its availability,
+// also drains the reader for any remaining data.
+func closeReader(reader io.ReadCloser) error {
+	if reader != nil {
+		io.Copy(ioutil.Discard, reader)
+		// Returns error if any.
+		return reader.Close()
+	}
+	return nil
 }
 
 // isVirtualHostSupported - verifies if bucketName can be part of
