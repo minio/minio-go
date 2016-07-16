@@ -142,6 +142,9 @@ func isBucketPolicyReadWrite(statements []Statement, bucketName string, objectPr
 	sort.Strings(readWriteBucketActions)
 	sort.Strings(readWriteObjectActions)
 	for _, statement := range statements {
+		if statement.Principal.AWS[0] != "*" {
+			continue
+		}
 		for _, resource := range statement.Resources {
 			if resource == awsResourcePrefix+bucketName {
 				if subsetActions(readWriteBucketActions, statement.Actions) {
@@ -164,6 +167,9 @@ func isBucketPolicyWriteOnly(statements []Statement, bucketName string, objectPr
 	sort.Strings(writeOnlyBucketActions)
 	sort.Strings(writeOnlyObjectActions)
 	for _, statement := range statements {
+		if statement.Principal.AWS[0] != "*" {
+			continue
+		}
 		for _, resource := range statement.Resources {
 			if resource == awsResourcePrefix+bucketName {
 				if subsetActions(writeOnlyBucketActions, statement.Actions) {
@@ -186,6 +192,9 @@ func isBucketPolicyReadOnly(statements []Statement, bucketName string, objectPre
 	sort.Strings(readOnlyBucketActions)
 	sort.Strings(readOnlyObjectActions)
 	for _, statement := range statements {
+		if statement.Principal.AWS[0] != "*" {
+			continue
+		}
 		for _, resource := range statement.Resources {
 			if resource == awsResourcePrefix+bucketName {
 				if subsetActions(readOnlyBucketActions, statement.Actions) {
