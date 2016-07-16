@@ -38,6 +38,13 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	// s3Client.TraceOn(os.Stderr)
+
+	// Description of policy input.
+	// minio.BucketPolicyNone - Remove any previously applied bucket policy at a prefix.
+	// minio.BucketPolicyReadOnly - Set read-only operations at a prefix.
+	// minio.BucketPolicyWriteOnly - Set write-only operations at a prefix.
+	// minio.BucketPolicyReadWrite - Set read-write operations at a prefix.
 	err = s3Client.SetBucketPolicy("my-bucketname", "my-objectprefix", minio.BucketPolicyReadWrite)
 	if err != nil {
 		log.Fatalln(err)
