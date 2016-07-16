@@ -50,7 +50,7 @@ func main() {
 |:---|:---|:---|:---|
 |[`MakeBucket`](#MakeBucket)   |[`GetObject`](#GetObject)   | [`PresignedGetObject`](#PresignedGetObject)  |[`SetBucketPolicy`](#SetBucketPolicy)   |
 |[`ListBuckets`](#ListBuckets)   |[`PutObject`](#PutObject)   |[`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)  |
-|[`BucketExists`](#BucketExists)   |[`CopyObject`](#CopyObject)   |[`PresignedPostPolicy`](#PresignedPostPolicy)   | [`RemoveBucketPolicy`](#RemoveBucketPolicy)  |
+|[`BucketExists`](#BucketExists)   |[`CopyObject`](#CopyObject)   |[`PresignedPostPolicy`](#PresignedPostPolicy)   |   |
 | [`RemoveBucket`](#RemoveBucket)  |[`StatObject`](#StatObject)   |   |   |
 |[`ListObjects`](#ListObjects)   |[`RemoveObject`](#RemoveObject)   |   |   |
 |[`ListIncompleteUploads`](#ListIncompleteUploads)   | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload)  |   |   |
@@ -753,33 +753,6 @@ if err != nil {
     return
 }
 fmt.Println("Access permissions for mybucket is", bucketPolicy)
-```
-
-<a name="RemoveBucketPolicy">
-#### RemoveBucketPolicy(bucketname string, objectPrefix string) error
-Remove existing permissions on bucket or an object prefix.
-
-__Parameters__
-
-|Param   |Type   |Description   |
-|:---|:---| :---|
-|`bucketName`  | _string_  |name of the bucket.   |
-|`objectPrefix` | _string_  |name of the object prefix   |
-
-__Return Values__
-
-|Param   |Type   |Description   |
-|:---|:---| :---|
-|`err` | _error_  |standard error  |
-
-__Example__
-
-```go
-err := s3Client.RemoveBucketPolicy("mybucket", "myprefix")
-if err != nil {
-    fmt.Println(err)
-    return
-}
 ```
 
 ## 6. Explore Further
