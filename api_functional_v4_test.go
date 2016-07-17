@@ -1215,6 +1215,18 @@ func TestFunctional(t *testing.T) {
 		t.Fatal("Error: object " + objectName + " not found.")
 	}
 
+	objFound = false
+	isRecursive = true // Recursive is true.
+	for obj := range c.ListObjectsV2(bucketName, objectName, isRecursive, doneCh) {
+		if obj.Key == objectName {
+			objFound = true
+			break
+		}
+	}
+	if !objFound {
+		t.Fatal("Error: object " + objectName + " not found.")
+	}
+
 	incompObjNotFound := true
 	for objIncompl := range c.ListIncompleteUploads(bucketName, objectName, isRecursive, doneCh) {
 		if objIncompl.Key != "" {
