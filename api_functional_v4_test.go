@@ -1431,6 +1431,64 @@ func TestCopyObject(t *testing.T) {
 	}
 }
 
+func TestBucketNotification(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping functional tests for the short runs")
+	}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	c, err := New(
+		"s3.amazonaws.com",
+		os.Getenv("ACCESS_KEY"),
+		os.Getenv("SECRET_KEY"),
+		true,
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Enable to debug
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	bucketName := os.Getenv("NOTIFY_BUCKET")
+
+	topicArn := NewArn("aws", os.Getenv("NOTIFY_SERVICE"), os.Getenv("NOTIFY_REGION"), os.Getenv("NOTIFY_ACCOUNTID"), os.Getenv("NOTIFY_RESOURCE"))
+
+	topicConfig := NewNotificationConfig(topicArn)
+	topicConfig.AddEvents(ObjectCreatedAll, ObjectRemovedAll)
+	topicConfig.AddFilterSuffix("jpg")
+
+	bNotification := BucketNotification{}
+	bNotification.AddTopic(topicConfig)
+	err = c.SetBucketNotification(bucketName, bNotification)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+
+	bNotification, err = c.GetBucketNotification(bucketName)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+
+	if len(bNotification.TopicConfigs) != 1 {
+		t.Fatal("Error: Topic config is empty")
+	}
+
+	if bNotification.TopicConfigs[0].Filter.S3Key.FilterRules[0].Value != "jpg" {
+		t.Fatal("Error: cannot get the suffix")
+	}
+
+	err = c.DeleteBucketNotification(bucketName)
+	if err != nil {
+		t.Fatal("Error: cannot delete bucket notification")
+	}
+}
+
 // Tests comprehensive list of all methods.
 func TestFunctional(t *testing.T) {
 	if testing.Short() {
