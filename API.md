@@ -53,8 +53,8 @@ func main() {
 |[`BucketExists`](#BucketExists)   |[`CopyObject`](#CopyObject)   |[`PresignedPostPolicy`](#PresignedPostPolicy)   |   |
 | [`RemoveBucket`](#RemoveBucket)  |[`StatObject`](#StatObject)   |   |   |
 |[`ListObjects`](#ListObjects)   |[`RemoveObject`](#RemoveObject)   |   |   |
-|[`ListIncompleteUploads`](#ListIncompleteUploads)   | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload)  |   |   |
-|   |[`FPutObject`](#FPutObject)   |   |   |
+|[`ListObjectsV2`](#ListObjectsV2) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload)  |   |   |
+|[`ListIncompleteUploads`](#ListIncompleteUploads) |[`FPutObject`](#FPutObject)   |   |   |
 |   | [`FGetObject`](#FGetObject)  |   |   |
 
 ## 1. Constructor
@@ -256,6 +256,67 @@ for object := range objectCh {
     fmt.Println(object)
 }
 ```
+
+<a name="ListObjectsV2">
+#### ListObjectsV2(bucketName string, prefix string, recursive bool, doneCh chan struct{}) <-chan ObjectInfo
+Lists objects in a bucket using the recommanded listing API v2 
+
+__Parameters__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |name of the bucket.   |
+| `objectPrefix` |_string_   | the prefix of the objects that should be listed. |
+| `recursive`  | _bool_  |`true` indicates recursive style listing and `false` indicates directory style listing delimited by '/'.  |
+|`doneCh`  | _chan struct{}_ | Set this value to 'true' to enable secure (HTTPS) access.  |
+
+__Return Value__
+
+<table>
+    <thead>
+        <tr>
+            <th>Param</th>
+            <th>Type</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>
+           chan ObjectInfo
+            </td>
+            <td> chan ObjectInfo </td>
+            <td>
+            <ul>Read channel for all the objects in the bucket, the object is of the format:
+            <li>objectInfo.Key string: name of the object.</li>
+            <li>objectInfo.Size int64: size of the object.</li>
+            <li>objectInfo.ETag string: etag of the object. </li>
+            <li>objectInfo.LastModified time.Time: modified time stamp.</li>
+            </ul>
+            </td>
+            </tr>
+               </tbody>
+</table>
+
+```go
+// Create a done channel to control 'ListObjectsV2' go routine.
+doneCh := make(chan struct{})
+
+// Indicate to our routine to exit cleanly upon return.
+defer close(doneCh)
+
+isRecursive := true
+objectCh := minioClient.ListObjectsV2("mybucket", "myprefix", isRecursive, doneCh)
+for object := range objectCh {
+    if object.Err != nil {
+        fmt.Println(object.Err)
+        return
+    }
+    fmt.Println(object)
+}
+```
+
+
 
 <a name="ListIncompleteUploads">
 #### ListIncompleteUploads(bucketName string, prefix string, recursive bool, doneCh chan struct{}) <- chan ObjectMultipartInfo
