@@ -120,7 +120,7 @@ The full API Reference is available here.
 * [`BucketExists`](https://docs.minio.io/docs/golang-client-api-reference#BucketExists)
 * [`RemoveBucket`](https://docs.minio.io/docs/golang-client-api-reference#RemoveBucket)
 * [`ListObjects`](https://docs.minio.io/docs/golang-client-api-reference#ListObjects)
-* ListObjectsV2
+* [`ListObjectsV2`](https://docs.minio.io/docs/golang-client-api-reference#ListObjectsV2)
 * [`ListIncompleteUploads`](https://docs.minio.io/docs/golang-client-api-reference#ListIncompleteUploads)
 
 ### API Reference : Bucket policy Operations
