@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package minio_test
+package minio
 
 import (
 	"bytes"
@@ -28,8 +28,6 @@ import (
 	"os"
 	"testing"
 	"time"
-
-	"github.com/minio/minio-go"
 )
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyz01234569"
@@ -66,7 +64,7 @@ func TestMakeBucketError(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
+	c, err := New(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
@@ -93,8 +91,8 @@ func TestMakeBucketError(t *testing.T) {
 		t.Fatal("Error: make bucket should should fail for", bucketName)
 	}
 	// Verify valid error response from server.
-	if minio.ToErrorResponse(err).Code != "BucketAlreadyExists" &&
-		minio.ToErrorResponse(err).Code != "BucketAlreadyOwnedByYou" {
+	if ToErrorResponse(err).Code != "BucketAlreadyExists" &&
+		ToErrorResponse(err).Code != "BucketAlreadyOwnedByYou" {
 		t.Fatal("Error: Invalid error returned by server", err)
 	}
 	if err = c.RemoveBucket(bucketName); err != nil {
@@ -112,7 +110,7 @@ func TestMakeBucketRegions(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
+	c, err := New(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
@@ -163,7 +161,7 @@ func TestGetObjectClosedTwice(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
+	c, err := New(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
@@ -248,7 +246,7 @@ func TestRemovePartiallyUploaded(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
+	c, err := New(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
@@ -318,7 +316,7 @@ func TestResumablePutObject(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
+	c, err := New(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
@@ -428,7 +426,7 @@ func TestResumableFPutObject(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
+	c, err := New(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
@@ -508,7 +506,7 @@ func TestFPutObject(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
+	c, err := New(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
@@ -656,7 +654,7 @@ func TestGetObjectReadSeekFunctional(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
+	c, err := New(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
@@ -794,7 +792,7 @@ func TestGetObjectReadAtFunctional(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
+	c, err := New(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
@@ -935,7 +933,7 @@ func TestCopyObject(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
+	c, err := NewV4(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
@@ -997,7 +995,7 @@ func TestCopyObject(t *testing.T) {
 	}
 
 	// Set copy conditions.
-	copyConds := minio.NewCopyConditions()
+	copyConds := NewCopyConditions()
 
 	// Start by setting wrong conditions
 	err = copyConds.SetModified(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC))
@@ -1060,7 +1058,7 @@ func TestCopyObject(t *testing.T) {
 	}
 
 	// CopyObject again but with wrong conditions
-	copyConds = minio.NewCopyConditions()
+	copyConds = NewCopyConditions()
 	err = copyConds.SetUnmodified(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -1107,7 +1105,7 @@ func TestFunctional(t *testing.T) {
 	// Seed random based on current time.
 	rand.Seed(time.Now().Unix())
 
-	c, err := minio.New(
+	c, err := New(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
@@ -1162,7 +1160,7 @@ func TestFunctional(t *testing.T) {
 		t.Fatalf("Default bucket policy incorrect")
 	}
 	// Set the bucket policy to 'public readonly'.
-	err = c.SetBucketPolicy(bucketName, "", minio.BucketPolicyReadOnly)
+	err = c.SetBucketPolicy(bucketName, "", BucketPolicyReadOnly)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -1176,7 +1174,7 @@ func TestFunctional(t *testing.T) {
 	}
 
 	// Make the bucket 'public writeonly'.
-	err = c.SetBucketPolicy(bucketName, "", minio.BucketPolicyWriteOnly)
+	err = c.SetBucketPolicy(bucketName, "", BucketPolicyWriteOnly)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -1189,7 +1187,7 @@ func TestFunctional(t *testing.T) {
 		t.Fatalf("Expected bucket policy to be writeonly")
 	}
 	// Make the bucket 'public read/write'.
-	err = c.SetBucketPolicy(bucketName, "", minio.BucketPolicyReadWrite)
+	err = c.SetBucketPolicy(bucketName, "", BucketPolicyReadWrite)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
