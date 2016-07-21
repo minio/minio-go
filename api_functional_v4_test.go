@@ -986,9 +986,42 @@ func TestCopyObject(t *testing.T) {
 			len(buf), n)
 	}
 
+	r, err := c.GetObject(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	// Check the various fields of source object against destination object.
+	objInfo, err := r.Stat()
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
 	// Set copy conditions.
 	copyConds := minio.NewCopyConditions()
+
+	// Start by setting wrong conditions
+	err = copyConds.SetModified(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC))
+	if err == nil {
+		t.Fatal("Error:", err)
+	}
+	err = copyConds.SetUnmodified(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC))
+	if err == nil {
+		t.Fatal("Error:", err)
+	}
+	err = copyConds.SetMatchETag("")
+	if err == nil {
+		t.Fatal("Error:", err)
+	}
+	err = copyConds.SetMatchETagExcept("")
+	if err == nil {
+		t.Fatal("Error:", err)
+	}
+
 	err = copyConds.SetModified(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	err = copyConds.SetMatchETag(objInfo.ETag)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -1013,7 +1046,7 @@ func TestCopyObject(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	// Check the various fields of source object against destination object.
-	objInfo, err := reader.Stat()
+	objInfo, err = reader.Stat()
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -1024,6 +1057,23 @@ func TestCopyObject(t *testing.T) {
 	if objInfo.Size != objInfoCopy.Size {
 		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n",
 			objInfo.Size, objInfoCopy.Size)
+	}
+
+	// CopyObject again but with wrong conditions
+	copyConds = minio.NewCopyConditions()
+	err = copyConds.SetUnmodified(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	err = copyConds.SetMatchETagExcept(objInfo.ETag)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Perform the Copy which should fail
+	err = c.CopyObject(bucketName+"-copy", objectName+"-copy", copySource, copyConds)
+	if err == nil {
+		t.Fatal("Error:", err, bucketName+"-copy", objectName+"-copy should fail")
 	}
 
 	// Remove all objects and buckets
