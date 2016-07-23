@@ -66,9 +66,9 @@ func main() {
 |   | [`FGetObject`](#FGetObject)  |   |   |
 
 ## 1. Constructor
-<a name="Minio">
+<a name="Minio"></a>
 
-#### New(endpoint string, accessKeyID string, secretAccessKey string, ssl bool) (*Client, error)
+### New(endpoint string, accessKeyID string, secretAccessKey string, ssl bool) (*Client, error)
 Initializes a new client object.
 
 __Parameters__
@@ -84,8 +84,8 @@ __Parameters__
 
 ## 2. Bucket operations
 
-<a name="MakeBucket">
-#### MakeBucket(bucketName string, location string) error
+<a name="MakeBucket"></a>
+### MakeBucket(bucketName string, location string) error
 Creates a new bucket.
 
 
@@ -134,8 +134,8 @@ fmt.Println("Successfully created mybucket.")
 
 ```
 
-<a name="ListBuckets">
-#### ListBuckets() ([]BucketInfo, error)
+<a name="ListBuckets"></a>
+### ListBuckets() ([]BucketInfo, error)
 
 Lists all buckets.
 
@@ -181,8 +181,8 @@ for _, bucket := range buckets {
 
  ```
 
-<a name="BucketExists">
-#### BucketExists(bucketName string) error
+<a name="BucketExists"></a>
+### BucketExists(bucketName string) error
 
 Checks if a bucket exists.
 
@@ -207,8 +207,8 @@ if err != nil {
 
 ```
 
-<a name="RemoveBucket">
-#### RemoveBucket(bucketName string)
+<a name="RemoveBucket"></a>
+### RemoveBucket(bucketName string)
 
 Removes a bucket.
 
@@ -232,8 +232,8 @@ if err != nil {
 
 ```
 
-<a name="ListObjects">
-#### ListObjects(bucketName string, prefix string, recursive bool, doneCh chan struct{}) <-chan ObjectInfo
+<a name="ListObjects"></a>
+### ListObjects(bucketName string, prefix string, recursive bool, doneCh chan struct{}) <-chan ObjectInfo
 
 Lists objects in a bucket.
 
@@ -299,8 +299,8 @@ for object := range objectCh {
 ```
 
 
-<a name="ListObjectsV2">
-#### ListObjectsV2(bucketName string, prefix string, recursive bool, doneCh chan struct{}) <-chan ObjectInfo
+<a name="ListObjectsV2"></a>
+### ListObjectsV2(bucketName string, prefix string, recursive bool, doneCh chan struct{}) <-chan ObjectInfo
 
 Lists objects in a bucket using the recommanded listing API v2 
 
@@ -365,8 +365,8 @@ for object := range objectCh {
 
 ```
 
-<a name="ListIncompleteUploads">
-#### ListIncompleteUploads(bucketName string, prefix string, recursive bool, doneCh chan struct{}) <- chan ObjectMultipartInfo
+<a name="ListIncompleteUploads"></a>
+### ListIncompleteUploads(bucketName string, prefix string, recursive bool, doneCh chan struct{}) <- chan ObjectMultipartInfo
 
 Lists partially uploaded objects in a bucket.
 
@@ -436,8 +436,8 @@ for multiPartObject := range multiPartObjectCh {
 
 ## 3. Object operations
 
-<a name="GetObject">
-#### GetObject(bucketName string, objectName string) (*Object, error)
+<a name="GetObject"></a>
+### GetObject(bucketName string, objectName string) (*Object, error)
 
 Downloads an object.
 
@@ -481,8 +481,8 @@ if _, err = io.Copy(localFile, object); err != nil {
 
 ```
 
-<a name="FGetObject">
-#### FGetObject(bucketName string, objectName string, filePath string) error
+<a name="FGetObject"></a>
+### FGetObject(bucketName string, objectName string, filePath string) error
  Downloads and saves the object as a file in the local filesystem.
 
 
@@ -510,8 +510,8 @@ if err != nil {
 
 ```
 
-<a name="PutObject">
-#### PutObject(bucketName string, objectName string, reader io.Reader, contentType string) (n int, err error) 
+<a name="PutObject"></a>
+### PutObject(bucketName string, objectName string, reader io.Reader, contentType string) (n int, err error) 
 
 Uploads an object.
 
@@ -553,8 +553,8 @@ if err != nil {
 ```
 
 
-<a name="CopyObject">
-#### CopyObject(bucketName string, objectName string, objectSource string, conditions CopyConditions) error
+<a name="CopyObject"></a>
+### CopyObject(bucketName string, objectName string, objectSource string, conditions CopyConditions) error
 
 Copy a source object into a new object with the provided name in the provided bucket.
 
@@ -599,8 +599,8 @@ if err != nil {
 
 ```
 
-<a name="FPutObject">
-#### FPutObject(bucketName string, objectName string, filePath string, contentType string) error
+<a name="FPutObject"></a>
+### FPutObject(bucketName string, objectName string, filePath string, contentType string) error
 
 Uploads contents from a file to objectName. 
 
@@ -633,8 +633,8 @@ if err != nil {
 
 ```
 
-<a name="StatObject">
-#### StatObject(bucketName string, objectName string) (ObjectInfo, error)
+<a name="StatObject"></a>
+### StatObject(bucketName string, objectName string) (ObjectInfo, error)
 
 Gets metadata of an object.
 
@@ -692,8 +692,8 @@ fmt.Println(objInfo)
 
 ```
 
-<a name="RemoveObject">
-#### RemoveObject(bucketName string, objectName string) error
+<a name="RemoveObject"></a>
+### RemoveObject(bucketName string, objectName string) error
 
 Removes an object.
 
@@ -718,8 +718,8 @@ if err != nil {
 ```
 
 
-<a name="RemoveIncompleteUpload">
-#### RemoveIncompleteUpload(bucketName string, objectName string) error
+<a name="RemoveIncompleteUpload"></a>
+### RemoveIncompleteUpload(bucketName string, objectName string) error
 
 Removes a partially uploaded object.
 
@@ -747,8 +747,8 @@ if err != nil {
 ## 4. Presigned operations
 
 
-<a name="PresignedGetObject">
-#### PresignedGetObject(bucketName string, objectName string, expiry time.Duration, reqParams url.Values) (*url.URL, error)
+<a name="PresignedGetObject"></a>
+### PresignedGetObject(bucketName string, objectName string, expiry time.Duration, reqParams url.Values) (*url.URL, error)
 
 Generates a presigned URL for HTTP GET operations. Browsers/Mobile clients may point to this URL to directly download objects even if the bucket is private. This presigned URL can have an associated expiration time in seconds after which it is no longer operational. The default expiry is set to 7 days.
 
@@ -781,8 +781,8 @@ if err != nil {
 
 ```
 
-<a name="PresignedPutObject">
-#### PresignedPutObject(bucketName string, objectName string, expiry time.Duration) (*url.URL, error)
+<a name="PresignedPutObject"></a>
+### PresignedPutObject(bucketName string, objectName string, expiry time.Duration) (*url.URL, error)
 
 Generates a presigned URL for HTTP PUT operations. Browsers/Mobile clients may point to this URL to upload objects directly to a bucket even if it is private. This presigned URL can have an associated expiration time in seconds after which it is no longer operational. The default expiry is set to 7 days.
 
@@ -816,8 +816,8 @@ if err != nil {
 
 ```
 
-<a name="PresignedPostPolicy">
-#### PresignedPostPolicy(PostPolicy) (*url.URL, map[string]string, error)
+<a name="PresignedPostPolicy"></a>
+### PresignedPostPolicy(PostPolicy) (*url.URL, map[string]string, error)
 
 Allows setting policy conditions to a presigned URL for POST operations. Policies such as bucket name to receive object uploads, key name prefixes, expiry policy may be set.
 
@@ -872,8 +872,8 @@ fmt.Printf("%s\n", url)
 
 ## 5. Bucket policy operations
 
-<a name="SetBucketPolicy">
-#### SetBucketPolicy(bucketname string, objectPrefix string, policy BucketPolicy) error
+<a name="SetBucketPolicy"></a>
+### SetBucketPolicy(bucketname string, objectPrefix string, policy BucketPolicy) error
 
 Set access permissions on bucket or an object prefix.
 
@@ -938,8 +938,8 @@ if err != nil {
 
 ```
 
-<a name="GetBucketPolicy">
-#### GetBucketPolicy(bucketName string, objectPrefix string) (BucketPolicy, error)
+<a name="GetBucketPolicy"></a>
+### GetBucketPolicy(bucketName string, objectPrefix string) (BucketPolicy, error)
 
 Get access permissions on a bucket or a prefix.
 
