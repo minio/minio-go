@@ -102,15 +102,15 @@ __Parameters__
     </thead>
     <tbody>
        <tr>
-       <td>bucketName</td>
-       <td>string </td>
-       <td>name of the bucket</td>
+       <td> <code> bucketName </code></td>
+       <td> <i> string </i>  </td>
+       <td> <code> name of the bucket <code> </td>
        </tr>
         <tr>
             <td>
-           location
+           <code> location </code>
             </td>
-            <td> string</td>
+            <td> <i> string </i>  </td>
             <td> Default value is _us-east-1_ <br/>
 
 Region valid values are: [ _us-west-1_, _us-west-2_,  _eu-west-1_, _eu-central-1_, _ap-southeast-1_, _ap-northeast-1_, _ap-southeast-2_, _sa-east-1_ ].
@@ -151,9 +151,9 @@ Lists all buckets.
     <tbody>
         <tr>
             <td>
-           bucketList
+          <code>  bucketList </code>
             </td>
-            <td> []BucketInfo </td>
+            <td> <i> []BucketInfo </i> </td>
             <td>
             <ul>Lists bucket in following format:
             <li>bucket.Name string: bucket name.</li>
@@ -262,9 +262,9 @@ __Return Value__
     <tbody>
         <tr>
             <td>
-           chan ObjectInfo
+           <code> chan ObjectInfo </code>
             </td>
-            <td> chan ObjectInfo </td>
+            <td> <i> chan ObjectInfo  </i> </td>
             <td>
             <ul>Read channel for all the objects in the bucket, the object is of the format:
             <li>objectInfo.Key string: name of the object.</li>
@@ -329,9 +329,9 @@ __Return Value__
     <tbody>
         <tr>
             <td>
-           chan ObjectInfo
+           <code> chan ObjectInfo </code>
             </td>
-            <td> chan ObjectInfo </td>
+            <td> <i> chan ObjectInfo </i> </td>
             <td>
             <ul>Read channel for all the objects in the bucket, the object is of the format:
             <li>objectInfo.Key string: name of the object.</li>
@@ -396,9 +396,9 @@ __Return Value__
     <tbody>
         <tr>
             <td>
-           chan ObjectMultipartInfo
+           <code> chan ObjectMultipartInfo </code>
             </td>
-            <td> chan ObjectMultipartInfo </td>
+            <td> <i> chan ObjectMultipartInfo </i>  </td>
             <td>
             <ul>emits multipart objects of the format:
             <li>multiPartObjInfo.Key string: name of the incomplete object.</li>
@@ -662,9 +662,9 @@ __Return Value__
     <tbody>
         <tr>
             <td>
-           objInfo
+          <code>  objInfo </code>
             </td>
-            <td> ObjectInfo</td>
+            <td> <i> ObjectInfo </i>  </td>
             <td>
             <ul>object stat info for following format:
             <li>objInfo.Size int64: size of the object.</li>
@@ -890,20 +890,20 @@ __Parameters__
     </thead>
     <tbody>
     <tr>
-    <td>bucketName</td>
-    <td>string</td>
+    <td> <code> bucketName </code> </td>
+    <td> <i> string </i> </td>
     <td>name of the bucket</td>
     </tr>
     <tr>
-    <td>objectPrefix</td>
-    <td>string</td>
+    <td> <code> objectPrefix </code> </td>
+    <td> <i> string </i> </td>
     <td>name of the object prefix</td>
     </tr>
     <tr>
             <td>
-           policy
+           <code> policy </code>
             </td>
-            <td> BucketPolicy</td>
+            <td> <i> BucketPolicy </i> </td>
             <td>
             <ul>policy can be <br/> 
             <li>BucketPolicyNone,</li>
