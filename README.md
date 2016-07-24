@@ -183,6 +183,13 @@ The full API Reference is available here.
 * [setbucketpolicy.go](https://github.com/minio/minio-go/blob/master/examples/s3/setbucketpolicy.go)
 * [getbucketpolicy.go](https://github.com/minio/minio-go/blob/master/examples/s3/getbucketpolicy.go)
  
+#### Full Examples : Bucket notification Operations
+
+* [setbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/s3/setbucketnotification.go)
+* [getbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/s3/getbucketnotification.go)
+* [deletebucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/s3/deletebucketnotification.go)
+ 
+
 #### Full Examples : File Object Operations
 
 * [fputobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/fputobject.go)

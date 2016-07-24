@@ -54,13 +54,13 @@ func main() {
 
 ```
 
-| Bucket operations  |Object operations   | Presigned operations  | Bucket Policy Operations |
+| Bucket operations  |Object operations   | Presigned operations  | Bucket Policy/Notification Operations |
 |:---|:---|:---|:---|
 |[`MakeBucket`](#MakeBucket)   |[`GetObject`](#GetObject)   | [`PresignedGetObject`](#PresignedGetObject)  |[`SetBucketPolicy`](#SetBucketPolicy)   |
 |[`ListBuckets`](#ListBuckets)   |[`PutObject`](#PutObject)   |[`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)  |
-|[`BucketExists`](#BucketExists)   |[`CopyObject`](#CopyObject)   |[`PresignedPostPolicy`](#PresignedPostPolicy)   |   |
-| [`RemoveBucket`](#RemoveBucket)  |[`StatObject`](#StatObject)   |   |   |
-|[`ListObjects`](#ListObjects)   |[`RemoveObject`](#RemoveObject)   |   |   |
+|[`BucketExists`](#BucketExists)   |[`CopyObject`](#CopyObject)   |[`PresignedPostPolicy`](#PresignedPostPolicy)   | [`SetBucketNotification`](#SetBucketNotification)   |
+| [`RemoveBucket`](#RemoveBucket)  |[`StatObject`](#StatObject)   |   |  [`GetBucketNotification`](#GetBucketNotification)  |
+|[`ListObjects`](#ListObjects)   |[`RemoveObject`](#RemoveObject)   |   |   [`DeleteBucketNotification`](#DeleteBucketNotification)  |
 |[`ListObjectsV2`](#ListObjectsV2) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload)  |   |   |
 |[`ListIncompleteUploads`](#ListIncompleteUploads) |[`FPutObject`](#FPutObject)   |   |   |
 |   | [`FGetObject`](#FGetObject)  |   |   |
@@ -870,7 +870,7 @@ fmt.Printf("%s\n", url)
 
 ```
 
-## 5. Bucket policy operations
+## 5. Bucket policy/notification operations
 
 <a name="SetBucketPolicy"></a>
 ### SetBucketPolicy(bucketname string, objectPrefix string, policy BucketPolicy) error
@@ -972,6 +972,108 @@ if err != nil {
 fmt.Println("Access permissions for mybucket is", bucketPolicy)
 
 ```
+
+<a name="GetBucketNotification"></a>
+### GetBucketNotification(bucketName string) (BucketNotification, error)
+
+Get all notification configurations related to the specified bucket
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |name of the bucket.   |
+
+__Return Values__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketNotification`  | _BucketNotification_ |structure which holds all notification configurations|
+|`err` | _error_  |standard error  |
+
+__Example__
+
+
+```go
+bucketNotification, err := minioClient.GetBucketNotification("mybucket")
+if err != nil {
+    for _, topicConfig := range bucketNotification.TopicConfigs {
+	for _, e := range topicConfig.Events {
+	    fmt.Println(e + " event is enabled")
+	}
+    }
+}
+```
+
+<a name="SetBucketNotification"></a>
+### GetBucketNotification(bucketName string, bucketNotification BucketNotification) error
+
+Set a new bucket notification on a bucket
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |name of the bucket.   |
+|`bucketNotification`  | _BucketNotification_  |bucket notification.   |
+
+__Return Values__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`err` | _error_  |standard error  |
+
+__Example__
+
+
+```go
+topicArn := NewArn("aws", "s3", "us-east-1", "804605494417", "PhotoUpdate")
+
+topicConfig := NewNotificationConfig(topicArn)
+topicConfig.AddEvents(ObjectCreatedAll, ObjectRemovedAll)
+topicConfig.AddFilterSuffix(".jpg")
+
+bucketNotification := BucketNotification{}
+bucetNotification.AddTopic(topicConfig)
+err := c.SetBucketNotification(bucketName, bucketNotification)
+if err != nil {
+	fmt.Println("Cannot set the bucket notification: " + err)
+}
+```
+
+<a name="DeleteBucketNotification"></a>
+### DeleteBucketNotification(bucketName string) error
+
+Remove all bucket notifications from a bucket
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |name of the bucket.   |
+
+__Return Values__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`err` | _error_  |standard error  |
+
+__Example__
+
+
+```go
+err := c.RemoveBucketNotification(bucketName)
+if err != nil {
+	fmt.Println("Cannot remove bucket notifications.")
+}
+```
+
 
 ## 6. Explore Further
 
