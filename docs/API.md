@@ -156,8 +156,8 @@ Lists all buckets.
             <td> <i> []BucketInfo </i> </td>
             <td>
             <ul>Lists bucket in following format:
-            <li>bucket.Name string: bucket name.</li>
-            <li>bucket.CreationDate time.Time : date when bucket was created.</li>
+            <li> <code>bucket.Name</code> <i>string</i>: bucket name.</li>
+            <li> <code>bucket.CreationDate</code> time.Time : date when bucket was created.</li>
             </ul>
             </td>
             </tr>
@@ -267,10 +267,10 @@ __Return Value__
             <td> <i> chan ObjectInfo  </i> </td>
             <td>
             <ul>Read channel for all the objects in the bucket, the object is of the format:
-            <li>objectInfo.Key string: name of the object.</li>
-            <li>objectInfo.Size int64: size of the object.</li>
-            <li>objectInfo.ETag string: etag of the object. </li>
-            <li>objectInfo.LastModified time.Time: modified time stamp.</li>
+            <li> <code>objectInfo.Key</code> <i>string</i>: name of the object.</li>
+            <li> <code>objectInfo.Size</code> <i>int64</i>: size of the object.</li>
+            <li> <code>objectInfo.ETag</code> <i>string</i>: etag of the object. </li>
+            <li> <code>objectInfo.LastModified/<code> <i>time.Time</i>: modified time stamp.</li>
             </ul>
             </td>
             </tr>
@@ -334,10 +334,10 @@ __Return Value__
             <td> <i> chan ObjectInfo </i> </td>
             <td>
             <ul>Read channel for all the objects in the bucket, the object is of the format:
-            <li>objectInfo.Key string: name of the object.</li>
-            <li>objectInfo.Size int64: size of the object.</li>
-            <li>objectInfo.ETag string: etag of the object. </li>
-            <li>objectInfo.LastModified time.Time: modified time stamp.</li>
+            <li> <code>objectInfo.Key</code> string: name of the object.</li>
+            <li> <code>objectInfo.Size</code> int64: size of the object.</li>
+            <li> <code>objectInfo.ETag</code> string: etag of the object. </li>
+            <li> <code>objectInfo.LastModified</code> time.Time: modified time stamp.</li>
             </ul>
             </td>
             </tr>
@@ -401,9 +401,9 @@ __Return Value__
             <td> <i> chan ObjectMultipartInfo </i>  </td>
             <td>
             <ul>emits multipart objects of the format:
-            <li>multiPartObjInfo.Key string: name of the incomplete object.</li>
-            <li>multiPartObjInfo.UploadID string: upload ID of the incomplete object.</li>
-            <li>multiPartObjInfo.Size int64: size of the incompletely uploaded object.</li>
+            <li> <code>multiPartObjInfo.Key</code> <i>string</i>: name of the incomplete object.</li>
+            <li> <code>multiPartObjInfo.UploadID</code> <i>string</i>: upload ID of the incomplete object.</li>
+            <li> <code>multiPartObjInfo.Size</code> <i>int64</i>: size of the incompletely uploaded object.</li>
             </ul>
             </td>
             </tr>
@@ -667,10 +667,10 @@ __Return Value__
             <td> <i> ObjectInfo </i>  </td>
             <td>
             <ul>object stat info for following format:
-            <li>objInfo.Size int64: size of the object.</li>
-            <li>objInfo.ETag string: etag of the object.</li>
-            <li>objInfo.ContentType string: Content-Type of the object.</li>
-            <li>objInfo.LastModified time.Time: modified time stamp</li>
+            <li> <code>objInfo.Size</code> <i>int64</i>: size of the object.</li>
+            <li> <code>objInfo.ETag</code> <i>string</i>: etag of the object.</li>
+            <li> <code>objInfo.ContentType</code> <i>string</i>: Content-Type of the object.</li>
+            <li> <code>objInfo.LastModified</code> <i>time.Time</i>: modified time stamp</li>
             </ul>
             </td>
             </tr>
@@ -906,10 +906,10 @@ __Parameters__
             <td> <i> BucketPolicy </i> </td>
             <td>
             <ul>policy can be <br/> 
-            <li>BucketPolicyNone,</li>
-            <li>BucketPolicyReadOnly,</li>
-            <li>BucketPolicyReadWrite,</li>
-            <li>BucketPolicyWriteOnly</li>
+            <li> <i>BucketPolicyNone</i>,</li>
+            <li> <i>BucketPolicyReadOnly</i>,</li>
+            <li> <i>BucketPolicyReadWrite</i>,</li>
+            <li> <i>BucketPolicyWriteOnly</li>
             </ul>
             </td>
             </tr>
@@ -956,7 +956,7 @@ __Return Values__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`bucketPolicy`  | _BucketPolicy_ |string that contains: 'none', 'readonly', 'readwrite', or 'writeonly   |
+|`bucketPolicy`  | _BucketPolicy_ |string that contains: `none`, `readonly`, `readwrite`, or `writeonly`   |
 |`err` | _error_  |standard error  |
 
 __Example__
