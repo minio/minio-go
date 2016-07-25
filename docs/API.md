@@ -976,7 +976,7 @@ fmt.Println("Access permissions for mybucket is", bucketPolicy)
 <a name="GetBucketNotification"></a>
 ### GetBucketNotification(bucketName string) (BucketNotification, error)
 
-Get all notification configurations related to the specified bucket
+Get all notification configurations related to the specified bucket.
 
 __Parameters__
 
@@ -1008,9 +1008,9 @@ if err != nil {
 ```
 
 <a name="SetBucketNotification"></a>
-### GetBucketNotification(bucketName string, bucketNotification BucketNotification) error
+### SetBucketNotification(bucketName string, bucketNotification BucketNotification) error
 
-Set a new bucket notification on a bucket
+Set a new bucket notification on a bucket.
 
 __Parameters__
 
@@ -1048,7 +1048,7 @@ if err != nil {
 <a name="DeleteBucketNotification"></a>
 ### DeleteBucketNotification(bucketName string) error
 
-Remove all bucket notifications from a bucket
+Remove all configured bucket notifications on a bucket.
 
 __Parameters__
 
