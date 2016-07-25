@@ -104,16 +104,16 @@ __Parameters__
        <tr>
        <td> <code> bucketName </code></td>
        <td> <i> string </i>  </td>
-       <td> <code> name of the bucket <code> </td>
+       <td> name of the bucket </td>
        </tr>
         <tr>
             <td>
            <code> location </code>
             </td>
             <td> <i> string </i>  </td>
-            <td> Default value is _us-east-1_ <br/>
+            <td> Default value is <i>_us-east-1_ </i> <br/>
 
-Region valid values are: [ _us-west-1_, _us-west-2_,  _eu-west-1_, _eu-central-1_, _ap-southeast-1_, _ap-northeast-1_, _ap-southeast-2_, _sa-east-1_ ].
+Region valid values are: [ <i> _us-west-1_, _us-west-2_,  _eu-west-1_, _eu-central-1_, _ap-southeast-1_, _ap-northeast-1_, _ap-southeast-2_, _sa-east-1_ </i> ].
             </td>
             </tr>
                </tbody>
@@ -157,7 +157,7 @@ Lists all buckets.
             <td>
             <ul>Lists bucket in following format:
             <li> <code>bucket.Name</code> <i>string</i>: bucket name.</li>
-            <li> <code>bucket.CreationDate</code> time.Time : date when bucket was created.</li>
+            <li> <code>bucket.CreationDate</code> <i>time.Time</i> : date when bucket was created.</li>
             </ul>
             </td>
             </tr>
@@ -270,7 +270,7 @@ __Return Value__
             <li> <code>objectInfo.Key</code> <i>string</i>: name of the object.</li>
             <li> <code>objectInfo.Size</code> <i>int64</i>: size of the object.</li>
             <li> <code>objectInfo.ETag</code> <i>string</i>: etag of the object. </li>
-            <li> <code>objectInfo.LastModified/<code> <i>time.Time</i>: modified time stamp.</li>
+            <li> <code>objectInfo.LastModified</code> <i>time.Time</i>: modified time stamp.</li>
             </ul>
             </td>
             </tr>
@@ -567,7 +567,7 @@ __Parameters__
 |`bucketName`  | _string_  |name of the bucket.   |
 |`objectName` | _string_  |name of the object.   |
 |`objectSource` | _string_  |name of the object source.  |
-|`conditions` | _CopyConditions_  |Collection of supported CopyObject conditions. ['x-amz-copy-source', 'x-amz-copy-source-if-match', 'x-amz-copy-source-if-none-match', 'x-amz-copy-source-if-unmodified-since', 'x-amz-copy-source-if-modified-since'].|
+|`conditions` | _CopyConditions_  |Collection of supported CopyObject conditions. [`x-amz-copy-source`, `x-amz-copy-source-if-match`, `x-amz-copy-source-if-none-match`, `x-amz-copy-source-if-unmodified-since`, `x-amz-copy-source-if-modified-since`].|
 
 
 __Example__
