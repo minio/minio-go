@@ -111,9 +111,9 @@ __Parameters__
            <code> location </code>
             </td>
             <td> <i> string </i>  </td>
-            <td> Default value is <i>_us-east-1_ </i> <br/>
+            <td> Default value is <i>us-east-1</i> <br/>
 
-Region valid values are: [ <i> _us-west-1_, _us-west-2_,  _eu-west-1_, _eu-central-1_, _ap-southeast-1_, _ap-northeast-1_, _ap-southeast-2_, _sa-east-1_ </i> ].
+Region valid values are: [ <i> us-west-1, us-west-2, eu-west-1, eu-central-1, ap-southeast-1, ap-northeast-1, ap-southeast-2, sa-east-1 </i> ].
             </td>
             </tr>
                </tbody>
