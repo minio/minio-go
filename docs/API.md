@@ -208,7 +208,7 @@ if err != nil {
 ```
 
 <a name="RemoveBucket"></a>
-### RemoveBucket(bucketName string)
+### RemoveBucket(bucketName string) error
 
 Removes a bucket.
 
