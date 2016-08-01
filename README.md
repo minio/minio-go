@@ -150,7 +150,8 @@ The full API Reference is available here.
 
 * [`SetBucketNotification`](https://docs.minio.io/docs/golang-client-api-reference#SetBucketNotification)
 * [`GetBucketNotification`](https://docs.minio.io/docs/golang-client-api-reference#GetBucketNotification)
-* [`DeleteBucketNotification`](https://docs.minio.io/docs/golang-client-api-reference#DeleteBucketNotification)
+* [`RemoveAllBucketNotification`](https://docs.minio.io/docs/golang-client-api-reference#RemoveAllBucketNotification)
+* [`ListenBucketNotification`](https://docs.minio.io/docs/golang-client-api-reference#ListenBucketNotification) (Minio Extension)
 
 ### API Reference : File Object Operations
 
@@ -194,7 +195,7 @@ The full API Reference is available here.
 * [setbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/s3/setbucketnotification.go)
 * [getbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/s3/getbucketnotification.go)
 * [deletebucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/s3/deletebucketnotification.go)
- 
+* [listenbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/s3/listenbucketnotification.go) (Minio Extension)
 
 #### Full Examples : File Object Operations
 

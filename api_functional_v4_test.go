@@ -1483,7 +1483,7 @@ func TestBucketNotification(t *testing.T) {
 		t.Fatal("Error: cannot get the suffix")
 	}
 
-	err = c.DeleteBucketNotification(bucketName)
+	err = c.RemoveAllBucketNotification(bucketName)
 	if err != nil {
 		t.Fatal("Error: cannot delete bucket notification")
 	}
