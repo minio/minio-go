@@ -1068,7 +1068,7 @@ __Example__
 
 
 ```go
-err := c.RemoveBucketNotification(bucketName)
+err := c.DeleteBucketNotification(bucketName)
 if err != nil {
 	fmt.Println("Cannot remove bucket notifications.")
 }
