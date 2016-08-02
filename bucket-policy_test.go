@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/minio/minio-go/pkg/set"
 )
 
 // Validates bucket policy string.
@@ -45,32 +47,6 @@ func TestIsValidBucketPolicy(t *testing.T) {
 			t.Errorf("Test %d: Expected IsValidBucket policy to be '%v' for policy \"%s\", but instead found it to be '%v'", i+1, testCase.expectedResult, testCase.inputPolicy, actualResult)
 		}
 	}
-}
-
-// Tests whether first array is completly contained in second array.
-func TestSubsetActions(t *testing.T) {
-	testCases := []struct {
-		firstArray  []string
-		secondArray []string
-
-		expectedResult bool
-	}{
-		{[]string{"aaa", "bbb"}, []string{"ccc", "bbb"}, false},
-		{[]string{"aaa", "bbb"}, []string{"aaa", "ccc"}, false},
-		{[]string{"aaa", "bbb"}, []string{"aaa", "bbb"}, true},
-		{[]string{"aaa", "bbb"}, []string{"aaa", "bbb", "ccc"}, true},
-		{[]string{"aaa", "bbb", "aaa"}, []string{"aaa", "bbb", "ccc"}, false},
-		{[]string{"aaa", "bbb", "aaa"}, []string{"aaa", "bbb", "bbb", "aaa"}, true},
-		{[]string{"aaa", "bbb", "aaa"}, []string{"aaa", "bbb"}, false},
-		{[]string{"aaa", "bbb", "aaa"}, []string{"aaa", "bbb", "aaa", "bbb", "ccc"}, true},
-	}
-	for i, testCase := range testCases {
-		actualResult := subsetActions(testCase.firstArray, testCase.secondArray)
-		if testCase.expectedResult != actualResult {
-			t.Errorf("Test %d: First array '%v' is not contained in second array '%v'", i+1, testCase.firstArray, testCase.secondArray)
-		}
-	}
-
 }
 
 // Tests validate Bucket Policy type identifier.
@@ -145,13 +121,13 @@ func TestsetReadOnlyStatement(t *testing.T) {
 		statements := []Statement{}
 
 		bucketResourceStatement.Effect = "Allow"
-		bucketResourceStatement.Principal.AWS = []string{"*"}
-		bucketResourceStatement.Resources = []string{fmt.Sprintf("%s%s", awsResourcePrefix, bucketName)}
-		bucketResourceStatement.Actions = readOnlyBucketActions
+		bucketResourceStatement.Principal.AWS = set.CreateStringSet("*")
+		bucketResourceStatement.Resources = set.CreateStringSet(awsResourcePrefix + bucketName)
+		bucketResourceStatement.Actions = set.CreateStringSet(readOnlyBucketActions...)
 		bucketListResourceStatement.Effect = "Allow"
-		bucketListResourceStatement.Principal.AWS = []string{"*"}
-		bucketListResourceStatement.Resources = []string{fmt.Sprintf("%s%s", awsResourcePrefix, bucketName)}
-		bucketListResourceStatement.Actions = []string{"s3:ListBucket"}
+		bucketListResourceStatement.Principal.AWS = set.CreateStringSet("*")
+		bucketListResourceStatement.Resources = set.CreateStringSet(awsResourcePrefix + bucketName)
+		bucketListResourceStatement.Actions = set.CreateStringSet("s3:ListBucket")
 		if objectPrefix != "" {
 			bucketListResourceStatement.Conditions = map[string]map[string]string{
 				"StringEquals": {
@@ -160,9 +136,9 @@ func TestsetReadOnlyStatement(t *testing.T) {
 			}
 		}
 		objectResourceStatement.Effect = "Allow"
-		objectResourceStatement.Principal.AWS = []string{"*"}
-		objectResourceStatement.Resources = []string{fmt.Sprintf("%s%s", awsResourcePrefix, bucketName+"/"+objectPrefix+"*")}
-		objectResourceStatement.Actions = readOnlyObjectActions
+		objectResourceStatement.Principal.AWS = set.CreateStringSet("*")
+		objectResourceStatement.Resources = set.CreateStringSet(awsResourcePrefix + bucketName + "/" + objectPrefix + "*")
+		objectResourceStatement.Actions = set.CreateStringSet(readOnlyObjectActions...)
 		// Save the read only policy.
 		statements = append(statements, *bucketResourceStatement, *bucketListResourceStatement, *objectResourceStatement)
 		return statements
@@ -197,13 +173,13 @@ func TestsetWriteOnlyStatement(t *testing.T) {
 		statements := []Statement{}
 		// Write only policy.
 		bucketResourceStatement.Effect = "Allow"
-		bucketResourceStatement.Principal.AWS = []string{"*"}
-		bucketResourceStatement.Resources = []string{fmt.Sprintf("%s%s", awsResourcePrefix, bucketName)}
-		bucketResourceStatement.Actions = writeOnlyBucketActions
+		bucketResourceStatement.Principal.AWS = set.CreateStringSet("*")
+		bucketResourceStatement.Resources = set.CreateStringSet(awsResourcePrefix + bucketName)
+		bucketResourceStatement.Actions = set.CreateStringSet(writeOnlyBucketActions...)
 		objectResourceStatement.Effect = "Allow"
-		objectResourceStatement.Principal.AWS = []string{"*"}
-		objectResourceStatement.Resources = []string{fmt.Sprintf("%s%s", awsResourcePrefix, bucketName+"/"+objectPrefix+"*")}
-		objectResourceStatement.Actions = writeOnlyObjectActions
+		objectResourceStatement.Principal.AWS = set.CreateStringSet("*")
+		objectResourceStatement.Resources = set.CreateStringSet(awsResourcePrefix + bucketName + "/" + objectPrefix + "*")
+		objectResourceStatement.Actions = set.CreateStringSet(writeOnlyObjectActions...)
 		// Save the write only policy.
 		statements = append(statements, *bucketResourceStatement, *objectResourceStatement)
 		return statements
@@ -238,13 +214,13 @@ func TestsetReadWriteStatement(t *testing.T) {
 		statements := []Statement{}
 
 		bucketResourceStatement.Effect = "Allow"
-		bucketResourceStatement.Principal.AWS = []string{"*"}
-		bucketResourceStatement.Resources = []string{fmt.Sprintf("%s%s", awsResourcePrefix, bucketName)}
-		bucketResourceStatement.Actions = readWriteBucketActions
+		bucketResourceStatement.Principal.AWS = set.CreateStringSet("*")
+		bucketResourceStatement.Resources = set.CreateStringSet(awsResourcePrefix + bucketName)
+		bucketResourceStatement.Actions = set.CreateStringSet(readWriteBucketActions...)
 		bucketListResourceStatement.Effect = "Allow"
-		bucketListResourceStatement.Principal.AWS = []string{"*"}
-		bucketListResourceStatement.Resources = []string{fmt.Sprintf("%s%s", awsResourcePrefix, bucketName)}
-		bucketListResourceStatement.Actions = []string{"s3:ListBucket"}
+		bucketListResourceStatement.Principal.AWS = set.CreateStringSet("*")
+		bucketListResourceStatement.Resources = set.CreateStringSet(awsResourcePrefix + bucketName)
+		bucketListResourceStatement.Actions = set.CreateStringSet("s3:ListBucket")
 		if objectPrefix != "" {
 			bucketListResourceStatement.Conditions = map[string]map[string]string{
 				"StringEquals": {
@@ -253,9 +229,9 @@ func TestsetReadWriteStatement(t *testing.T) {
 			}
 		}
 		objectResourceStatement.Effect = "Allow"
-		objectResourceStatement.Principal.AWS = []string{"*"}
-		objectResourceStatement.Resources = []string{fmt.Sprintf("%s%s", awsResourcePrefix, bucketName+"/"+objectPrefix+"*")}
-		objectResourceStatement.Actions = readWriteObjectActions
+		objectResourceStatement.Principal.AWS = set.CreateStringSet("*")
+		objectResourceStatement.Resources = set.CreateStringSet(awsResourcePrefix + bucketName + "/" + objectPrefix + "*")
+		objectResourceStatement.Actions = set.CreateStringSet(readWriteObjectActions...)
 		// Save the read write policy.
 		statements = append(statements, *bucketResourceStatement, *bucketListResourceStatement, *objectResourceStatement)
 		return statements
@@ -309,7 +285,8 @@ func TestUnMarshalBucketPolicy(t *testing.T) {
 		if e != nil {
 			t.Fatalf("Test %d: Couldn't Marshal bucket policy", i+1)
 		}
-		actualAccessPolicy, err := unMarshalBucketPolicy(inputPolicyBytes)
+		actualAccessPolicy := BucketAccessPolicy{}
+		err := json.Unmarshal(inputPolicyBytes, &actualAccessPolicy)
 		if err != nil && testCase.shouldPass {
 			t.Errorf("Test %d: Expected to pass, but failed with: <ERROR> %s", i+1, err.Error())
 		}
@@ -329,65 +306,6 @@ func TestUnMarshalBucketPolicy(t *testing.T) {
 				t.Errorf("Test %d: The expected statements from resource statement generator doesn't match the actual statements", i+1)
 			}
 		}
-	}
-}
-
-//  Statement.Action, Statement.Resource, Statement.Principal.AWS fields could be just string also.
-// Setting these values to just a string and testing the unMarshalBucketPolicy
-func TestUnMarshalBucketPolicyUntyped(t *testing.T) {
-	obtainRaw := func(v interface{}, t *testing.T) []byte {
-		rawData, err := json.Marshal(v)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return rawData
-	}
-
-	type untypedStatement struct {
-		Sid       string
-		Effect    string
-		Principal struct {
-			AWS json.RawMessage
-		}
-		Action    json.RawMessage
-		Resource  json.RawMessage
-		Condition map[string]map[string]string
-	}
-
-	type bucketAccessPolicyUntyped struct {
-		Version   string
-		Statement []untypedStatement
-	}
-
-	statements := setReadOnlyStatement("my-bucket", "Asia/")
-	expectedBucketPolicy := BucketAccessPolicy{Statements: statements}
-	accessPolicyUntyped := bucketAccessPolicyUntyped{}
-	accessPolicyUntyped.Statement = make([]untypedStatement, len(statements))
-
-	accessPolicyUntyped.Statement[0].Effect = statements[0].Effect
-	accessPolicyUntyped.Statement[0].Principal.AWS = obtainRaw(statements[0].Principal.AWS[0], t)
-	accessPolicyUntyped.Statement[0].Action = obtainRaw(statements[0].Actions, t)
-	accessPolicyUntyped.Statement[0].Resource = obtainRaw(statements[0].Resources, t)
-
-	accessPolicyUntyped.Statement[1].Effect = statements[1].Effect
-	accessPolicyUntyped.Statement[1].Principal.AWS = obtainRaw(statements[1].Principal.AWS[0], t)
-	accessPolicyUntyped.Statement[1].Action = obtainRaw(statements[1].Actions, t)
-	accessPolicyUntyped.Statement[1].Resource = obtainRaw(statements[1].Resources, t)
-	accessPolicyUntyped.Statement[1].Condition = statements[1].Conditions
-
-	// Setting the values are strings.
-	accessPolicyUntyped.Statement[2].Effect = statements[2].Effect
-	accessPolicyUntyped.Statement[2].Principal.AWS = obtainRaw(statements[2].Principal.AWS[0], t)
-	accessPolicyUntyped.Statement[2].Action = obtainRaw(statements[2].Actions[0], t)
-	accessPolicyUntyped.Statement[2].Resource = obtainRaw(statements[2].Resources[0], t)
-
-	inputPolicyBytes := obtainRaw(accessPolicyUntyped, t)
-	actualAccessPolicy, err := unMarshalBucketPolicy(inputPolicyBytes)
-	if err != nil {
-		t.Fatal("Unmarshalling bucket policy from untyped statements failed")
-	}
-	if !reflect.DeepEqual(expectedBucketPolicy, actualAccessPolicy) {
-		t.Errorf("Expected BucketPolicy after unmarshalling untyped statements doesn't match the actual one")
 	}
 }
 
@@ -514,7 +432,7 @@ func TestBucketPolicyResourceMatch(t *testing.T) {
 	// generates\ statement with given resource..
 	generateStatement := func(resource string) Statement {
 		statement := Statement{}
-		statement.Resources = []string{resource}
+		statement.Resources = set.CreateStringSet(resource)
 		return statement
 	}
 
@@ -557,7 +475,8 @@ func TestBucketPolicyResourceMatch(t *testing.T) {
 			"minio-bucket"+"/*/India/*/Bihar/*")), true},
 	}
 	for i, testCase := range testCases {
-		actualResourceMatch := resourceMatch(testCase.statement.Resources[0], testCase.resourceToMatch)
+		resources := testCase.statement.Resources.FuncMatch(resourceMatch, testCase.resourceToMatch)
+		actualResourceMatch := resources.Equals(testCase.statement.Resources)
 		if testCase.expectedResourceMatch != actualResourceMatch {
 			t.Errorf("Test %d: Expected Resource match to be `%v`, but instead found it to be `%v`", i+1, testCase.expectedResourceMatch, actualResourceMatch)
 		}
@@ -567,11 +486,11 @@ func TestBucketPolicyResourceMatch(t *testing.T) {
 // Tests validate whether the bucket policy is read only.
 func TestIsBucketPolicyReadOnly(t *testing.T) {
 	testCases := []struct {
-		bucketName      string
-		objectPrefix    string
-		inputStatements []Statement
+		BbucketName      string      `json:"BucketName"`
+		OobjectPrefix    string      `json:"ObjectPrefix"`
+		IinputStatements []Statement `json:"InputStatements"`
 		// expected result.
-		expectedResult bool
+		EexpectedResult bool `json:"ExpectedResult"`
 	}{
 		{"my-bucket", "", []Statement{}, false},
 		{"read-only-bucket", "", setReadOnlyStatement("read-only-bucket", ""), true},
@@ -584,9 +503,11 @@ func TestIsBucketPolicyReadOnly(t *testing.T) {
 		{"my-bucket", "abc", setWriteOnlyStatement("my-bucket", ""), false},
 	}
 	for i, testCase := range testCases {
-		actualResult := isBucketPolicyReadOnly(testCase.inputStatements, testCase.bucketName, testCase.objectPrefix)
-		if testCase.expectedResult != actualResult {
-			t.Errorf("Test %d: Expected isBucketPolicyReadonly to '%v', but instead found '%v'", i+1, testCase.expectedResult, actualResult)
+		actualResult := isBucketPolicyReadOnly(testCase.IinputStatements, testCase.BbucketName, testCase.OobjectPrefix)
+		if testCase.EexpectedResult != actualResult {
+			s, _ := json.Marshal(testCase)
+			t.Errorf(string(s))
+			t.Errorf("Test %d: Expected isBucketPolicyReadonly to '%v', but instead found '%v'", i+1, testCase.EexpectedResult, actualResult)
 		}
 	}
 }

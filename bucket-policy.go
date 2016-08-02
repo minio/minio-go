@@ -17,10 +17,10 @@
 package minio
 
 import (
-	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
+
+	"github.com/minio/minio-go/pkg/set"
 )
 
 // maximum supported access policy size.
@@ -51,7 +51,7 @@ func (p BucketPolicy) isValidBucketPolicy() bool {
 
 // User - canonical users list.
 type User struct {
-	AWS []string
+	AWS set.StringSet
 }
 
 // Statement - minio policy statement
@@ -59,8 +59,8 @@ type Statement struct {
 	Sid        string
 	Effect     string
 	Principal  User                         `json:"Principal"`
-	Actions    []string                     `json:"Action"`
-	Resources  []string                     `json:"Resource"`
+	Actions    set.StringSet                `json:"Action"`
+	Resources  set.StringSet                `json:"Resource"`
 	Conditions map[string]map[string]string `json:"Condition,omitempty"`
 }
 
@@ -115,44 +115,25 @@ var (
 	}
 )
 
-// subsetActions returns true if the first array is completely
-// contained in the second array. There must be at least
-// the same number of duplicate values in second as there
-// are in first.
-func subsetActions(first, second []string) bool {
-	set := make(map[string]int)
-	for _, value := range second {
-		set[value]++
-	}
-	for _, value := range first {
-		if count, found := set[value]; !found {
-			return false
-		} else if count < 1 {
-			return false
-		} else {
-			set[value] = count - 1
-		}
-	}
-	return true
-}
-
 // Verifies if we have read/write policy set at bucketName, objectPrefix.
 func isBucketPolicyReadWrite(statements []Statement, bucketName string, objectPrefix string) bool {
+	rwBucketActions := set.CreateStringSet(readWriteBucketActions...)
+	rwObjectActions := set.CreateStringSet(readWriteObjectActions...)
+	bucketResource := awsResourcePrefix + bucketName
+	objectResource := awsResourcePrefix + bucketName + "/" + objectPrefix
 	var commonActions, readWrite bool
-	sort.Strings(readWriteBucketActions)
-	sort.Strings(readWriteObjectActions)
 	for _, statement := range statements {
-		if statement.Principal.AWS[0] != "*" {
+		if !statement.Principal.AWS.Contains("*") {
 			continue
 		}
-		for _, resource := range statement.Resources {
-			if resource == awsResourcePrefix+bucketName {
-				if subsetActions(readWriteBucketActions, statement.Actions) {
-					commonActions = true
-					continue
-				}
-			} else if resourceMatch(resource, awsResourcePrefix+bucketName+"/"+objectPrefix) {
-				if subsetActions(readWriteObjectActions, statement.Actions) {
+		if statement.Resources.Contains(bucketResource) {
+			if statement.Actions.Intersection(rwBucketActions).Equals(rwBucketActions) {
+				commonActions = true
+			}
+		} else {
+			resources := statement.Resources.FuncMatch(resourceMatch, objectResource)
+			if !resources.IsEmpty() {
+				if statement.Actions.Intersection(rwObjectActions).Equals(rwObjectActions) {
 					readWrite = true
 				}
 			}
@@ -163,21 +144,24 @@ func isBucketPolicyReadWrite(statements []Statement, bucketName string, objectPr
 
 // Verifies if we have write only policy set at bucketName, objectPrefix.
 func isBucketPolicyWriteOnly(statements []Statement, bucketName string, objectPrefix string) bool {
+	woBucketActions := set.CreateStringSet(writeOnlyBucketActions...)
+	woObjectActions := set.CreateStringSet(writeOnlyObjectActions...)
+	bucketResource := awsResourcePrefix + bucketName
+	objectResource := awsResourcePrefix + bucketName + "/" + objectPrefix
 	var commonActions, writeOnly bool
-	sort.Strings(writeOnlyBucketActions)
-	sort.Strings(writeOnlyObjectActions)
 	for _, statement := range statements {
-		if statement.Principal.AWS[0] != "*" {
+		if !statement.Principal.AWS.Contains("*") {
 			continue
 		}
-		for _, resource := range statement.Resources {
-			if resource == awsResourcePrefix+bucketName {
-				if subsetActions(writeOnlyBucketActions, statement.Actions) {
-					commonActions = true
-					continue
-				}
-			} else if resourceMatch(resource, awsResourcePrefix+bucketName+"/"+objectPrefix) {
-				if subsetActions(writeOnlyObjectActions, statement.Actions) {
+
+		if statement.Resources.Contains(bucketResource) {
+			if statement.Actions.Intersection(woBucketActions).Equals(woBucketActions) {
+				commonActions = true
+			}
+		} else {
+			resources := statement.Resources.FuncMatch(resourceMatch, objectResource)
+			if !resources.IsEmpty() {
+				if statement.Actions.Intersection(woObjectActions).Equals(woObjectActions) {
 					writeOnly = true
 				}
 			}
@@ -188,23 +172,25 @@ func isBucketPolicyWriteOnly(statements []Statement, bucketName string, objectPr
 
 // Verifies if we have read only policy set at bucketName, objectPrefix.
 func isBucketPolicyReadOnly(statements []Statement, bucketName string, objectPrefix string) bool {
+	roBucketActions := set.CreateStringSet(readOnlyBucketActions...)
+	roObjectActions := set.CreateStringSet(readOnlyObjectActions...)
+	bucketResource := awsResourcePrefix + bucketName
+	objectResource := awsResourcePrefix + bucketName + "/" + objectPrefix
 	var commonActions, readOnly bool
-	sort.Strings(readOnlyBucketActions)
-	sort.Strings(readOnlyObjectActions)
 	for _, statement := range statements {
-		if statement.Principal.AWS[0] != "*" {
+		if !statement.Principal.AWS.Contains("*") {
 			continue
 		}
-		for _, resource := range statement.Resources {
-			if resource == awsResourcePrefix+bucketName {
-				if subsetActions(readOnlyBucketActions, statement.Actions) {
-					commonActions = true
-					continue
-				}
-			} else if resourceMatch(resource, awsResourcePrefix+bucketName+"/"+objectPrefix) {
-				if subsetActions(readOnlyObjectActions, statement.Actions) {
+
+		if statement.Resources.Contains(bucketResource) {
+			if statement.Actions.Intersection(roBucketActions).Equals(roBucketActions) {
+				commonActions = true
+			}
+		} else {
+			resources := statement.Resources.FuncMatch(resourceMatch, objectResource)
+			if !resources.IsEmpty() {
+				if statement.Actions.Intersection(roObjectActions).Equals(roObjectActions) {
 					readOnly = true
-					break
 				}
 			}
 		}
@@ -212,35 +198,18 @@ func isBucketPolicyReadOnly(statements []Statement, bucketName string, objectPre
 	return commonActions && readOnly
 }
 
-// isAction - returns true if action is found amond the list of actions.
-func isAction(action string, actions []string) bool {
-	for _, act := range actions {
-		if action == act {
-			return true
-		}
-	}
-	return false
-}
-
 // removeReadBucketActions - removes readWriteBucket actions if found.
 func removeReadBucketActions(statements []Statement, bucketName string) []Statement {
+	rwBucketActions := set.CreateStringSet(readWriteBucketActions...)
+	bucketResource := awsResourcePrefix + bucketName
 	var newStatements []Statement
 	var bucketActionsRemoved bool
 	for _, statement := range statements {
-		for _, resource := range statement.Resources {
-			if resource == awsResourcePrefix+bucketName && !bucketActionsRemoved {
-				var newActions []string
-				for _, action := range statement.Actions {
-					if isAction(action, readWriteBucketActions) {
-						continue
-					}
-					newActions = append(newActions, action)
-				}
-				statement.Actions = newActions
-				bucketActionsRemoved = true
-			}
+		if statement.Resources.Contains(bucketResource) && !bucketActionsRemoved {
+			statement.Actions = statement.Actions.Difference(rwBucketActions)
+			bucketActionsRemoved = true
 		}
-		if len(statement.Actions) != 0 {
+		if !statement.Actions.IsEmpty() {
 			newStatements = append(newStatements, statement)
 		}
 	}
@@ -249,24 +218,18 @@ func removeReadBucketActions(statements []Statement, bucketName string) []Statem
 
 // removeListBucketActions - removes "s3:ListBucket" action if found.
 func removeListBucketAction(statements []Statement, bucketName string) []Statement {
+	bucketResource := awsResourcePrefix + bucketName
 	var newStatements []Statement
 	var listBucketActionsRemoved bool
 	for _, statement := range statements {
-		for _, resource := range statement.Resources {
-			if resource == awsResourcePrefix+bucketName && !listBucketActionsRemoved {
-				var newActions []string
-				for _, action := range statement.Actions {
-					if isAction(action, []string{"s3:ListBucket"}) {
-						delete(statement.Conditions, "StringEquals")
-						continue
-					}
-					newActions = append(newActions, action)
-				}
-				statement.Actions = newActions
+		if statement.Resources.Contains(bucketResource) && !listBucketActionsRemoved {
+			if statement.Actions.Contains("s3:ListBucket") {
+				delete(statement.Conditions, "StringEquals")
+				statement.Actions.Remove("s3:ListBucket")
 				listBucketActionsRemoved = true
 			}
 		}
-		if len(statement.Actions) != 0 {
+		if !statement.Actions.IsEmpty() {
 			newStatements = append(newStatements, statement)
 		}
 	}
@@ -275,21 +238,14 @@ func removeListBucketAction(statements []Statement, bucketName string) []Stateme
 
 // removeWriteObjectActions - removes writeOnlyObject actions if found.
 func removeWriteObjectActions(statements []Statement, bucketName string, objectPrefix string) []Statement {
+	woObjectActions := set.CreateStringSet(writeOnlyObjectActions...)
+	objectResource := awsResourcePrefix + bucketName + "/" + objectPrefix + "*"
 	var newStatements []Statement
 	for _, statement := range statements {
-		for _, resource := range statement.Resources {
-			if resource == awsResourcePrefix+bucketName+"/"+objectPrefix+"*" {
-				var newActions []string
-				for _, action := range statement.Actions {
-					if isAction(action, writeOnlyObjectActions) {
-						continue
-					}
-					newActions = append(newActions, action)
-				}
-				statement.Actions = newActions
-			}
+		if statement.Resources.Contains(objectResource) {
+			statement.Actions = statement.Actions.Difference(woObjectActions)
 		}
-		if len(statement.Actions) != 0 {
+		if !statement.Actions.IsEmpty() {
 			newStatements = append(newStatements, statement)
 		}
 	}
@@ -298,21 +254,13 @@ func removeWriteObjectActions(statements []Statement, bucketName string, objectP
 
 // removeReadObjectActions - removes "s3:GetObject" actions if found.
 func removeReadObjectActions(statements []Statement, bucketName string, objectPrefix string) []Statement {
+	objectResource := awsResourcePrefix + bucketName + "/" + objectPrefix + "*"
 	var newStatements []Statement
 	for _, statement := range statements {
-		for _, resource := range statement.Resources {
-			if resource == awsResourcePrefix+bucketName+"/"+objectPrefix+"*" {
-				var newActions []string
-				for _, action := range statement.Actions {
-					if isAction(action, []string{"s3:GetObject"}) {
-						continue
-					}
-					newActions = append(newActions, action)
-				}
-				statement.Actions = newActions
-			}
+		if statement.Resources.Contains(objectResource) {
+			statement.Actions.Remove("s3:GetObject")
 		}
-		if len(statement.Actions) != 0 {
+		if !statement.Actions.IsEmpty() {
 			newStatements = append(newStatements, statement)
 		}
 	}
@@ -321,21 +269,14 @@ func removeReadObjectActions(statements []Statement, bucketName string, objectPr
 
 // removeReadWriteObjectActions - removes readWriteObject actions if found.
 func removeReadWriteObjectActions(statements []Statement, bucketName string, objectPrefix string) []Statement {
+	rwObjectActions := set.CreateStringSet(readWriteObjectActions...)
+	objectResource := awsResourcePrefix + bucketName + "/" + objectPrefix + "*"
 	var newStatements []Statement
 	for _, statement := range statements {
-		for _, resource := range statement.Resources {
-			if resource == awsResourcePrefix+bucketName+"/"+objectPrefix+"*" {
-				var newActions []string
-				for _, action := range statement.Actions {
-					if isAction(action, readWriteObjectActions) {
-						continue
-					}
-					newActions = append(newActions, action)
-				}
-				statement.Actions = newActions
-			}
+		if statement.Resources.Contains(objectResource) {
+			statement.Actions = statement.Actions.Difference(rwObjectActions)
 		}
-		if len(statement.Actions) != 0 {
+		if !statement.Actions.IsEmpty() {
 			newStatements = append(newStatements, statement)
 		}
 	}
@@ -383,88 +324,13 @@ func removeBucketPolicyStatement(statements []Statement, bucketName string, obje
 
 // Checks if an access policiy is defined for the given object prefix
 func isPolicyDefinedForObjectPrefix(statements []Statement, bucketName string, objectPrefix string) bool {
+	objectResource := awsResourcePrefix + bucketName + "/" + objectPrefix + "*"
 	for _, statement := range statements {
-		for _, resource := range statement.Resources {
-			if resource == awsResourcePrefix+bucketName+"/"+objectPrefix+"*" {
-				return true
-			}
+		if statement.Resources.Contains(objectResource) {
+			return true
 		}
 	}
 	return false
-}
-
-// Unmarshals bucket policy byte array into a structured bucket access policy.
-func unMarshalBucketPolicy(bucketPolicyBuf []byte) (BucketAccessPolicy, error) {
-	// Untyped lazy JSON struct.
-	type bucketAccessPolicyUntyped struct {
-		Version   string
-		Statement []struct {
-			Sid       string
-			Effect    string
-			Principal struct {
-				AWS json.RawMessage
-			}
-			Action    json.RawMessage
-			Resource  json.RawMessage
-			Condition map[string]map[string]string
-		}
-	}
-	var policyUntyped = bucketAccessPolicyUntyped{}
-	// Unmarshal incoming policy into an untyped structure, to be
-	// evaluated lazily later.
-	err := json.Unmarshal(bucketPolicyBuf, &policyUntyped)
-	if err != nil {
-		return BucketAccessPolicy{}, err
-	}
-	var policy = BucketAccessPolicy{}
-	policy.Version = policyUntyped.Version
-	for _, stmtUntyped := range policyUntyped.Statement {
-		statement := Statement{}
-		// These are properly typed messages.
-		statement.Sid = stmtUntyped.Sid
-		statement.Effect = stmtUntyped.Effect
-		statement.Conditions = stmtUntyped.Condition
-
-		// AWS user can have two different types, either as []string
-		// and either as regular 'string'. We fall back to doing this
-		// since there is no other easier way to fix this.
-		err = json.Unmarshal(stmtUntyped.Principal.AWS, &statement.Principal.AWS)
-		if err != nil {
-			var awsUser string
-			err = json.Unmarshal(stmtUntyped.Principal.AWS, &awsUser)
-			if err != nil {
-				return BucketAccessPolicy{}, err
-			}
-			statement.Principal.AWS = []string{awsUser}
-		}
-		// Actions can have two different types, either as []string
-		// and either as regular 'string'. We fall back to doing this
-		// since there is no other easier way to fix this.
-		err = json.Unmarshal(stmtUntyped.Action, &statement.Actions)
-		if err != nil {
-			var action string
-			err = json.Unmarshal(stmtUntyped.Action, &action)
-			if err != nil {
-				return BucketAccessPolicy{}, err
-			}
-			statement.Actions = []string{action}
-		}
-		// Resources can have two different types, either as []string
-		// and either as regular 'string'. We fall back to doing this
-		// since there is no other easier way to fix this.
-		err = json.Unmarshal(stmtUntyped.Resource, &statement.Resources)
-		if err != nil {
-			var resource string
-			err = json.Unmarshal(stmtUntyped.Resource, &resource)
-			if err != nil {
-				return BucketAccessPolicy{}, err
-			}
-			statement.Resources = []string{resource}
-		}
-		// Append the typed policy.
-		policy.Statements = append(policy.Statements, statement)
-	}
-	return policy, nil
 }
 
 // Identifies the policy type from policy Statements.
@@ -509,15 +375,15 @@ func generatePolicyStatement(bucketPolicy BucketPolicy, bucketName, objectPrefix
 func setReadWriteStatement(bucketName, objectPrefix string) []Statement {
 	bucketResourceStatement := Statement{}
 	bucketResourceStatement.Effect = "Allow"
-	bucketResourceStatement.Principal.AWS = []string{"*"}
-	bucketResourceStatement.Resources = []string{fmt.Sprintf("%s%s", awsResourcePrefix, bucketName)}
-	bucketResourceStatement.Actions = readWriteBucketActions
+	bucketResourceStatement.Principal.AWS = set.CreateStringSet("*")
+	bucketResourceStatement.Resources = set.CreateStringSet(awsResourcePrefix + bucketName)
+	bucketResourceStatement.Actions = set.CreateStringSet(readWriteBucketActions...)
 
 	bucketListResourceStatement := Statement{}
 	bucketListResourceStatement.Effect = "Allow"
-	bucketListResourceStatement.Principal.AWS = []string{"*"}
-	bucketListResourceStatement.Resources = []string{fmt.Sprintf("%s%s", awsResourcePrefix, bucketName)}
-	bucketListResourceStatement.Actions = []string{"s3:ListBucket"}
+	bucketListResourceStatement.Principal.AWS = set.CreateStringSet("*")
+	bucketListResourceStatement.Resources = set.CreateStringSet(awsResourcePrefix + bucketName)
+	bucketListResourceStatement.Actions = set.CreateStringSet("s3:ListBucket")
 	// Object prefix is present, make sure to set the conditions for s3:ListBucket.
 	if objectPrefix != "" {
 		bucketListResourceStatement.Conditions = map[string]map[string]string{
@@ -528,9 +394,9 @@ func setReadWriteStatement(bucketName, objectPrefix string) []Statement {
 	}
 	objectResourceStatement := Statement{}
 	objectResourceStatement.Effect = "Allow"
-	objectResourceStatement.Principal.AWS = []string{"*"}
-	objectResourceStatement.Resources = []string{fmt.Sprintf("%s%s", awsResourcePrefix, bucketName+"/"+objectPrefix+"*")}
-	objectResourceStatement.Actions = readWriteObjectActions
+	objectResourceStatement.Principal.AWS = set.CreateStringSet("*")
+	objectResourceStatement.Resources = set.CreateStringSet(awsResourcePrefix + bucketName + "/" + objectPrefix + "*")
+	objectResourceStatement.Actions = set.CreateStringSet(readWriteObjectActions...)
 	// Save the read write policy.
 	statements := []Statement{}
 	statements = append(statements, bucketResourceStatement, bucketListResourceStatement, objectResourceStatement)
@@ -541,15 +407,15 @@ func setReadWriteStatement(bucketName, objectPrefix string) []Statement {
 func setReadOnlyStatement(bucketName, objectPrefix string) []Statement {
 	bucketResourceStatement := Statement{}
 	bucketResourceStatement.Effect = "Allow"
-	bucketResourceStatement.Principal.AWS = []string{"*"}
-	bucketResourceStatement.Resources = []string{fmt.Sprintf("%s%s", awsResourcePrefix, bucketName)}
-	bucketResourceStatement.Actions = readOnlyBucketActions
+	bucketResourceStatement.Principal.AWS = set.CreateStringSet("*")
+	bucketResourceStatement.Resources = set.CreateStringSet(awsResourcePrefix + bucketName)
+	bucketResourceStatement.Actions = set.CreateStringSet(readOnlyBucketActions...)
 
 	bucketListResourceStatement := Statement{}
 	bucketListResourceStatement.Effect = "Allow"
-	bucketListResourceStatement.Principal.AWS = []string{"*"}
-	bucketListResourceStatement.Resources = []string{fmt.Sprintf("%s%s", awsResourcePrefix, bucketName)}
-	bucketListResourceStatement.Actions = []string{"s3:ListBucket"}
+	bucketListResourceStatement.Principal.AWS = set.CreateStringSet("*")
+	bucketListResourceStatement.Resources = set.CreateStringSet(awsResourcePrefix + bucketName)
+	bucketListResourceStatement.Actions = set.CreateStringSet("s3:ListBucket")
 	// Object prefix is present, make sure to set the conditions for s3:ListBucket.
 	if objectPrefix != "" {
 		bucketListResourceStatement.Conditions = map[string]map[string]string{
@@ -560,9 +426,9 @@ func setReadOnlyStatement(bucketName, objectPrefix string) []Statement {
 	}
 	objectResourceStatement := Statement{}
 	objectResourceStatement.Effect = "Allow"
-	objectResourceStatement.Principal.AWS = []string{"*"}
-	objectResourceStatement.Resources = []string{fmt.Sprintf("%s%s", awsResourcePrefix, bucketName+"/"+objectPrefix+"*")}
-	objectResourceStatement.Actions = readOnlyObjectActions
+	objectResourceStatement.Principal.AWS = set.CreateStringSet("*")
+	objectResourceStatement.Resources = set.CreateStringSet(awsResourcePrefix + bucketName + "/" + objectPrefix + "*")
+	objectResourceStatement.Actions = set.CreateStringSet(readOnlyObjectActions...)
 
 	statements := []Statement{}
 
@@ -578,13 +444,13 @@ func setWriteOnlyStatement(bucketName, objectPrefix string) []Statement {
 	statements := []Statement{}
 	// Write only policy.
 	bucketResourceStatement.Effect = "Allow"
-	bucketResourceStatement.Principal.AWS = []string{"*"}
-	bucketResourceStatement.Resources = []string{fmt.Sprintf("%s%s", awsResourcePrefix, bucketName)}
-	bucketResourceStatement.Actions = writeOnlyBucketActions
+	bucketResourceStatement.Principal.AWS = set.CreateStringSet("*")
+	bucketResourceStatement.Resources = set.CreateStringSet(awsResourcePrefix + bucketName)
+	bucketResourceStatement.Actions = set.CreateStringSet(writeOnlyBucketActions...)
 	objectResourceStatement.Effect = "Allow"
-	objectResourceStatement.Principal.AWS = []string{"*"}
-	objectResourceStatement.Resources = []string{fmt.Sprintf("%s%s", awsResourcePrefix, bucketName+"/"+objectPrefix+"*")}
-	objectResourceStatement.Actions = writeOnlyObjectActions
+	objectResourceStatement.Principal.AWS = set.CreateStringSet("*")
+	objectResourceStatement.Resources = set.CreateStringSet(awsResourcePrefix + bucketName + "/" + objectPrefix + "*")
+	objectResourceStatement.Actions = set.CreateStringSet(writeOnlyObjectActions...)
 	// Save the write only policy.
 	statements = append(statements, bucketResourceStatement, objectResourceStatement)
 	return statements
