@@ -17,11 +17,11 @@
 package minio
 
 import (
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"sort"
 )
 
 // GetBucketPolicy - get bucket policy at a given path.
@@ -79,14 +79,8 @@ func processBucketPolicyResponse(bucketName string, resp *http.Response) (Bucket
 	if err != nil {
 		return BucketAccessPolicy{}, err
 	}
-	policy, err := unMarshalBucketPolicy(bucketPolicyBuf)
-	if err != nil {
-		return BucketAccessPolicy{}, err
-	}
-	// Sort the policy actions and resources for convenience.
-	for _, statement := range policy.Statements {
-		sort.Strings(statement.Actions)
-		sort.Strings(statement.Resources)
-	}
-	return policy, nil
+
+	policy := BucketAccessPolicy{}
+	err = json.Unmarshal(bucketPolicyBuf, &policy)
+	return policy, err
 }
