@@ -174,3 +174,36 @@ func (b *BucketNotification) AddLambda(lambdaConfig NotificationConfig) {
 	newLambdaConfig := LambdaConfig{NotificationConfig: lambdaConfig, Lambda: lambdaConfig.Arn.String()}
 	b.LambdaConfigs = append(b.LambdaConfigs, newLambdaConfig)
 }
+
+// RemoveTopicByArn removes all topic configurations that match the exact specified ARN
+func (b *BucketNotification) RemoveTopicByArn(arn Arn) {
+	var topics []TopicConfig
+	for _, topic := range b.TopicConfigs {
+		if topic.Topic != arn.String() {
+			topics = append(topics, topic)
+		}
+	}
+	b.TopicConfigs = topics
+}
+
+// RemoveQueueByArn removes all queue configurations that match the exact specified ARN
+func (b *BucketNotification) RemoveQueueByArn(arn Arn) {
+	var queues []QueueConfig
+	for _, queue := range b.QueueConfigs {
+		if queue.Queue != arn.String() {
+			queues = append(queues, queue)
+		}
+	}
+	b.QueueConfigs = queues
+}
+
+// RemoveLambdaByArn removes all lambda configurations that match the exact specified ARN
+func (b *BucketNotification) RemoveLambdaByArn(arn Arn) {
+	var lambdas []LambdaConfig
+	for _, lambda := range b.LambdaConfigs {
+		if lambda.Lambda != arn.String() {
+			lambdas = append(lambdas, lambda)
+		}
+	}
+	b.LambdaConfigs = lambdas
+}

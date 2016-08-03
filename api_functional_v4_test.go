@@ -1458,13 +1458,23 @@ func TestBucketNotification(t *testing.T) {
 	bucketName := os.Getenv("NOTIFY_BUCKET")
 
 	topicArn := NewArn("aws", os.Getenv("NOTIFY_SERVICE"), os.Getenv("NOTIFY_REGION"), os.Getenv("NOTIFY_ACCOUNTID"), os.Getenv("NOTIFY_RESOURCE"))
+	queueArn := NewArn("aws", "dummy-service", "dummy-region", "dummy-accountid", "dummy-resource")
 
 	topicConfig := NewNotificationConfig(topicArn)
 	topicConfig.AddEvents(ObjectCreatedAll, ObjectRemovedAll)
 	topicConfig.AddFilterSuffix("jpg")
 
+	queueConfig := NewNotificationConfig(queueArn)
+	queueConfig.AddEvents(ObjectCreatedAll)
+	queueConfig.AddFilterPrefix("photos/")
+
 	bNotification := BucketNotification{}
 	bNotification.AddTopic(topicConfig)
+
+	// Add and remove a queue config
+	bNotification.AddQueue(queueConfig)
+	bNotification.RemoveQueueByArn(queueArn)
+
 	err = c.SetBucketNotification(bucketName, bNotification)
 	if err != nil {
 		t.Fatal("Error: ", err)
