@@ -309,7 +309,7 @@ func (c Client) SetBucketNotification(bucketName string, bucketNotification Buck
 	return nil
 }
 
-// DeleteBucketNotification - Remove bucket notification clears all previously specified config
-func (c Client) DeleteBucketNotification(bucketName string) error {
+// RemoveAllBucketNotification - Remove bucket notification clears all previously specified config
+func (c Client) RemoveAllBucketNotification(bucketName string) error {
 	return c.SetBucketNotification(bucketName, BucketNotification{})
 }

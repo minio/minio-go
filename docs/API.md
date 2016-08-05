@@ -48,7 +48,7 @@ func main() {
         s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", ssl)
         if err != nil {
                 fmt.Println(err)
-                return            
+                return
         }
 }
 
@@ -60,8 +60,8 @@ func main() {
 |[`ListBuckets`](#ListBuckets)   |[`PutObject`](#PutObject)   |[`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)  |
 |[`BucketExists`](#BucketExists)   |[`CopyObject`](#CopyObject)   |[`PresignedPostPolicy`](#PresignedPostPolicy)   | [`SetBucketNotification`](#SetBucketNotification)   |
 | [`RemoveBucket`](#RemoveBucket)  |[`StatObject`](#StatObject)   |   |  [`GetBucketNotification`](#GetBucketNotification)  |
-|[`ListObjects`](#ListObjects)   |[`RemoveObject`](#RemoveObject)   |   |   [`DeleteBucketNotification`](#DeleteBucketNotification)  |
-|[`ListObjectsV2`](#ListObjectsV2) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload)  |   |   |
+|[`ListObjects`](#ListObjects)   |[`RemoveObject`](#RemoveObject)   |   |  [`RemoveAllBucketNotification`](#RemoveAllBucketNotification)  |
+|[`ListObjectsV2`](#ListObjectsV2) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload)  |   |  [`ListenBucketNotification`](#ListenBucketNotification)  |
 |[`ListIncompleteUploads`](#ListIncompleteUploads) |[`FPutObject`](#FPutObject)   |   |   |
 |   | [`FGetObject`](#FGetObject)  |   |   |
 
@@ -167,7 +167,7 @@ Lists all buckets.
 
  __Example__
 
- 
+
  ```go
 
  buckets, err := minioClient.ListBuckets()
@@ -177,7 +177,7 @@ if err != nil {
 }
 for _, bucket := range buckets {
   fmt.Println(bucket)
-}  
+}
 
  ```
 
@@ -245,7 +245,7 @@ __Parameters__
 |`bucketName`  | _string_  |name of the bucket.   |
 | `objectPrefix` |_string_   | the prefix of the objects that should be listed. |
 | `recursive`  | _bool_  |`true` indicates recursive style listing and `false` indicates directory style listing delimited by '/'.  |
-|`doneCh`  | _chan struct{}_ | Set this value to 'true' to enable secure (HTTPS) access.  |
+|`doneCh`  | _chan struct{}_ | A message on this channel signals the end of the ListObjects loop.  |
 
 
 __Return Value__
@@ -302,7 +302,7 @@ for object := range objectCh {
 <a name="ListObjectsV2"></a>
 ### ListObjectsV2(bucketName string, prefix string, recursive bool, doneCh chan struct{}) <-chan ObjectInfo
 
-Lists objects in a bucket using the recommanded listing API v2 
+Lists objects in a bucket using the recommanded listing API v2
 
 __Parameters__
 
@@ -312,7 +312,7 @@ __Parameters__
 |`bucketName`  | _string_  |name of the bucket.   |
 | `objectPrefix` |_string_   | the prefix of the objects that should be listed. |
 | `recursive`  | _bool_  |`true` indicates recursive style listing and `false` indicates directory style listing delimited by '/'.  |
-|`doneCh`  | _chan struct{}_ | Set this value to 'true' to enable secure (HTTPS) access.  |
+|`doneCh`  | _chan struct{}_ | A message on this channel signals the end of the underlying Go routine.  |
 
 
 __Return Value__
@@ -379,7 +379,7 @@ __Parameters__
 |`bucketName`  | _string_  |name of the bucket.   |
 | `prefix` |_string_   | prefix of the object names that are partially uploaded |
 | `recursive`  | _bool_  |`true` indicates recursive style listing and `false` indicates directory style listing delimited by '/'.  |
-|`doneCh`  | _chan struct{}_ | Set this value to 'true' to enable secure (HTTPS) access.  |
+|`doneCh`  | _chan struct{}_ | A message on this channel signals the end of the underlying Go routine.  |
 
 
 __Return Value__
@@ -511,7 +511,7 @@ if err != nil {
 ```
 
 <a name="PutObject"></a>
-### PutObject(bucketName string, objectName string, reader io.Reader, contentType string) (n int, err error) 
+### PutObject(bucketName string, objectName string, reader io.Reader, contentType string) (n int, err error)
 
 Uploads an object.
 
@@ -602,7 +602,7 @@ if err != nil {
 <a name="FPutObject"></a>
 ### FPutObject(bucketName string, objectName string, filePath string, contentType string) error
 
-Uploads contents from a file to objectName. 
+Uploads contents from a file to objectName.
 
 
 __Parameters__
@@ -680,7 +680,7 @@ __Return Value__
 
   __Example__
 
-  
+
 ```go
 
 objInfo, err := minioClient.StatObject("mybucket", "photo.jpg")
@@ -787,7 +787,7 @@ if err != nil {
 Generates a presigned URL for HTTP PUT operations. Browsers/Mobile clients may point to this URL to upload objects directly to a bucket even if it is private. This presigned URL can have an associated expiration time in seconds after which it is no longer operational. The default expiry is set to 7 days.
 
 NOTE: you can upload to S3 only with specified object name.
- 
+
 
 
 __Parameters__
@@ -905,7 +905,7 @@ __Parameters__
             </td>
             <td> <i> BucketPolicy </i> </td>
             <td>
-            <ul>policy can be <br/> 
+            <ul>policy can be <br/>
             <li> <i>BucketPolicyNone</i>,</li>
             <li> <i>BucketPolicyReadOnly</i>,</li>
             <li> <i>BucketPolicyReadWrite</i>,</li>
@@ -990,7 +990,7 @@ __Return Values__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`bucketNotification`  | _BucketNotification_ |structure which holds all notification configurations|
+|`bucketNotification`  | _BucketNotification_ | Object which holds all notification configurations|
 |`err` | _error_  |standard error  |
 
 __Example__
@@ -1018,7 +1018,7 @@ __Parameters__
 |Param   |Type   |Description   |
 |:---|:---| :---|
 |`bucketName`  | _string_  |name of the bucket.   |
-|`bucketNotification`  | _BucketNotification_  |bucket notification.   |
+|`bucketNotification`  | _BucketNotification_  |Represents bucket notification configuration.   |
 
 __Return Values__
 
@@ -1031,22 +1031,23 @@ __Example__
 
 
 ```go
-topicArn := NewArn("aws", "s3", "us-east-1", "804605494417", "PhotoUpdate")
+lambdaArn := minio.NewArn("minio", "lambda", "us-east-1", "1", "lambda")
 
-topicConfig := NewNotificationConfig(topicArn)
-topicConfig.AddEvents(ObjectCreatedAll, ObjectRemovedAll)
-topicConfig.AddFilterSuffix(".jpg")
+lambdaConfig := minio.NewNotificationConfig(lambdaArn)
+lambdaConfig.AddEvents(ObjectCreatedAll, ObjectRemovedAll)
+lambdaConfig.AddFilterPrefix("photos/")
+lambdaConfig.AddFilterSuffix(".jpg")
 
 bucketNotification := BucketNotification{}
-bucetNotification.AddTopic(topicConfig)
+bucetNotification.AddLambda(lambdaConfig)
 err := c.SetBucketNotification(bucketName, bucketNotification)
 if err != nil {
 	fmt.Println("Cannot set the bucket notification: " + err)
 }
 ```
 
-<a name="DeleteBucketNotification"></a>
-### DeleteBucketNotification(bucketName string) error
+<a name="RemoveAllBucketNotification"></a>
+### RemoveAllBucketNotification(bucketName string) error
 
 Remove all configured bucket notifications on a bucket.
 
@@ -1068,9 +1069,68 @@ __Example__
 
 
 ```go
-err := c.DeleteBucketNotification(bucketName)
+err := c.RemoveAllBucketNotification(bucketName)
 if err != nil {
 	fmt.Println("Cannot remove bucket notifications.")
+}
+```
+
+<a name="ListenBucketNotification"></a>
+### ListenBucketNotification(bucketName string, arn Arn, doneCh chan<- struct{}) <-chan NotificationInfo
+
+ListenBucketNotification API receives bucket notification events through the
+notification channel. The returned notification channel has two fields
+'Records' and 'Err'.
+
+- 'Records' holds the notifications received from the server.
+- 'Err' indicates any error while processing the received notifications.
+
+NOTE: Notification channel is closed at the first occurrence of an error.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  | Bucket to listen notifications from.   |
+|`arn`  | _string_ | Unique resource to listen notifications for.  |
+|`doneCh`  | _chan struct{}_ | A message on this channel ends the ListenBucketNotification loop.  |
+
+__Return Values__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`chan NotificationInfo` | _chan_ | Read channel for all notificatons on bucket. |
+|`NotificationInfo` | _object_ | Notification object represents events info. |
+|`notificationInfo.Records` | _[]NotificationEvent_ | Collection of notification events. |
+|`notificationInfo.Err` | _error_ | Carries any error occurred during the operation. |
+
+
+__Example__
+
+
+```go
+
+// Create a done channel to control 'ListenBucketNotification' go routine.
+doneCh := make(chan struct{})
+
+// Indicate a background go-routine to exit cleanly upon return.
+defer close(doneCh)
+
+// Notification account ARN, variable fields to note here are:
+//  - region
+//  - account-id
+// Account id here is the same which was choosen during SetBucketNotification.
+lambdaARN := minio.NewArn("minio", "lambda", "us-east-1", "1", "lambda")
+
+// Listen for bucket notifications on "mybucket" filtered by account ARN "arn:minio:lambda:us-east-1:1:lambda".
+for notificationInfo := range s3Client.ListenBucketNotification("mybucket", lambdaARN, doneCh) {
+	if notificationInfo.Err != nil {
+		fmt.Println(notificationInfo.Err)
+                return
+	}
+	fmt.Println(notificationInfo)
 }
 ```
 
@@ -1078,22 +1138,3 @@ if err != nil {
 ## 6. Explore Further
 
 - [Build your own Go Music Player App example](https://docs.minio.io/docs/go-music-player-app)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
