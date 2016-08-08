@@ -85,9 +85,21 @@ const (
 	libraryUserAgent       = libraryUserAgentPrefix + libraryName + "/" + libraryVersion
 )
 
-// NewV2 - instantiate minio client with Amazon S3 signature version
+// NewSecureV2 - instantiate minio client with Amazon S3 signature
+// version '2' compatibility and HTTPS connection.
+func NewSecureV2(endpoint, accessKeyID, secretAccessKey string) (*Client, error) {
+	return newV2(endpoint, accessKeyID, secretAccessKey, true)
+}
+
+// NewInsecureV2 - instantiate minio client with Amazon S3 signature
+// version '2' compatibility and HTTP connection.
+func NewInsecureV2(endpoint, accessKeyID, secretAccessKey string) (*Client, error) {
+	return newV2(endpoint, accessKeyID, secretAccessKey, false)
+}
+
+// newV2 - instantiate minio client with Amazon S3 signature version
 // '2' compatibility.
-func NewV2(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*Client, error) {
+func newV2(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*Client, error) {
 	clnt, err := privateNew(endpoint, accessKeyID, secretAccessKey, secure)
 	if err != nil {
 		return nil, err
@@ -97,9 +109,21 @@ func NewV2(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*
 	return clnt, nil
 }
 
-// NewV4 - instantiate minio client with Amazon S3 signature version
+// NewSecureV4 - instantiate minio client with Amazon S3 signature
+//  version '4' compatibility and uses HTTPS connection.
+func NewSecureV4(endpoint, accessKeyID, secretAccessKey string) (*Client, error) {
+	return newV4(endpoint, accessKeyID, secretAccessKey, true)
+}
+
+// NewInsecureV4 - instantiate minio client with Amazon S3 signature
+// version '4' compatibility and uses HTTP connection.
+func NewInsecureV4(endpoint, accessKeyID, secretAccessKey string) (*Client, error) {
+	return newV4(endpoint, accessKeyID, secretAccessKey, false)
+}
+
+// newV4 - instantiate minio client with Amazon S3 signature version
 // '4' compatibility.
-func NewV4(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*Client, error) {
+func newV4(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*Client, error) {
 	clnt, err := privateNew(endpoint, accessKeyID, secretAccessKey, secure)
 	if err != nil {
 		return nil, err
@@ -109,9 +133,21 @@ func NewV4(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*
 	return clnt, nil
 }
 
-// New - instantiate minio client Client, adds automatic verification
+// NewSecure - instantiate minio client Client, adds automatic
+// verification of signature and uses HTTPS connection.
+func NewSecure(endpoint, accessKeyID, secretAccessKey string) (*Client, error) {
+	return newMinio(endpoint, accessKeyID, secretAccessKey, true)
+}
+
+// NewInsecure - instantiate minio client Client, adds
+// automatic verification of signature and uses HTTP connection.
+func NewInsecure(endpoint, accessKeyID, secretAccessKey string) (*Client, error) {
+	return newMinio(endpoint, accessKeyID, secretAccessKey, false)
+}
+
+// newMinio - instantiate minio client Client, adds automatic verification
 // of signature.
-func New(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*Client, error) {
+func newMinio(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*Client, error) {
 	clnt, err := privateNew(endpoint, accessKeyID, secretAccessKey, secure)
 	if err != nil {
 		return nil, err
