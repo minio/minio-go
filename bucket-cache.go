@@ -165,7 +165,13 @@ func (c Client) getBucketLocationRequest(bucketName string) (*http.Request, erro
 
 	// Set sha256 sum for signature calculation only with signature version '4'.
 	if c.signature.isV4() {
-		req.Header.Set("X-Amz-Content-Sha256", hex.EncodeToString(sum256([]byte{})))
+		var contentSha256 string
+		if c.secure {
+			contentSha256 = unsignedPayload
+		} else {
+			contentSha256 = hex.EncodeToString(sum256([]byte{}))
+		}
+		req.Header.Set("X-Amz-Content-Sha256", contentSha256)
 	}
 
 	// Sign the request.
