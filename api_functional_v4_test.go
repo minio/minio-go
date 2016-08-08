@@ -20,6 +20,7 @@ import (
 	"bytes"
 	crand "crypto/rand"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -304,6 +305,107 @@ func TestListPartiallyUploaded(t *testing.T) {
 	err = c.RemoveBucket(bucketName)
 	if err != nil {
 		t.Fatal("Error:", err)
+	}
+}
+
+// Test get object seeker from the end, using whence set to '2'.
+func TestGetOjectSeekEnd(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping functional tests for short runs")
+	}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := New(
+		"s3.amazonaws.com",
+		os.Getenv("ACCESS_KEY"),
+		os.Getenv("SECRET_KEY"),
+		true,
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()))
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+
+	// Generate data more than 32K
+	buf := make([]byte, rand.Intn(1<<20)+32*1024)
+
+	_, err = io.ReadFull(crand.Reader, buf)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Save the data
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()))
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
+
+	if n != int64(len(buf)) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), n)
+	}
+
+	// Read the data back
+	r, err := c.GetObject(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
+
+	st, err := r.Stat()
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
+	if st.Size != int64(len(buf)) {
+		t.Fatalf("Error: number of bytes in stat does not match, want %v, got %v\n",
+			len(buf), st.Size)
+	}
+
+	pos, err := r.Seek(-100, 2)
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
+	if pos != st.Size-100 {
+		t.Fatalf("Expected %d, got %d instead", pos, st.Size-100)
+	}
+	buf2 := make([]byte, 100)
+	m, err := io.ReadFull(r, buf2)
+	if err != nil {
+		t.Fatal("Error: reading through io.ReadFull", err, bucketName, objectName)
+	}
+	if m != len(buf2) {
+		t.Fatalf("Expected %d bytes, got %d", len(buf2), m)
+	}
+	hexBuf1 := fmt.Sprintf("%02x", buf[len(buf)-100:])
+	hexBuf2 := fmt.Sprintf("%02x", buf2[:m])
+	if hexBuf1 != hexBuf2 {
+		t.Fatalf("Expected %s, got %s instead", hexBuf1, hexBuf2)
+	}
+	pos, err = r.Seek(-100, 2)
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
+	if pos != st.Size-100 {
+		t.Fatalf("Expected %d, got %d instead", pos, st.Size-100)
+	}
+	if err = r.Close(); err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
 	}
 }
 
@@ -973,8 +1075,8 @@ func TestGetObjectReadSeekFunctional(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if n != 0 {
-		t.Fatalf("Error: number of bytes seeked back does not match, want 0, got %v\n", n)
+	if n != st.Size-offset {
+		t.Fatalf("Error: number of bytes seeked back does not match, want %d, got %v\n", st.Size-offset, n)
 	}
 
 	var buffer1 bytes.Buffer
@@ -983,7 +1085,7 @@ func TestGetObjectReadSeekFunctional(t *testing.T) {
 			t.Fatal("Error:", err)
 		}
 	}
-	if !bytes.Equal(buf, buffer1.Bytes()) {
+	if !bytes.Equal(buf[len(buf)-int(offset):], buffer1.Bytes()) {
 		t.Fatal("Error: Incorrect read bytes v/s original buffer.")
 	}
 
