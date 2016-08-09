@@ -1549,9 +1549,13 @@ func TestFunctional(t *testing.T) {
 	file.Close()
 
 	// Verify if bucket exits and you have access.
-	err = c.BucketExists(bucketName)
+	var exists bool
+	exists, err = c.BucketExists(bucketName)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
+	}
+	if !exists {
+		t.Fatal("Error: could not find ", bucketName)
 	}
 
 	// Asserting the default bucket policy.
