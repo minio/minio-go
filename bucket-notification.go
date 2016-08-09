@@ -20,21 +20,21 @@ import (
 	"encoding/xml"
 )
 
-// Event is a S3 notification event associated to the bucket notification configuration
-type Event string
+// NotificationEventType is a S3 notification event associated to the bucket notification configuration
+type NotificationEventType string
 
 // The role of all event types are described in :
 // 	http://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html#notification-how-to-event-types-and-destinations
 const (
-	ObjectCreatedAll                     Event = "s3:ObjectCreated:*"
-	ObjectCreatePut                            = "s3:ObjectCreated:Put"
-	ObjectCreatedPost                          = "s3:ObjectCreated:Post"
-	ObjectCreatedCopy                          = "s3:ObjectCreated:Copy"
-	ObjectCreatedCompleteMultipartUpload       = "sh:ObjectCreated:CompleteMultipartUpload"
-	ObjectRemovedAll                           = "s3:ObjectRemoved:*"
-	ObjectRemovedDelete                        = "s3:ObjectRemoved:Delete"
-	ObjectRemovedDeleteMarkerCreated           = "s3:ObjectRemoved:DeleteMarkerCreated"
-	ObjectReducedRedundancyLostObject          = "s3:ReducedRedundancyLostObject"
+	ObjectCreatedAll                     NotificationEventType = "s3:ObjectCreated:*"
+	ObjectCreatePut                                            = "s3:ObjectCreated:Put"
+	ObjectCreatedPost                                          = "s3:ObjectCreated:Post"
+	ObjectCreatedCopy                                          = "s3:ObjectCreated:Copy"
+	ObjectCreatedCompleteMultipartUpload                       = "sh:ObjectCreated:CompleteMultipartUpload"
+	ObjectRemovedAll                                           = "s3:ObjectRemoved:*"
+	ObjectRemovedDelete                                        = "s3:ObjectRemoved:Delete"
+	ObjectRemovedDeleteMarkerCreated                           = "s3:ObjectRemoved:DeleteMarkerCreated"
+	ObjectReducedRedundancyLostObject                          = "s3:ReducedRedundancyLostObject"
 )
 
 // FilterRule - child of S3Key, a tag in the notification xml which
@@ -83,10 +83,10 @@ func (arn Arn) String() string {
 // NotificationConfig - represents one single notification configuration
 // such as topic, queue or lambda configuration.
 type NotificationConfig struct {
-	Id     string  `xml:"Id,omitempty"`
-	Arn    Arn     `xml:"-"`
-	Events []Event `xml:"Event"`
-	Filter *Filter `xml:"Filter,omitempty"`
+	Id     string                  `xml:"Id,omitempty"`
+	Arn    Arn                     `xml:"-"`
+	Events []NotificationEventType `xml:"Event"`
+	Filter *Filter                 `xml:"Filter,omitempty"`
 }
 
 // NewNotificationConfig creates one notification config and sets the given ARN
@@ -95,7 +95,7 @@ func NewNotificationConfig(arn Arn) NotificationConfig {
 }
 
 // AddEvents adds one event to the current notification config
-func (t *NotificationConfig) AddEvents(events ...Event) {
+func (t *NotificationConfig) AddEvents(events ...NotificationEventType) {
 	t.Events = append(t.Events, events...)
 }
 

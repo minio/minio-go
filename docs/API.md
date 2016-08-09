@@ -914,11 +914,12 @@ __Example__
 topicArn := NewArn("aws", "s3", "us-east-1", "804605494417", "PhotoUpdate")
 
 topicConfig := NewNotificationConfig(topicArn)
-topicConfig.AddEvents(ObjectCreatedAll, ObjectRemovedAll)
-topicConfig.AddFilterSuffix(".jpg")
+topicConfig.AddEvents(minio.ObjectCreatedAll, minio.ObjectRemovedAll)
+lambdaConfig.AddFilterPrefix("photos/")
+lambdaConfig.AddFilterSuffix(".jpg")
 
 bucketNotification := BucketNotification{}
-bucetNotification.AddTopic(topicConfig)
+bucketNotification.AddTopic(topicConfig)
 err := c.SetBucketNotification(bucketName, bucketNotification)
 if err != nil {
 	fmt.Println("Cannot set the bucket notification: " + err)
