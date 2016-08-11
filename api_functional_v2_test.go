@@ -28,6 +28,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/minio/minio-go/pkg/policy"
 )
 
 // Tests bucket re-create errors.
@@ -1077,7 +1079,7 @@ func TestFunctionalV2(t *testing.T) {
 	}
 
 	// Make the bucket 'public read/write'.
-	err = c.SetBucketPolicy(bucketName, "", BucketPolicyReadWrite)
+	err = c.SetBucketPolicy(bucketName, "", policy.BucketPolicyReadWrite)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
