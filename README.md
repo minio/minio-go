@@ -45,25 +45,25 @@ You need four items to connect to Minio object storage server.
 package main
 
 import (
-    "fmt"
-    "github.com/minio/minio-go"
+	"fmt"
+	"github.com/minio/minio-go"
+	"log"
 )
 
 func main() {
-    endpoint := "play.minio.io:9000"
-    accessKeyID := "Q3AM3UQ867SPQQA43P2F"
-    secretAccessKey := "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG"
-    useSSL := true
+	endpoint := "play.minio.io:9000"
+	accessKeyID := "Q3AM3UQ867SPQQA43P2F"
+	secretAccessKey := "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG"
+	useSSL := true
 
-    minioClient, err := minio.New(endpoint, accessKeyID, secretAccessKey, useSSL)
-    if err != nil {
-        fmt.Println(err)
-        return
-    }
+	// Initialize minio client object.
+	minioClient, err := minio.New(endpoint, accessKeyID, secretAccessKey, useSSL)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-    fmt.Println("%v", minioClient)          // minioClient is now setup
+	fmt.Println("%v", minioClient) // minioClient is now setup
 }
-
 
 ```
 
@@ -83,50 +83,50 @@ We will use the Minio server running at [https://play.minio.io:9000](https://pla
 package main
 
 import (
-    "log"
-    "github.com/minio/minio-go"
+	"github.com/minio/minio-go"
+	"log"
 )
 
 func main() {
-    endpoint := "play.minio.io:9000"
-    accessKeyID := "Q3AM3UQ867SPQQA43P2F"
-    secretAccessKey := "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG"
-    useSSL := true
+	endpoint := "play.minio.io:9000"
+	accessKeyID := "Q3AM3UQ867SPQQA43P2F"
+	secretAccessKey := "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG"
+	useSSL := true
 
-    // Initialize minio client object.
-    minioClient, err := minio.New(endpoint, accessKeyID, secretAccessKey, useSSL)
-    if err != nil {
-        log.Fatalln(err)
-    }
+	// Initialize minio client object.
+	minioClient, err := minio.New(endpoint, accessKeyID, secretAccessKey, useSSL)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-    // Make a new bucked called mymusic.
-    bucketName := "mymusic"
-    location := "us-east-1"
+	// Make a new bucked called mymusic.
+	bucketName := "mymusic"
+	location := "us-east-1"
 
-    err = minioClient.MakeBucket(bucketName, location)
-    if err != nil {
-        // Check to see if we already own this bucket (which happens if you run this twice)
-        exists, err := minioClient.BucketExists(bucketName)
-        if err == nil && exists {
-            log.Printf("We already own %s\n", bucketName)
-        } else {
-            log.Fatalln(err)
-        }
-    }
-    log.Printf("Successfully created %s\n", bucketName)
+	err = minioClient.MakeBucket(bucketName, location)
+	if err != nil {
+		// Check to see if we already own this bucket (which happens if you run this twice)
+		exists, err := minioClient.BucketExists(bucketName)
+		if err == nil && exists {
+			log.Printf("We already own %s\n", bucketName)
+		} else {
+			log.Fatalln(err)
+		}
+	}
+	log.Printf("Successfully created %s\n", bucketName)
 
-    // Upload the zip file
-    objectName := "golden-oldies.zip"
-    filePath := "/tmp/golden-oldies.zip"
-    contentType := "application/zip"
+	// Upload the zip file
+	objectName := "golden-oldies.zip"
+	filePath := "/tmp/golden-oldies.zip"
+	contentType := "application/zip"
 
-    // Upload the zip file with FPutObject
-    n, err := minioClient.FPutObject(bucketName, objectName, filePath, contentType)
-    if err != nil {
-        log.Fatalln(err)
-    }
+	// Upload the zip file with FPutObject
+	n, err := minioClient.FPutObject(bucketName, objectName, filePath, contentType)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-    log.Printf("Successfully uploaded %s of size %d\n", objectName, n)
+	log.Printf("Successfully uploaded %s of size %d\n", objectName, n)
 }
 
 ```
