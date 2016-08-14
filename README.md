@@ -45,7 +45,6 @@ You need four items to connect to Minio object storage server.
 package main
 
 import (
-	"fmt"
 	"github.com/minio/minio-go"
 	"log"
 )
@@ -62,8 +61,8 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	fmt.Println("%v", minioClient) // minioClient is now setup
-}
+	log.Println("%v", minioClient) // minioClient is now setup
+
 
 ```
 
@@ -79,7 +78,6 @@ We will use the Minio server running at [https://play.minio.io:9000](https://pla
 #### FileUploader.go
 
 ```go
-
 package main
 
 import (
@@ -128,7 +126,6 @@ func main() {
 
 	log.Printf("Successfully uploaded %s of size %d\n", objectName, n)
 }
-
 ```
 
 #### Run FileUploader
