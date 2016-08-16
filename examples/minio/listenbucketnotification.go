@@ -46,11 +46,30 @@ func main() {
 	// Indicate to our routine to exit cleanly upon return.
 	defer close(doneCh)
 
-	// Account ARN.
-	accountARN := minio.NewArn("minio", "lambda", "us-east-1", "1", "lambda")
+	// Fetch the bucket location.
+	location, err := minioClient.GetBucketLocation("YOUR-BUCKET")
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-	// Listen for bucket notifications on "mybucket" filtered by account ARN "arn:minio:sqs:us-east-1:1:minio".
-	for notificationInfo := range minioClient.ListenBucketNotification("YOUR-BUCKETNAME", accountARN, doneCh) {
+	// Construct a new account Arn.
+	accountArn := minio.NewArn("minio", "sns", location, "your-account-id", "listen")
+	topicConfig := minio.NewNotificationConfig(accountArn)
+	topicConfig.AddEvents(minio.ObjectCreatedAll, minio.ObjectRemovedAll)
+	topicConfig.AddFilterPrefix("photos/")
+	topicConfig.AddFilterSuffix(".jpg")
+
+	// Now, set all previously created notification configs
+	bucketNotification := minio.BucketNotification{}
+	bucketNotification.AddTopic(topicConfig)
+	err = s3Client.SetBucketNotification("YOUR-BUCKET", bucketNotification)
+	if err != nil {
+		log.Fatalln("Error: " + err.Error())
+	}
+	log.Println("Success")
+
+	// Listen for bucket notifications on "mybucket" filtered by accountArn "arn:minio:sns:<location>:<your-account-id>:listen".
+	for notificationInfo := range minioClient.ListenBucketNotification("YOUR-BUCKET", accountArn, doneCh) {
 		if notificationInfo.Err != nil {
 			log.Fatalln(notificationInfo.Err)
 		}
