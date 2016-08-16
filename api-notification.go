@@ -126,6 +126,7 @@ func (c Client) ListenBucketNotification(bucketName string, accountArn Arn, done
 	go func(notificationInfoCh chan<- NotificationInfo) {
 		defer close(notificationInfoCh)
 
+		// Validate the bucket name.
 		if err := isValidBucketName(bucketName); err != nil {
 			notificationInfoCh <- NotificationInfo{
 				Err: err,

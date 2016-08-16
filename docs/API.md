@@ -926,8 +926,8 @@ if err != nil {
 }
 ```
 
-<a name="DeleteBucketNotification"></a>
-### DeleteBucketNotification(bucketName string) error
+<a name="RemoveAllBucketNotification"></a>
+### RemoveAllBucketNotification(bucketName string) error
 
 Remove all configured bucket notifications on a bucket.
 
@@ -949,12 +949,86 @@ __Example__
 
 
 ```go
-err := c.DeleteBucketNotification(bucketName)
+err := c.RemoveAllBucketNotification(bucketName)
 if err != nil {
 	fmt.Println("Cannot remove bucket notifications.")
 }
 ```
 
+<a name="ListenBucketNotification"></a>
+### ListenBucketNotification(bucketName string, accountArn Arn, doneCh chan<- struct{}) <-chan NotificationInfo
+
+ListenBucketNotification API receives bucket notification events through the
+notification channel. The returned notification channel has two fields
+'Records' and 'Err'.
+
+- 'Records' holds the notifications received from the server.
+- 'Err' indicates any error while processing the received notifications.
+
+NOTE: Notification channel is closed at the first occurrence of an error.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  | Bucket to listen notifications from.   |
+|`accountArn`  | _Arn_ | Unique account ID to listen notifications for.  |
+|`doneCh`  | _chan struct{}_ | A message on this channel ends the ListenBucketNotification loop.  |
+
+__Return Values__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`chan NotificationInfo` | _chan_ | Read channel for all notificatons on bucket. |
+|`NotificationInfo` | _object_ | Notification object represents events info. |
+|`notificationInfo.Records` | _[]NotificationEvent_ | Collection of notification events. |
+|`notificationInfo.Err` | _error_ | Carries any error occurred during the operation. |
+
+
+__Example__
+
+
+```go
+
+// Create a done channel to control 'ListenBucketNotification' go routine.
+doneCh := make(chan struct{})
+
+// Indicate a background go-routine to exit cleanly upon return.
+defer close(doneCh)
+
+// Fetch the bucket location.
+location, err := minioClient.GetBucketLocation("YOUR-BUCKET")
+if err != nil {
+	log.Fatalln(err)
+}
+
+// Construct a new account Arn.
+accountArn := minio.NewArn("minio", "sns", location, "your-account-id", "listen")
+topicConfig := minio.NewNotificationConfig(accountArn)
+topicConfig.AddEvents(minio.ObjectCreatedAll, minio.ObjectRemovedAll)
+topicConfig.AddFilterPrefix("photos/")
+topicConfig.AddFilterSuffix(".jpg")
+
+// Now, set all previously created notification configs
+bucketNotification := minio.BucketNotification{}
+bucketNotification.AddTopic(topicConfig)
+err = s3Client.SetBucketNotification("YOUR-BUCKET", bucketNotification)
+if err != nil {
+	log.Fatalln("Error: " + err.Error())
+}
+log.Println("Success")
+
+// Listen for bucket notifications on "mybucket" filtered by accountArn "arn:minio:sns:<location>:<your-account-id>:listen".
+for notificationInfo := range s3Client.ListenBucketNotification("mybucket", accountArn, doneCh) {
+       if notificationInfo.Err != nil {
+               fmt.Println(notificationInfo.Err)
+                return
+       }
+       fmt.Println(notificationInfo)
+}
+```
 
 ## 6. Explore Further
 
