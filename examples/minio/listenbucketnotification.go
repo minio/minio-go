@@ -62,7 +62,7 @@ func main() {
 	// Now, set all previously created notification configs
 	bucketNotification := minio.BucketNotification{}
 	bucketNotification.AddTopic(topicConfig)
-	err = s3Client.SetBucketNotification("YOUR-BUCKET", bucketNotification)
+	err = minioClient.SetBucketNotification("YOUR-BUCKET", bucketNotification)
 	if err != nil {
 		log.Fatalln("Error: " + err.Error())
 	}
