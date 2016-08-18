@@ -36,6 +36,15 @@ func TestCreateStringSet(t *testing.T) {
 	}
 }
 
+// CopyStringSet() is called and the result is validated.
+func TestCopyStringSet(t *testing.T) {
+	ss := CreateStringSet("foo")
+	sscopy := CopyStringSet(ss)
+	if !ss.Equals(sscopy) {
+		t.Fatalf("expected: %s, got: %s", ss, sscopy)
+	}
+}
+
 // StringSet.Add() is called with series of cases for valid and erroneous inputs and the result is validated.
 func TestStringSetAdd(t *testing.T) {
 	testCases := []struct {
@@ -126,6 +135,27 @@ func TestStringSetFuncMatch(t *testing.T) {
 
 	for _, testCase := range testCases {
 		s := ss.FuncMatch(testCase.matchFn, testCase.value)
+		if result := s.String(); result != testCase.expectedResult {
+			t.Fatalf("expected: %s, got: %s", testCase.expectedResult, result)
+		}
+	}
+}
+
+// StringSet.ApplyFunc() is called with series of cases for valid and erroneous inputs and the result is validated.
+func TestStringSetApplyFunc(t *testing.T) {
+	ss := CreateStringSet("foo", "bar")
+	testCases := []struct {
+		applyFn        func(string) string
+		expectedResult string
+	}{
+		// Test to apply function prepending a known string.
+		{func(setValue string) string { return "mybucket/" + setValue }, `[mybucket/bar mybucket/foo]`},
+		// Test to apply function modifying values.
+		{func(setValue string) string { return setValue[1:] }, `[ar oo]`},
+	}
+
+	for _, testCase := range testCases {
+		s := ss.ApplyFunc(testCase.applyFn)
 		if result := s.String(); result != testCase.expectedResult {
 			t.Fatalf("expected: %s, got: %s", testCase.expectedResult, result)
 		}

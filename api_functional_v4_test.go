@@ -29,6 +29,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/minio/minio-go/pkg/policy"
 )
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyz01234569"
@@ -1661,51 +1663,51 @@ func TestFunctional(t *testing.T) {
 	}
 
 	// Asserting the default bucket policy.
-	policy, err := c.GetBucketPolicy(bucketName, "")
+	policyAccess, err := c.GetBucketPolicy(bucketName, "")
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if policy != "none" {
+	if policyAccess != "none" {
 		t.Fatalf("Default bucket policy incorrect")
 	}
 	// Set the bucket policy to 'public readonly'.
-	err = c.SetBucketPolicy(bucketName, "", BucketPolicyReadOnly)
+	err = c.SetBucketPolicy(bucketName, "", policy.BucketPolicyReadOnly)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 	// should return policy `readonly`.
-	policy, err = c.GetBucketPolicy(bucketName, "")
+	policyAccess, err = c.GetBucketPolicy(bucketName, "")
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if policy != "readonly" {
+	if policyAccess != "readonly" {
 		t.Fatalf("Expected bucket policy to be readonly")
 	}
 
 	// Make the bucket 'public writeonly'.
-	err = c.SetBucketPolicy(bucketName, "", BucketPolicyWriteOnly)
+	err = c.SetBucketPolicy(bucketName, "", policy.BucketPolicyWriteOnly)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 	// should return policy `writeonly`.
-	policy, err = c.GetBucketPolicy(bucketName, "")
+	policyAccess, err = c.GetBucketPolicy(bucketName, "")
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if policy != "writeonly" {
+	if policyAccess != "writeonly" {
 		t.Fatalf("Expected bucket policy to be writeonly")
 	}
 	// Make the bucket 'public read/write'.
-	err = c.SetBucketPolicy(bucketName, "", BucketPolicyReadWrite)
+	err = c.SetBucketPolicy(bucketName, "", policy.BucketPolicyReadWrite)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 	// should return policy `readwrite`.
-	policy, err = c.GetBucketPolicy(bucketName, "")
+	policyAccess, err = c.GetBucketPolicy(bucketName, "")
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if policy != "readwrite" {
+	if policyAccess != "readwrite" {
 		t.Fatalf("Expected bucket policy to be readwrite")
 	}
 	// List all buckets.
