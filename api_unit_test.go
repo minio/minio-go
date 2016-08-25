@@ -77,23 +77,36 @@ func TestGetReaderSize(t *testing.T) {
 		t.Fatalf("Reader length doesn't match got: %v, want: %v", size, len("Hello World"))
 	}
 
+	// Create start channel.
+	startCh := make(chan firstRequest)
+	// Create first response channel.
+	// Buffer this channel so the first send doesn't block.
+	firstResCh := make(chan firstReqRes, 1)
 	// Create request channel.
 	reqCh := make(chan readRequest)
 	// Create response channel.
 	resCh := make(chan readResponse)
 	// Create done channel.
 	doneCh := make(chan struct{})
-	// objectInfo.
-	objectInfo := ObjectInfo{Size: 10}
-	objectReader := newObject(reqCh, resCh, doneCh, objectInfo)
-	defer objectReader.Close()
 
-	size, err = getReaderSize(objectReader)
+	objectInfo := ObjectInfo{Size: 10}
+	firstResCh <- firstReqRes{
+		objectInfo: objectInfo,
+	}
+	// Test setting size on the first request.
+	// Send objectInfo through the firstResCh.
+	objectReaderFirstReq := newObject(startCh, reqCh, resCh, doneCh, firstResCh)
+	defer objectReaderFirstReq.Close()
+	if _, err := objectReaderFirstReq.setObjectInfo(); err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	size, err = getReaderSize(objectReaderFirstReq)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 	if size != int64(10) {
-		t.Fatalf("Reader length doesn't match got: %v, want: %v", size, 10)
+		t.Fatalf("Reader length doesn't match got: %d, wanted %d", size, objectInfo.Size)
 	}
 
 	fileReader, err := ioutil.TempFile(os.TempDir(), "prefix")
