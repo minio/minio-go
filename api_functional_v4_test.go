@@ -1575,6 +1575,13 @@ func TestBucketNotification(t *testing.T) {
 	bNotification := BucketNotification{}
 	bNotification.AddTopic(topicConfig)
 
+	// Add the same topicConfig again, should have no effect
+	// because it is duplicated
+	bNotification.AddTopic(topicConfig)
+	if len(bNotification.TopicConfigs) != 1 {
+		t.Fatal("Error: duplicated entry added")
+	}
+
 	// Add and remove a queue config
 	bNotification.AddQueue(queueConfig)
 	bNotification.RemoveQueueByArn(queueArn)
