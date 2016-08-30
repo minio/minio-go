@@ -77,30 +77,36 @@ func TestGetReaderSize(t *testing.T) {
 		t.Fatalf("Reader length doesn't match got: %v, want: %v", size, len("Hello World"))
 	}
 
-	// Create start channel.
-	startCh := make(chan firstRequest)
-	// Create first response channel.
-	// Buffer this channel so the first send doesn't block.
-	firstResCh := make(chan firstReqRes, 1)
 	// Create request channel.
-	reqCh := make(chan readRequest)
+	reqCh := make(chan getRequest, 1)
 	// Create response channel.
-	resCh := make(chan readResponse)
+	resCh := make(chan getResponse, 1)
 	// Create done channel.
 	doneCh := make(chan struct{})
 
 	objectInfo := ObjectInfo{Size: 10}
-	firstResCh <- firstReqRes{
+	// Create the first request.
+	firstReq := getRequest{
+		isReadOp:   false, // Perform only a HEAD object to get objectInfo.
+		isFirstReq: true,
+	}
+	// Create the expected response.
+	firstRes := getResponse{
 		objectInfo: objectInfo,
 	}
+	// Send the expected response.
+	resCh <- firstRes
+
 	// Test setting size on the first request.
-	// Send objectInfo through the firstResCh.
-	objectReaderFirstReq := newObject(startCh, reqCh, resCh, doneCh, firstResCh)
+	objectReaderFirstReq := newObject(reqCh, resCh, doneCh)
 	defer objectReaderFirstReq.Close()
-	if _, err := objectReaderFirstReq.setObjectInfo(); err != nil {
+	// Not checking the response here...just that the reader size is correct.
+	_, err = objectReaderFirstReq.doGetRequest(firstReq)
+	if err != nil {
 		t.Fatal("Error:", err)
 	}
 
+	// Validate that the reader size is the objectInfo size.
 	size, err = getReaderSize(objectReaderFirstReq)
 	if err != nil {
 		t.Fatal("Error:", err)
