@@ -60,8 +60,8 @@ func main() {
 |[`ListBuckets`](#ListBuckets)   |[`PutObject`](#PutObject)   |[`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)  |
 |[`BucketExists`](#BucketExists)   |[`CopyObject`](#CopyObject)   |[`PresignedPostPolicy`](#PresignedPostPolicy)   | [`SetBucketNotification`](#SetBucketNotification)   |
 | [`RemoveBucket`](#RemoveBucket)  |[`StatObject`](#StatObject)   |   |  [`GetBucketNotification`](#GetBucketNotification)  |
-|[`ListObjects`](#ListObjects)   |[`RemoveObject`](#RemoveObject)   |   |   [`DeleteBucketNotification`](#DeleteBucketNotification)  |
-|[`ListObjectsV2`](#ListObjectsV2) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload)  |   |   |
+|[`ListObjects`](#ListObjects)   |[`RemoveObject`](#RemoveObject)   |   |   [`RemoveAllBucketNotification`](#RemoveAllBucketNotification)  |
+|[`ListObjectsV2`](#ListObjectsV2) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload)  |   | [`ListenBucketNotification`](#ListenBucketNotification)  |
 |[`ListIncompleteUploads`](#ListIncompleteUploads) |[`FPutObject`](#FPutObject)   |   |   |
 |   | [`FGetObject`](#FGetObject)  |   |   |
 
