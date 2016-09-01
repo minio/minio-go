@@ -1083,7 +1083,7 @@ func TestGetObjectReadSeekFunctional(t *testing.T) {
 	}
 
 	var buffer1 bytes.Buffer
-	if n, err = io.CopyN(&buffer1, r, st.Size); err != nil {
+	if _, err = io.CopyN(&buffer1, r, st.Size); err != nil {
 		if err != io.EOF {
 			t.Fatal("Error:", err)
 		}
@@ -1181,6 +1181,26 @@ func TestGetObjectReadAtFunctional(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
+	offset := int64(2048)
+
+	// read directly
+	buf1 := make([]byte, 512)
+	buf2 := make([]byte, 512)
+	buf3 := make([]byte, 512)
+	buf4 := make([]byte, 512)
+
+	// Test readAt before stat is called.
+	m, err := r.ReadAt(buf1, offset)
+	if err != nil {
+		t.Fatal("Error:", err, len(buf1), offset)
+	}
+	if m != len(buf1) {
+		t.Fatalf("Error: ReadAt read shorter bytes before reaching EOF, want %v, got %v\n", m, len(buf1))
+	}
+	if !bytes.Equal(buf1, buf[offset:offset+512]) {
+		t.Fatal("Error: Incorrect read between two ReadAt from same offset.")
+	}
+	offset += 512
 
 	st, err := r.Stat()
 	if err != nil {
@@ -1191,14 +1211,7 @@ func TestGetObjectReadAtFunctional(t *testing.T) {
 			len(buf), st.Size)
 	}
 
-	offset := int64(2048)
-
-	// read directly
-	buf2 := make([]byte, 512)
-	buf3 := make([]byte, 512)
-	buf4 := make([]byte, 512)
-
-	m, err := r.ReadAt(buf2, offset)
+	m, err = r.ReadAt(buf2, offset)
 	if err != nil {
 		t.Fatal("Error:", err, st.Size, len(buf2), offset)
 	}
