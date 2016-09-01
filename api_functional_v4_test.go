@@ -1932,3 +1932,86 @@ func TestFunctional(t *testing.T) {
 		t.Fatal("Error: ", err)
 	}
 }
+
+// Test putObjectMultipartFromReadAt.
+func TestPutObjectMultipartFromReadAt(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping functional tests for short runs")
+	}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := New(
+		"s3.amazonaws.com",
+		os.Getenv("ACCESS_KEY"),
+		os.Getenv("SECRET_KEY"),
+		true,
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+	dataSize := minPartSize*4 + rand.Intn(minPartSize)
+
+	// Generate data
+	buf := bytes.Repeat([]byte("m"), dataSize)
+
+	// Save the data
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	// Attempt to upload the data.
+	n, err := c.putObjectMultipartFromReadAt(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "application/octet-stream", nil)
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
+	// Compare bytes uploaded to request.
+	if n != int64(len(buf)) {
+		t.Fatalf("Error: number of bytes do not match wanted %v, got %v", int64(len(buf)), n)
+	}
+	// Check that the correct bytes were uploaded.
+	object, err := c.GetObject(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
+	getBytes := make([]byte, len(buf))
+	readBytes, err := object.Read(getBytes)
+	// Should get io.EOF because we read the whole buffer.
+	if err != nil && err != io.EOF {
+		t.Fatal("Read Error:", err, bucketName, objectName)
+	}
+	if readBytes != len(getBytes) {
+		t.Fatalf("Error: number of bytes read back incorrect, wanted %v, got %v", len(getBytes), readBytes)
+	}
+	if !bytes.Equal(getBytes, buf) {
+		t.Fatal("Error: Incorrect read bytes v/s original buffer.")
+	}
+	// Close the object.
+	err = object.Close()
+	if err != nil {
+		t.Fatal("Error: failed to close object", err)
+	}
+	// Clean the test up.
+	err = c.RemoveObject(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error: ", err, bucketName, objectName)
+	}
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+}
