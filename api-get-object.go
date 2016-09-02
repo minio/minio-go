@@ -73,7 +73,9 @@ func (c Client) GetObject(bucketName, objectName string) (*Object, error) {
 						if req.isReadAt {
 							// If this is a ReadAt request only get the specified range.
 							// Range is set with respect to the offset and length of the buffer requested.
-							httpReader, objectInfo, err = c.getObject(bucketName, objectName, req.Offset, int64(len(req.Buffer)))
+							// Do not set objectInfo from the first readAt request because it will not get
+							// the whole object.
+							httpReader, _, err = c.getObject(bucketName, objectName, req.Offset, int64(len(req.Buffer)))
 						} else {
 							// First request is a Read request.
 							httpReader, objectInfo, err = c.getObject(bucketName, objectName, req.Offset, 0)
@@ -115,6 +117,19 @@ func (c Client) GetObject(bucketName, objectName string) (*Object, error) {
 							objectInfo: objectInfo,
 						}
 					}
+				} else if req.settingObjectInfo { // Request is just to get objectInfo.
+					objectInfo, err := c.StatObject(bucketName, objectName)
+					if err != nil {
+						resCh <- getResponse{
+							Error: err,
+						}
+						// Exit the goroutine.
+						return
+					}
+					// Send back the objectInfo.
+					resCh <- getResponse{
+						objectInfo: objectInfo,
+					}
 				} else {
 					// Offset changes fetch the new object at an Offset.
 					// Because the httpReader may not be set by the first
@@ -132,7 +147,7 @@ func (c Client) GetObject(bucketName, objectName string) (*Object, error) {
 							// Range is set with respect to the offset and length of the buffer requested.
 							httpReader, _, err = c.getObject(bucketName, objectName, req.Offset, int64(len(req.Buffer)))
 						} else {
-							httpReader, _, err = c.getObject(bucketName, objectName, req.Offset, 0)
+							httpReader, objectInfo, err = c.getObject(bucketName, objectName, req.Offset, 0)
 						}
 						if err != nil {
 							resCh <- getResponse{
@@ -152,9 +167,10 @@ func (c Client) GetObject(bucketName, objectName string) (*Object, error) {
 					}
 					// Reply back how much was read.
 					resCh <- getResponse{
-						Size:    int(size),
-						Error:   err,
-						didRead: true,
+						Size:       int(size),
+						Error:      err,
+						didRead:    true,
+						objectInfo: objectInfo,
 					}
 				}
 			}
@@ -168,13 +184,14 @@ func (c Client) GetObject(bucketName, objectName string) (*Object, error) {
 // get request message container to communicate with internal
 // go-routine.
 type getRequest struct {
-	Buffer          []byte
-	Offset          int64 // readAt offset.
-	DidOffsetChange bool  // Tracks the offset changes for Seek requests.
-	beenRead        bool  // Determines if this is the first time an object is being read.
-	isReadAt        bool  // Determines if this request is a request to a specific range
-	isReadOp        bool  // Determines if this request is a Read or Read/At request.
-	isFirstReq      bool  // Determines if this request is the first time an object is being accessed.
+	Buffer            []byte
+	Offset            int64 // readAt offset.
+	DidOffsetChange   bool  // Tracks the offset changes for Seek requests.
+	beenRead          bool  // Determines if this is the first time an object is being read.
+	isReadAt          bool  // Determines if this request is a request to a specific range
+	isReadOp          bool  // Determines if this request is a Read or Read/At request.
+	isFirstReq        bool  // Determines if this request is the first time an object is being accessed.
+	settingObjectInfo bool  // Determines if this request is to set the objectInfo of an object.
 }
 
 // get response message container to reply back for the request.
@@ -210,6 +227,9 @@ type Object struct {
 
 	// Keeps track of if this object has been read yet.
 	beenRead bool
+
+	// Keeps track of if objectInfo has been set yet.
+	objectInfoSet bool
 }
 
 // doGetRequest - sends and blocks on the firstReqCh and reqCh of an object.
@@ -221,10 +241,14 @@ func (o *Object) doGetRequest(request getRequest) (getResponse, error) {
 	response := <-o.resCh
 	// This was the first request.
 	if !o.isStarted {
-		// Set objectInfo for first time.
-		o.objectInfo = response.objectInfo
 		// The object has been operated on.
 		o.isStarted = true
+	}
+	// Set the objectInfo if the request was not readAt
+	// and it hasn't been set before.
+	if !o.objectInfoSet && !request.isReadAt {
+		o.objectInfo = response.objectInfo
+		o.objectInfoSet = true
 	}
 	// Set beenRead only if it has not been set before.
 	if !o.beenRead {
@@ -234,7 +258,6 @@ func (o *Object) doGetRequest(request getRequest) (getResponse, error) {
 	if response.Error != nil {
 		return response, response.Error
 	}
-
 	return response, nil
 }
 
@@ -330,11 +353,10 @@ func (o *Object) Stat() (ObjectInfo, error) {
 	}
 
 	// This is the first request.
-	if !o.isStarted {
+	if !o.isStarted || !o.objectInfoSet {
 		statReq := getRequest{
-			isReadOp:   false, // This is a Stat not a Read/ReadAt.
-			Offset:     0,
-			isFirstReq: true,
+			isFirstReq:        !o.isStarted,
+			settingObjectInfo: !o.objectInfoSet,
 		}
 
 		// Send the request and get the response.
@@ -366,7 +388,7 @@ func (o *Object) ReadAt(b []byte, offset int64) (n int, err error) {
 		return 0, o.prevErr
 	}
 	// Can only compare offsets to size when size has been set.
-	if o.isStarted {
+	if o.objectInfoSet {
 		// If offset is negative than we return io.EOF.
 		// If offset is greater than or equal to object size we return io.EOF.
 		if offset >= o.objectInfo.Size || offset < 0 {
@@ -397,13 +419,22 @@ func (o *Object) ReadAt(b []byte, offset int64) (n int, err error) {
 	}
 	// Bytes read.
 	bytesRead := int64(response.Size)
-
-	// Update the offsets.
-	err = o.setOffset(bytesRead)
-	if err != nil {
-		return response.Size, err
+	// There is no valid objectInfo yet
+	// 	to compare against for EOF.
+	if !o.objectInfoSet {
+		// Update the currentOffset.
+		o.currOffset += bytesRead
+		// Save the current offset as previous offset.
+		o.prevOffset = o.currOffset
+	} else {
+		// If this was not the first request update
+		// the offsets and compare against objectInfo
+		// for EOF.
+		err = o.setOffset(bytesRead)
+		if err != nil {
+			return response.Size, err
+		}
 	}
-
 	return response.Size, nil
 }
 
@@ -439,7 +470,7 @@ func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 
 	// This is the first request. So before anything else
 	// get the ObjectInfo.
-	if !o.isStarted {
+	if !o.isStarted || !o.objectInfoSet {
 		// Create the new Seek request.
 		seekReq := getRequest{
 			isReadOp:   false,

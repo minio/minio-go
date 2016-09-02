@@ -354,11 +354,11 @@ func TestBucketPolicyTypes(t *testing.T) {
 
 // Tests optimal part size.
 func TestPartSize(t *testing.T) {
-	totalPartsCount, partSize, lastPartSize, err := optimalPartInfo(5000000000000000000)
+	_, _, _, err := optimalPartInfo(5000000000000000000)
 	if err == nil {
 		t.Fatal("Error: should fail")
 	}
-	totalPartsCount, partSize, lastPartSize, err = optimalPartInfo(5497558138880)
+	totalPartsCount, partSize, lastPartSize, err := optimalPartInfo(5497558138880)
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
@@ -371,7 +371,7 @@ func TestPartSize(t *testing.T) {
 	if lastPartSize != 134217728 {
 		t.Fatalf("Error: expecting last part size of 241172480: got %v instead", lastPartSize)
 	}
-	totalPartsCount, partSize, lastPartSize, err = optimalPartInfo(5000000000)
+	_, partSize, _, err = optimalPartInfo(5000000000)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
