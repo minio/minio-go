@@ -58,11 +58,11 @@ func main() {
 |:---|:---|:---|:---|
 |[`MakeBucket`](#MakeBucket)   |[`GetObject`](#GetObject)   | [`PresignedGetObject`](#PresignedGetObject)  |[`SetBucketPolicy`](#SetBucketPolicy)   |
 |[`ListBuckets`](#ListBuckets)   |[`PutObject`](#PutObject)   |[`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)  |
-|[`BucketExists`](#BucketExists)   |[`CopyObject`](#CopyObject)   |[`PresignedPostPolicy`](#PresignedPostPolicy)   | [`SetBucketNotification`](#SetBucketNotification)   |
-| [`RemoveBucket`](#RemoveBucket)  |[`StatObject`](#StatObject)   |   |  [`GetBucketNotification`](#GetBucketNotification)  |
-|[`ListObjects`](#ListObjects)   |[`RemoveObject`](#RemoveObject)   |   |   [`RemoveAllBucketNotification`](#RemoveAllBucketNotification)  |
-|[`ListObjectsV2`](#ListObjectsV2) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload)  |   | [`ListenBucketNotification`](#ListenBucketNotification)  |
-|[`ListIncompleteUploads`](#ListIncompleteUploads) |[`FPutObject`](#FPutObject)   |   |   |
+|[`BucketExists`](#BucketExists)   |[`CopyObject`](#CopyObject)   |[`PresignedPostPolicy`](#PresignedPostPolicy)   |  [`ListBucketPolicies`](#ListBucketPolicies)  |
+| [`RemoveBucket`](#RemoveBucket)  |[`StatObject`](#StatObject)   |   |  [`SetBucketNotification`](#SetBucketNotification)  |
+|[`ListObjects`](#ListObjects)   |[`RemoveObject`](#RemoveObject)   |   |  [`GetBucketNotification`](#GetBucketNotification)   |
+|[`ListObjectsV2`](#ListObjectsV2) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload)  |   | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification)  |
+|[`ListIncompleteUploads`](#ListIncompleteUploads) |[`FPutObject`](#FPutObject)   |   |  [`ListenBucketNotification`](#ListenBucketNotification)  |
 |   | [`FGetObject`](#FGetObject)  |   |   |
 
 ## 1. Constructor
@@ -850,6 +850,43 @@ if err != nil {
     return
 }
 fmt.Println("Access permissions for mybucket is", bucketPolicy)
+
+```
+
+<a name="ListBucketPolicies"></a>
+### ListBucketPolicies(bucketName string, objectPrefix string) (map[string]BucketPolicy, error)
+
+Get access permissions rules associated to the specified bucket and prefix.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |name of the bucket.   |
+|`objectPrefix` | _string_  |name of the object prefix   |
+
+__Return Values__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketPolicies`  | _map[string]BucketPolicy_ |map that contains object resources paths with their associated permissions  |
+|`err` | _error_  |standard error  |
+
+__Example__
+
+
+```go
+
+bucketPolicies, err := minioClient.ListBucketPolicies("mybucket", "")
+if err != nil {
+    fmt.Println(err)
+    return
+}
+for resource, permission := range bucketPolicies {
+    fmt.Println(resource, " => ", permission)
+}
 
 ```
 
