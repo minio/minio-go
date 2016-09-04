@@ -188,7 +188,7 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 	}
 
 	// Loop over uploaded parts to save them in a Parts array before completing the multipart request.
-	for i := 1; i <= totalPartsCount; i++ {
+	for i := 1; i <= partNumber; i++ {
 		part, ok := partsInfo[i]
 		if !ok {
 			return 0, ErrInvalidArgument(fmt.Sprintf("Missing part number %d", i))

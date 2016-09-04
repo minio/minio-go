@@ -94,7 +94,8 @@ func (c Client) putObjectMultipartStream(bucketName, objectName string, reader i
 	}
 
 	// If This session is a continuation of a previous session fetch all
-	// previously uploaded parts info.
+	// previously uploaded parts info and as a special case only fetch partsInfo
+	// for only known upload size.
 	if !isNew {
 		// Fetch previously uploaded parts and maximum part size.
 		partsInfo, err = c.listObjectParts(bucketName, objectName, uploadID)
@@ -186,8 +187,9 @@ func (c Client) putObjectMultipartStream(bucketName, objectName string, reader i
 		}
 	}
 
-	// Loop over uploaded parts to save them in a Parts array before completing the multipart request.
-	for i := 1; i <= totalPartsCount; i++ {
+	// Loop over total uploaded parts to save them in
+	// Parts array before completing the multipart request.
+	for i := 1; i <= partNumber; i++ {
 		part, ok := partsInfo[i]
 		if !ok {
 			return 0, ErrInvalidArgument(fmt.Sprintf("Missing part number %d", i))
