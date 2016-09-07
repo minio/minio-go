@@ -191,7 +191,7 @@ func TestPutObjectReadAt(t *testing.T) {
 	}
 
 	// Generate data
-	buf := make([]byte, minPartSize*4)
+	buf := bytes.Repeat([]byte("m"), minPartSize*4)
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
