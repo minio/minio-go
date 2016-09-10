@@ -18,7 +18,6 @@ package minio
 
 import (
 	"bytes"
-	crand "crypto/rand"
 	"errors"
 	"fmt"
 	"io"
@@ -270,15 +269,18 @@ func TestListPartiallyUploaded(t *testing.T) {
 		t.Fatal("Error:", err, bucketName)
 	}
 
+	r := bytes.NewReader(bytes.Repeat([]byte("0"), minPartSize*2))
+
 	reader, writer := io.Pipe()
 	go func() {
 		i := 0
 		for i < 25 {
-			_, err = io.CopyN(writer, crand.Reader, (minPartSize*2)/25)
+			_, err = io.CopyN(writer, r, (minPartSize*2)/25)
 			if err != nil {
 				t.Fatal("Error:", err, bucketName)
 			}
 			i++
+			r.Seek(0, 0)
 		}
 		err := writer.CloseWithError(errors.New("Proactively closed to be verified later."))
 		if err != nil {
@@ -347,13 +349,7 @@ func TestGetOjectSeekEnd(t *testing.T) {
 	}
 
 	// Generate data more than 32K
-	buf := make([]byte, rand.Intn(1<<20)+32*1024)
-
-	_, err = io.ReadFull(crand.Reader, buf)
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
-
+	buf := bytes.Repeat([]byte("1"), rand.Intn(1<<20)+32*1024)
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
@@ -448,12 +444,7 @@ func TestGetObjectClosedTwice(t *testing.T) {
 	}
 
 	// Generate data more than 32K
-	buf := make([]byte, rand.Intn(1<<20)+32*1024)
-
-	_, err = io.ReadFull(crand.Reader, buf)
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
+	buf := bytes.Repeat([]byte("1"), rand.Intn(1<<20)+32*1024)
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -532,15 +523,18 @@ func TestRemovePartiallyUploaded(t *testing.T) {
 		t.Fatal("Error:", err, bucketName)
 	}
 
+	r := bytes.NewReader(bytes.Repeat([]byte("a"), 128*1024))
+
 	reader, writer := io.Pipe()
 	go func() {
 		i := 0
 		for i < 25 {
-			_, err = io.CopyN(writer, crand.Reader, 128*1024)
+			_, err = io.CopyN(writer, r, 128*1024)
 			if err != nil {
 				t.Fatal("Error:", err, bucketName)
 			}
 			i++
+			r.Seek(0, 0)
 		}
 		err := writer.CloseWithError(errors.New("Proactively closed to be verified later."))
 		if err != nil {
@@ -607,9 +601,9 @@ func TestResumablePutObject(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-
+	r := bytes.NewReader(bytes.Repeat([]byte("b"), 128*1024))
 	// Copy 11MiB worth of random data.
-	n, err := io.CopyN(file, crand.Reader, minPartSize*2)
+	n, err := io.CopyN(file, r, minPartSize*2)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -717,7 +711,9 @@ func TestResumableFPutObject(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 
-	n, err := io.CopyN(file, crand.Reader, minPartSize*2)
+	r := bytes.NewReader(bytes.Repeat([]byte("c"), 128*1024))
+
+	n, err := io.CopyN(file, r, minPartSize*2)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -798,7 +794,9 @@ func TestFPutObjectMultipart(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 
-	n, err := io.CopyN(file, crand.Reader, minPartSize*2)
+	r := bytes.NewReader(bytes.Repeat([]byte("d"), 128*1024))
+
+	n, err := io.CopyN(file, r, minPartSize*2)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -877,7 +875,9 @@ func TestFPutObject(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 
-	n, err := io.CopyN(file, crand.Reader, minPartSize*2)
+	r := bytes.NewReader(bytes.Repeat([]byte("e"), 128*1024))
+
+	n, err := io.CopyN(file, r, minPartSize*2)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -1020,12 +1020,7 @@ func TestGetObjectReadSeekFunctional(t *testing.T) {
 	}
 
 	// Generate data more than 32K
-	buf := make([]byte, rand.Intn(1<<20)+32*1024)
-
-	_, err = io.ReadFull(crand.Reader, buf)
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
+	buf := bytes.Repeat([]byte("2"), rand.Intn(1<<20)+32*1024)
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -1158,12 +1153,7 @@ func TestGetObjectReadAtFunctional(t *testing.T) {
 	}
 
 	// Generate data more than 32K
-	buf := make([]byte, rand.Intn(1<<20)+32*1024)
-
-	_, err = io.ReadFull(crand.Reader, buf)
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
+	buf := bytes.Repeat([]byte("3"), rand.Intn(1<<20)+32*1024)
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -1312,12 +1302,7 @@ func TestPresignedPostPolicy(t *testing.T) {
 	}
 
 	// Generate data more than 32K
-	buf := make([]byte, rand.Intn(1<<20)+32*1024)
-
-	_, err = io.ReadFull(crand.Reader, buf)
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
+	buf := bytes.Repeat([]byte("4"), rand.Intn(1<<20)+32*1024)
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -1418,12 +1403,7 @@ func TestCopyObject(t *testing.T) {
 	}
 
 	// Generate data more than 32K
-	buf := make([]byte, rand.Intn(1<<20)+32*1024)
-
-	_, err = io.ReadFull(crand.Reader, buf)
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
+	buf := bytes.Repeat([]byte("5"), rand.Intn(1<<20)+32*1024)
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -1756,11 +1736,7 @@ func TestFunctional(t *testing.T) {
 	objectName := bucketName + "unique"
 
 	// Generate data
-	buf := make([]byte, rand.Intn(1<<19))
-	_, err = io.ReadFull(crand.Reader, buf)
-	if err != nil {
-		t.Fatal("Error: ", err)
-	}
+	buf := bytes.Repeat([]byte("f"), 1<<19)
 
 	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "")
 	if err != nil {
@@ -1889,11 +1865,9 @@ func TestFunctional(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
-	buf = make([]byte, rand.Intn(1<<20))
-	_, err = io.ReadFull(crand.Reader, buf)
-	if err != nil {
-		t.Fatal("Error: ", err)
-	}
+
+	buf = bytes.Repeat([]byte("g"), 1<<19)
+
 	req, err := http.NewRequest("PUT", presignedPutURL.String(), bytes.NewReader(buf))
 	if err != nil {
 		t.Fatal("Error: ", err)
