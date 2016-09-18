@@ -356,6 +356,31 @@ func TestIsValidBucketName(t *testing.T) {
 
 }
 
+func TestPercentEncodeSlash(t *testing.T) {
+	testCases := []struct {
+		input  string
+		output string
+	}{
+		{"test123", "test123"},
+		{"abc,+_1", "abc,+_1"},
+		{"%40prefix=test%40123", "%40prefix=test%40123"},
+		{"key1=val1/val2", "key1=val1%2Fval2"},
+		{"%40prefix=test%40123/", "%40prefix=test%40123%2F"},
+	}
+
+	for i, testCase := range testCases {
+		receivedOutput := percentEncodeSlash(testCase.input)
+		if testCase.output != receivedOutput {
+			t.Errorf(
+				"Test %d: Input: \"%s\" --> Expected percentEncodeSlash to return \"%s\", but it returned \"%s\" instead!",
+				i+1, testCase.input, testCase.output,
+				receivedOutput,
+			)
+
+		}
+	}
+}
+
 // Tests validate the query encoder.
 func TestQueryEncode(t *testing.T) {
 	testCases := []struct {
@@ -366,6 +391,7 @@ func TestQueryEncode(t *testing.T) {
 	}{
 		{"prefix", []string{"test@123", "test@456"}, "prefix=test%40123&prefix=test%40456"},
 		{"@prefix", []string{"test@123"}, "%40prefix=test%40123"},
+		{"@prefix", []string{"a/b/c/"}, "%40prefix=a%2Fb%2Fc%2F"},
 		{"prefix", []string{"test#123"}, "prefix=test%23123"},
 		{"prefix#", []string{"test#123"}, "prefix%23=test%23123"},
 		{"prefix", []string{"test123"}, "prefix=test123"},
