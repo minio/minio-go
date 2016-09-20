@@ -170,10 +170,13 @@ __Example__
 
 ```go
 
-err := minioClient.BucketExists("mybucket")
+found, err := minioClient.BucketExists("mybucket")
 if err != nil {
     fmt.Println(err)
     return
+}
+if found {
+    fmt.Println("Bucket found")
 }
 
 ```
@@ -779,9 +782,11 @@ fmt.Printf("%s\n", url)
 ## 5. Bucket policy/notification operations
 
 <a name="SetBucketPolicy"></a>
-### SetBucketPolicy(bucketname string, objectPrefix string, policy BucketPolicy) error
+### SetBucketPolicy(bucketname string, objectPrefix string, policy policy.BucketPolicy) error
 
 Set access permissions on bucket or an object prefix.
+
+Importing `github.com/minio/minio-go/pkg/policy` package is needed.
 
 __Parameters__
 
@@ -790,11 +795,11 @@ __Parameters__
 |:---|:---| :---|
 |`bucketName` | _string_  |name of the bucket.|
 |`objectPrefix` | _string_  |name of the object prefix.|
-|`policy` | _BucketPolicy_  |policy can be:|
-||  |BucketPolicyNone|
-| |  |BucketPolicyReadOnly|
-||   |BucketPolicyReadWrite|
-| | |BucketPolicyWriteOnly|
+|`policy` | _policy.BucketPolicy_  |policy can be:|
+||  |policy.BucketPolicyNone|
+| |  |policy.BucketPolicyReadOnly|
+||   |policy.BucketPolicyReadWrite|
+| | |policy.BucketPolicyWriteOnly|
 
 
 __Return Values__
@@ -810,7 +815,7 @@ __Example__
 
 ```go
 
-err := minioClient.SetBucketPolicy("mybucket", "myprefix", BucketPolicyReadWrite)
+err := minioClient.SetBucketPolicy("mybucket", "myprefix", policy.BucketPolicyReadWrite)
 if err != nil {
     fmt.Println(err)
     return
@@ -819,9 +824,11 @@ if err != nil {
 ```
 
 <a name="GetBucketPolicy"></a>
-### GetBucketPolicy(bucketName string, objectPrefix string) (BucketPolicy, error)
+### GetBucketPolicy(bucketName string, objectPrefix string) (policy.BucketPolicy, error)
 
 Get access permissions on a bucket or a prefix.
+
+Importing `github.com/minio/minio-go/pkg/policy` package is needed.
 
 __Parameters__
 
@@ -836,7 +843,7 @@ __Return Values__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`bucketPolicy`  | _BucketPolicy_ |string that contains: `none`, `readonly`, `readwrite`, or `writeonly`   |
+|`bucketPolicy`  | _policy.BucketPolicy_ |string that contains: `none`, `readonly`, `readwrite`, or `writeonly`   |
 |`err` | _error_  |standard error  |
 
 __Example__
