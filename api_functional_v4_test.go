@@ -601,7 +601,7 @@ func TestResumablePutObject(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	r := bytes.NewReader(bytes.Repeat([]byte("b"), 128*1024))
+	r := bytes.NewReader(bytes.Repeat([]byte("b"), minPartSize*2))
 	// Copy 11MiB worth of random data.
 	n, err := io.CopyN(file, r, minPartSize*2)
 	if err != nil {
