@@ -18,6 +18,7 @@ package minio
 
 import (
 	"bytes"
+	crand "crypto/rand"
 	"errors"
 	"fmt"
 	"io"
@@ -189,8 +190,16 @@ func TestPutObjectReadAt(t *testing.T) {
 		t.Fatal("Error:", err, bucketName)
 	}
 
-	// Generate data
-	buf := bytes.Repeat([]byte("m"), minPartSize*4)
+	// Generate data using 4 parts so that all 3 'workers' are utilized and a part is leftover.
+	buf := make([]byte, minPartSize*4)
+	// Use crand.Reader for multipart tests to ensure part order at the end.
+	size, err := io.ReadFull(crand.Reader, buf)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if size != minPartSize*4 {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*4, size)
+	}
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -711,14 +720,22 @@ func TestResumableFPutObject(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 
-	r := bytes.NewReader(bytes.Repeat([]byte("c"), 128*1024))
-
-	n, err := io.CopyN(file, r, minPartSize*2)
+	// Upload 4 parts to use all 3 multipart 'workers' and have an extra part.
+	buffer := make([]byte, minPartSize*4)
+	// Use crand.Reader for multipart tests to ensure parts are uploaded in correct order.
+	size, err := io.ReadFull(crand.Reader, buffer)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if n != int64(minPartSize*2) {
-		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*2, n)
+	if size != minPartSize*4 {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*4, size)
+	}
+	size, err = file.Write(buffer)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if size != minPartSize*4 {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*4, size)
 	}
 
 	// Close the file pro-actively for windows.
@@ -729,12 +746,12 @@ func TestResumableFPutObject(t *testing.T) {
 
 	objectName := bucketName + "-resumable"
 
-	n, err = c.FPutObject(bucketName, objectName, file.Name(), "application/octet-stream")
+	n, err := c.FPutObject(bucketName, objectName, file.Name(), "application/octet-stream")
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if n != int64(minPartSize*2) {
-		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*2, n)
+	if n != int64(minPartSize*4) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*4, n)
 	}
 
 	err = c.RemoveObject(bucketName, objectName)
@@ -788,20 +805,28 @@ func TestFPutObjectMultipart(t *testing.T) {
 		t.Fatal("Error:", err, bucketName)
 	}
 
-	// Make a temp file with minPartSize*2 bytes of data.
+	// Make a temp file with minPartSize*4 bytes of data.
 	file, err := ioutil.TempFile(os.TempDir(), "FPutObjectTest")
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 
-	r := bytes.NewReader(bytes.Repeat([]byte("d"), 128*1024))
+	// Upload 4 parts to utilize all 3 'workers' in multipart and still have a part to upload.
+	buffer := make([]byte, minPartSize*4)
 
-	n, err := io.CopyN(file, r, minPartSize*2)
+	size, err := io.ReadFull(crand.Reader, buffer)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if n != int64(minPartSize*2) {
-		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*2, n)
+	if size != minPartSize*4 {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*4, size)
+	}
+	size, err = file.Write(buffer)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if size != minPartSize*4 {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*4, size)
 	}
 
 	// Close the file pro-actively for windows.
@@ -814,12 +839,12 @@ func TestFPutObjectMultipart(t *testing.T) {
 	objectName := bucketName + "FPutObject"
 
 	// Perform standard FPutObject with contentType provided (Expecting application/octet-stream)
-	n, err = c.FPutObject(bucketName, objectName+"-standard", file.Name(), "application/octet-stream")
+	n, err := c.FPutObject(bucketName, objectName+"-standard", file.Name(), "application/octet-stream")
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if n != int64(minPartSize*2) {
-		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*2, n)
+	if n != int64(minPartSize*4) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*4, n)
 	}
 
 	// Remove all objects and bucket and temp file
@@ -869,20 +894,30 @@ func TestFPutObject(t *testing.T) {
 		t.Fatal("Error:", err, bucketName)
 	}
 
-	// Make a temp file with minPartSize*2 bytes of data.
+	// Make a temp file with minPartSize*4 bytes of data.
 	file, err := ioutil.TempFile(os.TempDir(), "FPutObjectTest")
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 
-	r := bytes.NewReader(bytes.Repeat([]byte("e"), 128*1024))
-
-	n, err := io.CopyN(file, r, minPartSize*2)
+	// Upload 4 parts worth of data to use all 3 of multiparts 'workers' and have an extra part.
+	buffer := make([]byte, minPartSize*4)
+	// Use random data for multipart tests to check parts are uploaded in correct order.
+	size, err := io.ReadFull(crand.Reader, buffer)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if n != int64(minPartSize*2) {
-		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*2, n)
+	if size != minPartSize*4 {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*4, size)
+	}
+
+	// Write the data to the file.
+	size, err = file.Write(buffer)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if size != minPartSize*4 {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*4, size)
 	}
 
 	// Close the file pro-actively for windows.
@@ -895,12 +930,12 @@ func TestFPutObject(t *testing.T) {
 	objectName := bucketName + "FPutObject"
 
 	// Perform standard FPutObject with contentType provided (Expecting application/octet-stream)
-	n, err = c.FPutObject(bucketName, objectName+"-standard", file.Name(), "application/octet-stream")
+	n, err := c.FPutObject(bucketName, objectName+"-standard", file.Name(), "application/octet-stream")
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if n != int64(minPartSize*2) {
-		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*2, n)
+	if n != int64(minPartSize*4) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*4, n)
 	}
 
 	// Perform FPutObject with no contentType provided (Expecting application/octet-stream)
@@ -908,8 +943,8 @@ func TestFPutObject(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if n != int64(minPartSize*2) {
-		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*2, n)
+	if n != int64(minPartSize*4) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*4, n)
 	}
 
 	// Add extension to temp file name
@@ -924,8 +959,8 @@ func TestFPutObject(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if n != int64(minPartSize*2) {
-		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*2, n)
+	if n != int64(minPartSize*4) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*4, n)
 	}
 
 	// Check headers
@@ -1930,88 +1965,5 @@ func TestFunctional(t *testing.T) {
 	}
 	if err = os.Remove(fileName + "-f"); err != nil {
 		t.Fatal("Error: ", err)
-	}
-}
-
-// Test putObjectMultipartFromReadAt.
-func TestPutObjectMultipartFromReadAt(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping functional tests for short runs")
-	}
-
-	// Seed random based on current time.
-	rand.Seed(time.Now().Unix())
-
-	// Instantiate new minio client object.
-	c, err := New(
-		"s3.amazonaws.com",
-		os.Getenv("ACCESS_KEY"),
-		os.Getenv("SECRET_KEY"),
-		true,
-	)
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
-
-	// Enable tracing, write to stderr.
-	// c.TraceOn(os.Stderr)
-
-	// Set user agent.
-	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
-
-	// Generate a new random bucket name.
-	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
-
-	// Make a new bucket.
-	err = c.MakeBucket(bucketName, "us-east-1")
-	if err != nil {
-		t.Fatal("Error:", err, bucketName)
-	}
-	dataSize := minPartSize*4 + rand.Intn(minPartSize)
-
-	// Generate data
-	buf := bytes.Repeat([]byte("m"), dataSize)
-
-	// Save the data
-	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-	// Attempt to upload the data.
-	n, err := c.putObjectMultipartFromReadAt(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "application/octet-stream", nil)
-	if err != nil {
-		t.Fatal("Error:", err, bucketName, objectName)
-	}
-	// Compare bytes uploaded to request.
-	if n != int64(len(buf)) {
-		t.Fatalf("Error: number of bytes do not match wanted %v, got %v", int64(len(buf)), n)
-	}
-	// Check that the correct bytes were uploaded.
-	object, err := c.GetObject(bucketName, objectName)
-	if err != nil {
-		t.Fatal("Error:", err, bucketName, objectName)
-	}
-	getBytes := make([]byte, len(buf))
-	readBytes, err := object.Read(getBytes)
-	// Should get io.EOF because we read the whole buffer.
-	if err != nil && err != io.EOF {
-		t.Fatal("Read Error:", err, bucketName, objectName)
-	}
-	if readBytes != len(getBytes) {
-		t.Fatalf("Error: number of bytes read back incorrect, wanted %v, got %v", len(getBytes), readBytes)
-	}
-	if !bytes.Equal(getBytes, buf) {
-		t.Fatal("Error: Incorrect read bytes v/s original buffer.")
-	}
-	// Close the object.
-	err = object.Close()
-	if err != nil {
-		t.Fatal("Error: failed to close object", err)
-	}
-	// Clean the test up.
-	err = c.RemoveObject(bucketName, objectName)
-	if err != nil {
-		t.Fatal("Error: ", err, bucketName, objectName)
-	}
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		t.Fatal("Error:", err, bucketName)
 	}
 }
