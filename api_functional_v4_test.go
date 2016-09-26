@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -491,6 +492,83 @@ func TestGetObjectClosedTwice(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+}
+
+// Test removing multiple objects with MultiRemove API
+func TestRemoveMultipleObjects(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping function tests for short runs")
+	}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := New(
+		"s3.amazonaws.com",
+		os.Getenv("ACCESS_KEY"),
+		os.Getenv("SECRET_KEY"),
+		true,
+	)
+
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Enable tracing, write to stdout.
+	// c.TraceOn(os.Stderr)
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+
+	r := bytes.NewReader(bytes.Repeat([]byte("a"), 8))
+
+	// Multi remove of 1100 objects
+	nrObjects := 1100
+
+	objectsCh := make(chan string)
+
+	go func() {
+		defer close(objectsCh)
+		// Upload objects and send them to objectsCh
+		for i := 0; i < nrObjects; i++ {
+			objectName := "sample" + strconv.Itoa(i) + ".txt"
+			_, err = c.PutObject(bucketName, objectName, r, "application/octet-stream")
+			if err != nil {
+				t.Fatal("Error: PutObject shouldn't fail.")
+			}
+			objectsCh <- objectName
+		}
+	}()
+
+	// Call MultiRemoveObjects API
+	errorCh, err := c.MultiRemoveObjects(bucketName, objectsCh)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Check if errorCh doesn't receive any error
+	select {
+	case r, more := <-errorCh:
+		if more {
+			t.Fatalf("Unexpected error, objName(%v) err(%v)", r.objectName, r.err)
+		}
+	}
+
+	// Clean the bucket created by the test
 	err = c.RemoveBucket(bucketName)
 	if err != nil {
 		t.Fatal("Error:", err)
