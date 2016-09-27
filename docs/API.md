@@ -1000,7 +1000,7 @@ if err != nil {
 ```
 
 <a name="ListenBucketNotification"></a>
-### ListenBucketNotification(bucketName string, accountArn Arn, doneCh chan<- struct{}) <-chan NotificationInfo
+### ListenBucketNotification(bucketName, prefix, suffix string, events []string, doneCh <-chan struct{}) <-chan NotificationInfo
 
 ListenBucketNotification API receives bucket notification events through the
 notification channel. The returned notification channel has two fields
@@ -1017,11 +1017,12 @@ __Parameters__
 |Param   |Type   |Description   |
 |:---|:---| :---|
 |`bucketName`  | _string_  | Bucket to listen notifications from.   |
-|`accountArn`  | _Arn_ | Unique account ID to listen notifications for.  |
+|`prefix`  | _string_ | Object key prefix to filter notifications for.  |
+|`suffix`  | _string_ | Object key suffix to filter notifications for.  |
+|`events`  | _[]string_| Enables notifications for specific event types. |
 |`doneCh`  | _chan struct{}_ | A message on this channel ends the ListenBucketNotification loop.  |
 
 __Return Values__
-
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
@@ -1042,35 +1043,15 @@ doneCh := make(chan struct{})
 // Indicate a background go-routine to exit cleanly upon return.
 defer close(doneCh)
 
-// Fetch the bucket location.
-location, err := minioClient.GetBucketLocation("YOUR-BUCKET")
-if err != nil {
-	log.Fatalln(err)
-}
-
-// Construct a new account Arn.
-accountArn := minio.NewArn("minio", "sns", location, "your-account-id", "listen")
-topicConfig := minio.NewNotificationConfig(accountArn)
-topicConfig.AddEvents(minio.ObjectCreatedAll, minio.ObjectRemovedAll)
-topicConfig.AddFilterPrefix("photos/")
-topicConfig.AddFilterSuffix(".jpg")
-
-// Now, set all previously created notification configs
-bucketNotification := minio.BucketNotification{}
-bucketNotification.AddTopic(topicConfig)
-err = s3Client.SetBucketNotification("YOUR-BUCKET", bucketNotification)
-if err != nil {
-	log.Fatalln("Error: " + err.Error())
-}
-log.Println("Success")
-
-// Listen for bucket notifications on "mybucket" filtered by accountArn "arn:minio:sns:<location>:<your-account-id>:listen".
-for notificationInfo := range s3Client.ListenBucketNotification("mybucket", accountArn, doneCh) {
-       if notificationInfo.Err != nil {
-               fmt.Println(notificationInfo.Err)
-                return
-       }
-       fmt.Println(notificationInfo)
+// Listen for bucket notifications on "mybucket" filtered by prefix, suffix and events.
+for notificationInfo := range minioClient.ListenBucketNotification("YOUR-BUCKET", "PREFIX", "SUFFIX", []string{
+	"s3:ObjectCreated:*",
+	"s3:ObjectRemoved:*",
+}, doneCh) {
+	if notificationInfo.Err != nil {
+		log.Fatalln(notificationInfo.Err)
+	}
+	log.Println(notificationInfo)
 }
 ```
 
