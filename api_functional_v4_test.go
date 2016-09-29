@@ -564,7 +564,7 @@ func TestRemoveMultipleObjects(t *testing.T) {
 	select {
 	case r, more := <-errorCh:
 		if more {
-			t.Fatalf("Unexpected error, objName(%v) err(%v)", r.objectName, r.err)
+			t.Fatalf("Unexpected error, objName(%v) err(%v)", r.ObjectName, r.Err)
 		}
 	}
 
