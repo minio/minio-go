@@ -182,6 +182,7 @@ The full API Reference is available here.
 * [`PutObject`](https://docs.minio.io/docs/golang-client-api-reference#PutObject)
 * [`StatObject`](https://docs.minio.io/docs/golang-client-api-reference#StatObject)
 * [`RemoveObject`](https://docs.minio.io/docs/golang-client-api-reference#RemoveObject)
+* [`MultiRemoveObjects`](https://docs.minio.io/docs/golang-client-api-reference#MultiRemoveObjects)
 * [`RemoveIncompleteUpload`](https://docs.minio.io/docs/golang-client-api-reference#RemoveIncompleteUpload)
 
 ### API Reference : Presigned Operations
@@ -227,6 +228,7 @@ The full API Reference is available here.
 * [listobjects.go](https://github.com/minio/minio-go/blob/master/examples/s3/listobjects.go)
 * [listobjectsV2.go](https://github.com/minio/minio-go/blob/master/examples/s3/listobjectsV2.go)
 * [removeobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/removeobject.go)
+* [multiremoveobjects.go](https://github.com/minio/minio-go/blob/master/examples/s3/multiremoveobjects.go)
 * [statobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/statobject.go)
 
 #### Full Examples : Presigned Operations

@@ -61,8 +61,9 @@ func main() {
 |[`BucketExists`](#BucketExists)   |[`CopyObject`](#CopyObject)   |[`PresignedPostPolicy`](#PresignedPostPolicy)   |  [`ListBucketPolicies`](#ListBucketPolicies)  |
 | [`RemoveBucket`](#RemoveBucket)  |[`StatObject`](#StatObject)   |   |  [`SetBucketNotification`](#SetBucketNotification)  |
 |[`ListObjects`](#ListObjects)   |[`RemoveObject`](#RemoveObject)   |   |  [`GetBucketNotification`](#GetBucketNotification)   |
-|[`ListObjectsV2`](#ListObjectsV2) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload)  |   | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification)  |
-|[`ListIncompleteUploads`](#ListIncompleteUploads) |[`FPutObject`](#FPutObject)   |   |  [`ListenBucketNotification`](#ListenBucketNotification)  |
+|[`ListObjectsV2`](#ListObjectsV2) | [`MultiRemoveObjects`](#MultiRemoveObjects) |   | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification)  |
+|[`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |   |  [`ListenBucketNotification`](#ListenBucketNotification)  |
+|   | [`FPutObject`](#FPutObject)  |   |   |
 |   | [`FGetObject`](#FGetObject)  |   |   |
 
 ## 1. Constructor
@@ -627,6 +628,42 @@ if err != nil {
 }
 
 ```
+<a name="MultiRemoveObjects"></a>
+### MultiRemoveObjects(bucketName string, objectsCh chan string) (errorCh chan minio.RemoveObjectError, err error)
+
+Optimally remove a list of objects.
+
+
+__Parameters__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |name of the bucket.   |
+|`objectsCh` | _chan string_  | write prefixes of objects to be removed   |
+
+
+__Return Values__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`errorCh` | _chan minio.RemoveObjectError  | read objects deletion errors  |
+|`err` | _error_  | standard error   |
+
+
+
+```go
+
+errorCh, err := minioClient.MultiRemoveObjects("mybucket", objectsCh)
+if err != nil {
+    fmt.Println(err)
+    return
+}
+for e := range errorCh {
+    fmt.Println("Error detected during deletion: " + e.Err.Error())
+}
+
+```
+
 
 
 <a name="RemoveIncompleteUpload"></a>
