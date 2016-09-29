@@ -153,7 +153,7 @@ for _, bucket := range buckets {
  ```
 
 <a name="BucketExists"></a>
-### BucketExists(bucketName string) error
+### BucketExists(bucketName string) (found bool, err error)
 
 Checks if a bucket exists.
 
@@ -163,6 +163,14 @@ __Parameters__
 |Param   |Type   |Description   |
 |:---|:---| :---|
 |`bucketName`  | _string_  |name of the bucket.   |
+
+
+__Return Values__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`found`  | _bool_ | indicates whether bucket exists or not  |
+|`err` | _error_  | standard error  |
 
 
 __Example__
