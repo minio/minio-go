@@ -77,9 +77,10 @@ func (c Client) RemoveObject(bucketName, objectName string) error {
 	return nil
 }
 
-type objectNameError struct {
-	objectName string
-	err        error
+// RemoveObjectError - container of Multi Delete S3 API error
+type RemoveObjectError struct {
+	ObjectName string
+	Err        error
 }
 
 // generateRemoveMultiObjects - generate the XML request for remove multi objects request
@@ -94,20 +95,20 @@ func generateRemoveMultiObjectsRequest(objects []string) []byte {
 
 // processRemoveMultiObjectsResponse - parse the remove multi objects web service
 // and return the success/failure result status for each object
-func processRemoveMultiObjectsResponse(body io.Reader, objects []string, errorCh chan objectNameError) {
+func processRemoveMultiObjectsResponse(body io.Reader, objects []string, errorCh chan RemoveObjectError) {
 	// Parse multi delete XML response
 	rmResult := &deleteMultiObjectsResult{}
 	err := xmlDecoder(body, rmResult)
 	if err != nil {
-		errorCh <- objectNameError{objectName: "", err: err}
+		errorCh <- RemoveObjectError{ObjectName: "", Err: err}
 		return
 	}
 
 	// Fill deletion that returned an error.
 	for _, obj := range rmResult.UnDeletedObjects {
-		errorCh <- objectNameError{
-			objectName: obj.Key,
-			err: ErrorResponse{
+		errorCh <- RemoveObjectError{
+			ObjectName: obj.Key,
+			Err: ErrorResponse{
 				Code:    obj.Code,
 				Message: obj.Message,
 			},
@@ -118,13 +119,13 @@ func processRemoveMultiObjectsResponse(body io.Reader, objects []string, errorCh
 // MultiRemoveObjects remove multiples objects from a bucket.
 // The list of objects to remove are received from objectsCh.
 // Remove failures are sent back via error channel.
-func (c Client) MultiRemoveObjects(bucketName string, objectsCh chan string) (chan objectNameError, error) {
+func (c Client) MultiRemoveObjects(bucketName string, objectsCh chan string) (chan RemoveObjectError, error) {
 	// Input validation.
 	if err := isValidBucketName(bucketName); err != nil {
 		return nil, err
 	}
 
-	errorCh := make(chan objectNameError)
+	errorCh := make(chan RemoveObjectError)
 
 	// Generate and call MultiDelete S3 requests based on entries received from objectsCh
 	go func() {
@@ -133,6 +134,7 @@ func (c Client) MultiRemoveObjects(bucketName string, objectsCh chan string) (ch
 		urlValues := make(url.Values)
 		urlValues.Set("delete", "")
 
+		// Close error channel when Multi delete finishes.
 		defer close(errorCh)
 
 		// Loop over entries by 1000 and call MultiDelete requests
@@ -168,7 +170,7 @@ func (c Client) MultiRemoveObjects(bucketName string, objectsCh chan string) (ch
 			})
 			if err != nil {
 				for _, b := range batch {
-					errorCh <- objectNameError{objectName: b, err: err}
+					errorCh <- RemoveObjectError{ObjectName: b, Err: err}
 				}
 				continue
 			}
@@ -178,7 +180,6 @@ func (c Client) MultiRemoveObjects(bucketName string, objectsCh chan string) (ch
 
 			closeResponse(resp)
 		}
-		// Multi delete finished. Close error channel
 	}()
 
 	return errorCh, nil
