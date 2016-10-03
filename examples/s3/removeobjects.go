@@ -43,16 +43,14 @@ func main() {
 
 	// Send object names that are needed to be removed to objectsCh
 	go func() {
+		defer close(objectsCh)
 		for i := 0; i < 10; i++ {
 			objectsCh <- "object" + strconv.Itoa(i)
 		}
 	}()
 
 	// Call RemoveObjects API
-	errorCh, err := s3Client.RemoveObjects("my-bucketname", objectsCh)
-	if err != nil {
-		log.Fatalln(err)
-	}
+	errorCh := s3Client.RemoveObjects("my-bucketname", objectsCh)
 
 	// Print errors received from RemoveObjects API
 	for e := range errorCh {
