@@ -498,7 +498,7 @@ func TestGetObjectClosedTwice(t *testing.T) {
 	}
 }
 
-// Test removing multiple objects with MultiRemove API
+// Test removing multiple objects with Remove API
 func TestRemoveMultipleObjects(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping function tests for short runs")
@@ -554,11 +554,8 @@ func TestRemoveMultipleObjects(t *testing.T) {
 		}
 	}()
 
-	// Call MultiRemoveObjects API
-	errorCh, err := c.MultiRemoveObjects(bucketName, objectsCh)
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
+	// Call RemoveObjects API
+	errorCh := c.RemoveObjects(bucketName, objectsCh)
 
 	// Check if errorCh doesn't receive any error
 	select {

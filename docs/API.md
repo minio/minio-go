@@ -61,7 +61,7 @@ func main() {
 |[`BucketExists`](#BucketExists)   |[`CopyObject`](#CopyObject)   |[`PresignedPostPolicy`](#PresignedPostPolicy)   |  [`ListBucketPolicies`](#ListBucketPolicies)  |
 | [`RemoveBucket`](#RemoveBucket)  |[`StatObject`](#StatObject)   |   |  [`SetBucketNotification`](#SetBucketNotification)  |
 |[`ListObjects`](#ListObjects)   |[`RemoveObject`](#RemoveObject)   |   |  [`GetBucketNotification`](#GetBucketNotification)   |
-|[`ListObjectsV2`](#ListObjectsV2) | [`MultiRemoveObjects`](#MultiRemoveObjects) |   | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification)  |
+|[`ListObjectsV2`](#ListObjectsV2) | [`RemoveObjects`](#RemoveObjects) |   | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification)  |
 |[`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |   |  [`ListenBucketNotification`](#ListenBucketNotification)  |
 |   | [`FPutObject`](#FPutObject)  |   |   |
 |   | [`FGetObject`](#FGetObject)  |   |   |
@@ -636,11 +636,11 @@ if err != nil {
 }
 
 ```
-<a name="MultiRemoveObjects"></a>
-### MultiRemoveObjects(bucketName string, objectsCh chan string) (errorCh chan minio.RemoveObjectError, err error)
+<a name="RemoveObjects"></a>
+### RemoveObjects(bucketName string, objectsCh chan string) (errorCh chan minio.RemoveObjectError, err error)
 
-Optimally remove a list of objects.
-
+Removes a list of objects obtained from an input channel. The call internally buffers up `1000` at
+a time and initiates a delete request to the server. Upon any error is sent through the error channel.
 
 __Parameters__
 
@@ -661,7 +661,7 @@ __Return Values__
 
 ```go
 
-errorCh, err := minioClient.MultiRemoveObjects("mybucket", objectsCh)
+errorCh, err := minioClient.RemoveObjects("mybucket", objectsCh)
 if err != nil {
     fmt.Println(err)
     return

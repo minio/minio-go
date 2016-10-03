@@ -174,15 +174,15 @@ The full API Reference is available here.
 
 * [`FPutObject`](https://docs.minio.io/docs/golang-client-api-reference#FPutObject)
 * [`FGetObject`](https://docs.minio.io/docs/golang-client-api-reference#FPutObject)
-* [`CopyObject`](https://docs.minio.io/docs/golang-client-api-reference#CopyObject)
 
 ### API Reference : Object Operations
 
 * [`GetObject`](https://docs.minio.io/docs/golang-client-api-reference#GetObject)
 * [`PutObject`](https://docs.minio.io/docs/golang-client-api-reference#PutObject)
 * [`StatObject`](https://docs.minio.io/docs/golang-client-api-reference#StatObject)
+* [`CopyObject`](https://docs.minio.io/docs/golang-client-api-reference#CopyObject)
 * [`RemoveObject`](https://docs.minio.io/docs/golang-client-api-reference#RemoveObject)
-* [`MultiRemoveObjects`](https://docs.minio.io/docs/golang-client-api-reference#MultiRemoveObjects)
+* [`RemoveObjects`](https://docs.minio.io/docs/golang-client-api-reference#RemoveObjects)
 * [`RemoveIncompleteUpload`](https://docs.minio.io/docs/golang-client-api-reference#RemoveIncompleteUpload)
 
 ### API Reference : Presigned Operations
@@ -191,45 +191,45 @@ The full API Reference is available here.
 * [`PresignedPutObject`](https://docs.minio.io/docs/golang-client-api-reference#PresignedPutObject)
 * [`PresignedPostPolicy`](https://docs.minio.io/docs/golang-client-api-reference#PresignedPostPolicy)
 
-
 ## Full Examples
 
 #### Full Examples : Bucket Operations
 
-* [listbuckets.go](https://github.com/minio/minio-go/blob/master/examples/s3/listbuckets.go)
-* [listobjects.go](https://github.com/minio/minio-go/blob/master/examples/s3/listobjects.go)
-* [bucketexists.go](https://github.com/minio/minio-go/blob/master/examples/s3/bucketexists.go)
 * [makebucket.go](https://github.com/minio/minio-go/blob/master/examples/s3/makebucket.go)
+* [listbuckets.go](https://github.com/minio/minio-go/blob/master/examples/s3/listbuckets.go)
+* [bucketexists.go](https://github.com/minio/minio-go/blob/master/examples/s3/bucketexists.go)
 * [removebucket.go](https://github.com/minio/minio-go/blob/master/examples/s3/removebucket.go)
+* [listobjects.go](https://github.com/minio/minio-go/blob/master/examples/s3/listobjects.go)
+* [listobjectsV2.go](https://github.com/minio/minio-go/blob/master/examples/s3/listobjectsV2.go)
 * [listincompleteuploads.go](https://github.com/minio/minio-go/blob/master/examples/s3/listincompleteuploads.go)
 
 #### Full Examples : Bucket policy Operations
 
 * [setbucketpolicy.go](https://github.com/minio/minio-go/blob/master/examples/s3/setbucketpolicy.go)
 * [getbucketpolicy.go](https://github.com/minio/minio-go/blob/master/examples/s3/getbucketpolicy.go)
+* [listbucketpolicies.go](https://github.com/minio/minio-go/blob/master/examples/s3/listbucketpolicies.go)
  
 #### Full Examples : Bucket notification Operations
 
 * [setbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/s3/setbucketnotification.go)
 * [getbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/s3/getbucketnotification.go)
-* [deletebucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/s3/deletebucketnotification.go)
+* [removeallbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/s3/removeallbucketnotification.go)
 * [listenbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/minio/listenbucketnotification.go) (Minio Extension)
 
 #### Full Examples : File Object Operations
 
 * [fputobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/fputobject.go)
 * [fgetobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/fgetobject.go)
-* [copyobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/copyobject.go)
 
 #### Full Examples : Object Operations
 
 * [putobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/putobject.go)
 * [getobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/getobject.go)
-* [listobjects.go](https://github.com/minio/minio-go/blob/master/examples/s3/listobjects.go)
-* [listobjectsV2.go](https://github.com/minio/minio-go/blob/master/examples/s3/listobjectsV2.go)
-* [removeobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/removeobject.go)
-* [multiremoveobjects.go](https://github.com/minio/minio-go/blob/master/examples/s3/multiremoveobjects.go)
 * [statobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/statobject.go)
+* [copyobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/copyobject.go)
+* [removeobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/removeobject.go)
+* [removeincompleteupload.go](https://github.com/minio/minio-go/blob/master/examples/s3/removeincompleteupload.go)
+* [removeobjects.go](https://github.com/minio/minio-go/blob/master/examples/s3/removeobjects.go)
 
 #### Full Examples : Presigned Operations
 * [presignedgetobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/presignedgetobject.go)

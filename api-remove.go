@@ -95,7 +95,7 @@ func generateRemoveMultiObjectsRequest(objects []string) []byte {
 
 // processRemoveMultiObjectsResponse - parse the remove multi objects web service
 // and return the success/failure result status for each object
-func processRemoveMultiObjectsResponse(body io.Reader, objects []string, errorCh chan RemoveObjectError) {
+func processRemoveMultiObjectsResponse(body io.Reader, objects []string, errorCh chan<- RemoveObjectError) {
 	// Parse multi delete XML response
 	rmResult := &deleteMultiObjectsResult{}
 	err := xmlDecoder(body, rmResult)
@@ -116,19 +116,31 @@ func processRemoveMultiObjectsResponse(body io.Reader, objects []string, errorCh
 	}
 }
 
-// MultiRemoveObjects remove multiples objects from a bucket.
+// RemoveObjects remove multiples objects from a bucket.
 // The list of objects to remove are received from objectsCh.
 // Remove failures are sent back via error channel.
-func (c Client) MultiRemoveObjects(bucketName string, objectsCh chan string) (chan RemoveObjectError, error) {
-	// Input validation.
+func (c Client) RemoveObjects(bucketName string, objectsCh <-chan string) <-chan RemoveObjectError {
+	errorCh := make(chan RemoveObjectError, 1)
+
+	// Validate if bucket name is valid.
 	if err := isValidBucketName(bucketName); err != nil {
-		return nil, err
+		defer close(errorCh)
+		errorCh <- RemoveObjectError{
+			Err: err,
+		}
+		return errorCh
+	}
+	// Validate objects channel to be properly allocated.
+	if objectsCh == nil {
+		defer close(errorCh)
+		errorCh <- RemoveObjectError{
+			Err: ErrInvalidArgument("Objects channel cannot be nil"),
+		}
+		return errorCh
 	}
 
-	errorCh := make(chan RemoveObjectError)
-
 	// Generate and call MultiDelete S3 requests based on entries received from objectsCh
-	go func() {
+	go func(errorCh chan<- RemoveObjectError) {
 		maxEntries := 1000
 		finish := false
 		urlValues := make(url.Values)
@@ -143,7 +155,7 @@ func (c Client) MultiRemoveObjects(bucketName string, objectsCh chan string) (ch
 				break
 			}
 			count := 0
-			batch := make([]string, 0)
+			var batch []string
 
 			// Try to gather 1000 entries
 			for object := range objectsCh {
@@ -158,15 +170,15 @@ func (c Client) MultiRemoveObjects(bucketName string, objectsCh chan string) (ch
 			}
 
 			// Generate remove multi objects XML request
-			multiRemoveBytes := generateRemoveMultiObjectsRequest(batch)
+			removeBytes := generateRemoveMultiObjectsRequest(batch)
 			// Execute GET on bucket to list objects.
 			resp, err := c.executeMethod("POST", requestMetadata{
 				bucketName:         bucketName,
 				queryValues:        urlValues,
-				contentBody:        bytes.NewReader(multiRemoveBytes),
-				contentLength:      int64(len(multiRemoveBytes)),
-				contentMD5Bytes:    sumMD5(multiRemoveBytes),
-				contentSHA256Bytes: sum256(multiRemoveBytes),
+				contentBody:        bytes.NewReader(removeBytes),
+				contentLength:      int64(len(removeBytes)),
+				contentMD5Bytes:    sumMD5(removeBytes),
+				contentSHA256Bytes: sum256(removeBytes),
 			})
 			if err != nil {
 				for _, b := range batch {
@@ -180,9 +192,8 @@ func (c Client) MultiRemoveObjects(bucketName string, objectsCh chan string) (ch
 
 			closeResponse(resp)
 		}
-	}()
-
-	return errorCh, nil
+	}(errorCh)
+	return errorCh
 }
 
 // RemoveIncompleteUpload aborts an partially uploaded object.
