@@ -637,7 +637,7 @@ if err != nil {
 
 ```
 <a name="RemoveObjects"></a>
-### RemoveObjects(bucketName string, objectsCh chan string) (errorCh chan minio.RemoveObjectError, err error)
+### RemoveObjects(bucketName string, objectsCh chan string) errorCh chan minio.RemoveObjectError
 
 Removes a list of objects obtained from an input channel. The call internally buffers up `1000` at
 a time and initiates a delete request to the server. Upon any error is sent through the error channel.
@@ -655,17 +655,12 @@ __Return Values__
 |Param   |Type   |Description   |
 |:---|:---| :---|
 |`errorCh` | _chan minio.RemoveObjectError  | read objects deletion errors  |
-|`err` | _error_  | standard error   |
 
 
 
 ```go
 
-errorCh, err := minioClient.RemoveObjects("mybucket", objectsCh)
-if err != nil {
-    fmt.Println(err)
-    return
-}
+errorCh := minioClient.RemoveObjects("mybucket", objectsCh)
 for e := range errorCh {
     fmt.Println("Error detected during deletion: " + e.Err.Error())
 }
