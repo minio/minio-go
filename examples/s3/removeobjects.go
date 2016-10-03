@@ -48,13 +48,13 @@ func main() {
 		}
 	}()
 
-	// Call MultiRemoveObjects API
-	errorCh, err := s3Client.MultiRemoveObjects("my-bucketname", objectsCh)
+	// Call RemoveObjects API
+	errorCh, err := s3Client.RemoveObjects("my-bucketname", objectsCh)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	// Print errors received from MultiRemoveObjects API
+	// Print errors received from RemoveObjects API
 	for e := range errorCh {
 		log.Fatalln("Failed to remove " + e.ObjectName + ", error: " + e.Err.Error())
 	}
