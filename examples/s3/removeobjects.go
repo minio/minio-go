@@ -45,7 +45,7 @@ func main() {
 	go func() {
 		defer close(objectsCh)
 		for i := 0; i < 10; i++ {
-			objectsCh <- "object" + strconv.Itoa(i)
+			objectsCh <- "/path/to/my-objectname" + strconv.Itoa(i)
 		}
 	}()
 
