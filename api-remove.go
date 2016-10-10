@@ -109,7 +109,7 @@ func processRemoveMultiObjectsResponse(body io.Reader, objects []string, errorCh
 		errorCh <- RemoveObjectError{
 			ObjectName: obj.Key,
 			Err: ErrorResponse{
-				Code:    obj.Code,
+				Code:    APIErrorCode(obj.Code),
 				Message: obj.Message,
 			},
 		}
@@ -255,7 +255,7 @@ func (c Client) abortMultipartUpload(bucketName, objectName, uploadID string) er
 				// This is needed specifically for abort and it cannot
 				// be converged into default case.
 				errorResponse = ErrorResponse{
-					Code:       "NoSuchUpload",
+					Code:       ErrCodeNoSuchUpload,
 					Message:    "The specified multipart upload does not exist.",
 					BucketName: bucketName,
 					Key:        objectName,

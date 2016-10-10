@@ -82,7 +82,7 @@ func (c Client) StatObject(bucketName, objectName string) (ObjectInfo, error) {
 	size, err := strconv.ParseInt(resp.Header.Get("Content-Length"), 10, 64)
 	if err != nil {
 		return ObjectInfo{}, ErrorResponse{
-			Code:       "InternalError",
+			Code:       ErrCodeInternalError,
 			Message:    "Content-Length is invalid. " + reportIssue,
 			BucketName: bucketName,
 			Key:        objectName,
@@ -95,7 +95,7 @@ func (c Client) StatObject(bucketName, objectName string) (ObjectInfo, error) {
 	date, err := time.Parse(http.TimeFormat, resp.Header.Get("Last-Modified"))
 	if err != nil {
 		return ObjectInfo{}, ErrorResponse{
-			Code:       "InternalError",
+			Code:       ErrCodeInternalError,
 			Message:    "Last-Modified time format is invalid. " + reportIssue,
 			BucketName: bucketName,
 			Key:        objectName,

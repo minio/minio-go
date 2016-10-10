@@ -65,7 +65,7 @@ func TestHttpRespToErrorResponse(t *testing.T) {
 	// 'genErrResponse' contructs error response based http Status Code
 	genErrResponse := func(resp *http.Response, code, message, bucketName, objectName string) ErrorResponse {
 		errResp := ErrorResponse{
-			Code:       code,
+			Code:       APIErrorCode(code),
 			Message:    message,
 			BucketName: bucketName,
 			Key:        objectName,
@@ -79,7 +79,7 @@ func TestHttpRespToErrorResponse(t *testing.T) {
 	// Generate invalid argument error.
 	genInvalidError := func(message string) error {
 		errResp := ErrorResponse{
-			Code:      "InvalidArgument",
+			Code:      ErrCodeInvalidArgument,
 			Message:   message,
 			RequestID: "minio",
 		}
@@ -123,7 +123,7 @@ func TestHttpRespToErrorResponse(t *testing.T) {
 	// List of APIErrors used to generate/mock server side XML error response.
 	APIErrors := []APIError{
 		{
-			Code:           "NoSuchBucketPolicy",
+			Code:           ErrCodeNoSuchBucketPolicy,
 			Description:    "The specified bucket does not have a bucket policy.",
 			HTTPStatusCode: http.StatusNotFound,
 		},
@@ -181,7 +181,7 @@ func TestHttpRespToErrorResponse(t *testing.T) {
 func TestErrEntityTooLarge(t *testing.T) {
 	msg := fmt.Sprintf("Your proposed upload size ‘%d’ exceeds the maximum allowed object size ‘%d’ for single PUT operation.", 1000000, 99999)
 	expectedResult := ErrorResponse{
-		Code:       "EntityTooLarge",
+		Code:       ErrCodeEntityTooLarge,
 		Message:    msg,
 		BucketName: "minio-bucket",
 		Key:        "Asia/",
@@ -196,7 +196,7 @@ func TestErrEntityTooLarge(t *testing.T) {
 func TestErrEntityTooSmall(t *testing.T) {
 	msg := fmt.Sprintf("Your proposed upload size ‘%d’ is below the minimum allowed object size '0B' for single PUT operation.", -1)
 	expectedResult := ErrorResponse{
-		Code:       "EntityTooLarge",
+		Code:       ErrCodeEntityTooLarge,
 		Message:    msg,
 		BucketName: "minio-bucket",
 		Key:        "Asia/",
@@ -212,7 +212,7 @@ func TestErrUnexpectedEOF(t *testing.T) {
 	msg := fmt.Sprintf("Data read ‘%s’ is not equal to the size ‘%s’ of the input Reader.",
 		strconv.FormatInt(100, 10), strconv.FormatInt(101, 10))
 	expectedResult := ErrorResponse{
-		Code:       "UnexpectedEOF",
+		Code:       ErrCodeUnexpectedEOF,
 		Message:    msg,
 		BucketName: "minio-bucket",
 		Key:        "Asia/",
@@ -226,7 +226,7 @@ func TestErrUnexpectedEOF(t *testing.T) {
 // Test validates 'ErrInvalidBucketName' error response.
 func TestErrInvalidBucketName(t *testing.T) {
 	expectedResult := ErrorResponse{
-		Code:      "InvalidBucketName",
+		Code:      ErrCodeInvalidBucketName,
 		Message:   "Invalid Bucket name",
 		RequestID: "minio",
 	}
@@ -239,7 +239,7 @@ func TestErrInvalidBucketName(t *testing.T) {
 // Test validates 'ErrInvalidObjectName' error response.
 func TestErrInvalidObjectName(t *testing.T) {
 	expectedResult := ErrorResponse{
-		Code:      "NoSuchKey",
+		Code:      ErrCodeNoSuchKey,
 		Message:   "Invalid Object Key",
 		RequestID: "minio",
 	}
@@ -252,7 +252,7 @@ func TestErrInvalidObjectName(t *testing.T) {
 // Test validates 'ErrInvalidArgument' response.
 func TestErrInvalidArgument(t *testing.T) {
 	expectedResult := ErrorResponse{
-		Code:      "InvalidArgument",
+		Code:      ErrCodeInvalidArgument,
 		Message:   "Invalid Argument",
 		RequestID: "minio",
 	}

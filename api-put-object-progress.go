@@ -53,7 +53,7 @@ func (c Client) PutObjectWithProgress(bucketName, objectName string, reader io.R
 	if isGoogleEndpoint(c.endpointURL) {
 		if size <= -1 {
 			return 0, ErrorResponse{
-				Code:       "NotImplemented",
+				Code:       ErrCodeNotImplemented,
 				Message:    "Content-Length cannot be negative for file uploads to Google Cloud Storage.",
 				Key:        objectName,
 				BucketName: bucketName,
@@ -70,7 +70,7 @@ func (c Client) PutObjectWithProgress(bucketName, objectName string, reader io.R
 	if isAmazonEndpoint(c.endpointURL) && c.anonymous {
 		if size <= -1 {
 			return 0, ErrorResponse{
-				Code:       "NotImplemented",
+				Code:       ErrCodeNotImplemented,
 				Message:    "Content-Length cannot be negative for anonymous requests.",
 				Key:        objectName,
 				BucketName: bucketName,

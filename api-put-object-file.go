@@ -75,7 +75,7 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 	if isGoogleEndpoint(c.endpointURL) {
 		if fileSize > int64(maxSinglePutObjectSize) {
 			return 0, ErrorResponse{
-				Code:       "NotImplemented",
+				Code:       ErrCodeNotImplemented,
 				Message:    fmt.Sprintf("Invalid Content-Length %d for file uploads to Google Cloud Storage.", fileSize),
 				Key:        objectName,
 				BucketName: bucketName,
@@ -89,7 +89,7 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 	if isAmazonEndpoint(c.endpointURL) && c.anonymous {
 		if fileSize > int64(maxSinglePutObjectSize) {
 			return 0, ErrorResponse{
-				Code:       "NotImplemented",
+				Code:       ErrCodeNotImplemented,
 				Message:    fmt.Sprintf("For anonymous requests Content-Length cannot be %d.", fileSize),
 				Key:        objectName,
 				BucketName: bucketName,
@@ -110,7 +110,7 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 		errResp := ToErrorResponse(err)
 		// Verify if multipart functionality is not available, if not
 		// fall back to single PutObject operation.
-		if errResp.Code == "NotImplemented" {
+		if errResp.Code == ErrCodeNotImplemented {
 			// If size of file is greater than '5GiB' fail.
 			if fileSize > maxSinglePutObjectSize {
 				return 0, ErrEntityTooLarge(fileSize, maxSinglePutObjectSize, bucketName, objectName)

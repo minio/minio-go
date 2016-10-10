@@ -27,7 +27,7 @@ import (
 
 // APIError Used for mocking error response from server.
 type APIError struct {
-	Code           string
+	Code           APIErrorCode
 	Description    string
 	HTTPStatusCode int
 }
