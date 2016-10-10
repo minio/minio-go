@@ -38,7 +38,7 @@ import (
 // ErrorResponse - Is the typed error returned by all API operations.
 type ErrorResponse struct {
 	XMLName    xml.Name `xml:"Error" json:"-"`
-	Code       string
+	Code       APIErrorCode
 	Message    string
 	BucketName string
 	Key        string
@@ -83,6 +83,32 @@ const (
 	reportIssue = "Please report this issue at https://github.com/minio/minio-go/issues."
 )
 
+type APIErrorCode string
+
+var (
+	ErrCodeNoSuchBucket          = APIErrorCode("NoSuchBucket")
+	ErrCodeNoSuchKey             = APIErrorCode("NoSuchKey")
+	ErrCodeAccessDenied          = APIErrorCode("AccessDenied")
+	ErrCodeConflict              = APIErrorCode("Conflict")
+	ErrCodeEntityTooLarge        = APIErrorCode("EntityTooLarge")
+	ErrCodeUnexpectedEOF         = APIErrorCode("UnexpectedEOF")
+	ErrCodeInvalidBucketName     = APIErrorCode("InvalidBucketName")
+	ErrCodeInvalidArgument       = APIErrorCode("InvalidArgument")
+	ErrCodeNoSuchBucketPolicy    = APIErrorCode("NoSuchBucketPolicy")
+	ErrCodeAPINotSupported       = APIErrorCode("APINotSupported")
+	ErrCodeInternalError         = APIErrorCode("InternalError")
+	ErrCodeNotImplemented        = APIErrorCode("NotImplemented")
+	ErrCodeNoSuchUpload          = APIErrorCode("NoSuchUpload")
+	ErrCodeRequestError          = APIErrorCode("RequestError")
+	ErrCodeRequestTimeout        = APIErrorCode("RequestTimeout")
+	ErrCodeThrottling            = APIErrorCode("Throttling")
+	ErrCodeThrottlingException   = APIErrorCode("ThrottlingException")
+	ErrCodeRequestLimitExceeded  = APIErrorCode("RequestLimitExceeded")
+	ErrCodeRequestThrottled      = APIErrorCode("RequestThrottled")
+	ErrCodeExpiredToken          = APIErrorCode("ExpiredToken")
+	ErrCodeExpiredTokenException = APIErrorCode("ExpiredTokenException")
+)
+
 // httpRespToErrorResponse returns a new encoded ErrorResponse
 // structure as error.
 func httpRespToErrorResponse(resp *http.Response, bucketName, objectName string) error {
@@ -98,7 +124,7 @@ func httpRespToErrorResponse(resp *http.Response, bucketName, objectName string)
 		case http.StatusNotFound:
 			if objectName == "" {
 				errResp = ErrorResponse{
-					Code:       "NoSuchBucket",
+					Code:       ErrCodeNoSuchBucket,
 					Message:    "The specified bucket does not exist.",
 					BucketName: bucketName,
 					RequestID:  resp.Header.Get("x-amz-request-id"),
@@ -107,7 +133,7 @@ func httpRespToErrorResponse(resp *http.Response, bucketName, objectName string)
 				}
 			} else {
 				errResp = ErrorResponse{
-					Code:       "NoSuchKey",
+					Code:       ErrCodeNoSuchKey,
 					Message:    "The specified key does not exist.",
 					BucketName: bucketName,
 					Key:        objectName,
@@ -118,7 +144,7 @@ func httpRespToErrorResponse(resp *http.Response, bucketName, objectName string)
 			}
 		case http.StatusForbidden:
 			errResp = ErrorResponse{
-				Code:       "AccessDenied",
+				Code:       ErrCodeAccessDenied,
 				Message:    "Access Denied.",
 				BucketName: bucketName,
 				Key:        objectName,
@@ -128,7 +154,7 @@ func httpRespToErrorResponse(resp *http.Response, bucketName, objectName string)
 			}
 		case http.StatusConflict:
 			errResp = ErrorResponse{
-				Code:       "Conflict",
+				Code:       ErrCodeConflict,
 				Message:    "Bucket not empty.",
 				BucketName: bucketName,
 				RequestID:  resp.Header.Get("x-amz-request-id"),
@@ -137,7 +163,7 @@ func httpRespToErrorResponse(resp *http.Response, bucketName, objectName string)
 			}
 		default:
 			errResp = ErrorResponse{
-				Code:       resp.Status,
+				Code:       APIErrorCode(resp.Status),
 				Message:    resp.Status,
 				BucketName: bucketName,
 				RequestID:  resp.Header.Get("x-amz-request-id"),
@@ -153,7 +179,7 @@ func httpRespToErrorResponse(resp *http.Response, bucketName, objectName string)
 func ErrEntityTooLarge(totalSize, maxObjectSize int64, bucketName, objectName string) error {
 	msg := fmt.Sprintf("Your proposed upload size ‘%d’ exceeds the maximum allowed object size ‘%d’ for single PUT operation.", totalSize, maxObjectSize)
 	return ErrorResponse{
-		Code:       "EntityTooLarge",
+		Code:       ErrCodeEntityTooLarge,
 		Message:    msg,
 		BucketName: bucketName,
 		Key:        objectName,
@@ -164,7 +190,7 @@ func ErrEntityTooLarge(totalSize, maxObjectSize int64, bucketName, objectName st
 func ErrEntityTooSmall(totalSize int64, bucketName, objectName string) error {
 	msg := fmt.Sprintf("Your proposed upload size ‘%d’ is below the minimum allowed object size '0B' for single PUT operation.", totalSize)
 	return ErrorResponse{
-		Code:       "EntityTooLarge",
+		Code:       ErrCodeEntityTooLarge,
 		Message:    msg,
 		BucketName: bucketName,
 		Key:        objectName,
@@ -176,7 +202,7 @@ func ErrUnexpectedEOF(totalRead, totalSize int64, bucketName, objectName string)
 	msg := fmt.Sprintf("Data read ‘%s’ is not equal to the size ‘%s’ of the input Reader.",
 		strconv.FormatInt(totalRead, 10), strconv.FormatInt(totalSize, 10))
 	return ErrorResponse{
-		Code:       "UnexpectedEOF",
+		Code:       ErrCodeUnexpectedEOF,
 		Message:    msg,
 		BucketName: bucketName,
 		Key:        objectName,
@@ -186,7 +212,7 @@ func ErrUnexpectedEOF(totalRead, totalSize int64, bucketName, objectName string)
 // ErrInvalidBucketName - Invalid bucket name response.
 func ErrInvalidBucketName(message string) error {
 	return ErrorResponse{
-		Code:      "InvalidBucketName",
+		Code:      ErrCodeInvalidBucketName,
 		Message:   message,
 		RequestID: "minio",
 	}
@@ -195,7 +221,7 @@ func ErrInvalidBucketName(message string) error {
 // ErrInvalidObjectName - Invalid object name response.
 func ErrInvalidObjectName(message string) error {
 	return ErrorResponse{
-		Code:      "NoSuchKey",
+		Code:      ErrCodeNoSuchKey,
 		Message:   message,
 		RequestID: "minio",
 	}
@@ -208,7 +234,7 @@ var ErrInvalidObjectPrefix = ErrInvalidObjectName
 // ErrInvalidArgument - Invalid argument response.
 func ErrInvalidArgument(message string) error {
 	return ErrorResponse{
-		Code:      "InvalidArgument",
+		Code:      ErrCodeInvalidArgument,
 		Message:   message,
 		RequestID: "minio",
 	}
@@ -218,7 +244,7 @@ func ErrInvalidArgument(message string) error {
 // The specified bucket does not have a bucket policy.
 func ErrNoSuchBucketPolicy(message string) error {
 	return ErrorResponse{
-		Code:      "NoSuchBucketPolicy",
+		Code:      ErrCodeNoSuchBucketPolicy,
 		Message:   message,
 		RequestID: "minio",
 	}
@@ -228,7 +254,7 @@ func ErrNoSuchBucketPolicy(message string) error {
 // The specified API call is not supported
 func ErrAPINotSupported(message string) error {
 	return ErrorResponse{
-		Code:      "APINotSupported",
+		Code:      ErrCodeAPINotSupported,
 		Message:   message,
 		RequestID: "minio",
 	}

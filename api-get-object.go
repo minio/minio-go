@@ -619,7 +619,7 @@ func (c Client) getObject(bucketName, objectName string, offset, length int64) (
 	if err != nil {
 		msg := "Last-Modified time format not recognized. " + reportIssue
 		return nil, ObjectInfo{}, ErrorResponse{
-			Code:      "InternalError",
+			Code:      ErrCodeInternalError,
 			Message:   msg,
 			RequestID: resp.Header.Get("x-amz-request-id"),
 			HostID:    resp.Header.Get("x-amz-id-2"),
