@@ -225,10 +225,10 @@ __Parameters__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`bucketName`  | _string_  |name of the bucket.   |
-| `objectPrefix` |_string_   | the prefix of the objects that should be listed. |
-| `recursive`  | _bool_  |`true` indicates recursive style listing and `false` indicates directory style listing delimited by '/'.  |
-|`doneCh`  | _chan struct{}_ | Set this value to 'true' to enable secure (HTTPS) access.  |
+|`bucketName` | _string_  |name of the bucket.   |
+|`objectPrefix` |_string_   | the prefix of the objects that should be listed. |
+|`recursive`  | _bool_  |`true` indicates recursive style listing and `false` indicates directory style listing delimited by '/'.  |
+|`doneCh`  | _chan struct{}_ | A message on this channel ends the ListObjects iterator.  |
 
 
 __Return Value__
@@ -279,7 +279,7 @@ __Parameters__
 |`bucketName`  | _string_  |name of the bucket.   |
 | `objectPrefix` |_string_   | the prefix of the objects that should be listed. |
 | `recursive`  | _bool_  |`true` indicates recursive style listing and `false` indicates directory style listing delimited by '/'.  |
-|`doneCh`  | _chan struct{}_ | Set this value to 'true' to enable secure (HTTPS) access.  |
+|`doneCh`  | _chan struct{}_ | A message on this channel ends the ListObjectsV2 iterator.  |
 
 
 __Return Value__
@@ -330,7 +330,7 @@ __Parameters__
 |`bucketName`  | _string_  |name of the bucket.   |
 | `prefix` |_string_   | prefix of the object names that are partially uploaded |
 | `recursive`  | _bool_  |`true` indicates recursive style listing and `false` indicates directory style listing delimited by '/'.  |
-|`doneCh`  | _chan struct{}_ | Set this value to 'true' to enable secure (HTTPS) access.  |
+|`doneCh`  | _chan struct{}_ | A message on this channel ends the ListenIncompleteUploads iterator.  |
 
 
 __Return Value__
@@ -1060,7 +1060,7 @@ __Parameters__
 |`prefix`  | _string_ | Object key prefix to filter notifications for.  |
 |`suffix`  | _string_ | Object key suffix to filter notifications for.  |
 |`events`  | _[]string_| Enables notifications for specific event types. |
-|`doneCh`  | _chan struct{}_ | A message on this channel ends the ListenBucketNotification loop.  |
+|`doneCh`  | _chan struct{}_ | A message on this channel ends the ListenBucketNotification iterator.  |
 
 __Return Values__
 
