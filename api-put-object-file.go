@@ -203,6 +203,31 @@ func (c Client) putObjectMultipartFromFile(bucketName, objectName string, fileRe
 					hashAlgos["sha256"] = sha256.New()
 				}
 
+				// If partNumber was not uploaded we calculate the missing
+				// part offset and size. For all other part numbers we
+				// calculate offset based on multiples of partSize.
+				readOffset := int64(partNumber-1) * partSize
+				missingPartSize := partSize
+
+				// As a special case if partNumber is lastPartNumber, we
+				// calculate the offset based on the last part size.
+				if partNumber == lastPartNumber {
+					readOffset = (fileSize - lastPartSize)
+					missingPartSize = lastPartSize
+				}
+
+				// Get a section reader on a particular offset.
+				sectionReader := io.NewSectionReader(fileReader, readOffset, missingPartSize)
+				var prtSize int64
+				prtSize, err = computeHash(hashAlgos, hashSums, sectionReader)
+				if err != nil {
+					uploadedPartsCh <- uploadedPartRes{
+						Error: err,
+					}
+					// Exit the goroutine.
+					return
+				}
+
 				// Create the part to be uploaded.
 				verifyObjPart := objectPart{
 					ETag:       hex.EncodeToString(hashSums["md5"]),
@@ -216,31 +241,6 @@ func (c Client) putObjectMultipartFromFile(bucketName, objectName string, fileRe
 
 				// Verify if part should be uploaded.
 				if shouldUploadPart(verifyObjPart, partsInfo) {
-					// If partNumber was not uploaded we calculate the missing
-					// part offset and size. For all other part numbers we
-					// calculate offset based on multiples of partSize.
-					readOffset := int64(partNumber-1) * partSize
-					missingPartSize := partSize
-
-					// As a special case if partNumber is lastPartNumber, we
-					// calculate the offset based on the last part size.
-					if partNumber == lastPartNumber {
-						readOffset = (fileSize - lastPartSize)
-						missingPartSize = lastPartSize
-					}
-
-					// Get a section reader on a particular offset.
-					sectionReader := io.NewSectionReader(fileReader, readOffset, missingPartSize)
-					var prtSize int64
-					prtSize, err = computeHash(hashAlgos, hashSums, sectionReader)
-					if err != nil {
-						uploadedPartsCh <- uploadedPartRes{
-							Error: err,
-						}
-						// Exit the goroutine.
-						return
-					}
-
 					// Proceed to upload the part.
 					var objPart objectPart
 					objPart, err = c.uploadPart(bucketName, objectName, uploadID, sectionReader, partNumber, hashSums["md5"], hashSums["sha256"], prtSize)
