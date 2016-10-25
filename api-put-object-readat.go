@@ -127,6 +127,43 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 				// Declare a  new tmpBuffer.
 				tmpBuffer := new(bytes.Buffer)
 
+				// If partNumber was not uploaded we calculate the missing
+				// part offset and size. For all other part numbers we
+				// calculate offset based on multiples of partSize.
+				readOffset := int64(partNumber-1) * partSize
+				missingPartSize := partSize
+
+				// As a special case if partNumber is lastPartNumber, we
+				// calculate the offset based on the last part size.
+				if partNumber == lastPartNumber {
+					readOffset = (size - lastPartSize)
+					missingPartSize = lastPartSize
+				}
+
+				// Get a section reader on a particular offset.
+				sectionReader := io.NewSectionReader(reader, readOffset, missingPartSize)
+
+				// Choose the needed hash algorithms to be calculated by hashCopyBuffer.
+				// Sha256 is avoided in non-v4 signature requests or HTTPS connections
+				hashSums := make(map[string][]byte)
+				hashAlgos := make(map[string]hash.Hash)
+				hashAlgos["md5"] = md5.New()
+				if c.signature.isV4() && !c.secure {
+					hashAlgos["sha256"] = sha256.New()
+				}
+
+				var prtSize int64
+				prtSize, err = hashCopyBuffer(hashAlgos, hashSums, tmpBuffer, sectionReader, readAtBuffer)
+				if err != nil {
+					// Send the error back through the channel.
+					uploadedPartsCh <- uploadedPartRes{
+						Size:  0,
+						Error: err,
+					}
+					// Exit the goroutine.
+					return
+				}
+
 				// Verify object if its uploaded.
 				verifyObjPart := objectPart{
 					PartNumber: partNumber,
@@ -141,43 +178,6 @@ func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, read
 				// Only upload the necessary parts. Otherwise return size through channel
 				// to update any progress bar.
 				if shouldUploadPartReadAt(verifyObjPart, partsInfo) {
-					// If partNumber was not uploaded we calculate the missing
-					// part offset and size. For all other part numbers we
-					// calculate offset based on multiples of partSize.
-					readOffset := int64(partNumber-1) * partSize
-					missingPartSize := partSize
-
-					// As a special case if partNumber is lastPartNumber, we
-					// calculate the offset based on the last part size.
-					if partNumber == lastPartNumber {
-						readOffset = (size - lastPartSize)
-						missingPartSize = lastPartSize
-					}
-
-					// Get a section reader on a particular offset.
-					sectionReader := io.NewSectionReader(reader, readOffset, missingPartSize)
-
-					// Choose the needed hash algorithms to be calculated by hashCopyBuffer.
-					// Sha256 is avoided in non-v4 signature requests or HTTPS connections
-					hashSums := make(map[string][]byte)
-					hashAlgos := make(map[string]hash.Hash)
-					hashAlgos["md5"] = md5.New()
-					if c.signature.isV4() && !c.secure {
-						hashAlgos["sha256"] = sha256.New()
-					}
-
-					var prtSize int64
-					prtSize, err = hashCopyBuffer(hashAlgos, hashSums, tmpBuffer, sectionReader, readAtBuffer)
-					if err != nil {
-						// Send the error back through the channel.
-						uploadedPartsCh <- uploadedPartRes{
-							Size:  0,
-							Error: err,
-						}
-						// Exit the goroutine.
-						return
-					}
-
 					// Proceed to upload the part.
 					var objPart objectPart
 					objPart, err = c.uploadPart(bucketName, objectName, uploadID, tmpBuffer, partNumber, hashSums["md5"], hashSums["sha256"], prtSize)
