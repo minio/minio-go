@@ -122,27 +122,30 @@ type NotificationInfo struct {
 // ListenBucketNotification - listen on bucket notifications.
 func (c Client) ListenBucketNotification(bucketName, prefix, suffix string, events []string, doneCh <-chan struct{}) <-chan NotificationInfo {
 	notificationInfoCh := make(chan NotificationInfo, 1)
+	ready := make(chan struct{})
+
 	// Only success, start a routine to start reading line by line.
 	go func(notificationInfoCh chan<- NotificationInfo) {
 		defer close(notificationInfoCh)
 
 		// Validate the bucket name.
-		if err := isValidBucketName(bucketName); err != nil {
-			notificationInfoCh <- NotificationInfo{
-				Err: err,
-			}
-			return
-		}
+		preflightErr := isValidBucketName(bucketName)
 
 		// Check ARN partition to verify if listening bucket is supported
-		if isAmazonEndpoint(c.endpointURL) || isGoogleEndpoint(c.endpointURL) {
+		if preflightErr == nil && (isAmazonEndpoint(c.endpointURL) || isGoogleEndpoint(c.endpointURL)) {
+			preflightErr = ErrAPINotSupported("Listening bucket notification is specific only to `minio` partitions")
+		}
+
+		// Return early if there's an error
+		if preflightErr != nil {
+			close(ready)
 			notificationInfoCh <- NotificationInfo{
-				Err: ErrAPINotSupported("Listening bucket notification is specific only to `minio` partitions"),
+				Err: preflightErr,
 			}
-			return
 		}
 
 		// Continously run and listen on bucket notification.
+		isReady := false
 		for {
 			urlValues := make(url.Values)
 			urlValues.Set("prefix", prefix)
@@ -154,6 +157,12 @@ func (c Client) ListenBucketNotification(bucketName, prefix, suffix string, even
 				bucketName:  bucketName,
 				queryValues: urlValues,
 			})
+
+			if !isReady {
+				close(ready)
+				isReady = true
+			}
+
 			if err != nil {
 				notificationInfoCh <- NotificationInfo{
 					Err: err,
@@ -209,6 +218,9 @@ func (c Client) ListenBucketNotification(bucketName, prefix, suffix string, even
 			}
 		}
 	}(notificationInfoCh)
+
+	// Wait for notification channel to become ready
+	<-ready
 
 	// Returns the notification info channel, for caller to start reading from.
 	return notificationInfoCh
