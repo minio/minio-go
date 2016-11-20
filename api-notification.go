@@ -145,13 +145,13 @@ func (c Client) ListenBucketNotification(bucketName, prefix, suffix string, even
 
 		// Continously run and listen on bucket notification.
 		// Create a done channel to control 'ListObjects' go routine.
-		doneCh := make(chan struct{}, 1)
+		retryDoneCh := make(chan struct{}, 1)
 
 		// Indicate to our routine to exit cleanly upon return.
-		defer close(doneCh)
+		defer close(retryDoneCh)
 
 		// Wait on the jitter retry loop.
-		for range c.newRetryTimerContinous(time.Second, time.Second*30, MaxJitter, doneCh) {
+		for range c.newRetryTimerContinous(time.Second, time.Second*30, MaxJitter, retryDoneCh) {
 			urlValues := make(url.Values)
 			urlValues.Set("prefix", prefix)
 			urlValues.Set("suffix", suffix)
