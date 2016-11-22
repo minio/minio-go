@@ -72,8 +72,8 @@ func (c Client) RemoveObject(bucketName, objectName string) error {
 		return err
 	}
 	if resp != nil {
-		// if retriable error happened and max retry is reached, we want to let client know
-		if isHTTPStatusRetryable(resp.StatusCode) {
+		// if some unexpected error happened and max retry is reached, we want to let client know
+		if resp.StatusCode != http.StatusNoContent {
 			return httpRespToErrorResponse(resp, bucketName, objectName)
 		}
 	}
