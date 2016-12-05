@@ -269,7 +269,7 @@ for object := range objectCh {
 <a name="ListObjectsV2"></a>
 ### ListObjectsV2(bucketName string, prefix string, recursive bool, doneCh chan struct{}) <-chan ObjectInfo
 
-Lists objects in a bucket using the recommanded listing API v2 
+Lists objects in a bucket using the recommended listing API v2 
 
 __Parameters__
 
