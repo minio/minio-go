@@ -478,6 +478,7 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 		// Initiate the request.
 		res, err = c.do(req)
 		if err != nil {
+			// if there is an error, res.Body shouldn't be closed
 			// For supported network errors verify.
 			if isNetErrorRetryable(err) {
 				continue // Retry.
@@ -489,12 +490,16 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 		// For any known successful http status, return quickly.
 		for _, httpStatus := range successStatus {
 			if httpStatus == res.StatusCode {
+				// close res.Body before we return
+				res.Body.Close()
 				return res, nil
 			}
 		}
 
 		// Read the body to be saved later.
 		errBodyBytes, err := ioutil.ReadAll(res.Body)
+		// res.Body should be closed
+		res.Body.Close()
 		if err != nil {
 			return nil, err
 		}
