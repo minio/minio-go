@@ -18,7 +18,6 @@ package minio
 
 import (
 	"bytes"
-	"crypto/hmac"
 	"crypto/md5"
 	"crypto/sha256"
 	"encoding/hex"
@@ -51,13 +50,6 @@ func sum256(data []byte) []byte {
 // sumMD5 calculate sumMD5 sum for an input byte array.
 func sumMD5(data []byte) []byte {
 	hash := md5.New()
-	hash.Write(data)
-	return hash.Sum(nil)
-}
-
-// sumHMAC calculate hmac between two input byte array.
-func sumHMAC(key []byte, data []byte) []byte {
-	hash := hmac.New(sha256.New, key)
 	hash.Write(data)
 	return hash.Sum(nil)
 }
