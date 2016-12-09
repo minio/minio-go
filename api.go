@@ -495,6 +495,8 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 
 		// Read the body to be saved later.
 		errBodyBytes, err := ioutil.ReadAll(res.Body)
+		// res.Body should be closed
+		closeResponse(res)
 		if err != nil {
 			return nil, err
 		}
