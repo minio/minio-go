@@ -69,11 +69,10 @@ func TestMakeBucketError(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := New(
+	c, err := NewSecure(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -115,11 +114,10 @@ func TestMakeBucketRegions(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := New(
+	c, err := NewSecure(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -166,11 +164,10 @@ func TestPutObjectReadAt(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := New(
+	c, err := NewSecure(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -254,11 +251,10 @@ func TestListPartiallyUploaded(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := New(
+	c, err := NewSecure(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -333,11 +329,10 @@ func TestGetOjectSeekEnd(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := New(
+	c, err := NewSecure(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -582,11 +577,10 @@ func TestRemovePartiallyUploaded(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := New(
+	c, err := NewSecure(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -655,11 +649,10 @@ func TestResumablePutObject(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := New(
+	c, err := NewSecure(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -765,11 +758,10 @@ func TestResumableFPutObject(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := New(
+	c, err := NewSecure(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -855,11 +847,10 @@ func TestFPutObjectMultipart(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := New(
+	c, err := NewSecure(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -944,11 +935,10 @@ func TestFPutObject(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := New(
+	c, err := NewSecure(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -1104,11 +1094,10 @@ func TestGetObjectReadSeekFunctional(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := New(
+	c, err := NewSecure(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -1237,11 +1226,10 @@ func TestGetObjectReadAtFunctional(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := New(
+	c, err := NewSecure(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -1386,11 +1374,10 @@ func TestPresignedPostPolicy(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object
-	c, err := NewV4(
+	c, err := NewSecureV4(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -1481,11 +1468,10 @@ func TestCopyObject(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object
-	c, err := NewV4(
+	c, err := NewSecureV4(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -1647,11 +1633,10 @@ func TestBucketNotification(t *testing.T) {
 	// Seed random based on current time.
 	rand.Seed(time.Now().Unix())
 
-	c, err := New(
+	c, err := NewSecure(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -1723,11 +1708,10 @@ func TestFunctional(t *testing.T) {
 	// Seed random based on current time.
 	rand.Seed(time.Now().Unix())
 
-	c, err := New(
+	c, err := NewSecure(
 		"s3.amazonaws.com",
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
-		true,
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
