@@ -23,6 +23,8 @@ import (
 	"path"
 	"strings"
 	"sync"
+
+	"github.com/minio/minio-go/pkg/s3signer"
 )
 
 // bucketLocationCache - Provides simple mechanism to hold bucket
@@ -189,9 +191,9 @@ func (c Client) getBucketLocationRequest(bucketName string) (*http.Request, erro
 
 	// Sign the request.
 	if c.signature.isV4() {
-		req = signV4(*req, c.accessKeyID, c.secretAccessKey, "us-east-1")
+		req = s3signer.SignV4(*req, c.accessKeyID, c.secretAccessKey, "us-east-1")
 	} else if c.signature.isV2() {
-		req = signV2(*req, c.accessKeyID, c.secretAccessKey)
+		req = s3signer.SignV2(*req, c.accessKeyID, c.secretAccessKey)
 	}
 	return req, nil
 }

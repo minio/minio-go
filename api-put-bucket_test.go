@@ -26,6 +26,8 @@ import (
 	"net/http"
 	"net/url"
 	"testing"
+
+	"github.com/minio/minio-go/pkg/s3signer"
 )
 
 // Tests validate http request formulated for creation of bucket.
@@ -78,9 +80,9 @@ func TestMakeBucketRequest(t *testing.T) {
 		if c.signature.isV4() {
 			// Signature calculated for MakeBucket request should be for 'us-east-1',
 			// regardless of the bucket's location constraint.
-			req = signV4(*req, c.accessKeyID, c.secretAccessKey, "us-east-1")
+			req = s3signer.SignV4(*req, c.accessKeyID, c.secretAccessKey, "us-east-1")
 		} else if c.signature.isV2() {
-			req = signV2(*req, c.accessKeyID, c.secretAccessKey)
+			req = s3signer.SignV2(*req, c.accessKeyID, c.secretAccessKey)
 		}
 
 		// Return signed request.

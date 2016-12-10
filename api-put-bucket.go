@@ -28,6 +28,7 @@ import (
 	"net/url"
 
 	"github.com/minio/minio-go/pkg/policy"
+	"github.com/minio/minio-go/pkg/s3signer"
 )
 
 /// Bucket operations
@@ -133,9 +134,9 @@ func (c Client) makeBucketRequest(bucketName string, location string) (*http.Req
 	if c.signature.isV4() {
 		// Signature calculated for MakeBucket request should be for 'us-east-1',
 		// regardless of the bucket's location constraint.
-		req = signV4(*req, c.accessKeyID, c.secretAccessKey, "us-east-1")
+		req = s3signer.SignV4(*req, c.accessKeyID, c.secretAccessKey, "us-east-1")
 	} else if c.signature.isV2() {
-		req = signV2(*req, c.accessKeyID, c.secretAccessKey)
+		req = s3signer.SignV2(*req, c.accessKeyID, c.secretAccessKey)
 	}
 
 	// Return signed request.
