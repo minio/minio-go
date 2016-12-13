@@ -24,7 +24,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/url"
+	"path"
 	"testing"
 
 	"github.com/minio/minio-go/pkg/s3signer"
@@ -35,14 +35,11 @@ func TestMakeBucketRequest(t *testing.T) {
 	// Generates expected http request for bucket creation.
 	// Used for asserting with the actual request generated.
 	createExpectedRequest := func(c *Client, bucketName string, location string, req *http.Request) (*http.Request, error) {
-
-		targetURL, err := url.Parse(c.endpointURL)
-		if err != nil {
-			return nil, err
-		}
-		targetURL.Path = "/" + bucketName + "/"
+		targetURL := c.endpointURL
+		targetURL.Path = path.Join(bucketName, "") + "/"
 
 		// get a new HTTP request for the method.
+		var err error
 		req, err = http.NewRequest("PUT", targetURL.String(), nil)
 		if err != nil {
 			return nil, err

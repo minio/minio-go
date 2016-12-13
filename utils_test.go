@@ -125,17 +125,27 @@ func TestIsValidEndpointURL(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		err := isValidEndpointURL(testCase.url)
+		var u url.URL
+		if testCase.url == "" {
+			u = sentinelURL
+		} else {
+			u1, err := url.Parse(testCase.url)
+			if err != nil {
+				t.Errorf("Test %d: Expected to pass, but failed with: <ERROR> %s", i+1, err)
+			}
+			u = *u1
+		}
+		err := isValidEndpointURL(u)
 		if err != nil && testCase.shouldPass {
-			t.Errorf("Test %d: Expected to pass, but failed with: <ERROR> %s", i+1, err.Error())
+			t.Errorf("Test %d: Expected to pass, but failed with: <ERROR> %s", i+1, err)
 		}
 		if err == nil && !testCase.shouldPass {
-			t.Errorf("Test %d: Expected to fail with <ERROR> \"%s\", but passed instead", i+1, testCase.err.Error())
+			t.Errorf("Test %d: Expected to fail with <ERROR> \"%s\", but passed instead", i+1, testCase.err)
 		}
 		// Failed as expected, but does it fail for the expected reason.
 		if err != nil && !testCase.shouldPass {
 			if err.Error() != testCase.err.Error() {
-				t.Errorf("Test %d: Expected to fail with error \"%s\", but instead failed with error \"%s\" instead", i+1, testCase.err.Error(), err.Error())
+				t.Errorf("Test %d: Expected to fail with error \"%s\", but instead failed with error \"%s\" instead", i+1, testCase.err, err)
 			}
 		}
 
@@ -183,7 +193,11 @@ func TestIsVirtualHostSupported(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		result := isVirtualHostSupported(testCase.url, testCase.bucket)
+		u, err := url.Parse(testCase.url)
+		if err != nil {
+			t.Errorf("Test %d: Expected to pass, but failed with: <ERROR> %s", i+1, err)
+		}
+		result := isVirtualHostSupported(*u, testCase.bucket)
 		if testCase.result != result {
 			t.Errorf("Test %d: Expected isVirtualHostSupported to be '%v' for input url \"%s\" and bucket \"%s\", but found it to be '%v' instead", i+1, testCase.result, testCase.url, testCase.bucket, result)
 		}
@@ -212,7 +226,11 @@ func TestIsAmazonEndpoint(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		result := isAmazonEndpoint(testCase.url)
+		u, err := url.Parse(testCase.url)
+		if err != nil {
+			t.Errorf("Test %d: Expected to pass, but failed with: <ERROR> %s", i+1, err)
+		}
+		result := isAmazonEndpoint(*u)
 		if testCase.result != result {
 			t.Errorf("Test %d: Expected isAmazonEndpoint to be '%v' for input \"%s\", but found it to be '%v' instead", i+1, testCase.result, testCase.url, result)
 		}
@@ -243,7 +261,11 @@ func TestIsAmazonChinaEndpoint(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		result := isAmazonChinaEndpoint(testCase.url)
+		u, err := url.Parse(testCase.url)
+		if err != nil {
+			t.Errorf("Test %d: Expected to pass, but failed with: <ERROR> %s", i+1, err)
+		}
+		result := isAmazonChinaEndpoint(*u)
 		if testCase.result != result {
 			t.Errorf("Test %d: Expected isAmazonEndpoint to be '%v' for input \"%s\", but found it to be '%v' instead", i+1, testCase.result, testCase.url, result)
 		}
@@ -272,7 +294,11 @@ func TestIsGoogleEndpoint(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		result := isGoogleEndpoint(testCase.url)
+		u, err := url.Parse(testCase.url)
+		if err != nil {
+			t.Errorf("Test %d: Expected to pass, but failed with: <ERROR> %s", i+1, err)
+		}
+		result := isGoogleEndpoint(*u)
 		if testCase.result != result {
 			t.Errorf("Test %d: Expected isGoogleEndpoint to be '%v' for input \"%s\", but found it to be '%v' instead", i+1, testCase.result, testCase.url, result)
 		}

@@ -41,6 +41,9 @@ import (
 type Client struct {
 	///  Standard options.
 
+	// Parsed endpoint url provided by the user.
+	endpointURL url.URL
+
 	// AccessKeyID required for authorized requests.
 	accessKeyID string
 	// SecretAccessKey required for authorized requests.
@@ -55,7 +58,6 @@ type Client struct {
 		appName    string
 		appVersion string
 	}
-	endpointURL string
 
 	// Indicate whether we are using https or not
 	secure bool
@@ -118,8 +120,7 @@ func New(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*Cl
 	if err != nil {
 		return nil, err
 	}
-	// Google cloud storage should be set to signature V2, force it if
-	// not.
+	// Google cloud storage should be set to signature V2, force it if not.
 	if isGoogleEndpoint(clnt.endpointURL) {
 		clnt.signature = SignatureV2
 	}
@@ -184,7 +185,7 @@ func privateNew(endpoint, accessKeyID, secretAccessKey string, secure bool) (*Cl
 	clnt.secure = secure
 
 	// Save endpoint URL, user agent for future uses.
-	clnt.endpointURL = endpointURL.String()
+	clnt.endpointURL = *endpointURL
 
 	// Instantiate http client and bucket location cache.
 	clnt.httpClient = &http.Client{
@@ -663,19 +664,14 @@ func (c Client) setUserAgent(req *http.Request) {
 
 // makeTargetURL make a new target url.
 func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, queryValues url.Values) (*url.URL, error) {
-	// Save host.
-	url, err := url.Parse(c.endpointURL)
-	if err != nil {
-		return nil, err
-	}
-	host := url.Host
+	host := c.endpointURL.Host
 	// For Amazon S3 endpoint, try to fetch location based endpoint.
 	if isAmazonEndpoint(c.endpointURL) {
 		// Fetch new host based on the bucket location.
 		host = getS3Endpoint(bucketLocation)
 	}
 	// Save scheme.
-	scheme := url.Scheme
+	scheme := c.endpointURL.Scheme
 
 	urlStr := scheme + "://" + host + "/"
 	// Make URL only if bucketName is available, otherwise use the
