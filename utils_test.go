@@ -17,10 +17,26 @@ package minio
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 	"testing"
 	"time"
 )
+
+// Tests filter header function by filtering out
+// some custom header keys.
+func TestFilterHeader(t *testing.T) {
+	header := http.Header{}
+	header.Set("Content-Type", "binary/octet-stream")
+	header.Set("Content-Encoding", "gzip")
+	newHeader := filterHeader(header, []string{"Content-Type"})
+	if len(newHeader) > 1 {
+		t.Fatalf("Unexpected size of the returned header, should be 1, got %d", len(newHeader))
+	}
+	if newHeader.Get("Content-Encoding") != "gzip" {
+		t.Fatalf("Unexpected content-encoding value, expected 'gzip', got %s", newHeader.Get("Content-Encoding"))
+	}
+}
 
 // Tests for 'getEndpointURL(endpoint string, inSecure bool)'.
 func TestGetEndpointURL(t *testing.T) {

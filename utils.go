@@ -373,3 +373,26 @@ func urlEncodePath(pathName string) string {
 	}
 	return encodedPathname
 }
+
+// make a copy of http.Header
+func cloneHeader(h http.Header) http.Header {
+	h2 := make(http.Header, len(h))
+	for k, vv := range h {
+		vv2 := make([]string, len(vv))
+		copy(vv2, vv)
+		h2[k] = vv2
+	}
+	return h2
+}
+
+// Filter relevant response headers from
+// the HEAD, GET http response. The function takes
+// a list of headers which are filtered out and
+// returned as a new http header.
+func filterHeader(header http.Header, filterKeys []string) (filteredHeader http.Header) {
+	filteredHeader = cloneHeader(header)
+	for _, key := range filterKeys {
+		filteredHeader.Del(key)
+	}
+	return filteredHeader
+}
