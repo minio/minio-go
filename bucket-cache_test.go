@@ -72,14 +72,12 @@ func TestGetBucketLocationRequest(t *testing.T) {
 		urlValues.Set("location", "")
 
 		// Set get bucket location always as path style.
-		targetURL, err := url.Parse(c.endpointURL)
-		if err != nil {
-			return nil, err
-		}
+		targetURL := c.endpointURL
 		targetURL.Path = path.Join(bucketName, "") + "/"
 		targetURL.RawQuery = urlValues.Encode()
 
 		// Get a new HTTP request for the method.
+		var err error
 		req, err = http.NewRequest("GET", targetURL.String(), nil)
 		if err != nil {
 			return nil, err

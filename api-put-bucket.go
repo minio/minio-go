@@ -26,6 +26,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"path"
 
 	"github.com/minio/minio-go/pkg/policy"
 	"github.com/minio/minio-go/pkg/s3signer"
@@ -90,11 +91,8 @@ func (c Client) makeBucketRequest(bucketName string, location string) (*http.Req
 	// is the preferred method here. The final location of the
 	// 'bucket' is provided through XML LocationConstraint data with
 	// the request.
-	targetURL, err := url.Parse(c.endpointURL)
-	if err != nil {
-		return nil, err
-	}
-	targetURL.Path = "/" + bucketName + "/"
+	targetURL := c.endpointURL
+	targetURL.Path = path.Join(bucketName, "") + "/"
 
 	// get a new HTTP request for the method.
 	req, err := http.NewRequest("PUT", targetURL.String(), nil)
