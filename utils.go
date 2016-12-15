@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"crypto/md5"
 	"crypto/sha256"
-	"encoding/hex"
 	"encoding/xml"
 	"io"
 	"io/ioutil"
@@ -32,6 +31,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/minio/minio-go/pkg/s3signer"
 )
 
 // xmlDecoder provide decoded value in xml.
@@ -229,6 +230,9 @@ func isValidExpiry(expires time.Duration) error {
 // style requests instead for such buckets.
 var validBucketName = regexp.MustCompile(`^[a-z0-9][a-z0-9\.\-]{1,61}[a-z0-9]$`)
 
+// Invalid bucket name with double dot.
+var invalidDotBucketName = regexp.MustCompile(`\.\.`)
+
 // isValidBucketName - verify bucket name in accordance with
 //  - http://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html
 func isValidBucketName(bucketName string) error {
@@ -244,7 +248,7 @@ func isValidBucketName(bucketName string) error {
 	if bucketName[0] == '.' || bucketName[len(bucketName)-1] == '.' {
 		return ErrInvalidBucketName("Bucket name cannot start or end with a '.' dot.")
 	}
-	if match, _ := regexp.MatchString("\\.\\.", bucketName); match {
+	if invalidDotBucketName.MatchString(bucketName) {
 		return ErrInvalidBucketName("Bucket name cannot have successive periods.")
 	}
 	if !validBucketName.MatchString(bucketName) {
@@ -299,56 +303,16 @@ func queryEncode(v url.Values) string {
 	sort.Strings(keys)
 	for _, k := range keys {
 		vs := v[k]
-		prefix := percentEncodeSlash(urlEncodePath(k)) + "="
+		prefix := percentEncodeSlash(s3signer.EncodePath(k)) + "="
 		for _, v := range vs {
 			if buf.Len() > 0 {
 				buf.WriteByte('&')
 			}
 			buf.WriteString(prefix)
-			buf.WriteString(percentEncodeSlash(urlEncodePath(v)))
+			buf.WriteString(percentEncodeSlash(s3signer.EncodePath(v)))
 		}
 	}
 	return buf.String()
-}
-
-// urlEncodePath encode the strings from UTF-8 byte representations to HTML hex escape sequences
-//
-// This is necessary since regular url.Parse() and url.Encode() functions do not support UTF-8
-// non english characters cannot be parsed due to the nature in which url.Encode() is written
-//
-// This function on the other hand is a direct replacement for url.Encode() technique to support
-// pretty much every UTF-8 character.
-func urlEncodePath(pathName string) string {
-	// if object matches reserved string, no need to encode them
-	reservedNames := regexp.MustCompile("^[a-zA-Z0-9-_.~/]+$")
-	if reservedNames.MatchString(pathName) {
-		return pathName
-	}
-	var encodedPathname string
-	for _, s := range pathName {
-		if 'A' <= s && s <= 'Z' || 'a' <= s && s <= 'z' || '0' <= s && s <= '9' { // §2.3 Unreserved characters (mark)
-			encodedPathname = encodedPathname + string(s)
-			continue
-		}
-		switch s {
-		case '-', '_', '.', '~', '/': // §2.3 Unreserved characters (mark)
-			encodedPathname = encodedPathname + string(s)
-			continue
-		default:
-			len := utf8.RuneLen(s)
-			if len < 0 {
-				// if utf8 cannot convert return the same string as is
-				return pathName
-			}
-			u := make([]byte, len)
-			utf8.EncodeRune(u, s)
-			for _, r := range u {
-				hex := hex.EncodeToString([]byte{r})
-				encodedPathname = encodedPathname + "%" + strings.ToUpper(hex)
-			}
-		}
-	}
-	return encodedPathname
 }
 
 // make a copy of http.Header
