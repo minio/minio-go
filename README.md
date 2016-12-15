@@ -23,7 +23,7 @@ This document assumes that you have a working [Golang setup](https://docs.minio.
 
 ```sh
 
-$ go get -u github.com/minio/minio-go
+go get -u github.com/minio/minio-go
 
 ```
 ## Initialize Minio Client
@@ -132,11 +132,11 @@ func main() {
 
 ```sh
 
-$ go run file-uploader.go
+go run file-uploader.go
 2016/08/13 17:03:28 Successfully created mymusic 
 2016/08/13 17:03:40 Successfully uploaded golden-oldies.zip of size 16253413
 
-$ mc ls play/mymusic/
+mc ls play/mymusic/
 [2016-05-27 16:02:16 PDT]  17MiB golden-oldies.zip
 
 ```
