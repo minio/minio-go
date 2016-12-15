@@ -185,7 +185,7 @@ func getCanonicalRequest(req http.Request) string {
 	req.URL.RawQuery = strings.Replace(req.URL.Query().Encode(), "+", "%20", -1)
 	canonicalRequest := strings.Join([]string{
 		req.Method,
-		urlEncodePath(req.URL.Path),
+		EncodePath(req.URL.Path),
 		req.URL.RawQuery,
 		getCanonicalHeaders(req),
 		getSignedHeaders(req),

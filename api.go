@@ -278,6 +278,12 @@ type requestMetadata struct {
 	contentMD5Bytes    []byte
 }
 
+// regCred matches credential string in HTTP header
+var regCred = regexp.MustCompile("Credential=([A-Z0-9]+)/")
+
+// regCred matches signature string in HTTP header
+var regSign = regexp.MustCompile("Signature=([[0-9a-f]+)")
+
 // Filter out signature value from Authorization header.
 func (c Client) filterSignature(req *http.Request) {
 	// For anonymous requests, no need to filter.
@@ -297,11 +303,9 @@ func (c Client) filterSignature(req *http.Request) {
 	origAuth := req.Header.Get("Authorization")
 	// Strip out accessKeyID from:
 	// Credential=<access-key-id>/<date>/<aws-region>/<aws-service>/aws4_request
-	regCred := regexp.MustCompile("Credential=([A-Z0-9]+)/")
 	newAuth := regCred.ReplaceAllString(origAuth, "Credential=**REDACTED**/")
 
 	// Strip out 256-bit signature from: Signature=<256-bit signature>
-	regSign := regexp.MustCompile("Signature=([[0-9a-f]+)")
 	newAuth = regSign.ReplaceAllString(newAuth, "Signature=**REDACTED**")
 
 	// Set a temporary redacted auth
@@ -686,13 +690,13 @@ func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, que
 		if isVirtualHostStyle {
 			urlStr = scheme + "://" + bucketName + "." + host + "/"
 			if objectName != "" {
-				urlStr = urlStr + urlEncodePath(objectName)
+				urlStr = urlStr + s3signer.EncodePath(objectName)
 			}
 		} else {
 			// If not fall back to using path style.
 			urlStr = urlStr + bucketName + "/"
 			if objectName != "" {
-				urlStr = urlStr + urlEncodePath(objectName)
+				urlStr = urlStr + s3signer.EncodePath(objectName)
 			}
 		}
 	}

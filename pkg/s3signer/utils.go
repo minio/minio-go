@@ -65,29 +65,30 @@ func queryEncode(v url.Values) string {
 	sort.Strings(keys)
 	for _, k := range keys {
 		vs := v[k]
-		prefix := percentEncodeSlash(urlEncodePath(k)) + "="
+		prefix := percentEncodeSlash(EncodePath(k)) + "="
 		for _, v := range vs {
 			if buf.Len() > 0 {
 				buf.WriteByte('&')
 			}
 			buf.WriteString(prefix)
-			buf.WriteString(percentEncodeSlash(urlEncodePath(v)))
+			buf.WriteString(percentEncodeSlash(EncodePath(v)))
 		}
 	}
 	return buf.String()
 }
 
-// urlEncodePath encode the strings from UTF-8 byte representations to HTML hex escape sequences
+// if object matches reserved string, no need to encode them
+var reservedObjectNames = regexp.MustCompile("^[a-zA-Z0-9-_.~/]+$")
+
+// EncodePath encode the strings from UTF-8 byte representations to HTML hex escape sequences
 //
 // This is necessary since regular url.Parse() and url.Encode() functions do not support UTF-8
 // non english characters cannot be parsed due to the nature in which url.Encode() is written
 //
 // This function on the other hand is a direct replacement for url.Encode() technique to support
 // pretty much every UTF-8 character.
-func urlEncodePath(pathName string) string {
-	// if object matches reserved string, no need to encode them
-	reservedNames := regexp.MustCompile("^[a-zA-Z0-9-_.~/]+$")
-	if reservedNames.MatchString(pathName) {
+func EncodePath(pathName string) string {
+	if reservedObjectNames.MatchString(pathName) {
 		return pathName
 	}
 	var encodedPathname string

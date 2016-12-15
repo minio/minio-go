@@ -45,16 +45,16 @@ func encodeURL2Path(u *url.URL) (path string) {
 		bucketName := hostSplits[0]
 		path = "/" + bucketName
 		path += u.Path
-		path = urlEncodePath(path)
+		path = EncodePath(path)
 		return
 	}
 	if strings.HasSuffix(u.Host, ".storage.googleapis.com") {
 		path = "/" + strings.TrimSuffix(u.Host, ".storage.googleapis.com")
 		path += u.Path
-		path = urlEncodePath(path)
+		path = EncodePath(path)
 		return
 	}
-	path = urlEncodePath(u.Path)
+	path = EncodePath(u.Path)
 	return
 }
 
@@ -98,7 +98,7 @@ func PreSignV2(req http.Request, accessKeyID, secretAccessKey string, expires in
 	req.URL.RawQuery = queryEncode(query)
 
 	// Save signature finally.
-	req.URL.RawQuery += "&Signature=" + urlEncodePath(signature)
+	req.URL.RawQuery += "&Signature=" + EncodePath(signature)
 
 	// Return.
 	return &req
