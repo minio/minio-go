@@ -163,6 +163,13 @@ func (c Client) getBucketLocationRequest(bucketName string) (*http.Request, erro
 
 	// Set get bucket location always as path style.
 	targetURL := c.endpointURL
+
+	// Requesting a bucket location from an accelerate endpoint returns a 400,
+	// so default to us-east-1 for the lookup
+	if isAmazonS3AccelerateEndpoint(c.endpointURL) {
+		targetURL.Host = getS3Endpoint("us-east-1")
+	}
+
 	targetURL.Path = path.Join(bucketName, "") + "/"
 	targetURL.RawQuery = urlValues.Encode()
 
