@@ -35,6 +35,7 @@ import (
 	"time"
 
 	"github.com/minio/minio-go/pkg/s3signer"
+	"github.com/minio/minio-go/pkg/s3utils"
 )
 
 // Client implements Amazon S3 compatible methods.
@@ -121,11 +122,11 @@ func New(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*Cl
 		return nil, err
 	}
 	// Google cloud storage should be set to signature V2, force it if not.
-	if isGoogleEndpoint(clnt.endpointURL) {
+	if s3utils.IsGoogleEndpoint(clnt.endpointURL) {
 		clnt.signature = SignatureV2
 	}
 	// If Amazon S3 set to signature v2.n
-	if isAmazonEndpoint(clnt.endpointURL) {
+	if s3utils.IsAmazonEndpoint(clnt.endpointURL) {
 		clnt.signature = SignatureV4
 	}
 	return clnt, nil
@@ -549,7 +550,7 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 
 	// Default all requests to "us-east-1" or "cn-north-1" (china region)
 	location := "us-east-1"
-	if isAmazonChinaEndpoint(c.endpointURL) {
+	if s3utils.IsAmazonChinaEndpoint(c.endpointURL) {
 		// For china specifically we need to set everything to
 		// cn-north-1 for now, there is no easier way until AWS S3
 		// provides a cleaner compatible API across "us-east-1" and
@@ -603,7 +604,7 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 	// FIXEM: Enable this when Google Cloud Storage properly supports 100-continue.
 	// Skip setting 'expect' header for Google Cloud Storage, there
 	// are some known issues - https://github.com/restic/restic/issues/520
-	if !isGoogleEndpoint(c.endpointURL) {
+	if !s3utils.IsGoogleEndpoint(c.endpointURL) {
 		// Set 'Expect' header for the request.
 		req.Header.Set("Expect", "100-continue")
 	}
@@ -670,7 +671,7 @@ func (c Client) setUserAgent(req *http.Request) {
 func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, queryValues url.Values) (*url.URL, error) {
 	host := c.endpointURL.Host
 	// For Amazon S3 endpoint, try to fetch location based endpoint.
-	if isAmazonEndpoint(c.endpointURL) {
+	if s3utils.IsAmazonEndpoint(c.endpointURL) {
 		// Fetch new host based on the bucket location.
 		host = getS3Endpoint(bucketLocation)
 	}
@@ -682,7 +683,7 @@ func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, que
 	// endpoint URL.
 	if bucketName != "" {
 		// Save if target url will have buckets which suppport virtual host.
-		isVirtualHostStyle := isVirtualHostSupported(c.endpointURL, bucketName)
+		isVirtualHostStyle := s3utils.IsVirtualHostSupported(c.endpointURL, bucketName)
 
 		// If endpoint supports virtual host style use that always.
 		// Currently only S3 and Google Cloud Storage would support
@@ -702,7 +703,7 @@ func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, que
 	}
 	// If there are any query values, add them to the end.
 	if len(queryValues) > 0 {
-		urlStr = urlStr + "?" + queryEncode(queryValues)
+		urlStr = urlStr + "?" + s3utils.QueryEncode(queryValues)
 	}
 	u, err := url.Parse(urlStr)
 	if err != nil {
