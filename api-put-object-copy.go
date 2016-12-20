@@ -19,7 +19,7 @@ package minio
 import (
 	"net/http"
 
-	"github.com/minio/minio-go/pkg/s3signer"
+	"github.com/minio/minio-go/pkg/s3utils"
 )
 
 // CopyObject - copy a source object into a new object with the provided name in the provided bucket
@@ -42,7 +42,7 @@ func (c Client) CopyObject(bucketName string, objectName string, objectSource st
 	}
 
 	// Set copy source.
-	customHeaders.Set("x-amz-copy-source", s3signer.EncodePath(objectSource))
+	customHeaders.Set("x-amz-copy-source", s3utils.EncodePath(objectSource))
 
 	// Execute PUT on objectName.
 	resp, err := c.executeMethod("PUT", requestMetadata{
