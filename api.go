@@ -691,13 +691,13 @@ func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, que
 		if isVirtualHostStyle {
 			urlStr = scheme + "://" + bucketName + "." + host + "/"
 			if objectName != "" {
-				urlStr = urlStr + s3signer.EncodePath(objectName)
+				urlStr = urlStr + s3utils.EncodePath(objectName)
 			}
 		} else {
 			// If not fall back to using path style.
 			urlStr = urlStr + bucketName + "/"
 			if objectName != "" {
-				urlStr = urlStr + s3signer.EncodePath(objectName)
+				urlStr = urlStr + s3utils.EncodePath(objectName)
 			}
 		}
 	}

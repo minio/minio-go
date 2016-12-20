@@ -64,28 +64,3 @@ func TestEncodeURL2Path(t *testing.T) {
 		}
 	}
 }
-
-// Tests validate the URL path encoder.
-func TestEncodePath(t *testing.T) {
-	testCases := []struct {
-		// Input.
-		inputStr string
-		// Expected result.
-		result string
-	}{
-		{"thisisthe%url", "thisisthe%25url"},
-		{"本語", "%E6%9C%AC%E8%AA%9E"},
-		{"本語.1", "%E6%9C%AC%E8%AA%9E.1"},
-		{">123", "%3E123"},
-		{"myurl#link", "myurl%23link"},
-		{"space in url", "space%20in%20url"},
-		{"url+path", "url%2Bpath"},
-	}
-
-	for i, testCase := range testCases {
-		result := EncodePath(testCase.inputStr)
-		if testCase.result != result {
-			t.Errorf("Test %d: Expected queryEncode result to be \"%s\", but found it to be \"%s\" instead", i+1, testCase.result, result)
-		}
-	}
-}
