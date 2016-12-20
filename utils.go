@@ -17,7 +17,6 @@
 package minio
 
 import (
-	"bytes"
 	"crypto/md5"
 	"crypto/sha256"
 	"encoding/xml"
@@ -27,12 +26,11 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
 
-	"github.com/minio/minio-go/pkg/s3signer"
+	"github.com/minio/minio-go/pkg/s3utils"
 )
 
 // xmlDecoder provide decoded value in xml.
@@ -62,12 +60,12 @@ func getEndpointURL(endpoint string, secure bool) (*url.URL, error) {
 		if err != nil {
 			return nil, err
 		}
-		if !isValidIP(host) && !isValidDomain(host) {
+		if !s3utils.IsValidIP(host) && !s3utils.IsValidDomain(host) {
 			msg := "Endpoint: " + endpoint + " does not follow ip address or domain name standards."
 			return nil, ErrInvalidArgument(msg)
 		}
 	} else {
-		if !isValidIP(endpoint) && !isValidDomain(endpoint) {
+		if !s3utils.IsValidIP(endpoint) && !s3utils.IsValidDomain(endpoint) {
 			msg := "Endpoint: " + endpoint + " does not follow ip address or domain name standards."
 			return nil, ErrInvalidArgument(msg)
 		}
@@ -90,39 +88,6 @@ func getEndpointURL(endpoint string, secure bool) (*url.URL, error) {
 		return nil, err
 	}
 	return endpointURL, nil
-}
-
-// isValidDomain validates if input string is a valid domain name.
-func isValidDomain(host string) bool {
-	// See RFC 1035, RFC 3696.
-	host = strings.TrimSpace(host)
-	if len(host) == 0 || len(host) > 255 {
-		return false
-	}
-	// host cannot start or end with "-"
-	if host[len(host)-1:] == "-" || host[:1] == "-" {
-		return false
-	}
-	// host cannot start or end with "_"
-	if host[len(host)-1:] == "_" || host[:1] == "_" {
-		return false
-	}
-	// host cannot start or end with a "."
-	if host[len(host)-1:] == "." || host[:1] == "." {
-		return false
-	}
-	// All non alphanumeric characters are invalid.
-	if strings.ContainsAny(host, "`~!@#$%^&*()+={}[]|\\\"';:><?/") {
-		return false
-	}
-	// No need to regexp match, since the list is non-exhaustive.
-	// We let it valid and fail later.
-	return true
-}
-
-// isValidIP parses input string for ip address validity.
-func isValidIP(ip string) bool {
-	return net.ParseIP(ip) != nil
 }
 
 // closeResponse close non nil response with any response Body.
@@ -148,60 +113,6 @@ func closeResponse(resp *http.Response) {
 // Sentinel URL is the default url value which is invalid.
 var sentinelURL = url.URL{}
 
-// isVirtualHostSupported - verifies if bucketName can be part of
-// virtual host. Currently only Amazon S3 and Google Cloud Storage
-// would support this.
-func isVirtualHostSupported(endpointURL url.URL, bucketName string) bool {
-	if endpointURL == sentinelURL {
-		return false
-	}
-	// bucketName can be valid but '.' in the hostname will fail SSL
-	// certificate validation. So do not use host-style for such buckets.
-	if endpointURL.Scheme == "https" && strings.Contains(bucketName, ".") {
-		return false
-	}
-	// Return true for all other cases
-	return isAmazonEndpoint(endpointURL) || isGoogleEndpoint(endpointURL)
-}
-
-// Match if it is exactly Amazon S3 endpoint.
-func isAmazonEndpoint(endpointURL url.URL) bool {
-	if isAmazonChinaEndpoint(endpointURL) {
-		return true
-	}
-
-	if isAmazonS3AccelerateEndpoint(endpointURL) {
-		return true
-	}
-
-	return endpointURL.Host == "s3.amazonaws.com"
-}
-
-// Match if it is exactly Amazon S3 China endpoint.
-// Customers who wish to use the new Beijing Region are required
-// to sign up for a separate set of account credentials unique to
-// the China (Beijing) Region. Customers with existing AWS credentials
-// will not be able to access resources in the new Region, and vice versa.
-// For more info https://aws.amazon.com/about-aws/whats-new/2013/12/18/announcing-the-aws-china-beijing-region/
-func isAmazonChinaEndpoint(endpointURL url.URL) bool {
-	if endpointURL == sentinelURL {
-		return false
-	}
-	return endpointURL.Host == "s3.cn-north-1.amazonaws.com.cn"
-}
-
-func isAmazonS3AccelerateEndpoint(endpointURL url.URL) bool {
-	return strings.HasSuffix(endpointURL.Host, ".s3-accelerate.amazonaws.com")
-}
-
-// Match if it is exactly Google cloud storage endpoint.
-func isGoogleEndpoint(endpointURL url.URL) bool {
-	if endpointURL == sentinelURL {
-		return false
-	}
-	return endpointURL.Host == "storage.googleapis.com"
-}
-
 // Verify if input endpoint URL is valid.
 func isValidEndpointURL(endpointURL url.URL) error {
 	if endpointURL == sentinelURL {
@@ -211,12 +122,12 @@ func isValidEndpointURL(endpointURL url.URL) error {
 		return ErrInvalidArgument("Endpoint url cannot have fully qualified paths.")
 	}
 	if strings.Contains(endpointURL.Host, ".amazonaws.com") {
-		if !isAmazonEndpoint(endpointURL) {
+		if !s3utils.IsAmazonEndpoint(endpointURL) {
 			return ErrInvalidArgument("Amazon S3 endpoint should be 's3.amazonaws.com'.")
 		}
 	}
 	if strings.Contains(endpointURL.Host, ".googleapis.com") {
-		if !isGoogleEndpoint(endpointURL) {
+		if !s3utils.IsGoogleEndpoint(endpointURL) {
 			return ErrInvalidArgument("Google Cloud Storage endpoint should be 'storage.googleapis.com'.")
 		}
 	}
@@ -290,38 +201,6 @@ func isValidObjectPrefix(objectPrefix string) error {
 		return ErrInvalidObjectPrefix("Object prefix with non UTF-8 strings are not supported.")
 	}
 	return nil
-}
-
-//expects ascii encoded strings - from output of urlEncodePath
-func percentEncodeSlash(s string) string {
-	return strings.Replace(s, "/", "%2F", -1)
-}
-
-// queryEncode - encodes query values in their URL encoded form. In
-// addition to the percent encoding performed by urlEncodePath() used
-// here, it also percent encodes '/' (forward slash)
-func queryEncode(v url.Values) string {
-	if v == nil {
-		return ""
-	}
-	var buf bytes.Buffer
-	keys := make([]string, 0, len(v))
-	for k := range v {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		vs := v[k]
-		prefix := percentEncodeSlash(s3signer.EncodePath(k)) + "="
-		for _, v := range vs {
-			if buf.Len() > 0 {
-				buf.WriteByte('&')
-			}
-			buf.WriteString(prefix)
-			buf.WriteString(percentEncodeSlash(s3signer.EncodePath(v)))
-		}
-	}
-	return buf.String()
 }
 
 // make a copy of http.Header

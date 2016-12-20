@@ -25,6 +25,7 @@ import (
 	"sync"
 
 	"github.com/minio/minio-go/pkg/s3signer"
+	"github.com/minio/minio-go/pkg/s3utils"
 )
 
 // bucketLocationCache - Provides simple mechanism to hold bucket
@@ -87,7 +88,7 @@ func (c Client) getBucketLocation(bucketName string) (string, error) {
 		return location, nil
 	}
 
-	if isAmazonChinaEndpoint(c.endpointURL) {
+	if s3utils.IsAmazonChinaEndpoint(c.endpointURL) {
 		// For china specifically we need to set everything to
 		// cn-north-1 for now, there is no easier way until AWS S3
 		// provides a cleaner compatible API across "us-east-1" and
@@ -166,7 +167,7 @@ func (c Client) getBucketLocationRequest(bucketName string) (*http.Request, erro
 
 	// Requesting a bucket location from an accelerate endpoint returns a 400,
 	// so default to us-east-1 for the lookup
-	if isAmazonS3AccelerateEndpoint(c.endpointURL) {
+	if s3utils.IsAmazonS3AccelerateEndpoint(c.endpointURL) {
 		targetURL.Host = getS3Endpoint("us-east-1")
 	}
 
