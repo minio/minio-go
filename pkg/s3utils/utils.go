@@ -79,7 +79,7 @@ func IsVirtualHostSupported(endpointURL url.URL, bucketName string) bool {
 	return IsAmazonEndpoint(endpointURL) || IsGoogleEndpoint(endpointURL)
 }
 
-// Match if it is exactly Amazon S3 endpoint.
+// IsAmazonEndpoint - Match if it is exactly Amazon S3 endpoint.
 func IsAmazonEndpoint(endpointURL url.URL) bool {
 	if IsAmazonChinaEndpoint(endpointURL) {
 		return true
@@ -92,7 +92,7 @@ func IsAmazonEndpoint(endpointURL url.URL) bool {
 	return endpointURL.Host == "s3.amazonaws.com"
 }
 
-// Match if it is exactly Amazon S3 China endpoint.
+// IsAmazonChinaEndpoint - Match if it is exactly Amazon S3 China endpoint.
 // Customers who wish to use the new Beijing Region are required
 // to sign up for a separate set of account credentials unique to
 // the China (Beijing) Region. Customers with existing AWS credentials
@@ -105,11 +105,12 @@ func IsAmazonChinaEndpoint(endpointURL url.URL) bool {
 	return endpointURL.Host == "s3.cn-north-1.amazonaws.com.cn"
 }
 
+// IsAmazonS3AccelerateEndpoint - Match if it is an Amazon S3 Accelerate
 func IsAmazonS3AccelerateEndpoint(endpointURL url.URL) bool {
 	return strings.HasSuffix(endpointURL.Host, ".s3-accelerate.amazonaws.com")
 }
 
-// Match if it is exactly Google cloud storage endpoint.
+// IsGoogleEndpoint - Match if it is exactly Google cloud storage endpoint.
 func IsGoogleEndpoint(endpointURL url.URL) bool {
 	if endpointURL == sentinelURL {
 		return false
