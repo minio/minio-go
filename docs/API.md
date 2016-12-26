@@ -54,12 +54,12 @@ func main() {
 
 ```
 
-| Bucket operations  |Object operations   | Presigned operations  | Bucket Policy/Notification Operations |
+| Bucket operations  |Object operations   | Presigned operations  | Bucket Policy/Notification Operations | Client custom settings
 |:---|:---|:---|:---|
-|[`MakeBucket`](#MakeBucket)   |[`GetObject`](#GetObject)   | [`PresignedGetObject`](#PresignedGetObject)  |[`SetBucketPolicy`](#SetBucketPolicy)   |
-|[`ListBuckets`](#ListBuckets)   |[`PutObject`](#PutObject)   |[`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)  |
-|[`BucketExists`](#BucketExists)   |[`CopyObject`](#CopyObject)   |[`PresignedPostPolicy`](#PresignedPostPolicy)   |  [`ListBucketPolicies`](#ListBucketPolicies)  |
-| [`RemoveBucket`](#RemoveBucket)  |[`StatObject`](#StatObject)   |   |  [`SetBucketNotification`](#SetBucketNotification)  |
+|[`MakeBucket`](#MakeBucket)   |[`GetObject`](#GetObject)   | [`PresignedGetObject`](#PresignedGetObject)  |[`SetBucketPolicy`](#SetBucketPolicy)   | [`SetAppInfo`](#SetAppInfo) |
+|[`ListBuckets`](#ListBuckets)   |[`PutObject`](#PutObject)   |[`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)  | [`SetCustomTransport`](#SetCustomTransport) |
+|[`BucketExists`](#BucketExists)   |[`CopyObject`](#CopyObject)   |[`PresignedPostPolicy`](#PresignedPostPolicy)   |  [`ListBucketPolicies`](#ListBucketPolicies)  | [`TraceOn`](#TraceOn) |
+| [`RemoveBucket`](#RemoveBucket)  |[`StatObject`](#StatObject)   |   |  [`SetBucketNotification`](#SetBucketNotification)  | [`TraceOff`](#TraceOff) |
 |[`ListObjects`](#ListObjects)   |[`RemoveObject`](#RemoveObject)   |   |  [`GetBucketNotification`](#GetBucketNotification)   |
 |[`ListObjectsV2`](#ListObjectsV2) | [`RemoveObjects`](#RemoveObjects) |   | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification)  |
 |[`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |   |  [`ListenBucketNotification`](#ListenBucketNotification)  |
@@ -1096,6 +1096,26 @@ for notificationInfo := range minioClient.ListenBucketNotification("YOUR-BUCKET"
 }
 ```
 
-## 6. Explore Further
+## 6. Client custom settings
+
+<a name="SetAppInfo"></a>
+### SetAppInfo(appName string, appVersion string)
+Adds application details to User-Agent.
+
+<a name="SetCustomTransport"></a>
+### SetCustomTransport(customHTTPTransport http.RoundTripper)
+Overrides default HTTP transport. This is usually needed for debugging
+or for adding custom TLS certificates.
+
+<a name="TraceOn"></a>
+### TraceOn(outputStream io.Writer)
+Enables HTTP tracing. The trace is written to the io.Writer
+provided. If outputStream is nil, trace is written to os.Stdout.
+
+<a name="TraceOff"></a>
+### TraceOff()
+Disables HTTP tracing.
+
+## 7. Explore Further
 
 - [Build your own Go Music Player App example](https://docs.minio.io/docs/go-music-player-app)
