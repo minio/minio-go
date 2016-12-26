@@ -60,7 +60,7 @@ func main() {
 |[`ListBuckets`](#ListBuckets)   |[`PutObject`](#PutObject)   |[`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)  | [`SetCustomTransport`](#SetCustomTransport) |
 |[`BucketExists`](#BucketExists)   |[`CopyObject`](#CopyObject)   |[`PresignedPostPolicy`](#PresignedPostPolicy)   |  [`ListBucketPolicies`](#ListBucketPolicies)  | [`TraceOn`](#TraceOn) |
 | [`RemoveBucket`](#RemoveBucket)  |[`StatObject`](#StatObject)   |   |  [`SetBucketNotification`](#SetBucketNotification)  | [`TraceOff`](#TraceOff) |
-|[`ListObjects`](#ListObjects)   |[`RemoveObject`](#RemoveObject)   |   |  [`GetBucketNotification`](#GetBucketNotification)   |
+|[`ListObjects`](#ListObjects)  |[`RemoveObject`](#RemoveObject)   |   |  [`GetBucketNotification`](#GetBucketNotification)  | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
 |[`ListObjectsV2`](#ListObjectsV2) | [`RemoveObjects`](#RemoveObjects) |   | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification)  |
 |[`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |   |  [`ListenBucketNotification`](#ListenBucketNotification)  |
 |   | [`FPutObject`](#FPutObject)  |   |   |
@@ -1148,6 +1148,16 @@ __Parameters__
 ### TraceOff()
 Disables HTTP tracing.
 
+<a name="SetS3TransferAccelerate"></a>
+### SetS3TransferAccelerate(acceleratedEndpoint string)
+Set new AWS S3 transfer acceleration endpoint for your requests.
+NOTE: This API is a no-op for non-S3 endpoints.
+
+__Parameters__
+
+| Param  | Type  | Description  |
+|---|---|---|
+|`acceleratedEndpoint`  | _string_  | Set to new S3 transfer acceleration endpoint.|
 
 ## 7. Explore Further
 
