@@ -54,8 +54,8 @@ func main() {
 
 ```
 
-| Bucket operations  |Object operations   | Presigned operations  | Bucket Policy/Notification Operations | Client custom settings
-|:---|:---|:---|:---|
+| Bucket operations  |Object operations   | Presigned operations  | Bucket Policy/Notification Operations | Client custom settings |
+|:---|:---|:---|:---|:---|
 |[`MakeBucket`](#MakeBucket)   |[`GetObject`](#GetObject)   | [`PresignedGetObject`](#PresignedGetObject)  |[`SetBucketPolicy`](#SetBucketPolicy)   | [`SetAppInfo`](#SetAppInfo) |
 |[`ListBuckets`](#ListBuckets)   |[`PutObject`](#PutObject)   |[`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)  | [`SetCustomTransport`](#SetCustomTransport) |
 |[`BucketExists`](#BucketExists)   |[`CopyObject`](#CopyObject)   |[`PresignedPostPolicy`](#PresignedPostPolicy)   |  [`ListBucketPolicies`](#ListBucketPolicies)  | [`TraceOn`](#TraceOn) |
