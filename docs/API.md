@@ -1102,19 +1102,52 @@ for notificationInfo := range minioClient.ListenBucketNotification("YOUR-BUCKET"
 ### SetAppInfo(appName string, appVersion string)
 Adds application details to User-Agent.
 
+__Parameters__
+
+| Param  | Type  | Description  |
+|---|---|---|
+|`appName`  | _string_  | Name of the application performing the API requests. |
+| `appVersion`| _string_ | Version of the application performing the API requests. |
+
+
+__Example__
+
+
+```go
+
+// Set Application name and version to be used in subsequent API requests.
+minioClient.SetAppInfo("myCloudApp", "1.0.0")
+
+```
+
 <a name="SetCustomTransport"></a>
 ### SetCustomTransport(customHTTPTransport http.RoundTripper)
 Overrides default HTTP transport. This is usually needed for debugging
 or for adding custom TLS certificates.
+
+__Parameters__
+
+| Param  | Type  | Description  |
+|---|---|---|
+|`customHTTPTransport`  | _http.RoundTripper_  | Custom transport e.g, to trace API requests and responses for debugging purposes.|
+
 
 <a name="TraceOn"></a>
 ### TraceOn(outputStream io.Writer)
 Enables HTTP tracing. The trace is written to the io.Writer
 provided. If outputStream is nil, trace is written to os.Stdout.
 
+__Parameters__
+
+| Param  | Type  | Description  |
+|---|---|---|
+|`outputStream`  | _io.Writer_  | HTTP trace is written into outputStream.|
+
+
 <a name="TraceOff"></a>
 ### TraceOff()
 Disables HTTP tracing.
+
 
 ## 7. Explore Further
 
