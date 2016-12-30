@@ -1,5 +1,5 @@
-# Minio Golang Library for Amazon S3 Compatible Cloud Storage [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/Minio/minio?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-The Minio Golang Client SDK provides simple APIs to access any Amazon S3 compatible object storage server. 
+# Minio Go Client SDK for Amazon S3 Compatible Cloud Storage [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/Minio/minio?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+The Minio Go Client SDK provides simple APIs to access any Amazon S3 compatible object storage.
 
 **Supported cloud storage providers:** 
 
@@ -14,9 +14,9 @@ The Minio Golang Client SDK provides simple APIs to access any Amazon S3 compati
    - Ceph Object Gateway
    - Riak CS
 
-This quickstart guide will show you how to install the Minio client SDK, connect to Minio, and provide a walkthrough of a simple file uploader. For a complete list of APIs and examples, please take a look at the [Golang Client API Reference](https://docs.minio.io/docs/golang-client-api-reference).
+This quickstart guide will show you how to install the Minio client SDK, connect to Minio, and provide a walkthrough for a simple file uploader. For a complete list of APIs and examples, please take a look at the [Go Client API Reference](https://docs.minio.io/docs/golang-client-api-reference).
 
-This document assumes that you have a working [Golang setup](https://docs.minio.io/docs/how-to-install-golang).
+This document assumes that you have a working [Go development environment](https://docs.minio.io/docs/how-to-install-golang).
 
 
 ## Download from Github
@@ -28,8 +28,7 @@ go get -u github.com/minio/minio-go
 ```
 ## Initialize Minio Client
 
-You need four items to connect to Minio object storage server.
-
+Minio client requires the following four parameters specified to connect to an Amazon S3 compatible object storage.
 
 
 | Parameter  | Description| 
@@ -68,7 +67,7 @@ func main() {
 
 ## Quick Start Example - File Uploader
 
-This example program connects to an object storage server, makes a bucket on the server and then uploads a file to the bucket.
+This example program connects to an object storage server, creates a bucket and uploads a file to the bucket.
 
 
 
@@ -191,6 +190,13 @@ The full API Reference is available here.
 * [`PresignedPutObject`](https://docs.minio.io/docs/golang-client-api-reference#PresignedPutObject)
 * [`PresignedPostPolicy`](https://docs.minio.io/docs/golang-client-api-reference#PresignedPostPolicy)
 
+### API Reference : Client custom settings
+* [`SetAppInfo`](http://docs.minio.io/docs/golang-client-api-reference#SetAppInfo)
+* [`SetCustomTransport`](http://docs.minio.io/docs/golang-client-api-reference#SetCustomTransport)
+* [`TraceOn`](http://docs.minio.io/docs/golang-client-api-reference#TraceOn)
+* [`TraceOff`](http://docs.minio.io/docs/golang-client-api-reference#TraceOff)
+
+
 ## Full Examples
 
 #### Full Examples : Bucket Operations
@@ -238,7 +244,7 @@ The full API Reference is available here.
 
 ## Explore Further
 * [Complete Documentation](https://docs.minio.io)
-* [Minio Golang Client SDK API Reference](https://docs.minio.io/docs/golang-client-api-reference) 
+* [Minio Go Client SDK API Reference](https://docs.minio.io/docs/golang-client-api-reference) 
 * [Go Music Player App- Full Application Example ](https://docs.minio.io/docs/go-music-player-app)
 
 ## Contribute
