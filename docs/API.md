@@ -1150,14 +1150,15 @@ Disables HTTP tracing.
 
 <a name="SetS3TransferAccelerate"></a>
 ### SetS3TransferAccelerate(acceleratedEndpoint string)
-Set new AWS S3 transfer acceleration endpoint for your requests.
-NOTE: This API is a no-op for non-S3 endpoints.
+Set AWS S3 transfer acceleration endpoint for all API requests hereafter.
+NOTE: This API applies only to AWS S3 and ignored with other S3 compatible object storage services.
 
 __Parameters__
 
 | Param  | Type  | Description  |
 |---|---|---|
 |`acceleratedEndpoint`  | _string_  | Set to new S3 transfer acceleration endpoint.|
+
 
 ## 7. Explore Further
 
