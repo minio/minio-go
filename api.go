@@ -71,6 +71,9 @@ type Client struct {
 	isTraceEnabled bool
 	traceOutput    io.Writer
 
+	// S3 specific accelerated endpoint.
+	s3AccelerateEndpoint string
+
 	// Random seed.
 	random *rand.Rand
 }
@@ -206,8 +209,7 @@ func privateNew(endpoint, accessKeyID, secretAccessKey string, secure bool) (*Cl
 
 // SetAppInfo - add application details to user agent.
 func (c *Client) SetAppInfo(appName string, appVersion string) {
-	// if app name and version is not set, we do not a new user
-	// agent.
+	// if app name and version not set, we do not set a new user agent.
 	if appName != "" && appVersion != "" {
 		c.appInfo = struct {
 			appName    string
@@ -258,8 +260,18 @@ func (c *Client) TraceOff() {
 	c.isTraceEnabled = false
 }
 
-// requestMetadata - is container for all the values to make a
-// request.
+// SetS3TransferAccelerate - turns s3 accelerated endpoint on or off for all your
+// requests. This feature is only specific to S3 for all other endpoints this
+// function does nothing. To read further details on s3 transfer acceleration
+// please vist -
+// http://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html
+func (c *Client) SetS3TransferAccelerate(accelerateEndpoint string) {
+	if s3utils.IsAmazonEndpoint(c.endpointURL) {
+		c.s3AccelerateEndpoint = accelerateEndpoint
+	}
+}
+
+// requestMetadata - is container for all the values to make a request.
 type requestMetadata struct {
 	// If set newRequest presigns the URL.
 	presignURL bool
@@ -601,7 +613,7 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 		req.Body = ioutil.NopCloser(metadata.contentBody)
 	}
 
-	// FIXEM: Enable this when Google Cloud Storage properly supports 100-continue.
+	// FIXME: Enable this when Google Cloud Storage properly supports 100-continue.
 	// Skip setting 'expect' header for Google Cloud Storage, there
 	// are some known issues - https://github.com/restic/restic/issues/520
 	if !s3utils.IsGoogleEndpoint(c.endpointURL) {
@@ -669,12 +681,28 @@ func (c Client) setUserAgent(req *http.Request) {
 
 // makeTargetURL make a new target url.
 func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, queryValues url.Values) (*url.URL, error) {
+	// Save if target url will have buckets which suppport virtual host.
+	isVirtualHostStyle := s3utils.IsVirtualHostSupported(c.endpointURL, bucketName)
+
 	host := c.endpointURL.Host
 	// For Amazon S3 endpoint, try to fetch location based endpoint.
 	if s3utils.IsAmazonEndpoint(c.endpointURL) {
-		// Fetch new host based on the bucket location.
-		host = getS3Endpoint(bucketLocation)
+		if c.s3AccelerateEndpoint != "" {
+			// http://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html
+			// Disable transfer acceleration for non-compliant bucket names.
+			if strings.Contains(bucketName, ".") {
+				return nil, ErrTransferAccelerationBucket(bucketName)
+			}
+			// If transfer acceleration is requested set new host.
+			// For more details about enabling transfer acceleration read here.
+			// http://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html
+			host = c.s3AccelerateEndpoint
+		} else {
+			// Fetch new host based on the bucket location.
+			host = getS3Endpoint(bucketLocation)
+		}
 	}
+
 	// Save scheme.
 	scheme := c.endpointURL.Scheme
 
@@ -682,9 +710,6 @@ func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, que
 	// Make URL only if bucketName is available, otherwise use the
 	// endpoint URL.
 	if bucketName != "" {
-		// Save if target url will have buckets which suppport virtual host.
-		isVirtualHostStyle := s3utils.IsVirtualHostSupported(c.endpointURL, bucketName)
-
 		// If endpoint supports virtual host style use that always.
 		// Currently only S3 and Google Cloud Storage would support
 		// virtual host style.
