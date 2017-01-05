@@ -616,7 +616,7 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 	// FIXME: Enable this when Google Cloud Storage properly supports 100-continue.
 	// Skip setting 'expect' header for Google Cloud Storage, there
 	// are some known issues - https://github.com/restic/restic/issues/520
-	if !s3utils.IsGoogleEndpoint(c.endpointURL) {
+	if !s3utils.IsGoogleEndpoint(c.endpointURL) && c.s3AccelerateEndpoint == "" {
 		// Set 'Expect' header for the request.
 		req.Header.Set("Expect", "100-continue")
 	}
@@ -681,13 +681,10 @@ func (c Client) setUserAgent(req *http.Request) {
 
 // makeTargetURL make a new target url.
 func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, queryValues url.Values) (*url.URL, error) {
-	// Save if target url will have buckets which suppport virtual host.
-	isVirtualHostStyle := s3utils.IsVirtualHostSupported(c.endpointURL, bucketName)
-
 	host := c.endpointURL.Host
 	// For Amazon S3 endpoint, try to fetch location based endpoint.
 	if s3utils.IsAmazonEndpoint(c.endpointURL) {
-		if c.s3AccelerateEndpoint != "" {
+		if c.s3AccelerateEndpoint != "" && bucketName != "" {
 			// http://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html
 			// Disable transfer acceleration for non-compliant bucket names.
 			if strings.Contains(bucketName, ".") {
@@ -710,6 +707,9 @@ func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, que
 	// Make URL only if bucketName is available, otherwise use the
 	// endpoint URL.
 	if bucketName != "" {
+		// Save if target url will have buckets which suppport virtual host.
+		isVirtualHostStyle := s3utils.IsVirtualHostSupported(c.endpointURL, bucketName)
+
 		// If endpoint supports virtual host style use that always.
 		// Currently only S3 and Google Cloud Storage would support
 		// virtual host style.
