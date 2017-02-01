@@ -392,7 +392,7 @@ __Return Value__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`object`  | _*minio.Object_ |_minio.Object_ represents object reader  |
+|`object`  | _*minio.Object_ |_minio.Object_ represents object reader. It implements io.Reader, io.Seeker, io.ReaderAt and io.Closer interfaces. |
 
 
 __Example__
