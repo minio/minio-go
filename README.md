@@ -22,7 +22,7 @@ This document assumes that you have a working [Go development environment](https
 
 ## Download from Github
 
-```sh
+```
 
 go get -u github.com/minio/minio-go
 
@@ -130,7 +130,7 @@ func main() {
 
 #### Run FileUploader
 
-```sh
+```
 
 go run file-uploader.go
 2016/08/13 17:03:28 Successfully created mymusic 
