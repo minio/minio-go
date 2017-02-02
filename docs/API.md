@@ -1,4 +1,4 @@
-# Minio Go Client API Reference [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/Minio/minio?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+# Minio Go Client API Reference [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io)
 
 ## Initialize Minio Client object.
 
@@ -392,7 +392,7 @@ __Return Value__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`object`  | _*minio.Object_ |_minio.Object_ represents object reader  |
+|`object`  | _*minio.Object_ |_minio.Object_ represents object reader. It implements io.Reader, io.Seeker, io.ReaderAt and io.Closer interfaces. |
 
 
 __Example__
