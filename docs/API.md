@@ -55,8 +55,8 @@ func main() {
 |[`MakeBucket`](#MakeBucket)   |[`GetObject`](#GetObject) | [`NewSymmetricKey`](#NewSymmetricKey) | [`PresignedGetObject`](#PresignedGetObject)  |[`SetBucketPolicy`](#SetBucketPolicy)   | [`SetAppInfo`](#SetAppInfo) |
 |[`ListBuckets`](#ListBuckets)   |[`PutObject`](#PutObject) | [`NewAsymmetricKey`](#NewAsymmetricKey) |[`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)  | [`SetCustomTransport`](#SetCustomTransport) |
 |[`BucketExists`](#BucketExists)   |[`CopyObject`](#CopyObject) |  [`GetEncryptedObject`](#GetEncryptedObject)  |[`PresignedPostPolicy`](#PresignedPostPolicy)   |  [`ListBucketPolicies`](#ListBucketPolicies)  | [`TraceOn`](#TraceOn) |
-| [`RemoveBucket`](#RemoveBucket)  |[`StatObject`](#StatObject) | [`PutEncryptedObject`](#PutEncryptedObject) |   |  [`SetBucketNotification`](#SetBucketNotification)  | [`TraceOff`](#TraceOff) |
-|[`ListObjects`](#ListObjects)  |[`RemoveObject`](#RemoveObject) |  |   |  [`GetBucketNotification`](#GetBucketNotification)  | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
+| [`RemoveBucket`](#RemoveBucket)  |[`StatObject`](#StatObject) | [`PutObjectStreaming`(#PutObjectStreaming) |   |  [`SetBucketNotification`](#SetBucketNotification)  | [`TraceOff`](#TraceOff) |
+|[`ListObjects`](#ListObjects)  |[`RemoveObject`](#RemoveObject) | [`PutEncryptedObject`](#PutEncryptedObject) |   |  [`GetBucketNotification`](#GetBucketNotification)  | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
 |[`ListObjectsV2`](#ListObjectsV2) | [`RemoveObjects`](#RemoveObjects) |  |   | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification)  |
 |[`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |  |  |  [`ListenBucketNotification`](#ListenBucketNotification)  |
 |   | [`FPutObject`](#FPutObject)  | |   |   |
@@ -436,7 +436,9 @@ if err != nil {
 <a name="PutObject"></a>
 ### PutObject(bucketName, objectName string, reader io.Reader, contentType string) (n int, err error)
 
-Uploads an object.
+Uploads objects that are less than 64MiB in a single PUT operation. For objects that are greater than 64MiB in size, PutObject seamlessly uploads the object as parts of 64MiB or more depending on the actual file size. The max upload size for an object is 5TB.
+
+In the event that PutObject fails to upload an object, the user may attempt to re-upload the same object. If the same object is being uploaded, PutObject API examines the previous partial attempt to upload this object and resumes automatically from where it left off.
 
 
 __Parameters__
@@ -453,9 +455,39 @@ __Parameters__
 __Example__
 
 
-Uploads objects that are less than 64MiB in a single PUT operation. For objects that are greater than 64MiB in size, PutObject seamlessly uploads the object in chunks of 64MiB or more depending on the actual file size. The max upload size for an object is 5TB.
+```go
+file, err := os.Open("my-testfile")
+if err != nil {
+    fmt.Println(err)
+    return
+}
+defer file.Close()
 
-In the event that PutObject fails to upload an object, the user may attempt to re-upload the same object. If the same object is being uploaded, PutObject API examines the previous partial attempt to upload this object and resumes automatically from where it left off.
+n, err := minioClient.PutObject("mybucket", "myobject", file, "application/octet-stream")
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
+
+<a name="PutObject"></a>
+### PutObjectStreaming(bucketName, objectName string, reader io.Reader, size int64) (n int, err error)
+
+Uploads an object as multiple chunks keeping memory consumption constant. It is similar to PutObject in how objects are broken into multiple parts. Each part in turn is transferred as multiple chunks with constant memory usage. However resuming previously failed uploads from where it was left is not supported.
+
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---|:---|
+|`bucketName`  | _string_  |Name of the bucket  |
+|`objectName` | _string_  |Name of the object   |
+|`reader` | _io.Reader_  |Any Go type that implements io.Reader |
+|`size` | _int64_ |Size of the object |
+
+
+__Example__
 
 
 ```go
@@ -466,7 +498,13 @@ if err != nil {
 }
 defer file.Close()
 
-n, err := minioClient.PutObject("mybucket", "myobject", file, "application/octet-stream")
+st, err := os.Stat()
+if err != nil {
+    fmt.Println(err)
+    return
+}
+
+n, err := minioClient.PutObjectStreaming("mybucket", "myobject", file, st.Size())
 if err != nil {
     fmt.Println(err)
     return
@@ -534,6 +572,10 @@ if err != nil {
 
 Uploads contents from a file to objectName.
 
+FPutObject uploads objects that are less than 64MiB in a single PUT operation. For objects that are greater than the 64MiB in size, FPutObject seamlessly uploads the object in chunks of 64MiB or more depending on the actual file size. The max upload size for an object is 5TB.
+
+In the event that FPutObject fails to upload an object, the user may attempt to re-upload the same object. If the same object is being uploaded, FPutObject API examines the previous partial attempt to upload this object and resumes automatically from where it left off.
+
 
 __Parameters__
 
@@ -548,10 +590,6 @@ __Parameters__
 
 __Example__
 
-
-FPutObject uploads objects that are less than 64MiB in a single PUT operation. For objects that are greater than the 64MiB in size, FPutObject seamlessly uploads the object in chunks of 64MiB or more depending on the actual file size. The max upload size for an object is 5TB.
-
-In the event that FPutObject fails to upload an object, the user may attempt to re-upload the same object. If the same object is being uploaded, FPutObject API examines the previous partial attempt to upload this object and resumes automatically from where it left off.
 
 ```go
 n, err := minioClient.FPutObject("mybucket", "myobject.csv", "/tmp/otherobject.csv", "application/csv")
@@ -831,7 +869,7 @@ if err != nil {
     log.Fatal(err)
 }
 
-// Build the CBC encryption module 
+// Build the CBC encryption module
 cbcMaterials, err := NewCBCSecureMaterials(key)
 if err != nil {
     t.Fatal(err)

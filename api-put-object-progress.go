@@ -121,3 +121,51 @@ func (c Client) PutObjectWithMetadata(bucketName, objectName string, reader io.R
 	}
 	return n, nil
 }
+
+// PutObjectStreaming using AWS streaming signature V4
+func (c Client) PutObjectStreaming(bucketName, objectName string, reader io.Reader, size int64) (n int64, err error) {
+	if size < 0 {
+		return 0, ErrInvalidArgument("Size can't be negative.")
+	}
+
+	// Check for largest object size allowed.
+	if size > int64(maxMultipartPutObjectSize) {
+		return 0, ErrEntityTooLarge(size, maxMultipartPutObjectSize, bucketName, objectName)
+	}
+
+	// Note: Streaming signature is not supported by GCS.
+	if s3utils.IsGoogleEndpoint(c.endpointURL) {
+		return 0, ErrorResponse{
+			Code:       "NotImplemented",
+			Message:    "AWS streaming signature v4 is not supported with Google Cloud Storage",
+			Key:        objectName,
+			BucketName: bucketName,
+		}
+	}
+
+	// Set signature type to streaming signature v4.
+	c.signature = ChunkedV4
+
+	if size < minPartSize && size >= 0 {
+		return c.putObjectNoChecksum(bucketName, objectName, reader, size, nil, nil)
+	}
+
+	// For all sizes greater than 5MiB do multipart.
+	n, err = c.putObjectMultipartStreamNoChecksum(bucketName, objectName, reader, size, nil, nil)
+	if err != nil {
+		errResp := ToErrorResponse(err)
+		// Verify if multipart functionality is not available, if not
+		// fall back to single PutObject operation.
+		if errResp.Code == "AccessDenied" && strings.Contains(errResp.Message, "Access Denied") {
+			// Verify if size of reader is greater than '5GiB'.
+			if size > maxSinglePutObjectSize {
+				return 0, ErrEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
+			}
+			// Fall back to uploading as single PutObject operation.
+			return c.putObjectNoChecksum(bucketName, objectName, reader, size, nil, nil)
+		}
+		return n, err
+	}
+
+	return n, nil
+}
