@@ -509,24 +509,34 @@ __Example__
 
 
 ```go
+// Use-case-1
+// To copy an existing object to a new object with _no_ copy conditions.
+copyConditions := minio.NewCopyConditions()
+err := minioClient.CopyObject("mybucket", "myobject", "my-sourcebucketname/my-sourceobjectname", copyConds)
+if err != nil {
+    fmt.Println(err)
+    return
+}
 
-// All following conditions are allowed and can be combined together.
+// Use-case-2
+// To copy an existing object to a new object with the following copy conditions
+// 1. that matches a given ETag
+// 2. and modified after 1st April 2014
+// 3. but unmodified since 23rd April 2014
 
 // Set copy conditions.
 var copyConds = minio.NewCopyConditions()
-// Set modified condition, copy object modified since 2014 April.
-copyConds.SetModified(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
 
-// Set unmodified condition, copy object unmodified since 2014 April.
-// copyConds.SetUnmodified(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
+// copy object that matches the given ETag.
+copyConds.SetMatchETag("31624deb84149d2f8ef9c385918b653a")
 
-// Set matching ETag condition, copy object which matches the following ETag.
-// copyConds.SetMatchETag("31624deb84149d2f8ef9c385918b653a")
+// and modified after 1st April 2014 
+copyConds.SetModified(time.Date(2014, time.April, 1, 0, 0, 0, 0, time.UTC))
 
-// Set matching ETag except condition, copy object which does not match the following ETag.
-// copyConds.SetMatchETagExcept("31624deb84149d2f8ef9c385918b653a")
+// but unmodified since 23rd April 2014
+copyConds.SetUnmodified(time.Date(2014, time.April, 23, 0, 0, 0, 0, time.UTC))
 
-err := minioClient.CopyObject("mybucket", "myobject", "/my-sourcebucketname/my-sourceobjectname", copyConds)
+err := minioClient.CopyObject("mybucket", "myobject", "my-sourcebucketname/my-sourceobjectname", copyConds)
 if err != nil {
     fmt.Println(err)
     return
