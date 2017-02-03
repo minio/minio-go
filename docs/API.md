@@ -512,7 +512,7 @@ __Example__
 // Use-case-1
 // To copy an existing object to a new object with _no_ copy conditions.
 copyConditions := minio.NewCopyConditions()
-err := minioClient.CopyObject("mybucket", "myobject", "/my-sourcebucketname/my-sourceobjectname", copyConds)
+err := minioClient.CopyObject("mybucket", "myobject", "my-sourcebucketname/my-sourceobjectname", copyConds)
 if err != nil {
     fmt.Println(err)
     return
@@ -536,7 +536,7 @@ copyConds.SetModified(time.Date(2014, time.April, 1, 0, 0, 0, 0, time.UTC))
 // but unmodified since 23rd April 2014
 copyConds.SetUnmodified(time.Date(2014, time.April, 23, 0, 0, 0, 0, time.UTC))
 
-err := minioClient.CopyObject("mybucket", "myobject", "/my-sourcebucketname/my-sourceobjectname", copyConds)
+err := minioClient.CopyObject("mybucket", "myobject", "my-sourcebucketname/my-sourceobjectname", copyConds)
 if err != nil {
     fmt.Println(err)
     return
