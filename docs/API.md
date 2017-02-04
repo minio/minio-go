@@ -69,7 +69,7 @@ func main() {
 ## 1. Constructor
 <a name="Minio"></a>
 
-### New(endpoint string, accessKeyID string, secretAccessKey string, ssl bool) (*Client, error)
+### New(endpoint, accessKeyID, secretAccessKey string, ssl bool) (*Client, error)
 Initializes a new client object.
 
 __Parameters__
@@ -86,7 +86,7 @@ __Parameters__
 ## 2. Bucket operations
 
 <a name="MakeBucket"></a>
-### MakeBucket(bucketName string, location string) error
+### MakeBucket(bucketName, location string) error
 Creates a new bucket.
 
 
@@ -216,7 +216,7 @@ if err != nil {
 ```
 
 <a name="ListObjects"></a>
-### ListObjects(bucketName string, prefix string, recursive bool, doneCh chan struct{}) <-chan ObjectInfo
+### ListObjects(bucketName, prefix string, recursive bool, doneCh chan struct{}) <-chan ObjectInfo
 
 Lists objects in a bucket.
 
@@ -267,7 +267,7 @@ for object := range objectCh {
 
 
 <a name="ListObjectsV2"></a>
-### ListObjectsV2(bucketName string, prefix string, recursive bool, doneCh chan struct{}) <-chan ObjectInfo
+### ListObjectsV2(bucketName, prefix string, recursive bool, doneCh chan struct{}) <-chan ObjectInfo
 
 Lists objects in a bucket using the recommended listing API v2
 
@@ -317,7 +317,7 @@ for object := range objectCh {
 ```
 
 <a name="ListIncompleteUploads"></a>
-### ListIncompleteUploads(bucketName string, prefix string, recursive bool, doneCh chan struct{}) <- chan ObjectMultipartInfo
+### ListIncompleteUploads(bucketName, prefix string, recursive bool, doneCh chan struct{}) <- chan ObjectMultipartInfo
 
 Lists partially uploaded objects in a bucket.
 
@@ -373,7 +373,7 @@ for multiPartObject := range multiPartObjectCh {
 ## 3. Object operations
 
 <a name="GetObject"></a>
-### GetObject(bucketName string, objectName string) (*Object, error)
+### GetObject(bucketName, objectName string) (*Object, error)
 
 Downloads an object.
 
@@ -418,7 +418,7 @@ if _, err = io.Copy(localFile, object); err != nil {
 ```
 
 <a name="FGetObject"></a>
-### FGetObject(bucketName string, objectName string, filePath string) error
+### FGetObject(bucketName, objectName, filePath string) error
  Downloads and saves the object as a file in the local filesystem.
 
 
@@ -446,7 +446,7 @@ if err != nil {
 ```
 
 <a name="PutObject"></a>
-### PutObject(bucketName string, objectName string, reader io.Reader, contentType string) (n int, err error)
+### PutObject(bucketName, objectName string, reader io.Reader, contentType string) (n int, err error)
 
 Uploads an object.
 
@@ -489,7 +489,7 @@ if err != nil {
 
 
 <a name="CopyObject"></a>
-### CopyObject(bucketName string, objectName string, objectSource string, conditions CopyConditions) error
+### CopyObject(bucketName, objectName, objectSource string, conditions CopyConditions) error
 
 Copy a source object into a new object with the provided name in the provided bucket.
 
@@ -545,7 +545,7 @@ if err != nil {
 ```
 
 <a name="FPutObject"></a>
-### FPutObject(bucketName string, objectName string, filePath string, contentType string) error
+### FPutObject(bucketName, objectName, filePath, contentType string) error
 
 Uploads contents from a file to objectName.
 
@@ -579,7 +579,7 @@ if err != nil {
 ```
 
 <a name="StatObject"></a>
-### StatObject(bucketName string, objectName string) (ObjectInfo, error)
+### StatObject(bucketName, objectName string) (ObjectInfo, error)
 
 Gets metadata of an object.
 
@@ -623,7 +623,7 @@ fmt.Println(objInfo)
 ```
 
 <a name="RemoveObject"></a>
-### RemoveObject(bucketName string, objectName string) error
+### RemoveObject(bucketName, objectName string) error
 
 Removes an object.
 
@@ -680,7 +680,7 @@ for e := range errorCh {
 
 
 <a name="RemoveIncompleteUpload"></a>
-### RemoveIncompleteUpload(bucketName string, objectName string) error
+### RemoveIncompleteUpload(bucketName, objectName string) error
 
 Removes a partially uploaded object.
 
@@ -709,7 +709,7 @@ if err != nil {
 
 
 <a name="PresignedGetObject"></a>
-### PresignedGetObject(bucketName string, objectName string, expiry time.Duration, reqParams url.Values) (*url.URL, error)
+### PresignedGetObject(bucketName, objectName string, expiry time.Duration, reqParams url.Values) (*url.URL, error)
 
 Generates a presigned URL for HTTP GET operations. Browsers/Mobile clients may point to this URL to directly download objects even if the bucket is private. This presigned URL can have an associated expiration time in seconds after which it is no longer operational. The default expiry is set to 7 days.
 
@@ -743,7 +743,7 @@ if err != nil {
 ```
 
 <a name="PresignedPutObject"></a>
-### PresignedPutObject(bucketName string, objectName string, expiry time.Duration) (*url.URL, error)
+### PresignedPutObject(bucketName, objectName string, expiry time.Duration) (*url.URL, error)
 
 Generates a presigned URL for HTTP PUT operations. Browsers/Mobile clients may point to this URL to upload objects directly to a bucket even if it is private. This presigned URL can have an associated expiration time in seconds after which it is no longer operational. The default expiry is set to 7 days.
 
@@ -832,7 +832,7 @@ fmt.Printf("%s\n", url)
 ## 5. Bucket policy/notification operations
 
 <a name="SetBucketPolicy"></a>
-### SetBucketPolicy(bucketname string, objectPrefix string, policy policy.BucketPolicy) error
+### SetBucketPolicy(bucketname, objectPrefix string, policy policy.BucketPolicy) error
 
 Set access permissions on bucket or an object prefix.
 
@@ -874,7 +874,7 @@ if err != nil {
 ```
 
 <a name="GetBucketPolicy"></a>
-### GetBucketPolicy(bucketName string, objectPrefix string) (policy.BucketPolicy, error)
+### GetBucketPolicy(bucketName, objectPrefix string) (policy.BucketPolicy, error)
 
 Get access permissions on a bucket or a prefix.
 
@@ -911,7 +911,7 @@ fmt.Println("Access permissions for mybucket is", bucketPolicy)
 ```
 
 <a name="ListBucketPolicies"></a>
-### ListBucketPolicies(bucketName string, objectPrefix string) (map[string]BucketPolicy, error)
+### ListBucketPolicies(bucketName, objectPrefix string) (map[string]BucketPolicy, error)
 
 Get access permissions rules associated to the specified bucket and prefix.
 
@@ -1109,7 +1109,7 @@ for notificationInfo := range minioClient.ListenBucketNotification("YOUR-BUCKET"
 ## 6. Client custom settings
 
 <a name="SetAppInfo"></a>
-### SetAppInfo(appName string, appVersion string)
+### SetAppInfo(appName, appVersion string)
 Adds application details to User-Agent.
 
 __Parameters__
