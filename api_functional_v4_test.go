@@ -1662,7 +1662,7 @@ func TestCopyObject(t *testing.T) {
 	}
 
 	// Set copy conditions.
-	copyConds := NewCopyConditions()
+	copyConds := CopyConditions{}
 
 	// Start by setting wrong conditions
 	err = copyConds.SetModified(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC))
@@ -1725,7 +1725,7 @@ func TestCopyObject(t *testing.T) {
 	}
 
 	// CopyObject again but with wrong conditions
-	copyConds = NewCopyConditions()
+	copyConds = CopyConditions{}
 	err = copyConds.SetUnmodified(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatal("Error:", err)

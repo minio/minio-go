@@ -511,7 +511,7 @@ __Example__
 ```go
 // Use-case-1
 // To copy an existing object to a new object with _no_ copy conditions.
-copyConditions := minio.NewCopyConditions()
+copyConditions := minio.CopyConditions{}
 err := minioClient.CopyObject("mybucket", "myobject", "my-sourcebucketname/my-sourceobjectname", copyConds)
 if err != nil {
     fmt.Println(err)
@@ -524,13 +524,13 @@ if err != nil {
 // 2. and modified after 1st April 2014
 // 3. but unmodified since 23rd April 2014
 
-// Set copy conditions.
-var copyConds = minio.NewCopyConditions()
+// Initialize empty copy conditions.
+var copyConds = minio.CopyConditions{}
 
 // copy object that matches the given ETag.
 copyConds.SetMatchETag("31624deb84149d2f8ef9c385918b653a")
 
-// and modified after 1st April 2014 
+// and modified after 1st April 2014
 copyConds.SetModified(time.Date(2014, time.April, 1, 0, 0, 0, 0, time.UTC))
 
 // but unmodified since 23rd April 2014
