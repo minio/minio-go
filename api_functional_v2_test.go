@@ -36,6 +36,9 @@ func TestMakeBucketErrorV2(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping functional tests for short runs")
 	}
+	if os.Getenv("S3_ADDRESS") != "s3.amazonaws.com" {
+		t.Skip("skipping region functional tests for non s3 runs")
+	}
 
 	// Seed random based on current time.
 	rand.Seed(time.Now().Unix())
@@ -570,6 +573,9 @@ func TestResumableFPutObjectV2(t *testing.T) {
 func TestMakeBucketRegionsV2(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping functional tests for short runs")
+	}
+	if os.Getenv("S3_ADDRESS") != "s3.amazonaws.com" {
+		t.Skip("skipping region functional tests for non s3 runs")
 	}
 
 	// Seed random based on current time.

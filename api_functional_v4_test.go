@@ -64,6 +64,9 @@ func TestMakeBucketError(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping functional tests for short runs")
 	}
+	if os.Getenv("S3_ADDRESS") != "s3.amazonaws.com" {
+		t.Skip("skipping region functional tests for non s3 runs")
+	}
 
 	// Seed random based on current time.
 	rand.Seed(time.Now().Unix())
@@ -109,6 +112,9 @@ func TestMakeBucketError(t *testing.T) {
 func TestMakeBucketRegions(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping functional tests for short runs")
+	}
+	if os.Getenv("S3_ADDRESS") != "s3.amazonaws.com" {
+		t.Skip("skipping region functional tests for non s3 runs")
 	}
 
 	// Seed random based on current time.
@@ -650,7 +656,8 @@ func TestRemoveMultipleObjects(t *testing.T) {
 			objectName := "sample" + strconv.Itoa(i) + ".txt"
 			_, err = c.PutObject(bucketName, objectName, r, "application/octet-stream")
 			if err != nil {
-				t.Fatal("Error: PutObject shouldn't fail.")
+				t.Error("Error: PutObject shouldn't fail.", err)
+				continue
 			}
 			objectsCh <- objectName
 		}
@@ -1787,6 +1794,13 @@ func TestCopyObject(t *testing.T) {
 func TestBucketNotification(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping functional tests for the short runs")
+	}
+	if os.Getenv("NOTIFY_BUCKET") == "" ||
+		os.Getenv("NOTIFY_SERVICE") == "" ||
+		os.Getenv("NOTIFY_REGION") == "" ||
+		os.Getenv("NOTIFY_ACCOUNTID") == "" ||
+		os.Getenv("NOTIFY_RESOURCE") == "" {
+		t.Skip("skipping notification test if not configured")
 	}
 
 	// Seed random based on current time.

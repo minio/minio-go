@@ -57,7 +57,6 @@ func TestGetEndpointURL(t *testing.T) {
 		{"s3.cn-north-1.amazonaws.com.cn", false, "http://s3.cn-north-1.amazonaws.com.cn", nil, true},
 		{"192.168.1.1:9000", false, "http://192.168.1.1:9000", nil, true},
 		{"192.168.1.1:9000", true, "https://192.168.1.1:9000", nil, true},
-		{"192.168.1.1::9000", false, "", fmt.Errorf("too many colons in address %s", "192.168.1.1::9000"), false},
 		{"13333.123123.-", true, "", fmt.Errorf("Endpoint: %s does not follow ip address or domain name standards.", "13333.123123.-"), false},
 		{"13333.123123.-", true, "", fmt.Errorf("Endpoint: %s does not follow ip address or domain name standards.", "13333.123123.-"), false},
 		{"s3.amazonaws.com:443", true, "", fmt.Errorf("Amazon S3 endpoint should be 's3.amazonaws.com'."), false},
