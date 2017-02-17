@@ -375,7 +375,7 @@ for multiPartObject := range multiPartObjectCh {
 <a name="GetObject"></a>
 ### GetObject(bucketName, objectName string) (*Object, error)
 
-Downloads an object.
+Returns a stream of the object data. Most of the common errors occur when reading the stream.
 
 
 __Parameters__
