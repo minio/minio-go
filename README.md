@@ -1,4 +1,4 @@
-# Minio Go Client SDK for Amazon S3 Compatible Cloud Storage [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io)
+# Minio Go Client SDK for Amazon S3 Compatible Cloud Storage [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io) [![API Testing](https://img.shields.io/badge/API%20Test-RapidAPI-blue.svg)](https://rapidapi.com/package/AmazonS3?utm_source=AmazonS3Github&utm_medium=button&utm_content=Vender_GitHub)
 
 The Minio Go Client SDK provides simple APIs to access any Amazon S3 compatible object storage.
 
