@@ -511,7 +511,7 @@ __Example__
 ```go
 // Use-case-1
 // To copy an existing object to a new object with _no_ copy conditions.
-copyConditions := minio.CopyConditions{}
+copyConds := minio.CopyConditions{}
 err := minioClient.CopyObject("mybucket", "myobject", "my-sourcebucketname/my-sourceobjectname", copyConds)
 if err != nil {
     fmt.Println(err)
