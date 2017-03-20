@@ -1017,11 +1017,11 @@ __Parameters__
 |:---|:---| :---|
 |`bucketName` | _string_  |Name of the bucket|
 |`objectPrefix` | _string_  |Name of the object prefix|
-|`policy` | _policy.BucketPolicy_  |Policy can be one of the following: |
-||  |policy.BucketPolicyNone|
-| |  |policy.BucketPolicyReadOnly|
-||   |policy.BucketPolicyReadWrite|
-| | |policy.BucketPolicyWriteOnly|
+|`policy` | _policy.BucketPolicy_  |Policy can be one of the following, |
+| |  | _policy.BucketPolicyNone_ |
+| |  | _policy.BucketPolicyReadOnly_ |
+| |  | _policy.BucketPolicyReadWrite_ |
+| |  | _policy.BucketPolicyWriteOnly_ |
 
 
 __Return Values__
