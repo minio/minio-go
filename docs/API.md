@@ -74,7 +74,6 @@ Initializes a new client object.
 
 __Parameters__
 
-
 |Param   |Type   |Description   |
 |:---|:---| :---|
 |`endpoint`   | _string_  |S3 compatible object storage endpoint   |
@@ -82,13 +81,24 @@ __Parameters__
 |`secretAccessKey`  | _string_  |Secret key for the object storage |
 |`ssl`   | _bool_  | If 'true' API requests will be secure (HTTPS), and insecure (HTTP) otherwise  |
 
+### NewWithRegion(endpoint, accessKeyID, secretAccessKey string, ssl bool, region string) (*Client, error)
+Initializes minio client, with region configured. Unlike New(), NewWithRegion avoids bucket-location lookup operations and it is slightly faster. Use this function when if your application deals with single region.
+
+__Parameters__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`endpoint`   | _string_  |S3 compatible object storage endpoint |
+|`accessKeyID`  |_string_   |Access key for the object storage |
+|`secretAccessKey`  | _string_  |Secret key for the object storage |
+|`ssl` | _bool_  | If 'true' API requests will be secure (HTTPS), and insecure (HTTP) otherwise |
+|`region`| _string_ | Region for the object storage |
 
 ## 2. Bucket operations
 
 <a name="MakeBucket"></a>
 ### MakeBucket(bucketName, location string) error
 Creates a new bucket.
-
 
 __Parameters__
 
