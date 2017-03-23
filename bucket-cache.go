@@ -84,9 +84,6 @@ func (c Client) getBucketLocation(bucketName string) (string, error) {
 	if err := isValidBucketName(bucketName); err != nil {
 		return "", err
 	}
-	if location, ok := c.bucketLocCache.Get(bucketName); ok {
-		return location, nil
-	}
 
 	if s3utils.IsAmazonChinaEndpoint(c.endpointURL) {
 		// For china specifically we need to set everything to
@@ -94,6 +91,15 @@ func (c Client) getBucketLocation(bucketName string) (string, error) {
 		// provides a cleaner compatible API across "us-east-1" and
 		// China region.
 		return "cn-north-1", nil
+	}
+
+	// Region set then no need to fetch bucket location.
+	if c.region != "" {
+		return c.region, nil
+	}
+
+	if location, ok := c.bucketLocCache.Get(bucketName); ok {
+		return location, nil
 	}
 
 	// Initialize a new request.
