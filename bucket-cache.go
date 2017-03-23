@@ -125,7 +125,7 @@ func processBucketLocationResponse(resp *http.Response, bucketName string) (buck
 			// For access denied error, it could be an anonymous
 			// request. Move forward and let the top level callers
 			// succeed if possible based on their policy.
-			if errResp.Code == "AccessDenied" && (errResp.Message == "" || strings.Contains(errResp.Message, "Access Denied")) {
+			if errResp.Code == "AccessDenied" {
 				return "us-east-1", nil
 			}
 			return "", err
