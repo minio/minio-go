@@ -5,7 +5,6 @@
 ##  Minio
 
 ```go
-
 package main
 
 import (
@@ -25,13 +24,11 @@ func main() {
                 return
         }
 }
-
 ```
 
 ## AWS S3
 
 ```go
-
 package main
 
 import (
@@ -51,7 +48,6 @@ func main() {
                 return
         }
 }
-
 ```
 
 | Bucket operations  |Object operations | Encrypted Object operations  | Presigned operations  | Bucket Policy/Notification Operations | Client custom settings |
@@ -121,14 +117,12 @@ __Example__
 
 
 ```go
-
 err := minioClient.MakeBucket("mybucket", "us-east-1")
 if err != nil {
     fmt.Println(err)
     return
 }
 fmt.Println("Successfully created mybucket.")
-
 ```
 
 <a name="ListBuckets"></a>
@@ -151,7 +145,6 @@ __Example__
 
 
 ```go
-
 buckets, err := minioClient.ListBuckets()
     if err != nil {
     fmt.Println(err)
@@ -160,7 +153,6 @@ buckets, err := minioClient.ListBuckets()
 for _, bucket := range buckets {
     fmt.Println(bucket)
 }
-
 ```
 
 <a name="BucketExists"></a>
@@ -188,7 +180,6 @@ __Example__
 
 
 ```go
-
 found, err := minioClient.BucketExists("mybucket")
 if err != nil {
     fmt.Println(err)
@@ -197,7 +188,6 @@ if err != nil {
 if found {
     fmt.Println("Bucket found")
 }
-
 ```
 
 <a name="RemoveBucket"></a>
@@ -216,13 +206,11 @@ __Example__
 
 
 ```go
-
 err := minioClient.RemoveBucket("mybucket")
 if err != nil {
     fmt.Println(err)
     return
 }
-
 ```
 
 <a name="ListObjects"></a>
@@ -256,7 +244,6 @@ __Return Value__
 
 
 ```go
-
 // Create a done channel to control 'ListObjects' go routine.
 doneCh := make(chan struct{})
 
@@ -272,7 +259,6 @@ for object := range objectCh {
     }
     fmt.Println(object)
 }
-
 ```
 
 
@@ -307,7 +293,6 @@ __Return Value__
 
 
 ```go
-
 // Create a done channel to control 'ListObjectsV2' go routine.
 doneCh := make(chan struct{})
 
@@ -323,7 +308,6 @@ for object := range objectCh {
     }
     fmt.Println(object)
 }
-
 ```
 
 <a name="ListIncompleteUploads"></a>
@@ -361,7 +345,6 @@ __Example__
 
 
 ```go
-
 // Create a done channel to control 'ListObjects' go routine.
 doneCh := make(chan struct{})
 
@@ -377,7 +360,6 @@ for multiPartObject := range multiPartObjectCh {
     }
     fmt.Println(multiPartObject)
 }
-
 ```
 
 ## 3. Object operations
@@ -409,7 +391,6 @@ __Example__
 
 
 ```go
-
 object, err := minioClient.GetObject("mybucket", "photo.jpg")
 if err != nil {
     fmt.Println(err)
@@ -424,7 +405,6 @@ if _, err = io.Copy(localFile, object); err != nil {
     fmt.Println(err)
     return
 }
-
 ```
 
 <a name="FGetObject"></a>
@@ -446,13 +426,11 @@ __Example__
 
 
 ```go
-
 err := minioClient.FGetObject("mybucket", "photo.jpg", "/tmp/photo.jpg")
 if err != nil {
     fmt.Println(err)
     return
 }
-
 ```
 
 <a name="PutObject"></a>
@@ -481,7 +459,6 @@ In the event that PutObject fails to upload an object, the user may attempt to r
 
 
 ```go
-
 file, err := os.Open("my-testfile")
 if err != nil {
     fmt.Println(err)
@@ -494,7 +471,6 @@ if err != nil {
     fmt.Println(err)
     return
 }
-
 ```
 
 
@@ -551,7 +527,6 @@ if err != nil {
     fmt.Println(err)
     return
 }
-
 ```
 
 <a name="FPutObject"></a>
@@ -579,13 +554,11 @@ FPutObject uploads objects that are less than 64MiB in a single PUT operation. F
 In the event that FPutObject fails to upload an object, the user may attempt to re-upload the same object. If the same object is being uploaded, FPutObject API examines the previous partial attempt to upload this object and resumes automatically from where it left off.
 
 ```go
-
 n, err := minioClient.FPutObject("mybucket", "myobject.csv", "/tmp/otherobject.csv", "application/csv")
 if err != nil {
     fmt.Println(err)
     return
 }
-
 ```
 
 <a name="StatObject"></a>
@@ -622,14 +595,12 @@ __Return Value__
 
 
 ```go
-
 objInfo, err := minioClient.StatObject("mybucket", "photo.jpg")
 if err != nil {
     fmt.Println(err)
     return
 }
 fmt.Println(objInfo)
-
 ```
 
 <a name="RemoveObject"></a>
@@ -648,13 +619,11 @@ __Parameters__
 
 
 ```go
-
 err := minioClient.RemoveObject("mybucket", "photo.jpg")
 if err != nil {
     fmt.Println(err)
     return
 }
-
 ```
 <a name="RemoveObjects"></a>
 ### RemoveObjects(bucketName string, objectsCh chan string) errorCh chan minio.RemoveObjectError
@@ -679,12 +648,10 @@ __Return Values__
 
 
 ```go
-
 errorCh := minioClient.RemoveObjects("mybucket", objectsCh)
 for e := range errorCh {
     fmt.Println("Error detected during deletion: " + e.Err.Error())
 }
-
 ```
 
 
@@ -706,13 +673,11 @@ __Example__
 
 
 ```go
-
 err := minioClient.RemoveIncompleteUpload("mybucket", "photo.jpg")
 if err != nil {
     fmt.Println(err)
     return
 }
-
 ```
 
 ## 4. Encrypted object operations
@@ -910,7 +875,6 @@ __Example__
 
 
 ```go
-
 // Set request parameters for content-disposition.
 reqParams := make(url.Values)
 reqParams.Set("response-content-disposition", "attachment; filename=\"your-filename.txt\"")
@@ -921,7 +885,6 @@ if err != nil {
     fmt.Println(err)
     return
 }
-
 ```
 
 <a name="PresignedPutObject"></a>
@@ -947,7 +910,6 @@ __Example__
 
 
 ```go
-
 // Generates a url which expires in a day.
 expiry := time.Second * 24 * 60 * 60 // 1 day.
 presignedURL, err := minioClient.PresignedPutObject("mybucket", "myobject", expiry)
@@ -956,7 +918,6 @@ if err != nil {
     return
 }
 fmt.Println(presignedURL)
-
 ```
 
 <a name="PresignedPostPolicy"></a>
@@ -968,16 +929,13 @@ Create policy :
 
 
 ```go
-
 policy := minio.NewPostPolicy()
-
 ```
 
 Apply upload policy restrictions:
 
 
 ```go
-
 policy.SetBucket("mybucket")
 policy.SetKey("myobject")
 policy.SetExpires(time.Now().UTC().AddDate(0, 0, 10)) // expires in 10 days
@@ -995,7 +953,6 @@ if err != nil {
     fmt.Println(err)
     return
 }
-
 ```
 
 
@@ -1046,13 +1003,11 @@ __Example__
 
 
 ```go
-
 err := minioClient.SetBucketPolicy("mybucket", "myprefix", policy.BucketPolicyReadWrite)
 if err != nil {
     fmt.Println(err)
     return
 }
-
 ```
 
 <a name="GetBucketPolicy"></a>
@@ -1082,14 +1037,12 @@ __Example__
 
 
 ```go
-
 bucketPolicy, err := minioClient.GetBucketPolicy("mybucket", "")
 if err != nil {
     fmt.Println(err)
     return
 }
 fmt.Println("Access permissions for mybucket is", bucketPolicy)
-
 ```
 
 <a name="ListBucketPolicies"></a>
@@ -1117,7 +1070,6 @@ __Example__
 
 
 ```go
-
 bucketPolicies, err := minioClient.ListBucketPolicies("mybucket", "")
 if err != nil {
     fmt.Println(err)
@@ -1126,7 +1078,6 @@ if err != nil {
 for resource, permission := range bucketPolicies {
     fmt.Println(resource, " => ", permission)
 }
-
 ```
 
 <a name="GetBucketNotification"></a>
@@ -1269,7 +1220,6 @@ __Example__
 
 
 ```go
-
 // Create a done channel to control 'ListenBucketNotification' go routine.
 doneCh := make(chan struct{})
 
@@ -1306,10 +1256,8 @@ __Example__
 
 
 ```go
-
 // Set Application name and version to be used in subsequent API requests.
 minioClient.SetAppInfo("myCloudApp", "1.0.0")
-
 ```
 
 <a name="SetCustomTransport"></a>
