@@ -1229,6 +1229,7 @@ defer close(doneCh)
 // Listen for bucket notifications on "mybucket" filtered by prefix, suffix and events.
 for notificationInfo := range minioClient.ListenBucketNotification("YOUR-BUCKET", "PREFIX", "SUFFIX", []string{
     "s3:ObjectCreated:*",
+    "s3:ObjectAccessed:*",
     "s3:ObjectRemoved:*",
     }, doneCh) {
     if notificationInfo.Err != nil {
