@@ -40,9 +40,8 @@ func (c Core) ListObjects(bucket, prefix, marker, delimiter string, maxKeys int)
 }
 
 // PutObject - Upload object. Uploads using single PUT call.
-func (c Core) PutObject(bucket, object string, size int64, data io.Reader, metadata map[string][]string) error {
-	_, err := c.putObjectSingle(bucket, object, data, size, metadata, nil)
-	return err
+func (c Core) PutObject(bucket, object string, size int64, data io.Reader, md5Sum []byte, sha256Sum []byte, metadata map[string][]string) (ObjectInfo, error) {
+	return c.putObjectDo(bucket, object, data, md5Sum, sha256Sum, size, metadata)
 }
 
 // NewMultipartUpload - Initiates new multipart upload and returns the new uploaID.
