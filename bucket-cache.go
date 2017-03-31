@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"strings"
 	"sync"
 
 	"github.com/minio/minio-go/pkg/s3signer"
