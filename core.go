@@ -17,6 +17,7 @@
 package minio
 
 import "io"
+import "encoding/hex"
 
 // Inherits Client and adds new methods to expose the low level S3 APIs.
 type Core struct {
@@ -40,8 +41,23 @@ func (c Core) ListObjects(bucket, prefix, marker, delimiter string, maxKeys int)
 }
 
 // PutObject - Upload object. Uploads using single PUT call.
-func (c Core) PutObject(bucket, object string, size int64, data io.Reader, md5Sum []byte, sha256Sum []byte, metadata map[string][]string) (ObjectInfo, error) {
-	return c.putObjectDo(bucket, object, data, md5Sum, sha256Sum, size, metadata)
+func (c Core) PutObject(bucket, object string, size int64, data io.Reader, md5Sum string, sha256Sum string, metadata map[string][]string) (ObjectInfo, error) {
+	var md5SumBytes []byte
+	var sha256SumBytes []byte
+	var err error
+	if md5Sum != "" {
+		md5SumBytes, err = hex.DecodeString(md5Sum)
+		if err != nil {
+			return ObjectInfo{}, err
+		}
+	}
+	if sha256Sum != "" {
+		sha256SumBytes, err = hex.DecodeString(sha256Sum)
+		if err != nil {
+			return ObjectInfo{}, err
+		}
+	}
+	return c.putObjectDo(bucket, object, data, md5SumBytes, sha256SumBytes, size, metadata)
 }
 
 // NewMultipartUpload - Initiates new multipart upload and returns the new uploaID.
@@ -56,8 +72,23 @@ func (c Core) ListMultipartUploads(bucket, prefix, keyMarker, uploadIDMarker, de
 }
 
 // PutObjectPart - Upload an object part.
-func (c Core) PutObjectPart(bucket, object, uploadID string, partID int, size int64, data io.Reader, md5Hex, sha256sum []byte) (ObjectPart, error) {
-	return c.uploadPart(bucket, object, uploadID, data, partID, md5Hex, sha256sum, size)
+func (c Core) PutObjectPart(bucket, object, uploadID string, partID int, size int64, data io.Reader, md5Sum, sha256Sum string) (ObjectPart, error) {
+	var md5SumBytes []byte
+	var sha256SumBytes []byte
+	var err error
+	if md5Sum != "" {
+		md5SumBytes, err = hex.DecodeString(md5Sum)
+		if err != nil {
+			return ObjectPart{}, err
+		}
+	}
+	if sha256Sum != "" {
+		sha256SumBytes, err = hex.DecodeString(sha256Sum)
+		if err != nil {
+			return ObjectPart{}, err
+		}
+	}
+	return c.uploadPart(bucket, object, uploadID, data, partID, md5SumBytes, sha256SumBytes, size)
 }
 
 // ListObjectParts - List uploaded parts of an incomplete upload.
