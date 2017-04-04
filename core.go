@@ -39,6 +39,11 @@ func (c Core) ListObjects(bucket, prefix, marker, delimiter string, maxKeys int)
 	return c.listObjectsQuery(bucket, prefix, marker, delimiter, maxKeys)
 }
 
+// ListObjectsV2 - List the objects.
+func (c Core) ListObjectsV2(bucketName, objectPrefix, continuationToken string, fetchOwner bool, delimiter string, maxkeys int) (ListBucketV2Result, error) {
+	return c.listObjectsV2Query(bucketName, objectPrefix, continuationToken, fetchOwner, delimiter, maxkeys)
+}
+
 // PutObject - Upload object. Uploads using single PUT call.
 func (c Core) PutObject(bucket, object string, size int64, data io.Reader, md5Sum, sha256Sum []byte, metadata map[string][]string) (ObjectInfo, error) {
 	return c.putObjectDo(bucket, object, data, md5Sum, sha256Sum, size, metadata)
