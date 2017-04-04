@@ -625,14 +625,6 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 		return req, nil
 	}
 
-	// FIXME: Enable this when Google Cloud Storage properly supports 100-continue.
-	// Skip setting 'expect' header for Google Cloud Storage, there
-	// are some known issues - https://github.com/restic/restic/issues/520
-	if !s3utils.IsGoogleEndpoint(c.endpointURL) && c.s3AccelerateEndpoint == "" {
-		// Set 'Expect' header for the request.
-		req.Header.Set("Expect", "100-continue")
-	}
-
 	// Set 'User-Agent' header for the request.
 	c.setUserAgent(req)
 
