@@ -20,6 +20,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/minio/minio-go/pkg/encrypt"
 	"github.com/minio/minio-go/pkg/s3utils"
 )
 
@@ -31,7 +32,7 @@ func (c Client) PutObjectWithProgress(bucketName, objectName string, reader io.R
 }
 
 // PutEncryptedObject - Encrypt and store object.
-func (c Client) PutEncryptedObject(bucketName, objectName string, reader io.Reader, encryptMaterials EncryptionMaterials, metaData map[string][]string, progress io.Reader) (n int64, err error) {
+func (c Client) PutEncryptedObject(bucketName, objectName string, reader io.Reader, encryptMaterials encrypt.Materials, metaData map[string][]string, progress io.Reader) (n int64, err error) {
 
 	if encryptMaterials == nil {
 		return 0, ErrInvalidArgument("Unable to recognize empty encryption properties")
@@ -44,9 +45,11 @@ func (c Client) PutEncryptedObject(bucketName, objectName string, reader io.Read
 	if metaData == nil {
 		metaData = make(map[string][]string)
 	}
-	for k, v := range encryptMaterials.GetHeaders() {
-		metaData[k] = v
-	}
+
+	// Set the necessary encryption headers, for future decryption.
+	metaData[amzHeaderIV] = []string{encryptMaterials.GetIV()}
+	metaData[amzHeaderKey] = []string{encryptMaterials.GetKey()}
+	metaData[amzHeaderMatDesc] = []string{encryptMaterials.GetDesc()}
 
 	return c.PutObjectWithMetadata(bucketName, objectName, encryptMaterials, metaData, progress)
 }

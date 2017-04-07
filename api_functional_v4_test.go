@@ -32,6 +32,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/minio/minio-go/pkg/encrypt"
 	"github.com/minio/minio-go/pkg/policy"
 )
 
@@ -1828,7 +1829,7 @@ func TestEncryptionPutGet(t *testing.T) {
 	}
 
 	// Generate a symmetric key
-	symKey := NewSymmetricKey([]byte("my-secret-key-00"))
+	symKey := encrypt.NewSymmetricKey([]byte("my-secret-key-00"))
 
 	// Generate an assymmetric key from predefine public and private certificates
 	privateKey, err := hex.DecodeString(
@@ -1870,7 +1871,7 @@ func TestEncryptionPutGet(t *testing.T) {
 	}
 
 	// Generate an asymmetric key
-	asymKey, err := NewAsymmetricKey(privateKey, publicKey)
+	asymKey, err := encrypt.NewAsymmetricKey(privateKey, publicKey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1880,7 +1881,7 @@ func TestEncryptionPutGet(t *testing.T) {
 
 	testCases := []struct {
 		buf    []byte
-		encKey EncryptionKey
+		encKey encrypt.Key
 	}{
 		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 0)},
 		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 1)},
@@ -1907,7 +1908,7 @@ func TestEncryptionPutGet(t *testing.T) {
 		objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 
 		// Secured object
-		cbcMaterials, err := NewCBCSecureMaterials(testCase.encKey)
+		cbcMaterials, err := encrypt.NewCBCSecureMaterials(testCase.encKey)
 		if err != nil {
 			t.Fatal(err)
 		}
