@@ -50,3 +50,10 @@ const (
 	signV4Algorithm   = "AWS4-HMAC-SHA256"
 	iso8601DateFormat = "20060102T150405Z"
 )
+
+// Encryption headers stored along with the object.
+const (
+	amzHeaderIV      = "X-Amz-Meta-X-Amz-Iv"
+	amzHeaderKey     = "X-Amz-Meta-X-Amz-Key"
+	amzHeaderMatDesc = "X-Amz-Meta-X-Amz-Matdesc"
+)
