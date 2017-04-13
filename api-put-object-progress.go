@@ -99,24 +99,6 @@ func (c Client) PutObjectWithMetadata(bucketName, objectName string, reader io.R
 		return c.putObjectNoChecksum(bucketName, objectName, reader, size, metaData, progress)
 	}
 
-	// NOTE: S3 doesn't allow anonymous multipart requests.
-	if s3utils.IsAmazonEndpoint(c.endpointURL) && c.anonymous {
-		if size <= -1 {
-			return 0, ErrorResponse{
-				Code:       "NotImplemented",
-				Message:    "Content-Length cannot be negative for anonymous requests.",
-				Key:        objectName,
-				BucketName: bucketName,
-			}
-		}
-		if size > maxSinglePutObjectSize {
-			return 0, ErrEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
-		}
-		// Do not compute MD5 for anonymous requests to Amazon
-		// S3. Uploads up to 5GiB in size.
-		return c.putObjectNoChecksum(bucketName, objectName, reader, size, metaData, progress)
-	}
-
 	// putSmall object.
 	if size < minPartSize && size >= 0 {
 		return c.putObjectSingle(bucketName, objectName, reader, size, metaData, progress)
