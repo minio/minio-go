@@ -101,7 +101,7 @@ __Parameters__
 | Param  | Type  | Description  |
 |---|---|---|
 |`bucketName`  | _string_  | Name of the bucket |
-| `location`  |  _string_ | Region where the bucket is to be created. Default value is us-east-1. Other valid values are listed below. Note: When used with minio server, use the region specified in its config file (defaults to us-east-1).|
+| `location`  |  _string_ | Region where the bucket is to be created. Default value is us-east-1. Other valid values are listed below. Note: When used with minio server, use the region specified in its config file (defaults to us-east-1).When used with ceph's s3 API, always use use-east-1|
 | | |us-east-1 |
 | | |us-west-1 |
 | | |us-west-2 |
