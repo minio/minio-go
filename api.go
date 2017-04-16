@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -424,7 +425,7 @@ func (c Client) do(req *http.Request) (*http.Response, error) {
 				return nil, &url.Error{
 					Op:  urlErr.Op,
 					URL: urlErr.URL,
-					Err: fmt.Errorf("Connection closed by foreign host %s. Retry again.", urlErr.URL),
+					Err: errors.New("Connection closed by foreign host " + urlErr.URL + ". Retry again."),
 				}
 			}
 			return nil, err
