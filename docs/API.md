@@ -530,7 +530,7 @@ if err != nil {
 ```
 
 <a name="FPutObject"></a>
-### FPutObject(bucketName, objectName, filePath, contentType string) (length int, err error)
+### FPutObject(bucketName, objectName, filePath, contentType string) (length int64, err error)
 
 Uploads contents from a file to objectName.
 
