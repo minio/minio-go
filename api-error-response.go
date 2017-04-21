@@ -93,7 +93,7 @@ func httpRespToErrorResponse(resp *http.Response, bucketName, objectName string)
 	var errResp ErrorResponse
 	err := xmlDecoder(resp.Body, &errResp)
 	// Xml decoding failed with no body, fall back to HTTP headers.
-	if err != nil {
+	if err != nil || errResp.Message == ""  {
 		switch resp.StatusCode {
 		case http.StatusNotFound:
 			if objectName == "" {
