@@ -261,3 +261,21 @@ func TestErrInvalidArgument(t *testing.T) {
 		t.Errorf("Expected result to be '%+v', but instead got '%+v'", expectedResult, actualResult)
 	}
 }
+
+// Tests if the Message field is missing.
+func TestErrWithoutMessage(t *testing.T) {
+	errResp := ErrorResponse{
+		Code:      "AccessDenied",
+		RequestID: "minio",
+	}
+	if errResp.Error() != "Access Denied." {
+		t.Errorf("Expected \"Access Denied.\", got %s", errResp)
+	}
+	errResp = ErrorResponse{
+		Code:      "InvalidArgument",
+		RequestID: "minio",
+	}
+	if errResp.Error() != "Error response code InvalidArgument." {
+		t.Errorf("Expected \"Error response code InvalidArgument.\", got %s", errResp)
+	}
+}
