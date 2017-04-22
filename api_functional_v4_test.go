@@ -354,6 +354,68 @@ func TestPutObjectWithMetadata(t *testing.T) {
 	}
 }
 
+// Test put object with streaming signature.
+func TestPutObjectStreaming(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping function tests for short runs")
+	}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := NewWithRegion(
+		os.Getenv("S3_ADDRESS"),
+		os.Getenv("ACCESS_KEY"),
+		os.Getenv("SECRET_KEY"),
+		mustParseBool(os.Getenv("S3_SECURE")),
+		"us-east-1",
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()),
+		"minio-go-test")
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+
+	// Upload an object.
+	sizes := []int64{0, 64*1024 - 1, 64 * 1024}
+	objectName := "test-object"
+	for i, size := range sizes {
+		data := bytes.Repeat([]byte("a"), int(size))
+		n, err := c.PutObjectStreaming(bucketName, objectName, bytes.NewReader(data), size)
+		if err != nil {
+			t.Fatalf("Test %d Error: %v %s %s", i+1, err, bucketName, objectName)
+		}
+
+		if n != size {
+			t.Errorf("Test %d Expected upload object size %d but got %d", i+1, size, n)
+		}
+	}
+
+	// Remove the object.
+	err = c.RemoveObject(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Remove the bucket.
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+}
+
 // Test listing partially uploaded objects.
 func TestListPartiallyUploaded(t *testing.T) {
 	if testing.Short() {
