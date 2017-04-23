@@ -39,6 +39,8 @@ import (
 	"github.com/minio/minio-go/pkg/s3utils"
 )
 
+var MAX_RETRY_ERROR error = errors.New("max retry reached")
+
 // Client implements Amazon S3 compatible methods.
 type Client struct {
 	///  Standard options.
@@ -486,6 +488,8 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 	// Indicate to our routine to exit cleanly upon return.
 	defer close(doneCh)
 
+	var retryCount int
+
 	// Blank indentifier is kept here on purpose since 'range' without
 	// blank identifiers is only supported since go1.4
 	// https://golang.org/doc/go1.4#forrange.
@@ -514,6 +518,7 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 		}
 
 		// Initiate the request.
+		retryCount++
 		res, err = c.do(req)
 		if err != nil {
 			// For supported network errors verify.
@@ -568,6 +573,12 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 		// For all other cases break out of the retry loop.
 		break
 	}
+
+	// if we got out of the loop due to max retry, err may not have been set
+	if err == nil && retryCount >= MaxRetry {
+		err = MAX_RETRY_ERROR
+	}
+
 	return res, err
 }
 
