@@ -19,7 +19,6 @@ package s3signer
 import (
 	"bytes"
 	"io/ioutil"
-	"strconv"
 	"testing"
 	"time"
 )
@@ -40,10 +39,10 @@ func TestGetSeedSignature(t *testing.T) {
 		t.Fatalf("Failed to parse time - %v", err)
 	}
 
-	req = NewStreamingSignV4(req, accessKeyID, secretAccessKeyID, "us-east-1", int64(dataLen), reqTime)
+	req = StreamingSignV4(req, accessKeyID, secretAccessKeyID, "us-east-1", int64(dataLen), reqTime)
 	actualSeedSignature := req.Body.(*StreamingReader).seedSignature
 
-	expectedSeedSignature := "4f232c4386841ef735655705268965c44a0e4690baa4adea153f7db9fa80a0a9"
+	expectedSeedSignature := "007480502de61457e955731b0f5d191f7e6f54a8a0f6cc7974a5ebd887965686"
 	if actualSeedSignature != expectedSeedSignature {
 		t.Errorf("Expected %s but received %s", expectedSeedSignature, actualSeedSignature)
 	}
@@ -73,9 +72,9 @@ func TestSetStreamingAuthorization(t *testing.T) {
 
 	dataLen := int64(65 * 1024)
 	reqTime, _ := time.Parse(iso8601DateFormat, "20130524T000000Z")
-	req = NewStreamingSignV4(req, accessKeyID, secretAccessKeyID, location, dataLen, reqTime)
+	req = StreamingSignV4(req, accessKeyID, secretAccessKeyID, location, dataLen, reqTime)
 
-	expectedAuthorization := "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request,SignedHeaders=content-encoding;content-length;host;x-amz-content-sha256;x-amz-date;x-amz-decoded-content-length;x-amz-storage-class,Signature=4f232c4386841ef735655705268965c44a0e4690baa4adea153f7db9fa80a0a9"
+	expectedAuthorization := "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request,SignedHeaders=content-encoding;host;x-amz-content-sha256;x-amz-date;x-amz-decoded-content-length;x-amz-storage-class,Signature=007480502de61457e955731b0f5d191f7e6f54a8a0f6cc7974a5ebd887965686"
 
 	actualAuthorization := req.Header.Get("Authorization")
 	if actualAuthorization != expectedAuthorization {
@@ -92,12 +91,12 @@ func TestStreamingReader(t *testing.T) {
 
 	req := NewRequest("PUT", "/examplebucket/chunkObject.txt", nil)
 	req.Header.Set("x-amz-storage-class", "REDUCED_REDUNDANCY")
-	req.Header.Set("Content-Length", strconv.FormatInt(65*1024, 10))
+	req.ContentLength = 65 * 1024
 	req.URL.Host = "s3.amazonaws.com"
 
 	baseReader := ioutil.NopCloser(bytes.NewReader(bytes.Repeat([]byte("a"), 65*1024)))
 	req.Body = baseReader
-	req = NewStreamingSignV4(req, accessKeyID, secretAccessKeyID, location, dataLen, reqTime)
+	req = StreamingSignV4(req, accessKeyID, secretAccessKeyID, location, dataLen, reqTime)
 
 	b, err := ioutil.ReadAll(req.Body)
 	if err != nil {

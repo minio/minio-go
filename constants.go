@@ -45,6 +45,9 @@ const optimalReadBufferSize = 1024 * 1024 * 5
 // we don't want to sign the request payload
 const unsignedPayload = "UNSIGNED-PAYLOAD"
 
+// Total number of parallel workers used for multipart operation.
+var totalWorkers = 3
+
 // Signature related constants.
 const (
 	signV4Algorithm   = "AWS4-HMAC-SHA256"

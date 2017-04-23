@@ -123,17 +123,18 @@ func (c Client) PutObjectWithMetadata(bucketName, objectName string, reader io.R
 }
 
 // PutObjectStreaming using AWS streaming signature V4
-func (c Client) PutObjectStreaming(bucketName, objectName string, reader io.Reader, size int64) (n int64, err error) {
-	if size < 0 {
-		return 0, ErrInvalidArgument("Size can't be negative.")
-	}
+func (c Client) PutObjectStreaming(bucketName, objectName string, reader io.Reader) (n int64, err error) {
+	return c.PutObjectStreamingWithProgress(bucketName, objectName, reader, nil, nil)
+}
 
-	// Check for largest object size allowed.
-	if size > int64(maxMultipartPutObjectSize) {
-		return 0, ErrEntityTooLarge(size, maxMultipartPutObjectSize, bucketName, objectName)
-	}
+// PutObjectStreamingWithMetadata using AWS streaming signature V4
+func (c Client) PutObjectStreamingWithMetadata(bucketName, objectName string, reader io.Reader, metadata map[string][]string) (n int64, err error) {
+	return c.PutObjectStreamingWithProgress(bucketName, objectName, reader, metadata, nil)
+}
 
-	// Note: Streaming signature is not supported by GCS.
+// PutObjectStreamingWithProgress using AWS streaming signature V4
+func (c Client) PutObjectStreamingWithProgress(bucketName, objectName string, reader io.Reader, metadata map[string][]string, progress io.Reader) (n int64, err error) {
+	// NOTE: Streaming signature is not supported by GCS.
 	if s3utils.IsGoogleEndpoint(c.endpointURL) {
 		return 0, ErrorResponse{
 			Code:       "NotImplemented",
@@ -142,16 +143,45 @@ func (c Client) PutObjectStreaming(bucketName, objectName string, reader io.Read
 			BucketName: bucketName,
 		}
 	}
-
-	// Set signature type to streaming signature v4.
-	c.signature = ChunkedV4
-
-	if size < minPartSize && size >= 0 {
-		return c.putObjectNoChecksum(bucketName, objectName, reader, size, nil, nil)
+	// This method should return error with signature v2 minioClient.
+	if c.signature.isV2() {
+		return 0, ErrorResponse{
+			Code:       "NotImplemented",
+			Message:    "AWS streaming signature v4 is not supported with minio client initialized for AWS signature v2",
+			Key:        objectName,
+			BucketName: bucketName,
+		}
 	}
 
-	// For all sizes greater than 5MiB do multipart.
-	n, err = c.putObjectMultipartStreamNoChecksum(bucketName, objectName, reader, size, nil, nil)
+	// Size of the object.
+	var size int64
+
+	// Get reader size.
+	size, err = getReaderSize(reader)
+	if err != nil {
+		return 0, err
+	}
+
+	// Check for largest object size allowed.
+	if size > int64(maxMultipartPutObjectSize) {
+		return 0, ErrEntityTooLarge(size, maxMultipartPutObjectSize, bucketName, objectName)
+	}
+
+	// If size cannot be found on a stream, it is not possible
+	// to upload using streaming signature, fall back to multipart.
+	if size < 0 {
+		return c.putObjectMultipartStream(bucketName, objectName, reader, size, metadata, progress)
+	}
+
+	// Set signature type to streaming signature v4.
+	c.signature = SignatureV4Streaming
+
+	if size < minPartSize && size >= 0 {
+		return c.putObjectNoChecksum(bucketName, objectName, reader, size, metadata, progress)
+	}
+
+	// For all sizes greater than 64MiB do multipart.
+	n, err = c.putObjectMultipartStreamNoChecksum(bucketName, objectName, reader, size, metadata, progress)
 	if err != nil {
 		errResp := ToErrorResponse(err)
 		// Verify if multipart functionality is not available, if not
@@ -162,7 +192,7 @@ func (c Client) PutObjectStreaming(bucketName, objectName string, reader io.Read
 				return 0, ErrEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
 			}
 			// Fall back to uploading as single PutObject operation.
-			return c.putObjectNoChecksum(bucketName, objectName, reader, size, nil, nil)
+			return c.putObjectNoChecksum(bucketName, objectName, reader, size, metadata, progress)
 		}
 		return n, err
 	}

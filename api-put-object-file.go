@@ -173,7 +173,7 @@ func (c Client) putObjectMultipartFromFile(bucketName, objectName string, fileRe
 	close(uploadPartsCh)
 
 	// Use three 'workers' to upload parts in parallel.
-	for w := 1; w <= 3; w++ {
+	for w := 1; w <= totalWorkers; w++ {
 		go func() {
 			// Deal with each part as it comes through the channel.
 			for uploadReq := range uploadPartsCh {

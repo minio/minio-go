@@ -99,15 +99,8 @@ func prepareStreamingRequest(req *http.Request, dataLen int64, timestamp time.Ti
 	req.Header.Set("X-Amz-Date", timestamp.Format(iso8601DateFormat))
 
 	// Set content length with streaming signature for each chunk included.
-	streamContentLen := getStreamLength(dataLen, int64(payloadChunkSize))
+	req.ContentLength = getStreamLength(dataLen, int64(payloadChunkSize))
 	req.Header.Set("x-amz-decoded-content-length", strconv.FormatInt(dataLen, 10))
-	if streamContentLen > 0 {
-		req.Header.Set("Content-Length", strconv.FormatInt(streamContentLen, 10))
-		req.ContentLength = streamContentLen
-	} else {
-		req.Header.Set("Content-Length", "-1")
-		req.ContentLength = -1
-	}
 }
 
 // buildChunkHeader - returns the chunk header.
@@ -200,9 +193,9 @@ func (s *StreamingReader) setStreamingAuthHeader(req *http.Request) {
 	req.Header.Set("Authorization", auth)
 }
 
-// NewStreamingSignV4 - provides chunked upload signatureV4 support by
+// StreamingSignV4 - provides chunked upload signatureV4 support by
 // implementing io.Reader.
-func NewStreamingSignV4(req *http.Request, accessKeyID, secretAccessKey,
+func StreamingSignV4(req *http.Request, accessKeyID, secretAccessKey,
 	region string, dataLen int64, reqTime time.Time) *http.Request {
 
 	// Set headers needed for streaming signature.
