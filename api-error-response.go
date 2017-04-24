@@ -48,6 +48,9 @@ type ErrorResponse struct {
 	// Region where the bucket is located. This header is returned
 	// only in HEAD bucket and ListObjects response.
 	Region string
+
+	// Headers of the returned S3 XML error
+	Headers http.Header `xml:"-" json:"-"`
 }
 
 // ToErrorResponse - Returns parsed ErrorResponse struct from body and
@@ -98,6 +101,10 @@ func httpRespToErrorResponse(resp *http.Response, bucketName, objectName string)
 		return ErrInvalidArgument(msg)
 	}
 	var errResp ErrorResponse
+
+	// Save headers returned in the API XML error
+	errResp.Headers = resp.Header
+
 	err := xmlDecoder(resp.Body, &errResp)
 	// Xml decoding failed with no body, fall back to HTTP headers.
 	if err != nil {

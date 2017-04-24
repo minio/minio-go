@@ -801,7 +801,7 @@ func TestRemovePartiallyUploaded(t *testing.T) {
 	if err == nil {
 		t.Fatal("Error: PutObject should fail.")
 	}
-	if err.Error() != "Proactively closed to be verified later." {
+	if err.Error() != "proactively closed to be verified later" {
 		t.Fatal("Error:", err)
 	}
 	err = c.RemoveIncompleteUpload(bucketName, objectName)
