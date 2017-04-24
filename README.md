@@ -92,7 +92,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	// Make a new bucked called mymusic.
+	// Make a new bucket called mymusic.
 	bucketName := "mymusic"
 	location := "us-east-1"
 
