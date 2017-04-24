@@ -375,6 +375,9 @@ func TestPutObjectStreaming(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
 	// Set user agent.
 	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
 
@@ -393,7 +396,7 @@ func TestPutObjectStreaming(t *testing.T) {
 	objectName := "test-object"
 	for i, size := range sizes {
 		data := bytes.Repeat([]byte("a"), int(size))
-		n, err := c.PutObjectStreaming(bucketName, objectName, bytes.NewReader(data), size)
+		n, err := c.PutObjectStreaming(bucketName, objectName, bytes.NewReader(data))
 		if err != nil {
 			t.Fatalf("Test %d Error: %v %s %s", i+1, err, bucketName, objectName)
 		}

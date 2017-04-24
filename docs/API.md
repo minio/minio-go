@@ -470,8 +470,8 @@ if err != nil {
 }
 ```
 
-<a name="PutObject"></a>
-### PutObjectStreaming(bucketName, objectName string, reader io.Reader, size int64) (n int, err error)
+<a name="PutObjectStreaming"></a>
+### PutObjectStreaming(bucketName, objectName string, reader io.Reader) (n int, err error)
 
 Uploads an object as multiple chunks keeping memory consumption constant. It is similar to PutObject in how objects are broken into multiple parts. Each part in turn is transferred as multiple chunks with constant memory usage. However resuming previously failed uploads from where it was left is not supported.
 
@@ -484,8 +484,6 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object   |
 |`reader` | _io.Reader_  |Any Go type that implements io.Reader |
-|`size` | _int64_ |Size of the object |
-
 
 __Example__
 
@@ -498,13 +496,7 @@ if err != nil {
 }
 defer file.Close()
 
-st, err := os.Stat()
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-n, err := minioClient.PutObjectStreaming("mybucket", "myobject", file, st.Size())
+n, err := minioClient.PutObjectStreaming("mybucket", "myobject", file)
 if err != nil {
     fmt.Println(err)
     return

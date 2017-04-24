@@ -67,8 +67,8 @@ func (c Client) putObjectMultipart(bucketName, objectName string, reader io.Read
 }
 
 // putObjectMultipartStreamNoChecksum - upload a large object using
-// multipart upload and streaming signature for signing payload.  N B
-// We don't resume an incomplete multipart upload, we overwrite
+// multipart upload and streaming signature for signing payload.
+// N B We don't resume an incomplete multipart upload, we overwrite
 // existing parts of an incomplete upload.
 func (c Client) putObjectMultipartStreamNoChecksum(bucketName, objectName string,
 	reader io.Reader, size int64, metadata map[string][]string, progress io.Reader) (int64, error) {
@@ -82,9 +82,16 @@ func (c Client) putObjectMultipartStreamNoChecksum(bucketName, objectName string
 	}
 
 	// Get the upload id of a previously partially uploaded object or initiate a new multipart upload
-	uploadID, partsInfo, err := c.getMpartUploadSession(bucketName, objectName, metadata)
+	uploadID, err := c.findUploadID(bucketName, objectName)
 	if err != nil {
 		return 0, err
+	}
+	if uploadID == "" {
+		// Initiates a new multipart request
+		uploadID, err = c.newUploadID(bucketName, objectName, metadata)
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	// Calculate the optimal parts info for a given size.
@@ -96,17 +103,21 @@ func (c Client) putObjectMultipartStreamNoChecksum(bucketName, objectName string
 	// Total data read and written to server. should be equal to 'size' at the end of the call.
 	var totalUploadedSize int64
 
+	// Initialize parts uploaded map.
+	partsInfo := make(map[int]ObjectPart)
+
 	// Part number always starts with '1'.
 	var partNumber int
 	for partNumber = 1; partNumber <= totalPartsCount; partNumber++ {
 		// Update progress reader appropriately to the latest offset
 		// as we read from the source.
-		hookReader := newHook(reader, nil)
+		hookReader := newHook(reader, progress)
 
 		// Proceed to upload the part.
 		if partNumber == totalPartsCount {
 			partSize = lastPartSize
 		}
+
 		var objPart ObjectPart
 		objPart, err = c.uploadPart(bucketName, objectName, uploadID,
 			io.LimitReader(hookReader, partSize), partNumber, nil, nil, partSize)
