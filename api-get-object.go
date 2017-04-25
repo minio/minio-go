@@ -616,9 +616,10 @@ func (c Client) getObject(bucketName, objectName string, offset, length int64) (
 
 	// Execute GET on objectName.
 	resp, err := c.executeMethod("GET", requestMetadata{
-		bucketName:   bucketName,
-		objectName:   objectName,
-		customHeader: customHeader,
+		bucketName:         bucketName,
+		objectName:         objectName,
+		customHeader:       customHeader,
+		contentSHA256Bytes: emptySHA256,
 	})
 	if err != nil {
 		return nil, ObjectInfo{}, err
