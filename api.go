@@ -661,12 +661,8 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 	case c.signature.isV4():
 		// Set sha256 sum for signature calculation only with signature version '4'.
 		shaHeader := unsignedPayload
-		if !c.secure {
-			if metadata.contentSHA256Bytes == nil {
-				shaHeader = hex.EncodeToString(sum256([]byte{}))
-			} else {
-				shaHeader = hex.EncodeToString(metadata.contentSHA256Bytes)
-			}
+		if len(metadata.contentSHA256Bytes) > 0 {
+			shaHeader = hex.EncodeToString(metadata.contentSHA256Bytes)
 		}
 		req.Header.Set("X-Amz-Content-Sha256", shaHeader)
 
