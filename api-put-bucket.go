@@ -163,7 +163,8 @@ func (c Client) SetBucketPolicy(bucketName string, objectPrefix string, bucketPo
 	}
 
 	policyInfo, err := c.getBucketPolicy(bucketName)
-	if err != nil {
+	errResponse := ToErrorResponse(err)
+	if err != nil && errResponse.Code != "NoSuchBucketPolicy" {
 		return err
 	}
 
