@@ -18,13 +18,18 @@ package minio
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+	"path"
 
 	"github.com/minio/minio-go/pkg/policy"
+	"github.com/minio/minio-go/pkg/s3signer"
 )
 
 /// Bucket operations
@@ -36,7 +41,14 @@ import (
 //
 // For Amazon S3 for more supported regions - http://docs.aws.amazon.com/general/latest/gr/rande.html
 // For Google Cloud Storage for more supported regions - https://cloud.google.com/storage/docs/bucket-locations
-func (c Client) MakeBucket(bucketName string, location string) error {
+func (c Client) MakeBucket(bucketName string, location string) (err error) {
+	defer func() {
+		// Save the location into cache on a successful makeBucket response.
+		if err == nil {
+			c.bucketLocCache.Set(bucketName, location)
+		}
+	}()
+
 	// Validate the input arguments.
 	if err := isValidBucketName(bucketName); err != nil {
 		return err
@@ -47,59 +59,119 @@ func (c Client) MakeBucket(bucketName string, location string) error {
 		location = "us-east-1"
 	}
 
-	// Try creating bucket with the provided region, in case of invalid region error
-	// let's guess the appropriate region from S3 API headers
-	for {
-		createBucketConfigBytes := []byte{}
+	// Try creating bucket with the provided region, in case of
+	// invalid region error let's guess the appropriate region
+	// from S3 API headers
 
-		if location != "us-east-1" {
-			var err error
-			createBucketConfig := createBucketConfiguration{}
-			createBucketConfig.Location = location
-			createBucketConfigBytes, err = xml.Marshal(createBucketConfig)
-			if err != nil {
-				return err
-			}
+	// Create a done channel to control 'newRetryTimer' go routine.
+	doneCh := make(chan struct{}, 1)
+
+	// Indicate to our routine to exit cleanly upon return.
+	defer close(doneCh)
+
+	// Blank indentifier is kept here on purpose since 'range' without
+	// blank identifiers is only supported since go1.4
+	// https://golang.org/doc/go1.4#forrange.
+	for _ = range c.newRetryTimer(MaxRetry, DefaultRetryUnit, DefaultRetryCap, MaxJitter, doneCh) {
+		// Initialize the makeBucket request.
+		req, err := c.makeBucketRequest(bucketName, location)
+		if err != nil {
+			return err
 		}
 
-		createBucketConfigBuffer := bytes.NewReader(createBucketConfigBytes)
-
-		reqMetadata := requestMetadata{
-			bucketName:         bucketName,
-			contentBody:        createBucketConfigBuffer,
-			contentLength:      int64(len(createBucketConfigBytes)),
-			contentMD5Bytes:    sumMD5(createBucketConfigBytes),
-			contentSHA256Bytes: sum256(createBucketConfigBytes),
-			bucketLocation:     "us-east-1",
-			retry:              1,
-		}
-
-		// Execute PUT to upload a new bucket policy.
-		resp, err := c.executeMethod("PUT", reqMetadata)
+		// Execute make bucket request.
+		resp, err := c.do(req)
 		defer closeResponse(resp)
 		if err != nil {
 			return err
 		}
 
-		if resp.StatusCode == http.StatusOK {
-			// Creating bucket is successful
-			break
+		if resp.StatusCode != http.StatusOK {
+			err := httpRespToErrorResponse(resp, bucketName, "")
+			errResp := ToErrorResponse(err)
+			if errResp.Code == "InvalidRegion" && errResp.Region != "" {
+				// Fetch bucket region found in headers
+				// of S3 error response, attempt bucket
+				// create again.
+				location = errResp.Region
+				continue
+			}
+			// Nothing to retry, fail.
+			return err
 		}
 
-		errResp, ok := httpRespToErrorResponse(resp, bucketName, "").(ErrorResponse)
-		if ok && errResp.Code == "InvalidRegion" {
-			// Fetch bucket region found in headers of S3 error response
-			location = errResp.Headers.Get("x-amz-bucket-region")
-		} else {
-			return errResp
+		// Control reaches here when bucket create was successful,
+		// break out.
+		break
+	}
+
+	// Success.
+	return nil
+}
+
+// Low level wrapper API For makeBucketRequest.
+func (c Client) makeBucketRequest(bucketName string, location string) (*http.Request, error) {
+	// Validate input arguments.
+	if err := isValidBucketName(bucketName); err != nil {
+		return nil, err
+	}
+
+	// In case of Amazon S3.  The make bucket issued on
+	// already existing bucket would fail with
+	// 'AuthorizationMalformed' error if virtual style is
+	// used. So we default to 'path style' as that is the
+	// preferred method here. The final location of the
+	// 'bucket' is provided through XML LocationConstraint
+	// data with the request.
+	targetURL := c.endpointURL
+	targetURL.Path = path.Join(bucketName, "") + "/"
+
+	// get a new HTTP request for the method.
+	req, err := http.NewRequest("PUT", targetURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// set UserAgent for the request.
+	c.setUserAgent(req)
+
+	// set sha256 sum for signature calculation only with
+	// signature version '4'.
+	if c.signature.isV4() {
+		req.Header.Set("X-Amz-Content-Sha256", hex.EncodeToString(sum256([]byte{})))
+	}
+
+	// If location is not 'us-east-1' create bucket location config.
+	if location != "us-east-1" && location != "" {
+		createBucketConfig := createBucketConfiguration{}
+		createBucketConfig.Location = location
+		var createBucketConfigBytes []byte
+		createBucketConfigBytes, err = xml.Marshal(createBucketConfig)
+		if err != nil {
+			return nil, err
+		}
+		createBucketConfigBuffer := bytes.NewBuffer(createBucketConfigBytes)
+		req.Body = ioutil.NopCloser(createBucketConfigBuffer)
+		req.ContentLength = int64(len(createBucketConfigBytes))
+		// Set content-md5.
+		req.Header.Set("Content-Md5", base64.StdEncoding.EncodeToString(sumMD5(createBucketConfigBytes)))
+		if c.signature.isV4() {
+			// Set sha256.
+			req.Header.Set("X-Amz-Content-Sha256", hex.EncodeToString(sum256(createBucketConfigBytes)))
 		}
 	}
 
-	// Save the location into cache on a successful makeBucket response.
-	c.bucketLocCache.Set(bucketName, location)
+	// Sign the request.
+	if c.signature.isV4() {
+		// Signature calculated for MakeBucket request should be for 'us-east-1',
+		// regardless of the bucket's location constraint.
+		req = s3signer.SignV4(*req, c.accessKeyID, c.secretAccessKey, "us-east-1")
+	} else if c.signature.isV2() {
+		req = s3signer.SignV2(*req, c.accessKeyID, c.secretAccessKey)
+	}
 
-	// Return.
-	return nil
+	// Return signed request.
+	return req, nil
 }
 
 // SetBucketPolicy set the access permissions on an existing bucket.

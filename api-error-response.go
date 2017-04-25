@@ -102,9 +102,6 @@ func httpRespToErrorResponse(resp *http.Response, bucketName, objectName string)
 	}
 	var errResp ErrorResponse
 
-	// Save headers returned in the API XML error
-	errResp.Headers = resp.Header
-
 	err := xmlDecoder(resp.Body, &errResp)
 	// Xml decoding failed with no body, fall back to HTTP headers.
 	if err != nil {
@@ -115,9 +112,6 @@ func httpRespToErrorResponse(resp *http.Response, bucketName, objectName string)
 					Code:       "NoSuchBucket",
 					Message:    "The specified bucket does not exist.",
 					BucketName: bucketName,
-					RequestID:  resp.Header.Get("x-amz-request-id"),
-					HostID:     resp.Header.Get("x-amz-id-2"),
-					Region:     resp.Header.Get("x-amz-bucket-region"),
 				}
 			} else {
 				errResp = ErrorResponse{
@@ -125,9 +119,6 @@ func httpRespToErrorResponse(resp *http.Response, bucketName, objectName string)
 					Message:    "The specified key does not exist.",
 					BucketName: bucketName,
 					Key:        objectName,
-					RequestID:  resp.Header.Get("x-amz-request-id"),
-					HostID:     resp.Header.Get("x-amz-id-2"),
-					Region:     resp.Header.Get("x-amz-bucket-region"),
 				}
 			}
 		case http.StatusForbidden:
@@ -136,30 +127,37 @@ func httpRespToErrorResponse(resp *http.Response, bucketName, objectName string)
 				Message:    "Access Denied.",
 				BucketName: bucketName,
 				Key:        objectName,
-				RequestID:  resp.Header.Get("x-amz-request-id"),
-				HostID:     resp.Header.Get("x-amz-id-2"),
-				Region:     resp.Header.Get("x-amz-bucket-region"),
 			}
 		case http.StatusConflict:
 			errResp = ErrorResponse{
 				Code:       "Conflict",
 				Message:    "Bucket not empty.",
 				BucketName: bucketName,
-				RequestID:  resp.Header.Get("x-amz-request-id"),
-				HostID:     resp.Header.Get("x-amz-id-2"),
-				Region:     resp.Header.Get("x-amz-bucket-region"),
 			}
 		default:
 			errResp = ErrorResponse{
 				Code:       resp.Status,
 				Message:    resp.Status,
 				BucketName: bucketName,
-				RequestID:  resp.Header.Get("x-amz-request-id"),
-				HostID:     resp.Header.Get("x-amz-id-2"),
-				Region:     resp.Header.Get("x-amz-bucket-region"),
 			}
 		}
 	}
+
+	// Save hodID, requestID and region information
+	// from headers if not available through error XML.
+	if errResp.RequestID == "" {
+		errResp.RequestID = resp.Header.Get("x-amz-request-id")
+	}
+	if errResp.HostID == "" {
+		errResp.HostID = resp.Header.Get("x-amz-id-2")
+	}
+	if errResp.Region == "" {
+		errResp.Region = resp.Header.Get("x-amz-bucket-region")
+	}
+
+	// Save headers returned in the API XML error
+	errResp.Headers = resp.Header
+
 	return errResp
 }
 
