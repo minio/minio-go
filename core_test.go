@@ -134,7 +134,7 @@ func TestCorePutObject(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	if size != minPartSize {
-		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*4, size)
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize, size)
 	}
 
 	// Save the data
@@ -173,16 +173,20 @@ func TestCorePutObject(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
+
 	if st.Size != int64(len(buf)) {
 		t.Fatalf("Error: number of bytes in stat does not match, want %v, got %v\n",
 			len(buf), st.Size)
 	}
+
 	if st.ContentType != objectContentType {
 		t.Fatalf("Error: Content types don't match, expected: %+v, found: %+v\n", objectContentType, st.ContentType)
 	}
+
 	if err := r.Close(); err != nil {
 		t.Fatal("Error:", err)
 	}
+
 	if err := r.Close(); err == nil {
 		t.Fatal("Error: object is already closed, should return error")
 	}
@@ -191,6 +195,7 @@ func TestCorePutObject(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
+
 	err = c.RemoveBucket(bucketName)
 	if err != nil {
 		t.Fatal("Error:", err)
