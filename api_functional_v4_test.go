@@ -310,7 +310,7 @@ func TestPutObjectWithMetadata(t *testing.T) {
 	// Object custom metadata
 	customContentType := "custom/contenttype"
 
-	n, err := c.PutObjectWithMetadata(bucketName, objectName, bytes.NewReader(buf), map[string][]string{"Content-Type": []string{customContentType}}, nil)
+	n, err := c.PutObjectWithMetadata(bucketName, objectName, bytes.NewReader(buf), map[string][]string{"Content-Type": {customContentType}}, nil)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
@@ -1972,7 +1972,7 @@ func TestEncryptionPutGet(t *testing.T) {
 		}
 
 		// Put encrypted data
-		_, err = c.PutEncryptedObject(bucketName, objectName, bytes.NewReader(testCase.buf), cbcMaterials, map[string][]string{"Content-Type": []string{customContentType}}, nil)
+		_, err = c.PutEncryptedObject(bucketName, objectName, bytes.NewReader(testCase.buf), cbcMaterials, map[string][]string{"Content-Type": {customContentType}}, nil)
 		if err != nil {
 			t.Fatalf("Test %d, error: %v %v %v", i+1, err, bucketName, objectName)
 		}

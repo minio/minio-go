@@ -29,6 +29,165 @@ import (
 	"time"
 )
 
+// Tests for Core GetObject() function.
+func TestGetObjectCore(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping functional tests for the short runs")
+	}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio core client object.
+	c, err := NewCore(
+		os.Getenv("S3_ADDRESS"),
+		os.Getenv("ACCESS_KEY"),
+		os.Getenv("SECRET_KEY"),
+		mustParseBool(os.Getenv("S3_SECURE")),
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+
+	// Generate data more than 32K
+	buf := bytes.Repeat([]byte("3"), rand.Intn(1<<20)+32*1024)
+
+	// Save the data
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	n, err := c.Client.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
+
+	if n != int64(len(buf)) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), n)
+	}
+
+	reqHeaders := NewGetReqHeaders()
+
+	offset := int64(2048)
+
+	// read directly
+	buf1 := make([]byte, 512)
+	buf2 := make([]byte, 512)
+	buf3 := make([]byte, n)
+
+	reqHeaders.SetRange(offset, offset+int64(len(buf1))-1)
+	reader, objectInfo, err := c.GetObject(bucketName, objectName, reqHeaders)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := io.ReadFull(reader, buf1)
+	if err != nil {
+		reader.Close()
+		t.Fatal(err)
+	}
+	reader.Close()
+
+	if objectInfo.Size != int64(m) {
+		t.Fatalf("Error: GetObject read shorter bytes before reaching EOF, want %v, got %v\n", objectInfo.Size, m)
+	}
+	if !bytes.Equal(buf1, buf[offset:offset+512]) {
+		t.Fatal("Error: Incorrect read between two GetObject from same offset.")
+	}
+	offset += 512
+
+	reqHeaders.SetRange(offset, offset+int64(len(buf2))-1)
+	reader, objectInfo, err = c.GetObject(bucketName, objectName, reqHeaders)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m, err = io.ReadFull(reader, buf2)
+	if err != nil {
+		reader.Close()
+		t.Fatal(err)
+	}
+	reader.Close()
+
+	if objectInfo.Size != int64(m) {
+		t.Fatalf("Error: GetObject read shorter bytes before reaching EOF, want %v, got %v\n", objectInfo.Size, m)
+	}
+	if !bytes.Equal(buf2, buf[offset:offset+512]) {
+		t.Fatal("Error: Incorrect read between two GetObject from same offset.")
+	}
+
+	reqHeaders.SetRange(0, int64(len(buf3)))
+	reader, objectInfo, err = c.GetObject(bucketName, objectName, reqHeaders)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m, err = io.ReadFull(reader, buf3)
+	if err != nil {
+		reader.Close()
+		t.Fatal(err)
+	}
+	reader.Close()
+
+	if objectInfo.Size != int64(m) {
+		t.Fatalf("Error: GetObject read shorter bytes before reaching EOF, want %v, got %v\n", objectInfo.Size, m)
+	}
+	if !bytes.Equal(buf3, buf) {
+		t.Fatal("Error: Incorrect data read in GetObject, than what was previously upoaded.")
+	}
+
+	reqHeaders = NewGetReqHeaders()
+	reqHeaders.SetMatchETag("etag")
+	_, _, err = c.GetObject(bucketName, objectName, reqHeaders)
+	if err == nil {
+		t.Fatal("Unexpected GetObject should fail with mismatching etags")
+	}
+	if errResp := ToErrorResponse(err); errResp.Code != "PreconditionFailed" {
+		t.Fatalf("Expected \"PreconditionFailed\" as code, got %s instead", errResp.Code)
+	}
+
+	reqHeaders = NewGetReqHeaders()
+	reqHeaders.SetMatchETagExcept("etag")
+	reader, objectInfo, err = c.GetObject(bucketName, objectName, reqHeaders)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m, err = io.ReadFull(reader, buf3)
+	if err != nil {
+		reader.Close()
+		t.Fatal(err)
+	}
+	reader.Close()
+
+	if objectInfo.Size != int64(m) {
+		t.Fatalf("Error: GetObject read shorter bytes before reaching EOF, want %v, got %v\n", objectInfo.Size, m)
+	}
+	if !bytes.Equal(buf3, buf) {
+		t.Fatal("Error: Incorrect data read in GetObject, than what was previously upoaded.")
+	}
+
+	err = c.RemoveObject(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+}
+
 // Tests get bucket policy core API.
 func TestGetBucketPolicy(t *testing.T) {
 	if testing.Short() {
@@ -164,7 +323,7 @@ func TestCorePutObject(t *testing.T) {
 	}
 
 	// Read the data back
-	r, err := c.GetObject(bucketName, objectName)
+	r, err := c.Client.GetObject(bucketName, objectName)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
