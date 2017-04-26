@@ -662,9 +662,7 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 		// Set sha256 sum for signature calculation only with signature version '4'.
 		shaHeader := unsignedPayload
 		if !c.secure {
-			if metadata.contentSHA256Bytes == nil {
-				shaHeader = hex.EncodeToString(sum256([]byte{}))
-			} else {
+			if len(metadata.contentSHA256Bytes) > 0 {
 				shaHeader = hex.EncodeToString(metadata.contentSHA256Bytes)
 			}
 		}
