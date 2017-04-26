@@ -364,12 +364,11 @@ func TestPutObjectStreaming(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := NewWithRegion(
+	c, err := NewV4(
 		os.Getenv("S3_ADDRESS"),
 		os.Getenv("ACCESS_KEY"),
 		os.Getenv("SECRET_KEY"),
 		mustParseBool(os.Getenv("S3_SECURE")),
-		"us-east-1",
 	)
 	if err != nil {
 		t.Fatal("Error:", err)

@@ -546,8 +546,8 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 		// For errors verify if its retryable otherwise fail quickly.
 		errResponse := ToErrorResponse(httpRespToErrorResponse(res, metadata.bucketName, metadata.objectName))
 
-		// Save the body.
-		errBodySeeker = bytes.NewReader(errBodyBytes)
+		// Save the body back again.
+		errBodySeeker.Seek(0, 0) // Seek back to starting point.
 		res.Body = ioutil.NopCloser(errBodySeeker)
 
 		// Bucket region if set in error response and the error
@@ -568,10 +568,6 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 			continue // Retry.
 		}
 
-		// Save the body back again.
-		errBodySeeker.Seek(0, 0) // Seek back to starting point.
-		res.Body = ioutil.NopCloser(errBodySeeker)
-
 		// For all other cases break out of the retry loop.
 		break
 	}
@@ -585,28 +581,26 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 		method = "POST"
 	}
 
-	if metadata.bucketLocation == "" {
-		// Default all requests to "us-east-1" or "cn-north-1" (china region)
-		location := "us-east-1"
-		if s3utils.IsAmazonChinaEndpoint(c.endpointURL) {
-			// For china specifically we need to set everything to
-			// cn-north-1 for now, there is no easier way until AWS S3
-			// provides a cleaner compatible API across "us-east-1" and
-			// China region.
-			location = "cn-north-1"
-		}
-
-		// Gather location only if bucketName is present.
-		if metadata.bucketName != "" {
-			location, err = c.getBucketLocation(metadata.bucketName)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		// Save location.
-		metadata.bucketLocation = location
+	// Default all requests to "us-east-1" or "cn-north-1" (china region)
+	location := "us-east-1"
+	if s3utils.IsAmazonChinaEndpoint(c.endpointURL) {
+		// For china specifically we need to set everything to
+		// cn-north-1 for now, there is no easier way until AWS S3
+		// provides a cleaner compatible API across "us-east-1" and
+		// China region.
+		location = "cn-north-1"
 	}
+
+	// Gather location only if bucketName is present.
+	if metadata.bucketName != "" {
+		location, err = c.getBucketLocation(metadata.bucketName)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Save location.
+	metadata.bucketLocation = location
 
 	// Construct a new target URL.
 	targetURL, err := c.makeTargetURL(metadata.bucketName, metadata.objectName, metadata.bucketLocation, metadata.queryValues)
@@ -633,7 +627,7 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 			req = s3signer.PreSignV2(*req, c.accessKeyID, c.secretAccessKey, metadata.expires)
 		} else if c.signature.isV4() {
 			// Presign URL with signature v4.
-			req = s3signer.PreSignV4(*req, c.accessKeyID, c.secretAccessKey, metadata.bucketLocation, metadata.expires)
+			req = s3signer.PreSignV4(*req, c.accessKeyID, c.secretAccessKey, location, metadata.expires)
 		}
 		return req, nil
 	}
@@ -677,10 +671,10 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 		req.Header.Set("X-Amz-Content-Sha256", shaHeader)
 
 		// Add signature version '4' authorization header.
-		req = s3signer.SignV4(*req, c.accessKeyID, c.secretAccessKey, metadata.bucketLocation)
+		req = s3signer.SignV4(*req, c.accessKeyID, c.secretAccessKey, location)
 	} else if c.signature.isStreamingV4() {
 		req = s3signer.StreamingSignV4(req, c.accessKeyID,
-			c.secretAccessKey, metadata.bucketLocation, metadata.contentLength, time.Now().UTC())
+			c.secretAccessKey, location, metadata.contentLength, time.Now().UTC())
 	}
 
 	// Return request.
