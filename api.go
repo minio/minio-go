@@ -658,7 +658,10 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 	case c.signature.isV2():
 		// Add signature version '2' authorization header.
 		req = s3signer.SignV2(*req, c.accessKeyID, c.secretAccessKey)
-	case c.signature.isV4():
+	case c.signature.isStreamingV4() && method == "PUT":
+		req = s3signer.StreamingSignV4(req, c.accessKeyID,
+			c.secretAccessKey, location, metadata.contentLength, time.Now().UTC())
+	default:
 		// Set sha256 sum for signature calculation only with signature version '4'.
 		shaHeader := unsignedPayload
 		if len(metadata.contentSHA256Bytes) > 0 {
@@ -668,9 +671,6 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 
 		// Add signature version '4' authorization header.
 		req = s3signer.SignV4(*req, c.accessKeyID, c.secretAccessKey, location)
-	case c.signature.isStreamingV4():
-		req = s3signer.StreamingSignV4(req, c.accessKeyID,
-			c.secretAccessKey, location, metadata.contentLength, time.Now().UTC())
 	}
 
 	// Return request.
