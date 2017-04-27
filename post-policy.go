@@ -32,14 +32,19 @@ type policyCondition struct {
 type PostPolicy struct {
 	// Expiration date and time of the POST policy.
 	expiration time.Time
+
 	// Collection of different policy conditions.
 	conditions []policyCondition
-	// ContentLengthRange minimum and maximum allowable size for the
-	// uploaded content.
+
+	// ContentLengthRange minimum and maximum allowable
+	// size for the uploaded content.
 	contentLengthRange struct {
 		min int64
 		max int64
 	}
+
+	// Region if set overrides the cached bucket region.
+	region string
 
 	// Post form data.
 	formData map[string]string
@@ -51,6 +56,15 @@ func NewPostPolicy() *PostPolicy {
 	p.conditions = make([]policyCondition, 0)
 	p.formData = make(map[string]string)
 	return p
+}
+
+// SetRegion - Sets custom region, if set overrides cached
+// bucket region.
+func (p *PostPolicy) SetRegion(region string) {
+	// Empty region is not an error, it just
+	// means that we will fall back to cached
+	// bucket region.
+	p.region = region
 }
 
 // SetExpires - Sets expiration time for the new policy.

@@ -17,7 +17,6 @@
 package minio
 
 import (
-	"errors"
 	"net/url"
 	"time"
 
@@ -100,24 +99,30 @@ func (c Client) PresignedPutObject(bucketName string, objectName string, expires
 // PresignedPostPolicy - Returns POST urlString, form data to upload an object.
 func (c Client) PresignedPostPolicy(p *PostPolicy) (u *url.URL, formData map[string]string, err error) {
 	// Validate input arguments.
+	if p == nil {
+		return nil, nil, ErrInvalidArgument("Post policy must be valid")
+	}
 	if p.expiration.IsZero() {
-		return nil, nil, errors.New("Expiration time must be specified")
+		return nil, nil, ErrInvalidArgument("Expiration time must be non-zero")
 	}
 	if _, ok := p.formData["key"]; !ok {
-		return nil, nil, errors.New("object key must be specified")
+		return nil, nil, ErrInvalidArgument("Object key must be specified")
 	}
 	if _, ok := p.formData["bucket"]; !ok {
-		return nil, nil, errors.New("bucket name must be specified")
+		return nil, nil, ErrInvalidArgument("Bucket name must be specified")
 	}
 
 	bucketName := p.formData["bucket"]
-	// Fetch the bucket location.
-	location, err := c.getBucketLocation(bucketName)
-	if err != nil {
-		return nil, nil, err
+
+	if p.region == "" {
+		// Fetch the bucket location.
+		p.region, err = c.getBucketLocation(bucketName)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
-	u, err = c.makeTargetURL(bucketName, "", location, nil)
+	u, err = c.makeTargetURL(bucketName, "", p.region, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -159,7 +164,7 @@ func (c Client) PresignedPostPolicy(p *PostPolicy) (u *url.URL, formData map[str
 	}
 
 	// Add a credential policy.
-	credential := s3signer.GetCredential(c.accessKeyID, location, t)
+	credential := s3signer.GetCredential(c.accessKeyID, p.region, t)
 	if err = p.addNewPolicy(policyCondition{
 		matchType: "eq",
 		condition: "$x-amz-credential",
@@ -175,6 +180,6 @@ func (c Client) PresignedPostPolicy(p *PostPolicy) (u *url.URL, formData map[str
 	p.formData["x-amz-algorithm"] = signV4Algorithm
 	p.formData["x-amz-credential"] = credential
 	p.formData["x-amz-date"] = t.Format(iso8601DateFormat)
-	p.formData["x-amz-signature"] = s3signer.PostPresignSignatureV4(policyBase64, t, c.secretAccessKey, location)
+	p.formData["x-amz-signature"] = s3signer.PostPresignSignatureV4(policyBase64, t, c.secretAccessKey, p.region)
 	return u, p.formData, nil
 }
