@@ -34,7 +34,8 @@ func (c Client) BucketExists(bucketName string) (bool, error) {
 
 	// Execute HEAD on bucketName.
 	resp, err := c.executeMethod("HEAD", requestMetadata{
-		bucketName: bucketName,
+		bucketName:         bucketName,
+		contentSHA256Bytes: emptySHA256,
 	})
 	defer closeResponse(resp)
 	if err != nil {
@@ -88,8 +89,9 @@ func (c Client) StatObject(bucketName, objectName string) (ObjectInfo, error) {
 
 	// Execute HEAD on objectName.
 	resp, err := c.executeMethod("HEAD", requestMetadata{
-		bucketName: bucketName,
-		objectName: objectName,
+		bucketName:         bucketName,
+		objectName:         objectName,
+		contentSHA256Bytes: emptySHA256,
 	})
 	defer closeResponse(resp)
 	if err != nil {
