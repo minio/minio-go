@@ -29,6 +29,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -2420,5 +2421,80 @@ func TestFunctional(t *testing.T) {
 	}
 	if err = os.Remove(fileName + "-f"); err != nil {
 		t.Fatal("Error: ", err)
+	}
+}
+
+// Test for validating GetObject Reader* methods functioning when the
+// object is modified in the object store.
+func TestGetObjectObjectModified(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping functional tests for the short runs")
+	}
+
+	// Instantiate new minio client object.
+	c, err := NewV4(
+		os.Getenv("S3_ADDRESS"),
+		os.Getenv("ACCESS_KEY"),
+		os.Getenv("SECRET_KEY"),
+		mustParseBool(os.Getenv("S3_SECURE")),
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Make a new bucket.
+	bucketName := "mybucket"
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+	defer c.RemoveBucket(bucketName)
+
+	// Upload an object.
+	objectName := "myobject"
+	content := "helloworld"
+	_, err = c.PutObject(bucketName, objectName, strings.NewReader(content), "application/text")
+	if err != nil {
+		t.Fatalf("Failed to upload %s/%s: %v", bucketName, objectName, err)
+	}
+
+	defer c.RemoveObject(bucketName, objectName)
+
+	reader, err := c.GetObject(bucketName, objectName)
+	if err != nil {
+		t.Fatalf("Failed to get object %s/%s: %v", bucketName, objectName, err)
+	}
+	defer reader.Close()
+
+	// Read a few bytes of the object.
+	b := make([]byte, 5)
+	n, err := reader.ReadAt(b, 0)
+	if err != nil {
+		t.Fatalf("Failed to read object %s/%s at an offset: %v", bucketName, objectName, err)
+	}
+
+	// Upload different contents to the same object while object is being read.
+	newContent := "goodbyeworld"
+	_, err = c.PutObject(bucketName, objectName, strings.NewReader(newContent), "application/text")
+	if err != nil {
+		t.Fatalf("Failed to upload %s/%s: %v", bucketName, objectName, err)
+	}
+
+	// Confirm that a Stat() call in between doesn't change the Object's cached etag.
+	_, err = reader.Stat()
+	if err.Error() != s3ErrorResponseMap["PreconditionFailed"] {
+		t.Errorf("Expected Stat to fail with error %s but received %s", s3ErrorResponseMap["PreconditionFailed"], err.Error())
+	}
+
+	// Read again only to find object contents have been modified since last read.
+	_, err = reader.ReadAt(b, int64(n))
+	if err.Error() != s3ErrorResponseMap["PreconditionFailed"] {
+		t.Errorf("Expected ReadAt to fail with error %s but received %s", s3ErrorResponseMap["PreconditionFailed"], err.Error())
 	}
 }
