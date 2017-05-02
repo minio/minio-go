@@ -55,7 +55,7 @@ func main() {
 |[`MakeBucket`](#MakeBucket)   |[`GetObject`](#GetObject) | [`NewSymmetricKey`](#NewSymmetricKey) | [`PresignedGetObject`](#PresignedGetObject)  |[`SetBucketPolicy`](#SetBucketPolicy)   | [`SetAppInfo`](#SetAppInfo) |
 |[`ListBuckets`](#ListBuckets)   |[`PutObject`](#PutObject) | [`NewAsymmetricKey`](#NewAsymmetricKey) |[`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)  | [`SetCustomTransport`](#SetCustomTransport) |
 |[`BucketExists`](#BucketExists)   |[`CopyObject`](#CopyObject) |  [`GetEncryptedObject`](#GetEncryptedObject)  |[`PresignedPostPolicy`](#PresignedPostPolicy)   |  [`ListBucketPolicies`](#ListBucketPolicies)  | [`TraceOn`](#TraceOn) |
-| [`RemoveBucket`](#RemoveBucket)  |[`StatObject`](#StatObject) | [`PutObjectStreaming`(#PutObjectStreaming) |   |  [`SetBucketNotification`](#SetBucketNotification)  | [`TraceOff`](#TraceOff) |
+| [`RemoveBucket`](#RemoveBucket)  |[`StatObject`](#StatObject) | [`PutObjectStreaming`](#PutObjectStreaming) |   |  [`SetBucketNotification`](#SetBucketNotification)  | [`TraceOff`](#TraceOff) |
 |[`ListObjects`](#ListObjects)  |[`RemoveObject`](#RemoveObject) | [`PutEncryptedObject`](#PutEncryptedObject) |   |  [`GetBucketNotification`](#GetBucketNotification)  | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
 |[`ListObjectsV2`](#ListObjectsV2) | [`RemoveObjects`](#RemoveObjects) |  |   | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification)  |
 |[`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |  |  |  [`ListenBucketNotification`](#ListenBucketNotification)  |
