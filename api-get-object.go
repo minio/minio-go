@@ -67,6 +67,7 @@ func (c Client) GetObject(bucketName, objectName string) (*Object, error) {
 	var httpReader io.ReadCloser
 	var objectInfo ObjectInfo
 	var err error
+
 	// Create request channel.
 	reqCh := make(chan getRequest)
 	// Create response channel.
@@ -78,6 +79,9 @@ func (c Client) GetObject(bucketName, objectName string) (*Object, error) {
 	go func() {
 		defer close(reqCh)
 		defer close(resCh)
+
+		// Used to verify if etag of object has changed since last read.
+		var etag string
 
 		// Loop through the incoming control messages and read data.
 		for {
@@ -105,7 +109,7 @@ func (c Client) GetObject(bucketName, objectName string) (*Object, error) {
 							// Do not set objectInfo from the first readAt request because it will not get
 							// the whole object.
 							reqHeaders.SetRange(req.Offset, req.Offset+int64(len(req.Buffer))-1)
-							httpReader, _, err = c.getObject(bucketName, objectName, reqHeaders)
+							httpReader, objectInfo, err = c.getObject(bucketName, objectName, reqHeaders)
 						} else {
 							reqHeaders.SetRange(req.Offset, 0)
 							// First request is a Read request.
@@ -117,6 +121,7 @@ func (c Client) GetObject(bucketName, objectName string) (*Object, error) {
 							}
 							return
 						}
+						etag = objectInfo.ETag
 						// Read at least firstReq.Buffer bytes, if not we have
 						// reached our EOF.
 						size, err := io.ReadFull(httpReader, req.Buffer)
@@ -143,13 +148,18 @@ func (c Client) GetObject(bucketName, objectName string) (*Object, error) {
 							// Exit the go-routine.
 							return
 						}
+						etag = objectInfo.ETag
 						// Send back the first response.
 						resCh <- getResponse{
 							objectInfo: objectInfo,
 						}
 					}
 				} else if req.settingObjectInfo { // Request is just to get objectInfo.
-					objectInfo, err := c.StatObject(bucketName, objectName)
+					reqHeaders := NewGetReqHeaders()
+					if etag != "" {
+						reqHeaders.SetMatchETag(etag)
+					}
+					objectInfo, err := c.statObject(bucketName, objectName, reqHeaders)
 					if err != nil {
 						resCh <- getResponse{
 							Error: err,
@@ -170,6 +180,9 @@ func (c Client) GetObject(bucketName, objectName string) (*Object, error) {
 					// All readAt requests are new requests.
 					if req.DidOffsetChange || !req.beenRead {
 						reqHeaders := NewGetReqHeaders()
+						if etag != "" {
+							reqHeaders.SetMatchETag(etag)
+						}
 						if httpReader != nil {
 							// Close previously opened http reader.
 							httpReader.Close()
@@ -276,6 +289,12 @@ type Object struct {
 func (o *Object) doGetRequest(request getRequest) (getResponse, error) {
 	o.reqCh <- request
 	response := <-o.resCh
+
+	// Return any error to the top level.
+	if response.Error != nil {
+		return response, response.Error
+	}
+
 	// This was the first request.
 	if !o.isStarted {
 		// The object has been operated on.
@@ -291,11 +310,6 @@ func (o *Object) doGetRequest(request getRequest) (getResponse, error) {
 	if !o.beenRead {
 		o.beenRead = response.didRead
 	}
-	// Return any error to the top level.
-	if response.Error != nil {
-		return response, response.Error
-	}
-
 	// Data are ready on the wire, no need to reinitiate connection in lower level
 	o.seekData = false
 
