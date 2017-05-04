@@ -2449,7 +2449,7 @@ func TestGetObjectObjectModified(t *testing.T) {
 	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
 
 	// Make a new bucket.
-	bucketName := "mybucket"
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 	err = c.MakeBucket(bucketName, "us-east-1")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
