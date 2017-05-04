@@ -86,6 +86,7 @@ func TestGetObjectCore(t *testing.T) {
 	buf1 := make([]byte, 512)
 	buf2 := make([]byte, 512)
 	buf3 := make([]byte, n)
+	buf4 := make([]byte, 1)
 
 	reqHeaders.SetRange(offset, offset+int64(len(buf1))-1)
 	reader, objectInfo, err := c.GetObject(bucketName, objectName, reqHeaders)
@@ -93,11 +94,10 @@ func TestGetObjectCore(t *testing.T) {
 		t.Fatal(err)
 	}
 	m, err := io.ReadFull(reader, buf1)
+	reader.Close()
 	if err != nil {
-		reader.Close()
 		t.Fatal(err)
 	}
-	reader.Close()
 
 	if objectInfo.Size != int64(m) {
 		t.Fatalf("Error: GetObject read shorter bytes before reaching EOF, want %v, got %v\n", objectInfo.Size, m)
@@ -114,11 +114,10 @@ func TestGetObjectCore(t *testing.T) {
 	}
 
 	m, err = io.ReadFull(reader, buf2)
+	reader.Close()
 	if err != nil {
-		reader.Close()
 		t.Fatal(err)
 	}
-	reader.Close()
 
 	if objectInfo.Size != int64(m) {
 		t.Fatalf("Error: GetObject read shorter bytes before reaching EOF, want %v, got %v\n", objectInfo.Size, m)
@@ -165,17 +164,33 @@ func TestGetObjectCore(t *testing.T) {
 	}
 
 	m, err = io.ReadFull(reader, buf3)
+	reader.Close()
 	if err != nil {
-		reader.Close()
 		t.Fatal(err)
 	}
-	reader.Close()
 
 	if objectInfo.Size != int64(m) {
 		t.Fatalf("Error: GetObject read shorter bytes before reaching EOF, want %v, got %v\n", objectInfo.Size, m)
 	}
 	if !bytes.Equal(buf3, buf) {
 		t.Fatal("Error: Incorrect data read in GetObject, than what was previously upoaded.")
+	}
+
+	reqHeaders = NewGetReqHeaders()
+	reqHeaders.SetRange(0, 0)
+	reader, objectInfo, err = c.GetObject(bucketName, objectName, reqHeaders)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m, err = io.ReadFull(reader, buf4)
+	reader.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if objectInfo.Size != int64(m) {
+		t.Fatalf("Error: GetObject read shorter bytes before reaching EOF, want %v, got %v\n", objectInfo.Size, m)
 	}
 
 	err = c.RemoveObject(bucketName, objectName)
