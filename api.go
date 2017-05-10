@@ -34,6 +34,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"errors"
 
 	"github.com/minio/minio-go/pkg/s3signer"
 	"github.com/minio/minio-go/pkg/s3utils"
@@ -185,6 +186,16 @@ func redirectHeaders(req *http.Request, via []*http.Request) error {
 	for key, val := range via[0].Header {
 		req.Header[key] = val
 	}
+	return nil
+}
+
+// SetClientTimeout set the timeout for the http.Client used the used by minio,
+// timeout duration < 0 is not allowed.
+func SetClientTimeout(client *Client, timeout time.Duration) error {
+	if timeout < 0 {
+		return errors.New("HTTP timeout cannot be negative")
+	}
+	client.httpClient.Timeout = timeout
 	return nil
 }
 
