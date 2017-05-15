@@ -18,7 +18,6 @@ package minio
 
 import (
 	"bytes"
-	crand "crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -201,14 +200,10 @@ func TestPutObjectReadAt(t *testing.T) {
 	}
 
 	// Generate data using 4 parts so that all 3 'workers' are utilized and a part is leftover.
-	buf := make([]byte, minPartSize*4)
-	// Use crand.Reader for multipart tests to ensure part order at the end.
-	size, err := io.ReadFull(crand.Reader, buf)
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
-	if size != minPartSize*4 {
-		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*4, size)
+	// Use different data for each part for multipart tests to ensure part order at the end.
+	var buf []byte
+	for i := 0; i < 4; i++ {
+		buf = append(buf, bytes.Repeat([]byte(string('a'+i)), minPartSize)...)
 	}
 
 	// Save the data
@@ -295,14 +290,10 @@ func TestPutObjectWithMetadata(t *testing.T) {
 	}
 
 	// Generate data using 2 parts
-	buf := make([]byte, minPartSize*2)
-	// Use crand.Reader for multipart tests to ensure part order at the end.
-	size, err := io.ReadFull(crand.Reader, buf)
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
-	if size != minPartSize*2 {
-		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*2, size)
+	// Use different data in each part for multipart tests to ensure part order at the end.
+	var buf []byte
+	for i := 0; i < 2; i++ {
+		buf = append(buf, bytes.Repeat([]byte(string('a'+i)), minPartSize)...)
 	}
 
 	// Save the data
@@ -856,7 +847,6 @@ func TestResumablePutObject(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	r := bytes.NewReader(bytes.Repeat([]byte("b"), minPartSize*2))
-	// Copy 11MiB worth of random data.
 	n, err := io.CopyN(file, r, minPartSize*2)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -972,16 +962,13 @@ func TestResumableFPutObject(t *testing.T) {
 	}
 
 	// Upload 4 parts to use all 3 multipart 'workers' and have an extra part.
-	buffer := make([]byte, minPartSize*4)
-	// Use crand.Reader for multipart tests to ensure parts are uploaded in correct order.
-	size, err := io.ReadFull(crand.Reader, buffer)
-	if err != nil {
-		t.Fatal("Error:", err)
+	// Use different data in each part for multipart tests to ensure parts are uploaded in correct order.
+	var buffer []byte
+	for i := 0; i < 4; i++ {
+		buffer = append(buffer, bytes.Repeat([]byte(string('a'+i)), minPartSize)...)
 	}
-	if size != minPartSize*4 {
-		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*4, size)
-	}
-	size, err = file.Write(buffer)
+
+	size, err := file.Write(buffer)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -1063,16 +1050,12 @@ func TestFPutObjectMultipart(t *testing.T) {
 	}
 
 	// Upload 4 parts to utilize all 3 'workers' in multipart and still have a part to upload.
-	buffer := make([]byte, minPartSize*4)
+	var buffer []byte
+	for i := 0; i < 4; i++ {
+		buffer = append(buffer, bytes.Repeat([]byte(string('a'+i)), minPartSize)...)
+	}
 
-	size, err := io.ReadFull(crand.Reader, buffer)
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
-	if size != minPartSize*4 {
-		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*4, size)
-	}
-	size, err = file.Write(buffer)
+	size, err := file.Write(buffer)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -1168,18 +1151,14 @@ func TestFPutObject(t *testing.T) {
 	}
 
 	// Upload 4 parts worth of data to use all 3 of multiparts 'workers' and have an extra part.
-	buffer := make([]byte, minPartSize*4)
-	// Use random data for multipart tests to check parts are uploaded in correct order.
-	size, err := io.ReadFull(crand.Reader, buffer)
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
-	if size != minPartSize*4 {
-		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", minPartSize*4, size)
+	// Use different data in part for multipart tests to check parts are uploaded in correct order.
+	var buffer []byte
+	for i := 0; i < 4; i++ {
+		buffer = append(buffer, bytes.Repeat([]byte(string('a'+i)), minPartSize)...)
 	}
 
 	// Write the data to the file.
-	size, err = file.Write(buffer)
+	size, err := file.Write(buffer)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
