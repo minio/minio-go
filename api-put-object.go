@@ -109,14 +109,24 @@ func getReaderSize(reader io.Reader) (size int64, err error) {
 			case "|0", "|1":
 				return
 			}
-			size = st.Size()
+			var pos int64
+			pos, err = v.Seek(0, 1) // SeekCurrent.
+			if err != nil {
+				return -1, err
+			}
+			size = st.Size() - pos
 		case *Object:
 			var st ObjectInfo
 			st, err = v.Stat()
 			if err != nil {
 				return
 			}
-			size = st.Size
+			var pos int64
+			pos, err = v.Seek(0, 1) // SeekCurrent.
+			if err != nil {
+				return -1, err
+			}
+			size = st.Size - pos
 		}
 	}
 	// Returns the size here.

@@ -2477,3 +2477,97 @@ func TestGetObjectObjectModified(t *testing.T) {
 		t.Errorf("Expected ReadAt to fail with error %s but received %s", s3ErrorResponseMap["PreconditionFailed"], err.Error())
 	}
 }
+
+// Test validates putObject to upload a file seeked at a given offset.
+func TestPutObjectUploadSeekedObject(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping functional tests for the short runs")
+	}
+
+	// Instantiate new minio client object.
+	c, err := NewV4(
+		os.Getenv("S3_ADDRESS"),
+		os.Getenv("ACCESS_KEY"),
+		os.Getenv("SECRET_KEY"),
+		mustParseBool(os.Getenv("S3_SECURE")),
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Make a new bucket.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+	defer c.RemoveBucket(bucketName)
+
+	tempfile, err := ioutil.TempFile("", "minio-go-upload-test-")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	var length = 120000
+	data := bytes.Repeat([]byte("1"), length)
+
+	if _, err = tempfile.Write(data); err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	objectName := fmt.Sprintf("test-file-%v", rand.Uint32())
+
+	offset := length / 2
+	if _, err := tempfile.Seek(int64(offset), 0); err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	n, err := c.PutObject(bucketName, objectName, tempfile, "binary/octet-stream")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if n != int64(length-offset) {
+		t.Fatalf("Invalid length returned, want %v, got %v", int64(length-offset), n)
+	}
+	tempfile.Close()
+	if err = os.Remove(tempfile.Name()); err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	length = int(n)
+
+	obj, err := c.GetObject(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	n, err = obj.Seek(int64(offset), 0)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if n != int64(offset) {
+		t.Fatalf("Invalid offset returned, want %v, got %v", int64(offset), n)
+	}
+
+	n, err = c.PutObject(bucketName, objectName+"getobject", obj, "binary/octet-stream")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if n != int64(length-offset) {
+		t.Fatalf("Invalid length returned, want %v, got %v", int64(length-offset), n)
+	}
+
+	if err = c.RemoveObject(bucketName, objectName); err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	if err = c.RemoveObject(bucketName, objectName+"getobject"); err != nil {
+		t.Fatal("Error:", err)
+	}
+}
