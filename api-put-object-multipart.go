@@ -32,6 +32,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Comprehensive put object operation involving multipart resumable uploads.
@@ -413,6 +414,11 @@ func (c Client) uploadPart(bucketName, objectName, uploadID string, reader io.Re
 	// Trim off the odd double quotes from ETag in the beginning and end.
 	objPart.ETag = strings.TrimPrefix(resp.Header.Get("ETag"), "\"")
 	objPart.ETag = strings.TrimSuffix(objPart.ETag, "\"")
+	date, err := time.Parse(http.TimeFormat, resp.Header.Get("Date"))
+	if err != nil {
+		return ObjectPart{}, nil
+	}
+	objPart.LastModified = date
 	return objPart, nil
 }
 
