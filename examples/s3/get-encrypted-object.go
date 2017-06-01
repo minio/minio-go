@@ -72,6 +72,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	defer reader.Close()
 
 	// Local file which holds plain data
 	localFile, err := os.Create("my-testfile")
