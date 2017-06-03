@@ -28,9 +28,9 @@ import (
 	"github.com/minio/minio-go/pkg/encrypt"
 )
 
-// GetEncryptedObject deciphers and streams data stored in the server after applying a specifed encryption materiels
-func (c Client) GetEncryptedObject(bucketName, objectName string, encryptMaterials encrypt.Materials) (io.Reader, error) {
-
+// GetEncryptedObject deciphers and streams data stored in the server after applying a specifed encryption materials,
+// returned stream should be closed by the caller.
+func (c Client) GetEncryptedObject(bucketName, objectName string, encryptMaterials encrypt.Materials) (io.ReadCloser, error) {
 	if encryptMaterials == nil {
 		return nil, ErrInvalidArgument("Unable to recognize empty encryption properties")
 	}
