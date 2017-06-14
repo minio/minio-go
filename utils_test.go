@@ -21,6 +21,8 @@ import (
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/minio/minio-go/pkg/s3utils"
 )
 
 // Tests signature redacting function used
@@ -209,19 +211,19 @@ func TestIsValidBucketName(t *testing.T) {
 		// Flag to indicate whether test should Pass.
 		shouldPass bool
 	}{
-		{".mybucket", ErrInvalidBucketName("Bucket name cannot start or end with a '.' dot."), false},
-		{"mybucket.", ErrInvalidBucketName("Bucket name cannot start or end with a '.' dot."), false},
-		{"mybucket-", ErrInvalidBucketName("Bucket name contains invalid characters."), false},
-		{"my", ErrInvalidBucketName("Bucket name cannot be smaller than 3 characters."), false},
-		{"", ErrInvalidBucketName("Bucket name cannot be empty."), false},
-		{"my..bucket", ErrInvalidBucketName("Bucket name cannot have successive periods."), false},
+		{".mybucket", ErrInvalidBucketName("Bucket name contains invalid characters"), false},
+		{"mybucket.", ErrInvalidBucketName("Bucket name contains invalid characters"), false},
+		{"mybucket-", ErrInvalidBucketName("Bucket name contains invalid characters"), false},
+		{"my", ErrInvalidBucketName("Bucket name cannot be smaller than 3 characters"), false},
+		{"", ErrInvalidBucketName("Bucket name cannot be empty"), false},
+		{"my..bucket", ErrInvalidBucketName("Bucket name contains invalid characters"), false},
 		{"my.bucket.com", nil, true},
 		{"my-bucket", nil, true},
 		{"123my-bucket", nil, true},
 	}
 
 	for i, testCase := range testCases {
-		err := isValidBucketName(testCase.bucketName)
+		err := s3utils.CheckValidBucketName(testCase.bucketName)
 		if err != nil && testCase.shouldPass {
 			t.Errorf("Test %d: Expected to pass, but failed with: <ERROR> %s", i+1, err.Error())
 		}

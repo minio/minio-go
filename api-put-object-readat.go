@@ -25,6 +25,8 @@ import (
 	"io"
 	"io/ioutil"
 	"sort"
+
+	"github.com/minio/minio-go/pkg/s3utils"
 )
 
 // uploadedPartRes - the response received from a part upload.
@@ -65,10 +67,10 @@ func shouldUploadPartReadAt(objPart ObjectPart, uploadReq uploadPartReq) bool {
 // stream after uploading all the contents successfully.
 func (c Client) putObjectMultipartFromReadAt(bucketName, objectName string, reader io.ReaderAt, size int64, metaData map[string][]string, progress io.Reader) (n int64, err error) {
 	// Input validation.
-	if err := isValidBucketName(bucketName); err != nil {
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return 0, err
 	}
-	if err := isValidObjectName(objectName); err != nil {
+	if err := s3utils.CheckValidObjectName(objectName); err != nil {
 		return 0, err
 	}
 

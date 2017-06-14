@@ -35,10 +35,10 @@ import (
 // FPutObject - Create an object in a bucket, with contents from file at filePath.
 func (c Client) FPutObject(bucketName, objectName, filePath, contentType string) (n int64, err error) {
 	// Input validation.
-	if err := isValidBucketName(bucketName); err != nil {
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return 0, err
 	}
-	if err := isValidObjectName(objectName); err != nil {
+	if err := s3utils.CheckValidObjectName(objectName); err != nil {
 		return 0, err
 	}
 
@@ -116,10 +116,10 @@ func (c Client) FPutObject(bucketName, objectName, filePath, contentType string)
 // specific sections and not having to create temporary files.
 func (c Client) putObjectMultipartFromFile(bucketName, objectName string, fileReader io.ReaderAt, fileSize int64, metaData map[string][]string, progress io.Reader) (int64, error) {
 	// Input validation.
-	if err := isValidBucketName(bucketName); err != nil {
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return 0, err
 	}
-	if err := isValidObjectName(objectName); err != nil {
+	if err := s3utils.CheckValidObjectName(objectName); err != nil {
 		return 0, err
 	}
 

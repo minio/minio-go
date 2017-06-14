@@ -27,6 +27,8 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+
+	"github.com/minio/minio-go/pkg/s3utils"
 )
 
 // toInt - converts go value to its integer representation based
@@ -160,10 +162,10 @@ func (c Client) PutObject(bucketName, objectName string, reader io.Reader, conte
 // is used for Google Cloud Storage since Google's multipart API is not S3 compatible.
 func (c Client) putObjectNoChecksum(bucketName, objectName string, reader io.Reader, size int64, metaData map[string][]string, progress io.Reader) (n int64, err error) {
 	// Input validation.
-	if err := isValidBucketName(bucketName); err != nil {
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return 0, err
 	}
-	if err := isValidObjectName(objectName); err != nil {
+	if err := s3utils.CheckValidObjectName(objectName); err != nil {
 		return 0, err
 	}
 	if size > 0 {
@@ -193,10 +195,10 @@ func (c Client) putObjectNoChecksum(bucketName, objectName string, reader io.Rea
 // This special function is used as a fallback when multipart upload fails.
 func (c Client) putObjectSingle(bucketName, objectName string, reader io.Reader, size int64, metaData map[string][]string, progress io.Reader) (n int64, err error) {
 	// Input validation.
-	if err := isValidBucketName(bucketName); err != nil {
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return 0, err
 	}
-	if err := isValidObjectName(objectName); err != nil {
+	if err := s3utils.CheckValidObjectName(objectName); err != nil {
 		return 0, err
 	}
 	if size > maxSinglePutObjectSize {
@@ -256,10 +258,10 @@ func (c Client) putObjectSingle(bucketName, objectName string, reader io.Reader,
 // NOTE: You must have WRITE permissions on a bucket to add an object to it.
 func (c Client) putObjectDo(bucketName, objectName string, reader io.Reader, md5Sum []byte, sha256Sum []byte, size int64, metaData map[string][]string) (ObjectInfo, error) {
 	// Input validation.
-	if err := isValidBucketName(bucketName); err != nil {
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return ObjectInfo{}, err
 	}
-	if err := isValidObjectName(objectName); err != nil {
+	if err := s3utils.CheckValidObjectName(objectName); err != nil {
 		return ObjectInfo{}, err
 	}
 
