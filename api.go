@@ -26,6 +26,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -701,6 +702,15 @@ func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, que
 
 	// Save scheme.
 	scheme := c.endpointURL.Scheme
+
+	// Strip port 80 and 443 so we won't send these ports in Host header.
+	// The reason is that browsers and curl automatically remove :80 and :443
+	// with the generated presigned urls, then a signature mismatch error.
+	if h, p, err := net.SplitHostPort(host); err == nil {
+		if scheme == "http" && p == "80" || scheme == "https" && p == "443" {
+			host = h
+		}
+	}
 
 	urlStr := scheme + "://" + host + "/"
 	// Make URL only if bucketName is available, otherwise use the
