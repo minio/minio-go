@@ -36,7 +36,7 @@ func TestMakeBucketErrorV2(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping functional tests for short runs")
 	}
-	if os.Getenv("S3_ADDRESS") != "s3.amazonaws.com" {
+	if os.Getenv(serverEndpoint) != "s3.amazonaws.com" {
 		t.Skip("skipping region functional tests for non s3 runs")
 	}
 
@@ -45,10 +45,10 @@ func TestMakeBucketErrorV2(t *testing.T) {
 
 	// Instantiate new minio client object.
 	c, err := NewV2(
-		os.Getenv("S3_ADDRESS"),
-		os.Getenv("ACCESS_KEY"),
-		os.Getenv("SECRET_KEY"),
-		mustParseBool(os.Getenv("S3_SECURE")),
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableSecurity)),
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -91,10 +91,10 @@ func TestGetObjectClosedTwiceV2(t *testing.T) {
 
 	// Instantiate new minio client object.
 	c, err := NewV2(
-		os.Getenv("S3_ADDRESS"),
-		os.Getenv("ACCESS_KEY"),
-		os.Getenv("SECRET_KEY"),
-		mustParseBool(os.Getenv("S3_SECURE")),
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableSecurity)),
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -171,10 +171,10 @@ func TestRemovePartiallyUploadedV2(t *testing.T) {
 
 	// Instantiate new minio client object.
 	c, err := NewV2(
-		os.Getenv("S3_ADDRESS"),
-		os.Getenv("ACCESS_KEY"),
-		os.Getenv("SECRET_KEY"),
-		mustParseBool(os.Getenv("S3_SECURE")),
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableSecurity)),
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -241,10 +241,10 @@ func TestResumablePutObjectV2(t *testing.T) {
 
 	// Instantiate new minio client object.
 	c, err := NewV2(
-		os.Getenv("S3_ADDRESS"),
-		os.Getenv("ACCESS_KEY"),
-		os.Getenv("SECRET_KEY"),
-		mustParseBool(os.Getenv("S3_SECURE")),
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableSecurity)),
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -353,10 +353,10 @@ func TestFPutObjectV2(t *testing.T) {
 
 	// Instantiate new minio client object.
 	c, err := NewV2(
-		os.Getenv("S3_ADDRESS"),
-		os.Getenv("ACCESS_KEY"),
-		os.Getenv("SECRET_KEY"),
-		mustParseBool(os.Getenv("S3_SECURE")),
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableSecurity)),
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -502,10 +502,10 @@ func TestResumableFPutObjectV2(t *testing.T) {
 
 	// Instantiate new minio client object.
 	c, err := NewV2(
-		os.Getenv("S3_ADDRESS"),
-		os.Getenv("ACCESS_KEY"),
-		os.Getenv("SECRET_KEY"),
-		mustParseBool(os.Getenv("S3_SECURE")),
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableSecurity)),
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -574,7 +574,7 @@ func TestMakeBucketRegionsV2(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping functional tests for short runs")
 	}
-	if os.Getenv("S3_ADDRESS") != "s3.amazonaws.com" {
+	if os.Getenv(serverEndpoint) != "s3.amazonaws.com" {
 		t.Skip("skipping region functional tests for non s3 runs")
 	}
 
@@ -583,10 +583,10 @@ func TestMakeBucketRegionsV2(t *testing.T) {
 
 	// Instantiate new minio client object.
 	c, err := NewV2(
-		os.Getenv("S3_ADDRESS"),
-		os.Getenv("ACCESS_KEY"),
-		os.Getenv("SECRET_KEY"),
-		mustParseBool(os.Getenv("S3_SECURE")),
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableSecurity)),
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -634,10 +634,10 @@ func TestGetObjectReadSeekFunctionalV2(t *testing.T) {
 
 	// Instantiate new minio client object.
 	c, err := NewV2(
-		os.Getenv("S3_ADDRESS"),
-		os.Getenv("ACCESS_KEY"),
-		os.Getenv("SECRET_KEY"),
-		mustParseBool(os.Getenv("S3_SECURE")),
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableSecurity)),
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -767,10 +767,10 @@ func TestGetObjectReadAtFunctionalV2(t *testing.T) {
 
 	// Instantiate new minio client object.
 	c, err := NewV2(
-		os.Getenv("S3_ADDRESS"),
-		os.Getenv("ACCESS_KEY"),
-		os.Getenv("SECRET_KEY"),
-		mustParseBool(os.Getenv("S3_SECURE")),
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableSecurity)),
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -903,10 +903,10 @@ func TestCopyObjectV2(t *testing.T) {
 
 	// Instantiate new minio client object
 	c, err := NewV2(
-		os.Getenv("S3_ADDRESS"),
-		os.Getenv("ACCESS_KEY"),
-		os.Getenv("SECRET_KEY"),
-		mustParseBool(os.Getenv("S3_SECURE")),
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableSecurity)),
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -1020,10 +1020,10 @@ func TestFunctionalV2(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	c, err := NewV2(
-		os.Getenv("S3_ADDRESS"),
-		os.Getenv("ACCESS_KEY"),
-		os.Getenv("SECRET_KEY"),
-		mustParseBool(os.Getenv("S3_SECURE")),
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableSecurity)),
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
