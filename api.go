@@ -628,9 +628,11 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 		req.Header.Set(k, v[0])
 	}
 
-	// set incoming content-length.
-	if metadata.contentLength > 0 {
-		req.ContentLength = metadata.contentLength
+	// Set incoming content-length.
+	req.ContentLength = metadata.contentLength
+	if req.ContentLength <= -1 {
+		// For unknown content length, we upload using transfer-encoding: chunked.
+		req.TransferEncoding = []string{"chunked"}
 	}
 
 	// set md5Sum for content protection.
