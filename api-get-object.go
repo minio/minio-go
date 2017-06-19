@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/minio/minio-go/pkg/encrypt"
+	"github.com/minio/minio-go/pkg/s3utils"
 )
 
 // GetEncryptedObject deciphers and streams data stored in the server after applying a specifed encryption materials,
@@ -57,10 +58,10 @@ func (c Client) GetEncryptedObject(bucketName, objectName string, encryptMateria
 // GetObject - returns an seekable, readable object.
 func (c Client) GetObject(bucketName, objectName string) (*Object, error) {
 	// Input validation.
-	if err := isValidBucketName(bucketName); err != nil {
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return nil, err
 	}
-	if err := isValidObjectName(objectName); err != nil {
+	if err := s3utils.CheckValidObjectName(objectName); err != nil {
 		return nil, err
 	}
 
@@ -627,10 +628,10 @@ func newObject(reqCh chan<- getRequest, resCh <-chan getResponse, doneCh chan<- 
 // go to http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35.
 func (c Client) getObject(bucketName, objectName string, reqHeaders RequestHeaders) (io.ReadCloser, ObjectInfo, error) {
 	// Validate input arguments.
-	if err := isValidBucketName(bucketName); err != nil {
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return nil, ObjectInfo{}, err
 	}
-	if err := isValidObjectName(objectName); err != nil {
+	if err := s3utils.CheckValidObjectName(objectName); err != nil {
 		return nil, ObjectInfo{}, err
 	}
 

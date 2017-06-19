@@ -73,7 +73,7 @@ func (r *bucketLocationCache) Delete(bucketName string) {
 // GetBucketLocation - get location for the bucket name from location cache, if not
 // fetch freshly by making a new request.
 func (c Client) GetBucketLocation(bucketName string) (string, error) {
-	if err := isValidBucketName(bucketName); err != nil {
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return "", err
 	}
 	return c.getBucketLocation(bucketName)
@@ -82,7 +82,7 @@ func (c Client) GetBucketLocation(bucketName string) (string, error) {
 // getBucketLocation - Get location for the bucketName from location map cache, if not
 // fetch freshly by making a new request.
 func (c Client) getBucketLocation(bucketName string) (string, error) {
-	if err := isValidBucketName(bucketName); err != nil {
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return "", err
 	}
 
