@@ -21,33 +21,26 @@ import (
 	"time"
 )
 
-// copyCondition explanation:
-// http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectCOPY.html
-//
-// Example:
-//
-//   copyCondition {
-//       key: "x-amz-copy-if-modified-since",
-//       value: "Tue, 15 Nov 1994 12:45:26 GMT",
-//   }
-//
-type copyCondition struct {
-	key   string
-	value string
-}
-
 // CopyConditions - copy conditions.
 type CopyConditions struct {
-	conditions []copyCondition
+	conditions map[string]string
+	// start and end offset (inclusive) of source object to be
+	// copied.
+	byteRangeStart int64
+	byteRangeEnd   int64
 }
 
-// NewCopyConditions - Instantiate new list of conditions.  This
-// function is left behind for backward compatibility. The idiomatic
-// way to set an empty set of copy conditions is,
-//    ``copyConditions := CopyConditions{}``.
+// NewCopyConditions - Instantiate new list of conditions. Prefer to
+// use this function as it initializes byte-range.
 //
 func NewCopyConditions() CopyConditions {
-	return CopyConditions{}
+	return CopyConditions{
+		conditions: make(map[string]string),
+		// default values for byte-range indicating that they
+		// are not provided by the user
+		byteRangeStart: -1,
+		byteRangeEnd:   -1,
+	}
 }
 
 // SetMatchETag - set match etag.
@@ -55,10 +48,7 @@ func (c *CopyConditions) SetMatchETag(etag string) error {
 	if etag == "" {
 		return ErrInvalidArgument("ETag cannot be empty.")
 	}
-	c.conditions = append(c.conditions, copyCondition{
-		key:   "x-amz-copy-source-if-match",
-		value: etag,
-	})
+	c.conditions["x-amz-copy-source-if-match"] = etag
 	return nil
 }
 
@@ -67,10 +57,7 @@ func (c *CopyConditions) SetMatchETagExcept(etag string) error {
 	if etag == "" {
 		return ErrInvalidArgument("ETag cannot be empty.")
 	}
-	c.conditions = append(c.conditions, copyCondition{
-		key:   "x-amz-copy-source-if-none-match",
-		value: etag,
-	})
+	c.conditions["x-amz-copy-source-if-none-match"] = etag
 	return nil
 }
 
@@ -79,10 +66,7 @@ func (c *CopyConditions) SetUnmodified(modTime time.Time) error {
 	if modTime.IsZero() {
 		return ErrInvalidArgument("Modified since cannot be empty.")
 	}
-	c.conditions = append(c.conditions, copyCondition{
-		key:   "x-amz-copy-source-if-unmodified-since",
-		value: modTime.Format(http.TimeFormat),
-	})
+	c.conditions["x-amz-copy-source-if-unmodified-since"] = modTime.Format(http.TimeFormat)
 	return nil
 }
 
@@ -91,9 +75,37 @@ func (c *CopyConditions) SetModified(modTime time.Time) error {
 	if modTime.IsZero() {
 		return ErrInvalidArgument("Modified since cannot be empty.")
 	}
-	c.conditions = append(c.conditions, copyCondition{
-		key:   "x-amz-copy-source-if-modified-since",
-		value: modTime.Format(http.TimeFormat),
-	})
+	c.conditions["x-amz-copy-source-if-modified-since"] = modTime.Format(http.TimeFormat)
 	return nil
+}
+
+// SetByteRange - set the start and end of the source object to be
+// copied.
+func (c *CopyConditions) SetByteRange(start, end int64) error {
+	if start < 0 || end < start {
+		return ErrInvalidArgument("Range start less than 0 or range end less than range start.")
+	}
+	if end-start+1 < 1 {
+		return ErrInvalidArgument("Offset must refer to a non-zero range length.")
+	}
+	c.byteRangeEnd = end
+	c.byteRangeStart = start
+	return nil
+}
+
+func (c *CopyConditions) getRangeSize() int64 {
+	if c.byteRangeStart < 0 {
+		// only happens if byte-range was not set by user
+		return 0
+	}
+	return c.byteRangeEnd - c.byteRangeStart + 1
+}
+
+func (c *CopyConditions) duplicate() *CopyConditions {
+	r := NewCopyConditions()
+	for k, v := range c.conditions {
+		r.conditions[k] = v
+	}
+	r.byteRangeEnd, r.byteRangeStart = c.byteRangeEnd, c.byteRangeStart
+	return &r
 }

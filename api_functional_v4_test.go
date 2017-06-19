@@ -1744,7 +1744,7 @@ func TestCopyObject(t *testing.T) {
 	}
 
 	// Set copy conditions.
-	copyConds := CopyConditions{}
+	copyConds := NewCopyConditions()
 
 	// Start by setting wrong conditions
 	err = copyConds.SetModified(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC))
@@ -1774,7 +1774,7 @@ func TestCopyObject(t *testing.T) {
 	}
 
 	// Copy source.
-	copySource := bucketName + "/" + objectName
+	copySource := "/" + bucketName + "/" + objectName
 
 	// Perform the Copy
 	err = c.CopyObject(bucketName+"-copy", objectName+"-copy", copySource, copyConds)

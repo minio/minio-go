@@ -949,14 +949,14 @@ func TestCopyObjectV2(t *testing.T) {
 	}
 
 	// Set copy conditions.
-	copyConds := CopyConditions{}
+	copyConds := NewCopyConditions()
 	err = copyConds.SetModified(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 
 	// Copy source.
-	copySource := bucketName + "/" + objectName
+	copySource := "/" + bucketName + "/" + objectName
 
 	// Perform the Copy
 	err = c.CopyObject(bucketName+"-copy", objectName+"-copy", copySource, copyConds)

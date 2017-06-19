@@ -166,8 +166,8 @@ func hashCopyN(hashAlgorithms map[string]hash.Hash, hashSums map[string][]byte, 
 	return size, err
 }
 
-// getUploadID - fetch upload id if already present for an object name
-// or initiate a new request to fetch a new upload id.
+// newUploadID - create a new uploadId for the given bucket and
+// object. Also sets metadata.
 func (c Client) newUploadID(bucketName, objectName string, metaData map[string][]string) (uploadID string, err error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
