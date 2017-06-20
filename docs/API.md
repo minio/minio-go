@@ -1243,7 +1243,7 @@ __Return Values__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`chan NotificationInfo` | _chan_ | Read channel for all notificatons on bucket |
+|`chan NotificationInfo` | _chan_ | Read channel for all notifications on bucket |
 |`NotificationInfo` | _object_ | Notification object represents events info |
 |`notificationInfo.Records` | _[]NotificationEvent_ | Collection of notification events |
 |`notificationInfo.Err` | _error_ | Carries any error occurred during the operation |
