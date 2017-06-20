@@ -233,6 +233,13 @@ func (c Client) listObjectsV2Query(bucketName, objectPrefix, continuationToken s
 	if err != nil {
 		return listBucketResult, err
 	}
+	for i, content := range listBucketResult.Contents {
+		etag := content.ETag
+		// Trim off the odd double quotes from ETag in the beginning and end.
+		etag = strings.TrimPrefix(etag, `"`)
+		etag = strings.TrimSuffix(etag, `"`)
+		listBucketResult.Contents[i].ETag = etag
+	}
 	return listBucketResult, nil
 }
 
@@ -402,6 +409,13 @@ func (c Client) listObjectsQuery(bucketName, objectPrefix, objectMarker, delimit
 	err = xmlDecoder(resp.Body, &listBucketResult)
 	if err != nil {
 		return listBucketResult, err
+	}
+	for i, content := range listBucketResult.Contents {
+		etag := content.ETag
+		// Trim off the odd double quotes from ETag in the beginning and end.
+		etag = strings.TrimPrefix(etag, `"`)
+		etag = strings.TrimSuffix(etag, `"`)
+		listBucketResult.Contents[i].ETag = etag
 	}
 	return listBucketResult, nil
 }
