@@ -591,15 +591,23 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 		method = "POST"
 	}
 
-	var location string
-	// Gather location only if bucketName is present.
-	if metadata.bucketName != "" && metadata.bucketLocation == "" {
-		location, err = c.getBucketLocation(metadata.bucketName)
-		if err != nil {
-			return nil, err
+	location := metadata.bucketLocation
+	if location == "" {
+		if metadata.bucketName != "" {
+			// Gather location only if bucketName is present.
+			location, err = c.getBucketLocation(metadata.bucketName)
+			if err != nil {
+				if ToErrorResponse(err).Code != "AccessDenied" {
+					return nil, err
+				}
+			}
+			// Upon AccessDenied error on fetching bucket location, default
+			// to possible locations based on endpoint URL. This can usually
+			// happen when GetBucketLocation() is disabled using IAM policies.
 		}
-	} else {
-		location = metadata.bucketLocation
+		if location == "" {
+			location = getDefaultLocation(c.endpointURL, c.region)
+		}
 	}
 
 	// Construct a new target URL.
