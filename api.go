@@ -622,7 +622,11 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 	// by making sure to wrap the closer as a nop.
 	var body io.ReadCloser
 	if metadata.contentBody != nil {
-		body = ioutil.NopCloser(metadata.contentBody)
+		if metadata.contentLength > 0 {
+			body = ioutil.NopCloser(metadata.contentBody)
+		} else {
+			body = http.NoBody
+		}
 	}
 
 	// Initialize a new HTTP request for the method.
