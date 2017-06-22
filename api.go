@@ -621,12 +621,8 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 	// This can cause underlying *os.File seekers to fail, avoid that
 	// by making sure to wrap the closer as a nop.
 	var body io.ReadCloser
-	if metadata.contentBody != nil {
-		if metadata.contentLength > 0 {
-			body = ioutil.NopCloser(metadata.contentBody)
-		} else {
-			body = nil
-		}
+	if metadata.contentBody != nil && metadata.contentLength > 0 {
+		body = ioutil.NopCloser(metadata.contentBody)
 	}
 
 	// Initialize a new HTTP request for the method.
