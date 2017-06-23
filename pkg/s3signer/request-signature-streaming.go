@@ -21,6 +21,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -204,6 +205,12 @@ func StreamingSignV4(req *http.Request, accessKeyID, secretAccessKey, sessionTok
 
 	// Set headers needed for streaming signature.
 	prepareStreamingRequest(req, sessionToken, dataLen, reqTime)
+
+	if req.Body == nil {
+		// TODO: this still fails api_functional_v4_test.go:406
+		// even with req.Body = http.NoBody for go1.8.3
+		req.Body = ioutil.NopCloser(bytes.NewReader([]byte("")))
+	}
 
 	stReader := &StreamingReader{
 		baseReadCloser:  req.Body,
