@@ -55,11 +55,13 @@ func (c Client) BucketExists(bucketName string) (bool, error) {
 // List of header keys to be filtered, usually
 // from all S3 API http responses.
 var defaultFilterKeys = []string{
+	"Connection",
 	"Transfer-Encoding",
 	"Accept-Ranges",
 	"Date",
 	"Server",
 	"Vary",
+	"x-amz-bucket-region",
 	"x-amz-request-id",
 	"x-amz-id-2",
 	// Add new headers to be ignored.
