@@ -673,7 +673,9 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 	// - The request Body, if non-nil, will be closed by the underlying Transport, even on errors.
 	// This can cause underlying *os.File seekers to fail, avoid that
 	// by making sure to wrap the closer as a nop.
-	if metadata.contentBody != nil && metadata.contentLength > 0 {
+	if metadata.contentLength == 0 {
+		req.Body = nil
+	} else {
 		req.Body = ioutil.NopCloser(metadata.contentBody)
 	}
 
