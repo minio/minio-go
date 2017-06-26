@@ -316,7 +316,9 @@ func TestPutObjectWithMetadata(t *testing.T) {
 	// Object custom metadata
 	customContentType := "custom/contenttype"
 
-	n, err := c.PutObjectWithMetadata(bucketName, objectName, bytes.NewReader(buf), map[string][]string{"Content-Type": {customContentType}}, nil)
+	n, err := c.PutObjectWithMetadata(bucketName, objectName, bytes.NewReader(buf), map[string][]string{
+		"Content-Type": {customContentType},
+	}, nil)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
@@ -480,7 +482,7 @@ func TestListPartiallyUploaded(t *testing.T) {
 	if err == nil {
 		t.Fatal("Error: PutObject should fail.")
 	}
-	if err.Error() != "proactively closed to be verified later" {
+	if !strings.Contains(err.Error(), "proactively closed to be verified later") {
 		t.Fatal("Error:", err)
 	}
 
@@ -806,7 +808,7 @@ func TestRemovePartiallyUploaded(t *testing.T) {
 	if err == nil {
 		t.Fatal("Error: PutObject should fail.")
 	}
-	if err.Error() != "proactively closed to be verified later" {
+	if !strings.Contains(err.Error(), "proactively closed to be verified later") {
 		t.Fatal("Error:", err)
 	}
 	err = c.RemoveIncompleteUpload(bucketName, objectName)
