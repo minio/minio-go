@@ -82,21 +82,24 @@ func (c Client) putObjectMultipartNoStream(bucketName, objectName string, reader
 	// Part number always starts with '1'.
 	partNumber := 1
 
-	// Initialize a temporary buffer.
-	tmpBuffer := new(bytes.Buffer)
-
 	// Initialize parts uploaded map.
 	partsInfo := make(map[int]ObjectPart)
 
 	for partNumber <= totalPartsCount {
-		// Choose hash algorithms to be calculated by hashCopyN,
-		// avoid sha256 with non-v4 signature request or
-		// HTTPS connection.
+		// Initialize a temporary buffer.
+		tmpBuffer, terr := newTempFile(objectName)
+		if terr != nil {
+			return 0, terr
+		}
+
+		// Choose hash algorithms to be calculated by hashCopyN, avoid sha256
+		// with non-v4 signature request or HTTPS connection
 		hashAlgos, hashSums := c.hashMaterials()
 
 		// Calculates hash sums while copying partSize bytes into tmpBuffer.
 		prtSize, rErr := hashCopyN(hashAlgos, hashSums, tmpBuffer, reader, partSize)
 		if rErr != nil && rErr != io.EOF {
+			tmpBuffer.Close()
 			return 0, rErr
 		}
 
@@ -110,22 +113,22 @@ func (c Client) putObjectMultipartNoStream(bucketName, objectName string, reader
 		objPart, err = c.uploadPart(bucketName, objectName, uploadID, reader, partNumber,
 			hashSums["md5"], hashSums["sha256"], prtSize, metadata)
 		if err != nil {
+			tmpBuffer.Close()
 			// Reset the temporary buffer upon any error.
-			tmpBuffer.Reset()
 			return totalUploadedSize, err
 		}
 
 		// Save successfully uploaded part metadata.
 		partsInfo[partNumber] = objPart
 
-		// Reset the temporary buffer.
-		tmpBuffer.Reset()
-
 		// Save successfully uploaded size.
 		totalUploadedSize += prtSize
 
 		// Increment part number.
 		partNumber++
+
+		// Close the temporary buffer.
+		tmpBuffer.Close()
 
 		// For unknown size, Read EOF we break away.
 		// We do not have to upload till totalPartsCount.
