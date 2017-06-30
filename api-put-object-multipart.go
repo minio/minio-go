@@ -113,13 +113,6 @@ func (c Client) putObjectMultipartNoStream(bucketName, objectName string, reader
 		// Save successfully uploaded part metadata.
 		partsInfo[partNumber] = objPart
 
-		// Update the progress reader for the skipped part.
-		if progress != nil {
-			if _, err = io.CopyN(ioutil.Discard, progress, prtSize); err != nil {
-				return totalUploadedSize, err
-			}
-		}
-
 		// Reset the temporary buffer.
 		tmpBuffer.Reset()
 

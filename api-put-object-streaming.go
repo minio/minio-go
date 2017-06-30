@@ -19,7 +19,6 @@ package minio
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"sort"
 	"strings"
@@ -165,7 +164,7 @@ func (c Client) putObjectMultipartStreamFromReadAt(bucketName, objectName string
 				}
 
 				// Get a section reader on a particular offset.
-				sectionReader := io.NewSectionReader(reader, readOffset, partSize)
+				sectionReader := newHook(io.NewSectionReader(reader, readOffset, partSize), progress)
 
 				// Proceed to upload the part.
 				var objPart ObjectPart
@@ -209,12 +208,6 @@ func (c Client) putObjectMultipartStreamFromReadAt(bucketName, objectName string
 		}
 		// Update the totalUploadedSize.
 		totalUploadedSize += uploadRes.Size
-		// Update the progress bar if there is one.
-		if progress != nil {
-			if _, err = io.CopyN(ioutil.Discard, progress, uploadRes.Size); err != nil {
-				return totalUploadedSize, err
-			}
-		}
 		// Store the parts to be completed in order.
 		complMultipartUpload.Parts = append(complMultipartUpload.Parts, CompletePart{
 			ETag:       part.ETag,
