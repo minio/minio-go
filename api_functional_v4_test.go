@@ -426,8 +426,8 @@ func TestPutObjectStreaming(t *testing.T) {
 	}
 }
 
-// Test listing partially uploaded objects.
-func TestListPartiallyUploaded(t *testing.T) {
+// Test listing no partially uploaded objects upon putObject error.
+func TestListNoPartiallyUploadedObjects(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping function tests for short runs")
 	}
@@ -488,12 +488,19 @@ func TestListPartiallyUploaded(t *testing.T) {
 
 	doneCh := make(chan struct{})
 	defer close(doneCh)
+
 	isRecursive := true
 	multiPartObjectCh := c.ListIncompleteUploads(bucketName, objectName, isRecursive, doneCh)
+
+	var activeUploads bool
 	for multiPartObject := range multiPartObjectCh {
 		if multiPartObject.Err != nil {
 			t.Fatalf("Error: Error when listing incomplete upload")
 		}
+		activeUploads = true
+	}
+	if activeUploads {
+		t.Errorf("There should be no active uploads in progress upon error for %s/%s", bucketName, objectName)
 	}
 
 	err = c.RemoveBucket(bucketName)
@@ -746,75 +753,6 @@ func TestRemoveMultipleObjects(t *testing.T) {
 	}
 
 	// Clean the bucket created by the test
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
-}
-
-// Tests removing partially uploaded objects.
-func TestRemovePartiallyUploaded(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping function tests for short runs")
-	}
-
-	// Seed random based on current time.
-	rand.Seed(time.Now().Unix())
-
-	// Instantiate new minio client object.
-	c, err := New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableSecurity)),
-	)
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
-
-	// Set user agent.
-	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
-
-	// Enable tracing, write to stdout.
-	// c.TraceOn(os.Stderr)
-
-	// Generate a new random bucket name.
-	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
-
-	// Make a new bucket.
-	err = c.MakeBucket(bucketName, "us-east-1")
-	if err != nil {
-		t.Fatal("Error:", err, bucketName)
-	}
-
-	r := bytes.NewReader(bytes.Repeat([]byte("a"), 128*1024))
-
-	reader, writer := io.Pipe()
-	go func() {
-		i := 0
-		for i < 25 {
-			_, cerr := io.CopyN(writer, r, 128*1024)
-			if cerr != nil {
-				t.Fatal("Error:", cerr, bucketName)
-			}
-			i++
-			r.Seek(0, 0)
-		}
-		writer.CloseWithError(errors.New("proactively closed to be verified later"))
-	}()
-
-	objectName := bucketName + "-resumable"
-	_, err = c.PutObject(bucketName, objectName, reader, "application/octet-stream")
-	if err == nil {
-		t.Fatal("Error: PutObject should fail.")
-	}
-	if !strings.Contains(err.Error(), "proactively closed to be verified later") {
-		t.Fatal("Error:", err)
-	}
-	err = c.RemoveIncompleteUpload(bucketName, objectName)
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
 	err = c.RemoveBucket(bucketName)
 	if err != nil {
 		t.Fatal("Error:", err)
