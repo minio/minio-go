@@ -112,14 +112,14 @@ func TestMakeBucketError(t *testing.T) {
 		t.Fatal("Error:", err, bucketName+"..-1")
 	}
 	// Verify valid error response.
-	if ToErrorResponse(err).Code != "InvalidBucketName" {
+	if err != nil && err.Error() != "Bucket name contains invalid characters" {
 		t.Fatal("Error: Invalid error returned by server", err)
 	}
 	if err = c.MakeBucket(bucketName+"AAA-1", "eu-central-1"); err == nil {
 		t.Fatal("Error:", err, bucketName+"..-1")
 	}
 	// Verify valid error response.
-	if ToErrorResponse(err).Code != "InvalidBucketName" {
+	if err != nil && err.Error() != "Bucket name contains invalid characters" {
 		t.Fatal("Error: Invalid error returned by server", err)
 	}
 }
