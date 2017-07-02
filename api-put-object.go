@@ -23,6 +23,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/minio/minio-go/pkg/credentials"
 	"github.com/minio/minio-go/pkg/s3utils"
 )
 
@@ -193,6 +194,9 @@ func (c Client) putObjectCommon(bucketName, objectName string, reader io.Reader,
 	}
 
 	if c.overrideSignerType.IsV2() {
+		if size > 0 && size < minPartSize {
+			return c.putObjectNoChecksum(bucketName, objectName, reader, size, metadata, progress)
+		}
 		return c.putObjectMultipart(bucketName, objectName, reader, size, metadata, progress)
 	}
 
@@ -201,6 +205,9 @@ func (c Client) putObjectCommon(bucketName, objectName string, reader io.Reader,
 	if size < 0 {
 		return c.putObjectMultipart(bucketName, objectName, reader, size, metadata, progress)
 	}
+
+	// Set streaming signature.
+	c.overrideSignerType = credentials.SignatureV4Streaming
 
 	if size < minPartSize {
 		return c.putObjectNoChecksum(bucketName, objectName, reader, size, metadata, progress)

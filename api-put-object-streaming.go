@@ -23,7 +23,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/minio/minio-go/pkg/credentials"
 	"github.com/minio/minio-go/pkg/s3utils"
 )
 
@@ -44,9 +43,6 @@ func (c Client) PutObjectStreaming(bucketName, objectName string, reader io.Read
 //
 func (c Client) putObjectMultipartStream(bucketName, objectName string,
 	reader io.Reader, size int64, metadata map[string][]string, progress io.Reader) (n int64, err error) {
-
-	// Set streaming signature.
-	c.overrideSignerType = credentials.SignatureV4Streaming
 
 	// Verify if reader is *minio.Object, *os.File or io.ReaderAt.
 	// NOTE: Verification of object is kept for a specific purpose
@@ -168,8 +164,9 @@ func (c Client) putObjectMultipartStreamFromReadAt(bucketName, objectName string
 
 				// Proceed to upload the part.
 				var objPart ObjectPart
-				objPart, err = c.uploadPart(bucketName, objectName, uploadID, sectionReader,
-					uploadReq.PartNum, nil, nil, partSize)
+				objPart, err = c.uploadPart(bucketName, objectName, uploadID,
+					sectionReader, uploadReq.PartNum,
+					nil, nil, partSize, metadata)
 				if err != nil {
 					uploadedPartsCh <- uploadedPartRes{
 						Size:  0,
@@ -273,7 +270,8 @@ func (c Client) putObjectMultipartStreamNoChecksum(bucketName, objectName string
 
 		var objPart ObjectPart
 		objPart, err = c.uploadPart(bucketName, objectName, uploadID,
-			io.LimitReader(hookReader, partSize), partNumber, nil, nil, partSize)
+			io.LimitReader(hookReader, partSize), partNumber,
+			nil, nil, partSize, metadata)
 		// For unknown size, Read EOF we break away.
 		// We do not have to upload till totalPartsCount.
 		if err == io.EOF && size < 0 {
