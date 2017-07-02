@@ -1542,41 +1542,45 @@ func TestCopyObject(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 
+	// Copy Source
+	src := NewSourceInfo(bucketName, objectName, nil)
+
 	// Set copy conditions.
-	copyConds := CopyConditions{}
 
-	// Start by setting wrong conditions
-	err = copyConds.SetModified(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC))
+	// All invalid conditions first.
+	err = src.SetModifiedSinceCond(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC))
 	if err == nil {
 		t.Fatal("Error:", err)
 	}
-	err = copyConds.SetUnmodified(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC))
+	err = src.SetUnmodifiedSinceCond(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC))
 	if err == nil {
 		t.Fatal("Error:", err)
 	}
-	err = copyConds.SetMatchETag("")
+	err = src.SetMatchETagCond("")
 	if err == nil {
 		t.Fatal("Error:", err)
 	}
-	err = copyConds.SetMatchETagExcept("")
+	err = src.SetMatchETagExceptCond("")
 	if err == nil {
 		t.Fatal("Error:", err)
 	}
 
-	err = copyConds.SetModified(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
+	err = src.SetModifiedSinceCond(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	err = copyConds.SetMatchETag(objInfo.ETag)
+	err = src.SetMatchETagCond(objInfo.ETag)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 
-	// Copy source.
-	copySource := bucketName + "/" + objectName
+	dst, err := NewDestinationInfo(bucketName+"-copy", objectName+"-copy", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Perform the Copy
-	err = c.CopyObject(bucketName+"-copy", objectName+"-copy", copySource, copyConds)
+	err = c.CopyObject(dst, src)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName+"-copy", objectName+"-copy")
 	}
@@ -1606,18 +1610,18 @@ func TestCopyObject(t *testing.T) {
 	}
 
 	// CopyObject again but with wrong conditions
-	copyConds = CopyConditions{}
-	err = copyConds.SetUnmodified(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
+	src = NewSourceInfo(bucketName, objectName, nil)
+	err = src.SetUnmodifiedSinceCond(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	err = copyConds.SetMatchETagExcept(objInfo.ETag)
+	err = src.SetMatchETagExceptCond(objInfo.ETag)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 
 	// Perform the Copy which should fail
-	err = c.CopyObject(bucketName+"-copy", objectName+"-copy", copySource, copyConds)
+	err = c.CopyObject(dst, src)
 	if err == nil {
 		t.Fatal("Error:", err, bucketName+"-copy", objectName+"-copy should fail")
 	}
@@ -2384,4 +2388,65 @@ func TestPutObjectUploadSeekedObject(t *testing.T) {
 	if err = c.RemoveObject(bucketName, objectName+"getobject"); err != nil {
 		t.Fatal("Error:", err)
 	}
+}
+
+// Test expected error cases
+func TestComposeObjectErrorCases(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping functional tests for the short runs")
+	}
+
+	// Instantiate new minio client object
+	c, err := NewV4(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableSecurity)),
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	testComposeObjectErrorCases(c, t)
+}
+
+// Test concatenating 10K objects
+func TestCompose10KSources(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping functional tests for the short runs")
+	}
+
+	// Instantiate new minio client object
+	c, err := NewV4(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableSecurity)),
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	testComposeMultipleSources(c, t)
+}
+
+// Test encrypted copy object
+func TestEncryptedCopyObject(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping functional tests for the short runs")
+	}
+
+	// Instantiate new minio client object
+	c, err := NewV4(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableSecurity)),
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// c.TraceOn(os.Stderr)
+	testEncryptedCopyObject(c, t)
 }

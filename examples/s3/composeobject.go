@@ -20,9 +20,8 @@ package main
 
 import (
 	"log"
-	"time"
 
-	"github.com/minio/minio-go"
+	minio "github.com/minio/minio-go"
 )
 
 func main() {
@@ -42,30 +41,34 @@ func main() {
 	// Enable trace.
 	// s3Client.TraceOn(os.Stderr)
 
-	// Source object
-	src := minio.NewSourceInfo("my-sourcebucketname", "my-sourceobjectname", nil)
+	// Prepare source decryption key (here we assume same key to
+	// decrypt all source objects.)
+	decKey := minio.NewSSEInfo([]byte{1, 2, 3}, "")
 
-	// All following conditions are allowed and can be combined together.
+	// Source objects to concatenate. We also specify decryption
+	// key for each
+	src1 := minio.NewSourceInfo("bucket1", "object1", decKey)
+	src1.SetMatchETag("31624deb84149d2f8ef9c385918b653a")
 
-	// Set modified condition, copy object modified since 2014 April.
-	src.SetModifiedSinceCond(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
+	src2 := minio.NewSourceInfo("bucket2", "object2", decKey)
+	src2.SetMatchETag("f8ef9c385918b653a31624deb84149d2")
 
-	// Set unmodified condition, copy object unmodified since 2014 April.
-	// src.SetUnmodifiedSinceCond(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
+	src3 := minio.NewSourceInfo("bucket3", "object3", decKey)
+	src3.SetMatchETag("5918b653a31624deb84149d2f8ef9c38")
 
-	// Set matching ETag condition, copy object which matches the following ETag.
-	// src.SetMatchETagCond("31624deb84149d2f8ef9c385918b653a")
+	// Create slice of sources.
+	srcs := []minio.SourceInfo{src1, src2, src3}
 
-	// Set matching ETag except condition, copy object which does not match the following ETag.
-	// src.SetMatchETagExceptCond("31624deb84149d2f8ef9c385918b653a")
+	// Prepare destination encryption key
+	encKey := minio.NewSSEInfo([]byte{8, 9, 0}, "")
 
-	// Destination object
-	dst := minio.NewDestinationInfo("my-bucketname", "my-objectname", nil)
-
-	// Initiate copy object.
-	err = s3Client.CopyObject(dst, src)
+	// Create destination info
+	dst := minio.NewDestinationInfo("bucket", "object", encKey)
+	err = s3Client.ComposeObject(dst, srcs)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
+		return
 	}
-	log.Println("Copied source object /my-sourcebucketname/my-sourceobjectname to destination /my-bucketname/my-objectname Successfully.")
+
+	log.Println("Composed object successfully.")
 }
