@@ -323,6 +323,13 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 			return fmt.Errorf("Could not get source props for %s/%s: %v", src.bucket, src.object, err)
 		}
 
+		// Error out if client side encryption is used in this source object when
+		// more than one source objects are given.
+		if len(srcs) > 1 && src.Headers.Get("x-amz-meta-x-amz-key") != "" {
+			return ErrInvalidArgument(
+				fmt.Sprintf("Client side encryption is used in source object %s/%s", src.bucket, src.object))
+		}
+
 		// Since we did a HEAD to get size, we use the ETag
 		// value to make sure the object has not changed by
 		// the time we perform the copy. This is done, only if
