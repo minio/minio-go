@@ -103,8 +103,8 @@ func NewDestinationInfo(bucket, object string, encryptSSEC *SSEInfo,
 	// prefix removal).
 	m := make(map[string]string)
 	for k, v := range userMeta {
-		if strings.HasPrefix(k, "x-amz-meta-") {
-			k = strings.TrimPrefix(k, "x-amz-meta-")
+		if strings.HasPrefix(strings.ToLower(k), "x-amz-meta-") {
+			k = k[len("x-amz-meta-"):]
 		}
 		if _, ok := m[k]; ok {
 			return d, fmt.Errorf("Cannot add both %s and x-amz-meta-%s keys as custom metadata", k, k)
@@ -127,7 +127,7 @@ func NewDestinationInfo(bucket, object string, encryptSSEC *SSEInfo,
 // `REPLACE`, so that metadata headers from the source are not copied
 // over.
 func (d *DestinationInfo) getUserMetaHeadersMap(withCopyDirectiveHeader bool) map[string]string {
-	if d.userMetadata == nil {
+	if len(d.userMetadata) == 0 {
 		return nil
 	}
 	r := make(map[string]string)
@@ -371,12 +371,12 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 		for k, v := range dst.encryption.getSSEHeaders(false) {
 			h.Set(k, v)
 		}
-		// Add user metadata headers from source object
-		metaMap := srcUserMeta
-		if dst.userMetadata != nil {
-			metaMap = dst.getUserMetaHeadersMap(true)
-		}
-		for k, v := range metaMap {
+
+		// If no user metadata is specified (and so, the
+		// for-loop below is not entered), metadata from the
+		// source is copied to the destination (due to
+		// single-part copy-object PUT request behaviour).
+		for k, v := range dst.getUserMetaHeadersMap(true) {
 			h.Set(k, v)
 		}
 
@@ -403,16 +403,17 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 
 	// 1. Initiate a new multipart upload.
 
-	// Set user-metadata on the destination object.
+	// Set user-metadata on the destination object. If no
+	// user-metadata is specified, and there is only one source,
+	// (only) then metadata from source is copied.
 	userMeta := dst.getUserMetaHeadersMap(false)
-	metaMap := srcUserMeta
-	if len(srcs) > 1 || userMeta != nil {
-		// cannot copy metadata if there is more than 1 source
-		metaMap = userMeta
+	metaMap := userMeta
+	if len(userMeta) == 0 && len(srcs) == 1 {
+		metaMap = srcUserMeta
 	}
 	metaHeaders := make(map[string][]string)
 	for k, v := range metaMap {
-		metaHeaders[k] = []string{v}
+		metaHeaders[k] = append(metaHeaders[k], v)
 	}
 	uploadID, err := c.newUploadID(dst.bucket, dst.object, metaHeaders)
 	if err != nil {

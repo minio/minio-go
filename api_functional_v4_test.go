@@ -2450,3 +2450,23 @@ func TestEncryptedCopyObject(t *testing.T) {
 	// c.TraceOn(os.Stderr)
 	testEncryptedCopyObject(c, t)
 }
+
+func TestUserMetadataCopying(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping functional tests for the short runs")
+	}
+
+	// Instantiate new minio client object
+	c, err := NewV4(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableSecurity)),
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// c.TraceOn(os.Stderr)
+	testUserMetadataCopying(c, t)
+}
