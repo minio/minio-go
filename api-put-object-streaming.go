@@ -49,7 +49,7 @@ func (c Client) putObjectMultipartStream(bucketName, objectName string,
 	// while it is going to be duck typed similar to io.ReaderAt.
 	// It is to indicate that *minio.Object implements io.ReaderAt.
 	// and such a functionality is used in the subsequent code path.
-	if isObject(reader) || isReadAt(reader) || isFile(reader) {
+	if isFile(reader) || !isObject(reader) && isReadAt(reader) {
 		n, err = c.putObjectMultipartStreamFromReadAt(bucketName, objectName, reader.(io.ReaderAt), size, metadata, progress)
 	} else {
 		n, err = c.putObjectMultipartStreamNoChecksum(bucketName, objectName, reader, size, metadata, progress)
@@ -270,14 +270,8 @@ func (c Client) putObjectMultipartStreamNoChecksum(bucketName, objectName string
 
 		var objPart ObjectPart
 		objPart, err = c.uploadPart(bucketName, objectName, uploadID,
-			io.LimitReader(hookReader, partSize), partNumber,
-			nil, nil, partSize, metadata)
-		// For unknown size, Read EOF we break away.
-		// We do not have to upload till totalPartsCount.
-		if err == io.EOF && size < 0 {
-			break
-		}
-
+			io.LimitReader(hookReader, partSize),
+			partNumber, nil, nil, partSize, metadata)
 		if err != nil {
 			return totalUploadedSize, err
 		}
@@ -340,9 +334,8 @@ func (c Client) putObjectNoChecksum(bucketName, objectName string, reader io.Rea
 		return 0, ErrEntityTooSmall(size, bucketName, objectName)
 	}
 	if size > 0 {
-		readerAt, ok := reader.(io.ReaderAt)
-		if ok {
-			reader = io.NewSectionReader(readerAt, 0, size)
+		if isReadAt(reader) && !isObject(reader) {
+			reader = io.NewSectionReader(reader.(io.ReaderAt), 0, size)
 		}
 	}
 
