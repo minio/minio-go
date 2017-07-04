@@ -1262,7 +1262,7 @@ func testEncryptedCopyObject(c *Client, t *testing.T) {
 	const srcSize = 1024 * 1024
 	buf := bytes.Repeat([]byte("abcde"), srcSize) // gives a buffer of 5MiB
 	metadata := make(map[string][]string)
-	for k, v := range key1.getSSEHeaders(false) {
+	for k, v := range key1.GetSSEHeaders() {
 		metadata[k] = append(metadata[k], v)
 	}
 	_, err = c.PutObjectWithSize(bucketName, "srcObject", bytes.NewReader(buf), int64(len(buf)), metadata, nil)
@@ -1284,7 +1284,7 @@ func testEncryptedCopyObject(c *Client, t *testing.T) {
 
 	// 3. get copied object and check if content is equal
 	reqH := NewGetReqHeaders()
-	for k, v := range key2.getSSEHeaders(false) {
+	for k, v := range key2.GetSSEHeaders() {
 		reqH.Set(k, v)
 	}
 	coreClient := Core{c}

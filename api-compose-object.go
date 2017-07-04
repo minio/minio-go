@@ -45,7 +45,7 @@ func NewSSEInfo(key []byte, algo string) SSEInfo {
 	return SSEInfo{key, algo}
 }
 
-// internal method to output the generated SSE headers.
+// internal method that computes SSE-C headers
 func (s *SSEInfo) getSSEHeaders(isCopySource bool) map[string]string {
 	if s == nil {
 		return nil
@@ -60,6 +60,14 @@ func (s *SSEInfo) getSSEHeaders(isCopySource bool) map[string]string {
 		"x-amz-" + cs + "server-side-encryption-customer-key":       base64.StdEncoding.EncodeToString(s.key),
 		"x-amz-" + cs + "server-side-encryption-customer-key-MD5":   base64.StdEncoding.EncodeToString(sumMD5(s.key)),
 	}
+}
+
+// GetSSEHeaders - computes and returns headers for SSE-C as key-value
+// pairs. They can be set as metadata in PutObject* requests (for
+// encryption) or be set as request headers in `Core.GetObject` (for
+// decryption).
+func (s *SSEInfo) GetSSEHeaders() map[string]string {
+	return s.getSSEHeaders(false)
 }
 
 // DestinationInfo - type with information about the object to be
