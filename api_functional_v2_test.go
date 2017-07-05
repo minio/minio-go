@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -1321,4 +1322,149 @@ func TestEncryptedCopyObjectV2(t *testing.T) {
 	}
 
 	testEncryptedCopyObject(c, t)
+}
+
+func testUserMetadataCopying(c *Client, t *testing.T) {
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+	// Make a new bucket in 'us-east-1' (source bucket).
+	err := c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+
+	fetchMeta := func(object string) (h http.Header) {
+		objInfo, err := c.StatObject(bucketName, object)
+		if err != nil {
+			t.Fatal("Metadata fetch error:", err)
+		}
+		h = make(http.Header)
+		for k, vs := range objInfo.Metadata {
+			if strings.HasPrefix(strings.ToLower(k), "x-amz-meta-") {
+				for _, v := range vs {
+					h.Add(k, v)
+				}
+			}
+		}
+		return h
+	}
+
+	// 1. create a client encrypted object to copy by uploading
+	const srcSize = 1024 * 1024
+	buf := bytes.Repeat([]byte("abcde"), srcSize) // gives a buffer of 5MiB
+	metadata := make(http.Header)
+	metadata.Set("x-amz-meta-myheader", "myvalue")
+	_, err = c.PutObjectWithMetadata(bucketName, "srcObject",
+		bytes.NewReader(buf), metadata, nil)
+	if err != nil {
+		t.Fatal("Put Error:", err)
+	}
+	if !reflect.DeepEqual(metadata, fetchMeta("srcObject")) {
+		t.Fatal("Unequal metadata")
+	}
+
+	// 2. create source
+	src := NewSourceInfo(bucketName, "srcObject", nil)
+	// 2.1 create destination with metadata set
+	dst1, err := NewDestinationInfo(bucketName, "dstObject-1", nil, map[string]string{"notmyheader": "notmyvalue"})
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// 3. Check that copying to an object with metadata set resets
+	// the headers on the copy.
+	err = c.CopyObject(dst1, src)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	expectedHeaders := make(http.Header)
+	expectedHeaders.Set("x-amz-meta-notmyheader", "notmyvalue")
+	if !reflect.DeepEqual(expectedHeaders, fetchMeta("dstObject-1")) {
+		t.Fatal("Unequal metadata")
+	}
+
+	// 4. create destination with no metadata set and same source
+	dst2, err := NewDestinationInfo(bucketName, "dstObject-2", nil, nil)
+	if err != nil {
+		t.Fatal("Error:", err)
+
+	}
+	src = NewSourceInfo(bucketName, "srcObject", nil)
+
+	// 5. Check that copying to an object with no metadata set,
+	// copies metadata.
+	err = c.CopyObject(dst2, src)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	expectedHeaders = metadata
+	if !reflect.DeepEqual(expectedHeaders, fetchMeta("dstObject-2")) {
+		t.Fatal("Unequal metadata")
+	}
+
+	// 6. Compose a pair of sources.
+	srcs := []SourceInfo{
+		NewSourceInfo(bucketName, "srcObject", nil),
+		NewSourceInfo(bucketName, "srcObject", nil),
+	}
+	dst3, err := NewDestinationInfo(bucketName, "dstObject-3", nil, nil)
+	if err != nil {
+		t.Fatal("Error:", err)
+
+	}
+
+	err = c.ComposeObject(dst3, srcs)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Check that no headers are copied in this case
+	if !reflect.DeepEqual(make(http.Header), fetchMeta("dstObject-3")) {
+		t.Fatal("Unequal metadata")
+	}
+
+	// 7. Compose a pair of sources with dest user metadata set.
+	srcs = []SourceInfo{
+		NewSourceInfo(bucketName, "srcObject", nil),
+		NewSourceInfo(bucketName, "srcObject", nil),
+	}
+	dst4, err := NewDestinationInfo(bucketName, "dstObject-4", nil, map[string]string{"notmyheader": "notmyvalue"})
+	if err != nil {
+		t.Fatal("Error:", err)
+
+	}
+
+	err = c.ComposeObject(dst4, srcs)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Check that no headers are copied in this case
+	expectedHeaders = make(http.Header)
+	expectedHeaders.Set("x-amz-meta-notmyheader", "notmyvalue")
+	if !reflect.DeepEqual(expectedHeaders, fetchMeta("dstObject-4")) {
+		t.Fatal("Unequal metadata")
+	}
+}
+
+func TestUserMetadataCopyingV2(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping functional tests for the short runs")
+	}
+
+	// Instantiate new minio client object
+	c, err := NewV2(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableSecurity)),
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// c.TraceOn(os.Stderr)
+	testUserMetadataCopying(c, t)
 }
