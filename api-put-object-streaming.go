@@ -95,12 +95,18 @@ type uploadPartReq struct {
 // cleaned automatically when the caller i.e http client closes the
 // stream after uploading all the contents successfully.
 func (c Client) putObjectMultipartStreamFromReadAt(bucketName, objectName string,
-	reader io.ReaderAt, size int64, metadata map[string][]string, progress io.Reader) (int64, error) {
+	reader io.ReaderAt, size int64, metadata map[string][]string, progress io.Reader) (n int64, err error) {
 	// Input validation.
-	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+	if err = s3utils.CheckValidBucketName(bucketName); err != nil {
 		return 0, err
 	}
-	if err := s3utils.CheckValidObjectName(objectName); err != nil {
+	if err = s3utils.CheckValidObjectName(objectName); err != nil {
+		return 0, err
+	}
+
+	// Calculate the optimal parts info for a given size.
+	totalPartsCount, partSize, lastPartSize, err := optimalPartInfo(size)
+	if err != nil {
 		return 0, err
 	}
 
@@ -110,17 +116,21 @@ func (c Client) putObjectMultipartStreamFromReadAt(bucketName, objectName string
 		return 0, err
 	}
 
+	// Aborts the multipart upload in progress, if the
+	// function returns any error, since we do not resume
+	// we should purge the parts which have been uploaded
+	// to relinquish storage space.
+	defer func() {
+		if err != nil {
+			c.abortMultipartUpload(bucketName, objectName, uploadID)
+		}
+	}()
+
 	// Total data read and written to server. should be equal to 'size' at the end of the call.
 	var totalUploadedSize int64
 
 	// Complete multipart upload.
 	var complMultipartUpload completeMultipartUpload
-
-	// Calculate the optimal parts info for a given size.
-	totalPartsCount, partSize, lastPartSize, err := optimalPartInfo(size)
-	if err != nil {
-		return 0, err
-	}
 
 	// Declare a channel that sends the next part number to be uploaded.
 	// Buffered to 10000 because thats the maximum number of parts allowed
@@ -229,12 +239,18 @@ func (c Client) putObjectMultipartStreamFromReadAt(bucketName, objectName string
 }
 
 func (c Client) putObjectMultipartStreamNoChecksum(bucketName, objectName string,
-	reader io.Reader, size int64, metadata map[string][]string, progress io.Reader) (int64, error) {
+	reader io.Reader, size int64, metadata map[string][]string, progress io.Reader) (n int64, err error) {
 	// Input validation.
-	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+	if err = s3utils.CheckValidBucketName(bucketName); err != nil {
 		return 0, err
 	}
-	if err := s3utils.CheckValidObjectName(objectName); err != nil {
+	if err = s3utils.CheckValidObjectName(objectName); err != nil {
+		return 0, err
+	}
+
+	// Calculate the optimal parts info for a given size.
+	totalPartsCount, partSize, lastPartSize, err := optimalPartInfo(size)
+	if err != nil {
 		return 0, err
 	}
 
@@ -244,11 +260,15 @@ func (c Client) putObjectMultipartStreamNoChecksum(bucketName, objectName string
 		return 0, err
 	}
 
-	// Calculate the optimal parts info for a given size.
-	totalPartsCount, partSize, lastPartSize, err := optimalPartInfo(size)
-	if err != nil {
-		return 0, err
-	}
+	// Aborts the multipart upload if the function returns
+	// any error, since we do not resume we should purge
+	// the parts which have been uploaded to relinquish
+	// storage space.
+	defer func() {
+		if err != nil {
+			c.abortMultipartUpload(bucketName, objectName, uploadID)
+		}
+	}()
 
 	// Total data read and written to server. should be equal to 'size' at the end of the call.
 	var totalUploadedSize int64

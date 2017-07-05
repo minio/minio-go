@@ -53,10 +53,10 @@ func (c Client) putObjectMultipart(bucketName, objectName string, reader io.Read
 func (c Client) putObjectMultipartNoStream(bucketName, objectName string, reader io.Reader, size int64,
 	metadata map[string][]string, progress io.Reader) (n int64, err error) {
 	// Input validation.
-	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+	if err = s3utils.CheckValidBucketName(bucketName); err != nil {
 		return 0, err
 	}
-	if err := s3utils.CheckValidObjectName(objectName); err != nil {
+	if err = s3utils.CheckValidObjectName(objectName); err != nil {
 		return 0, err
 	}
 
@@ -67,17 +67,23 @@ func (c Client) putObjectMultipartNoStream(bucketName, objectName string, reader
 	// Complete multipart upload.
 	var complMultipartUpload completeMultipartUpload
 
+	// Calculate the optimal parts info for a given size.
+	totalPartsCount, partSize, _, err := optimalPartInfo(size)
+	if err != nil {
+		return 0, err
+	}
+
 	// Initiate a new multipart upload.
 	uploadID, err := c.newUploadID(bucketName, objectName, metadata)
 	if err != nil {
 		return 0, err
 	}
 
-	// Calculate the optimal parts info for a given size.
-	totalPartsCount, partSize, _, err := optimalPartInfo(size)
-	if err != nil {
-		return 0, err
-	}
+	defer func() {
+		if err != nil {
+			c.abortMultipartUpload(bucketName, objectName, uploadID)
+		}
+	}()
 
 	// Part number always starts with '1'.
 	partNumber := 1
