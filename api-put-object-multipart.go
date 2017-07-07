@@ -27,6 +27,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/minio/minio-go/pkg/s3utils"
 )
@@ -48,6 +49,16 @@ func (c Client) putObjectMultipart(bucketName, objectName string, reader io.Read
 		}
 	}
 	return n, err
+}
+
+// Pool to manage re-usable memory for upload objects
+// with streams with unknown size.
+var bufPool = sync.Pool{
+	New: func() interface{} {
+		_, partSize, _, _ := optimalPartInfo(-1)
+		b := make([]byte, partSize)
+		return &b
+	},
 }
 
 func (c Client) putObjectMultipartNoStream(bucketName, objectName string, reader io.Reader, size int64,
@@ -88,9 +99,6 @@ func (c Client) putObjectMultipartNoStream(bucketName, objectName string, reader
 	// Part number always starts with '1'.
 	partNumber := 1
 
-	// Initialize a temporary buffer.
-	tmpBuffer := new(bytes.Buffer)
-
 	// Initialize parts uploaded map.
 	partsInfo := make(map[int]ObjectPart)
 
@@ -100,38 +108,43 @@ func (c Client) putObjectMultipartNoStream(bucketName, objectName string, reader
 		// HTTPS connection.
 		hashAlgos, hashSums := c.hashMaterials()
 
-		// Calculates hash sums while copying partSize bytes into tmpBuffer.
-		prtSize, rErr := hashCopyN(hashAlgos, hashSums, tmpBuffer, reader, partSize)
+		bufp := bufPool.Get().(*[]byte)
+		cw := &cappedWriter{
+			buffer: *bufp,
+			cap:    int64(cap(*bufp)),
+		}
+
+		// Calculates hash sums while copying partSize bytes into cw.
+		prtSize, rErr := hashCopyN(hashAlgos, hashSums, cw, reader, partSize)
 		if rErr != nil && rErr != io.EOF {
+			bufPool.Put(bufp)
 			return 0, rErr
 		}
 
-		var reader io.Reader
 		// Update progress reader appropriately to the latest offset
 		// as we read from the source.
-		reader = newHook(tmpBuffer, progress)
+		rd := newHook(bytes.NewReader(cw.GetBytes(prtSize)), progress)
 
 		// Proceed to upload the part.
 		var objPart ObjectPart
-		objPart, err = c.uploadPart(bucketName, objectName, uploadID, reader, partNumber,
+		objPart, err = c.uploadPart(bucketName, objectName, uploadID, rd, partNumber,
 			hashSums["md5"], hashSums["sha256"], prtSize, metadata)
 		if err != nil {
-			// Reset the temporary buffer upon any error.
-			tmpBuffer.Reset()
+			bufPool.Put(bufp)
 			return totalUploadedSize, err
 		}
 
 		// Save successfully uploaded part metadata.
 		partsInfo[partNumber] = objPart
 
-		// Reset the temporary buffer.
-		tmpBuffer.Reset()
-
 		// Save successfully uploaded size.
 		totalUploadedSize += prtSize
 
 		// Increment part number.
 		partNumber++
+
+		// Put back data into bufpool.
+		bufPool.Put(bufp)
 
 		// For unknown size, Read EOF we break away.
 		// We do not have to upload till totalPartsCount.
