@@ -419,11 +419,6 @@ func TestCorePutObject(t *testing.T) {
 		t.Fatal("Error expected: nil, got: ", err)
 	}
 
-	objInfo, err = c.PutObject(bucketName, objectName, int64(len(buf)), bytes.NewReader(buf), nil, sum256(nil), metadata)
-	if err == nil {
-		t.Fatal("Error expected: nil, got: ", err)
-	}
-
 	objInfo, err = c.PutObject(bucketName, objectName, int64(len(buf)), bytes.NewReader(buf), nil, nil, metadata)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
