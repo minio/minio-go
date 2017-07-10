@@ -124,7 +124,7 @@ func testMakeBucketError() {
 		mustParseBool(os.Getenv(enableHTTPS)),
 	)
 	if err != nil {
-		log.Fatalf("Error:", err)
+		log.Fatalf("Error: %s", err)
 	}
 
 	// Enable tracing, write to stderr.
@@ -3917,7 +3917,7 @@ func testFunctionalV2() {
 	}
 }
 
-// Convert string to bool and always return true if any error
+// Convert string to bool and always return false if any error
 func mustParseBool(str string) bool {
 	b, err := strconv.ParseBool(str)
 	if err != nil {
