@@ -19,6 +19,7 @@ package minio
 import (
 	"bytes"
 	"crypto/md5"
+	"log"
 
 	"io"
 	"math/rand"
@@ -371,5 +372,41 @@ func TestCorePutObject(t *testing.T) {
 	err = c.RemoveBucket(bucketName)
 	if err != nil {
 		t.Fatal("Error:", err)
+	}
+}
+
+func TestCoreGetObjectMetadata(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping functional tests for the short runs")
+	}
+
+	core, err := NewCore(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableSecurity)))
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	metadata := map[string][]string{
+		"X-Amz-Meta-Key-1": {"Val-1"},
+	}
+
+	_, err = core.PutObject("my-bucketname", "my-objectname", 5,
+		bytes.NewReader([]byte("hello")), nil, nil, metadata)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	reader, objInfo, err := core.GetObject("my-bucketname", "my-objectname",
+		RequestHeaders{})
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer reader.Close()
+
+	if objInfo.Metadata.Get("X-Amz-Meta-Key-1") != "Val-1" {
+		log.Fatalln("Expected metadata to be available but wasn't")
 	}
 }
