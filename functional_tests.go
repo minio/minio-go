@@ -42,7 +42,7 @@ import (
 	"github.com/minio/minio-go/pkg/policy"
 )
 
-// Minimum part size
+// MinPartSize ... Minimum part size
 const MinPartSize = 1024 * 1024 * 64
 const letterBytes = "abcdefghijklmnopqrstuvwxyz01234569"
 const (
@@ -58,7 +58,7 @@ const (
 )
 
 func getDataDir() (dir string) {
-	dir = os.Getenv("DATA_DIR")
+	dir = os.Getenv("MINT_DATA_DIR")
 	if dir == "" {
 		dir = "/mint/data"
 	}
@@ -66,7 +66,19 @@ func getDataDir() (dir string) {
 }
 
 func getFilePath(filename string) (filepath string) {
-	filepath = getDataDir() + "/" + filename
+	if getDataDir() != "" {
+		filepath = getDataDir() + "/" + filename
+	}
+	return
+}
+
+// read data from file if it exists or optionally create a buffer of particular size
+func getDataBuffer(fileName string, size int) (buf []byte) {
+	if _, err := os.Stat(getFilePath(fileName)); os.IsNotExist(err) {
+		buf = bytes.Repeat([]byte(string('a')), size)
+		return
+	}
+	buf, _ = ioutil.ReadFile(getFilePath(fileName))
 	return
 }
 
@@ -230,10 +242,8 @@ func testPutObjectReadAt() {
 
 	// Generate data using 4 parts so that all 3 'workers' are utilized and a part is leftover.
 	// Use different data for each part for multipart tests to ensure part order at the end.
-	var buf []byte
+	var buf = getDataBuffer("datafile-65-MB", MinPartSize)
 
-	fileName := getFilePath("FileOfSize65MB")
-	buf, _ = ioutil.ReadFile(fileName)
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	// Object content type
@@ -321,9 +331,8 @@ func testPutObjectWithMetadata() {
 
 	// Generate data using 2 parts
 	// Use different data in each part for multipart tests to ensure part order at the end.
-	var buf []byte
-	fileName := getFilePath("FileOfSize65MB")
-	buf, _ = ioutil.ReadFile(fileName)
+	var buf = getDataBuffer("datafile-65-MB", MinPartSize)
+
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 
@@ -544,10 +553,8 @@ func testGetObjectSeekEnd() {
 	if err != nil {
 		log.Fatal("Error:", err, bucketName)
 	}
-	fileName := getFilePath("FileOfSizeGt1MB")
-	buf, _ := ioutil.ReadFile(fileName)
-	// Generate data more than 32K
-	//buf := bytes.Repeat([]byte("1"), rand.Intn(1<<20)+32*1024)
+	var buf = getDataBuffer("datafile-33-kB", rand.Intn(1<<20)+32*1024)
+
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
@@ -640,10 +647,7 @@ func testGetObjectClosedTwice() {
 	}
 
 	// Generate data more than 32K
-	fileName := getFilePath("FileOfSizeGt32KB")
-	buf, _ := ioutil.ReadFile(fileName)
-	//buf := bytes.Repeat([]byte("1"), rand.Intn(1<<20)+32*1024)
-
+	var buf = getDataBuffer("datafile-33-kB", rand.Intn(1<<20)+32*1024)
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
@@ -859,9 +863,27 @@ func testFPutObjectMultipart() {
 	}
 
 	// Upload 4 parts to utilize all 3 'workers' in multipart and still have a part to upload.
+	var fileName = getFilePath("datafile-65-MB")
+	if os.Getenv("MINT_DATA_DIR") == "" {
+		// Make a temp file with minPartSize bytes of data.
+		file, err := ioutil.TempFile(os.TempDir(), "FPutObjectTest")
+		if err != nil {
+			log.Fatal("Error:", err)
+		}
 
-	fileName := getFilePath("FileOfSize65MB")
-	totalSize := MinPartSize*1 + 1024*1024*1
+		// Upload 4 parts to utilize all 3 'workers' in multipart and still have a part to upload.
+		var buffer = bytes.Repeat([]byte(string('a')), MinPartSize)
+		if _, err := file.Write(buffer); err != nil {
+			log.Fatal("Error:", err)
+		}
+		// Close the file pro-actively for windows.
+		err = file.Close()
+		if err != nil {
+			log.Fatal("Error:", err)
+		}
+		fileName = file.Name()
+	}
+	totalSize := MinPartSize * 1
 	// Set base object name
 	objectName := bucketName + "FPutObject"
 	objectContentType := "testapplication/octet-stream"
@@ -937,9 +959,27 @@ func testFPutObject() {
 
 	// Upload 3 parts worth of data to use all 3 of multiparts 'workers' and have an extra part.
 	// Use different data in part for multipart tests to check parts are uploaded in correct order.
+	var fName = getFilePath("datafile-65-MB")
+	if os.Getenv("MINT_DATA_DIR") == "" {
+		// Make a temp file with minPartSize bytes of data.
+		file, err := ioutil.TempFile(os.TempDir(), "FPutObjectTest")
+		if err != nil {
+			log.Fatal("Error:", err)
+		}
 
-	fName := getFilePath("FileOfSize65MB")
-	var totalSize = MinPartSize*1 + 1024*1024*1
+		// Upload 4 parts to utilize all 3 'workers' in multipart and still have a part to upload.
+		var buffer = bytes.Repeat([]byte(string('a')), MinPartSize)
+		if _, err = file.Write(buffer); err != nil {
+			log.Fatal("Error:", err)
+		}
+		// Close the file pro-actively for windows.
+		err = file.Close()
+		if err != nil {
+			log.Fatal("Error:", err)
+		}
+		fName = file.Name()
+	}
+	var totalSize = MinPartSize * 1
 
 	// Set base object name
 	objectName := bucketName + "FPutObject"
@@ -1076,9 +1116,8 @@ func testGetObjectReadSeekFunctional() {
 	}
 
 	// Generate data more than 32K
-	//buf := bytes.Repeat([]byte("2"), rand.Intn(1<<20)+32*1024)
-	fileName := getFilePath("FileOfSizeGt32KB")
-	buf, _ := ioutil.ReadFile(fileName)
+	var buf = getDataBuffer("datafile-33-kB", rand.Intn(1<<20)+32*1024)
+
 	bufSize := len(buf)
 
 	// Save the data
@@ -1230,9 +1269,8 @@ func testGetObjectReadAtFunctional() {
 	}
 
 	// Generate data more than 32K
-	//buf := bytes.Repeat([]byte("3"), rand.Intn(1<<20)+32*1024)
-	fileName := getFilePath("FileOfSizeGt32KB")
-	buf, _ := ioutil.ReadFile(fileName)
+	var buf = getDataBuffer("datafile-33-kB", rand.Intn(1<<20)+32*1024)
+
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
@@ -1379,9 +1417,8 @@ func testPresignedPostPolicy() {
 	}
 
 	// Generate data more than 32K
-	//buf := bytes.Repeat([]byte("4"), rand.Intn(1<<20)+32*1024)
-	fileName := getFilePath("FileOfSizeGt32KB")
-	buf, _ := ioutil.ReadFile(fileName)
+	var buf = getDataBuffer("datafile-33-kB", rand.Intn(1<<20)+32*1024)
+
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
@@ -2285,10 +2322,13 @@ func testPutObjectUploadSeekedObject() {
 		log.Fatal("Error:", err)
 	}
 
-	//var length = 120000
-	//data := bytes.Repeat([]byte("1"), length)
-	fileName := getFilePath("FileOfSize100KB")
-	data, _ := ioutil.ReadFile(fileName)
+	var data []byte
+	if fileName := getFilePath("datafile-100-kB"); fileName != "" {
+		data, _ = ioutil.ReadFile(fileName)
+	} else {
+		// Generate data more than 32K
+		data = bytes.Repeat([]byte("1"), 120000)
+	}
 	var length = len(data)
 	if _, err = tempfile.Write(data); err != nil {
 		log.Fatal("Error:", err)
@@ -2428,8 +2468,8 @@ func testGetObjectClosedTwiceV2() {
 	}
 
 	// Generate data more than 32K.
-	fileName := getFilePath("FileOfSizeGt32KB")
-	buf, _ := ioutil.ReadFile(fileName)
+	var buf = getDataBuffer("datafile-33-kB", rand.Intn(1<<20)+32*1024)
+
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
@@ -2772,8 +2812,8 @@ func testGetObjectReadSeekFunctionalV2() {
 	}
 
 	// Generate data more than 32K.
-	fileName := getFilePath("FileOfSizeGt32KB")
-	buf, _ := ioutil.ReadFile(fileName)
+	var buf = getDataBuffer("datafile-33-kB", rand.Intn(1<<20)+32*1024)
+
 	// Save the data.
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
@@ -2902,8 +2942,8 @@ func testGetObjectReadAtFunctionalV2() {
 	}
 
 	// Generate data more than 32K
-	fileName := getFilePath("FileOfSizeGt32KB")
-	buf, _ := ioutil.ReadFile(fileName)
+	var buf = getDataBuffer("datafile-33-kB", rand.Intn(1<<20)+32*1024)
+
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
@@ -3043,9 +3083,8 @@ func testCopyObjectV2() {
 	}
 
 	// Generate data more than 32K
-	//buf := bytes.Repeat([]byte("5"), rand.Intn(1<<20)+32*1024)
-	fileName := getFilePath("FileOfSizeGt32KB")
-	buf, _ := ioutil.ReadFile(fileName)
+	var buf = getDataBuffer("datafile-33-kB", rand.Intn(1<<20)+32*1024)
+
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
