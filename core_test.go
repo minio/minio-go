@@ -18,15 +18,15 @@ package minio
 
 import (
 	"bytes"
-	"crypto/md5"
-	"log"
-
 	"io"
-	"math/rand"
+	"log"
 	"os"
 	"reflect"
 	"testing"
 	"time"
+
+	"crypto/md5"
+	"math/rand"
 )
 
 const (
@@ -237,6 +237,76 @@ func TestGetObjectCore(t *testing.T) {
 	}
 }
 
+// Tests GetObject to return Content-Encoding properly set
+// and overrides any auto decoding.
+func TestGetObjectContentEncoding(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping functional tests for the short runs")
+	}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio core client object.
+	c, err := NewCore(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableSecurity)),
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+
+	// Generate data more than 32K
+	buf := bytes.Repeat([]byte("3"), rand.Intn(1<<20)+32*1024)
+	m := make(map[string][]string)
+	m["Content-Encoding"] = []string{"gzip"}
+
+	// Save the data
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	n, err := c.Client.PutObjectWithMetadata(bucketName, objectName, bytes.NewReader(buf), m, nil)
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
+
+	if n != int64(len(buf)) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), n)
+	}
+
+	reqHeaders := NewGetReqHeaders()
+	rwc, objInfo, err := c.GetObject(bucketName, objectName, reqHeaders)
+	if err != nil {
+		t.Fatalf("Error: %v", err)
+	}
+	rwc.Close()
+	if objInfo.Size <= 0 {
+		t.Fatalf("Unexpected size of the object %v, expected %v", objInfo.Size, n)
+	}
+	value, ok := objInfo.Metadata["Content-Encoding"]
+	if !ok {
+		t.Fatalf("Expected Content-Encoding metadata to be set.")
+	}
+	if value[0] != "gzip" {
+		t.Fatalf("Unexpected content-encoding found, want gzip, got %v", value)
+	}
+}
+
 // Tests get bucket policy core API.
 func TestGetBucketPolicy(t *testing.T) {
 	if testing.Short() {
@@ -416,17 +486,26 @@ func TestCoreGetObjectMetadata(t *testing.T) {
 		log.Fatalln(err)
 	}
 
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+
+	// Make a new bucket.
+	err = core.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+
 	metadata := map[string][]string{
 		"X-Amz-Meta-Key-1": {"Val-1"},
 	}
 
-	_, err = core.PutObject("my-bucketname", "my-objectname", 5,
+	_, err = core.PutObject(bucketName, "my-objectname", 5,
 		bytes.NewReader([]byte("hello")), nil, nil, metadata)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	reader, objInfo, err := core.GetObject("my-bucketname", "my-objectname",
+	reader, objInfo, err := core.GetObject(bucketName, "my-objectname",
 		RequestHeaders{})
 	if err != nil {
 		log.Fatalln(err)
