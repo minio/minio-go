@@ -39,6 +39,8 @@ import (
 	"sync"
 	"time"
 
+	"context"
+
 	"github.com/minio/minio-go/pkg/credentials"
 	"github.com/minio/minio-go/pkg/s3signer"
 	"github.com/minio/minio-go/pkg/s3utils"
@@ -466,7 +468,7 @@ var successStatus = []int{
 // executeMethod - instantiates a given method, and retries the
 // request upon any error up to maxRetries attempts in a binomially
 // delayed manner using a standard back off algorithm.
-func (c Client) executeMethod(method string, metadata requestMetadata) (res *http.Response, err error) {
+func (c Client) executeMethod(ctx context.Context, method string, metadata requestMetadata) (res *http.Response, err error) {
 	var isRetryable bool     // Indicates if request can be retried.
 	var bodySeeker io.Seeker // Extracted seeker from io.Reader.
 	if metadata.contentBody != nil {
@@ -517,6 +519,8 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 			}
 			return nil, err
 		}
+
+		req = req.WithContext(ctx)
 
 		// Initiate the request.
 		res, err = c.do(req)

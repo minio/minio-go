@@ -24,6 +24,8 @@ import (
 	"net/url"
 	"time"
 
+	"context"
+
 	"github.com/minio/minio-go/pkg/s3utils"
 )
 
@@ -46,7 +48,7 @@ func (c Client) getBucketNotification(bucketName string) (BucketNotification, er
 	urlValues.Set("notification", "")
 
 	// Execute GET on bucket to list objects.
-	resp, err := c.executeMethod("GET", requestMetadata{
+	resp, err := c.executeMethod(context.Background(), "GET", requestMetadata{
 		bucketName:         bucketName,
 		queryValues:        urlValues,
 		contentSHA256Bytes: emptySHA256,
@@ -170,7 +172,7 @@ func (c Client) ListenBucketNotification(bucketName, prefix, suffix string, even
 			urlValues["events"] = events
 
 			// Execute GET on bucket to list objects.
-			resp, err := c.executeMethod("GET", requestMetadata{
+			resp, err := c.executeMethod(context.Background(), "GET", requestMetadata{
 				bucketName:         bucketName,
 				queryValues:        urlValues,
 				contentSHA256Bytes: emptySHA256,
