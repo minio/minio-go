@@ -194,7 +194,7 @@ func (c Client) putObjectCommon(bucketName, objectName string, reader io.Reader,
 	}
 
 	if c.overrideSignerType.IsV2() {
-		if size > 0 && size < minPartSize {
+		if size >= 0 && size < minPartSize {
 			return c.putObjectNoChecksum(bucketName, objectName, reader, size, metadata, progress)
 		}
 		return c.putObjectMultipart(bucketName, objectName, reader, size, metadata, progress)

@@ -3596,6 +3596,64 @@ func testUserMetadataCopyingV2() {
 	testUserMetadataCopyingWrapper(c)
 }
 
+// Test put object with 0 byte object.
+func testPutObject0ByteV2() {
+	logTrace()
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.NewV2(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		log.Fatal("Error:", err)
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()),
+		"minio-go-test")
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		log.Fatal("Error:", err, bucketName)
+	}
+
+	objectName := bucketName + "unique"
+
+	// Upload an object.
+	n, err := c.PutObjectWithSize(bucketName, objectName, bytes.NewReader([]byte("")), 0, nil, nil)
+	if err != nil {
+		log.Fatalf("Error: %v %s %s", err, bucketName, objectName)
+	}
+	if n != 0 {
+		log.Error(fmt.Errorf("Expected upload object size 0 but got %d", n))
+	}
+
+	// Remove the object.
+	err = c.RemoveObject(bucketName, objectName)
+	if err != nil {
+		log.Fatal("Error:", err)
+	}
+
+	// Remove the bucket.
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		log.Fatal("Error:", err)
+	}
+}
+
 // Test expected error cases
 func testComposeObjectErrorCases() {
 	logTrace()
@@ -3949,12 +4007,11 @@ func main() {
 		testCompose10KSourcesV2()
 		testEncryptedCopyObjectV2()
 		testUserMetadataCopyingV2()
+		testPutObject0ByteV2()
 		testMakeBucketError()
 		testMakeBucketRegions()
 		testPutObjectWithMetadata()
-
 		testPutObjectReadAt()
-
 		testPutObjectStreaming()
 		testListPartiallyUploaded()
 		testGetObjectSeekEnd()
