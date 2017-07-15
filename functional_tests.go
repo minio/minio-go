@@ -57,6 +57,17 @@ const (
 	enableHTTPS    = "ENABLE_HTTPS"
 )
 
+func init() {
+	// If server endpoint is not set, all tests default to
+	// using https://play.minio.io:9000
+	if os.Getenv(serverEndpoint) == "" {
+		os.Setenv(serverEndpoint, "play.minio.io:9000")
+		os.Setenv(accessKey, "Q3AM3UQ867SPQQA43P2F")
+		os.Setenv(secretKey, "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG")
+		os.Setenv(enableHTTPS, "1")
+	}
+}
+
 func getDataDir() (dir string) {
 	dir = os.Getenv("MINT_DATA_DIR")
 	if dir == "" {
