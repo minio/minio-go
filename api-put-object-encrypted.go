@@ -19,6 +19,8 @@ package minio
 import (
 	"io"
 
+	"context"
+
 	"github.com/minio/minio-go/pkg/encrypt"
 )
 
@@ -42,5 +44,5 @@ func (c Client) PutEncryptedObject(bucketName, objectName string, reader io.Read
 	metadata[amzHeaderKey] = []string{encryptMaterials.GetKey()}
 	metadata[amzHeaderMatDesc] = []string{encryptMaterials.GetDesc()}
 
-	return c.putObjectMultipart(bucketName, objectName, encryptMaterials, -1, metadata, progress)
+	return c.putObjectMultipart(context.Background(), bucketName, objectName, encryptMaterials, -1, metadata, progress)
 }

@@ -23,6 +23,8 @@ import (
 	"runtime"
 	"strings"
 
+	"context"
+
 	"github.com/minio/minio-go/pkg/credentials"
 	"github.com/minio/minio-go/pkg/s3utils"
 )
@@ -160,7 +162,7 @@ func (c Client) PutObject(bucketName, objectName string, reader io.Reader, conte
 // internally to figure out the size of input stream. Also if the input size is
 // lesser than 0 this function returns an error.
 func (c Client) PutObjectWithSize(bucketName, objectName string, reader io.Reader, readerSize int64, metadata map[string][]string, progress io.Reader) (n int64, err error) {
-	return c.putObjectCommon(bucketName, objectName, reader, readerSize, metadata, progress)
+	return c.putObjectCommon(context.Background(), bucketName, objectName, reader, readerSize, metadata, progress)
 }
 
 // PutObjectWithMetadata using AWS streaming signature V4
@@ -178,10 +180,10 @@ func (c Client) PutObjectWithProgress(bucketName, objectName string, reader io.R
 	if err != nil {
 		return 0, err
 	}
-	return c.putObjectCommon(bucketName, objectName, reader, size, metadata, progress)
+	return c.putObjectCommon(context.Background(), bucketName, objectName, reader, size, metadata, progress)
 }
 
-func (c Client) putObjectCommon(bucketName, objectName string, reader io.Reader, size int64, metadata map[string][]string, progress io.Reader) (n int64, err error) {
+func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName string, reader io.Reader, size int64, metadata map[string][]string, progress io.Reader) (n int64, err error) {
 	// Check for largest object size allowed.
 	if size > int64(maxMultipartPutObjectSize) {
 		return 0, ErrEntityTooLarge(size, maxMultipartPutObjectSize, bucketName, objectName)
@@ -190,14 +192,14 @@ func (c Client) putObjectCommon(bucketName, objectName string, reader io.Reader,
 	// NOTE: Streaming signature is not supported by GCS.
 	if s3utils.IsGoogleEndpoint(c.endpointURL) {
 		// Do not compute MD5 for Google Cloud Storage.
-		return c.putObjectNoChecksum(bucketName, objectName, reader, size, metadata, progress)
+		return c.putObjectNoChecksum(ctx, bucketName, objectName, reader, size, metadata, progress)
 	}
 
 	if c.overrideSignerType.IsV2() {
 		if size >= 0 && size < minPartSize {
-			return c.putObjectNoChecksum(bucketName, objectName, reader, size, metadata, progress)
+			return c.putObjectNoChecksum(ctx, bucketName, objectName, reader, size, metadata, progress)
 		}
-		return c.putObjectMultipart(bucketName, objectName, reader, size, metadata, progress)
+		return c.putObjectMultipart(ctx, bucketName, objectName, reader, size, metadata, progress)
 	}
 
 	// If size cannot be found on a stream, it is not possible
@@ -205,16 +207,16 @@ func (c Client) putObjectCommon(bucketName, objectName string, reader io.Reader,
 	if size < 0 {
 		// Set regular signature calculation.
 		c.overrideSignerType = credentials.SignatureV4
-		return c.putObjectMultipart(bucketName, objectName, reader, size, metadata, progress)
+		return c.putObjectMultipart(ctx, bucketName, objectName, reader, size, metadata, progress)
 	}
 
 	// Set streaming signature.
 	c.overrideSignerType = credentials.SignatureV4Streaming
 
 	if size < minPartSize {
-		return c.putObjectNoChecksum(bucketName, objectName, reader, size, metadata, progress)
+		return c.putObjectNoChecksum(ctx, bucketName, objectName, reader, size, metadata, progress)
 	}
 
 	// For all sizes greater than 64MiB do multipart.
-	return c.putObjectMultipartStream(bucketName, objectName, reader, size, metadata, progress)
+	return c.putObjectMultipartStream(ctx, bucketName, objectName, reader, size, metadata, progress)
 }

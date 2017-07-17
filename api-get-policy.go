@@ -22,6 +22,8 @@ import (
 	"net/http"
 	"net/url"
 
+	"context"
+
 	"github.com/minio/minio-go/pkg/policy"
 	"github.com/minio/minio-go/pkg/s3utils"
 )
@@ -79,7 +81,7 @@ func (c Client) getBucketPolicy(bucketName string) (policy.BucketAccessPolicy, e
 	urlValues.Set("policy", "")
 
 	// Execute GET on bucket to list objects.
-	resp, err := c.executeMethod("GET", requestMetadata{
+	resp, err := c.executeMethod(context.Background(), "GET", requestMetadata{
 		bucketName:         bucketName,
 		queryValues:        urlValues,
 		contentSHA256Bytes: emptySHA256,

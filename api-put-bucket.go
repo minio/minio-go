@@ -25,6 +25,8 @@ import (
 	"net/http"
 	"net/url"
 
+	"context"
+
 	"github.com/minio/minio-go/pkg/policy"
 	"github.com/minio/minio-go/pkg/s3utils"
 )
@@ -82,7 +84,7 @@ func (c Client) MakeBucket(bucketName string, location string) (err error) {
 	}
 
 	// Execute PUT to create a new bucket.
-	resp, err := c.executeMethod("PUT", reqMetadata)
+	resp, err := c.executeMethod(context.Background(), "PUT", reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
 		return err
@@ -170,7 +172,7 @@ func (c Client) putBucketPolicy(bucketName string, policyInfo policy.BucketAcces
 	}
 
 	// Execute PUT to upload a new bucket policy.
-	resp, err := c.executeMethod("PUT", reqMetadata)
+	resp, err := c.executeMethod(context.Background(), "PUT", reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
 		return err
@@ -195,7 +197,7 @@ func (c Client) removeBucketPolicy(bucketName string) error {
 	urlValues.Set("policy", "")
 
 	// Execute DELETE on objectName.
-	resp, err := c.executeMethod("DELETE", requestMetadata{
+	resp, err := c.executeMethod(context.Background(), "DELETE", requestMetadata{
 		bucketName:         bucketName,
 		queryValues:        urlValues,
 		contentSHA256Bytes: emptySHA256,
@@ -235,7 +237,7 @@ func (c Client) SetBucketNotification(bucketName string, bucketNotification Buck
 	}
 
 	// Execute PUT to upload a new bucket notification.
-	resp, err := c.executeMethod("PUT", reqMetadata)
+	resp, err := c.executeMethod(context.Background(), "PUT", reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
 		return err

@@ -25,6 +25,8 @@ import (
 	"strings"
 	"time"
 
+	"context"
+
 	"github.com/minio/minio-go/pkg/s3utils"
 )
 
@@ -268,7 +270,7 @@ func (s *SourceInfo) getProps(c Client) (size int64, etag string, userMeta map[s
 // uploadPartCopy - helper function to create a part in a multipart
 // upload via an upload-part-copy request
 // https://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadUploadPartCopy.html
-func (c Client) uploadPartCopy(bucket, object, uploadID string, partNumber int,
+func (c Client) uploadPartCopy(ctx context.Context, bucket, object, uploadID string, partNumber int,
 	headers http.Header) (p CompletePart, err error) {
 
 	// Build query parameters
@@ -277,7 +279,7 @@ func (c Client) uploadPartCopy(bucket, object, uploadID string, partNumber int,
 	urlValues.Set("uploadId", uploadID)
 
 	// Send upload-part-copy request
-	resp, err := c.executeMethod("PUT", requestMetadata{
+	resp, err := c.executeMethod(ctx, "PUT", requestMetadata{
 		bucketName:   bucket,
 		objectName:   object,
 		customHeader: headers,
@@ -311,6 +313,8 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 	if len(srcs) < 1 || len(srcs) > maxPartsCount {
 		return ErrInvalidArgument("There must be as least one and upto 10000 source objects.")
 	}
+
+	ctx := context.Background()
 
 	srcSizes := make([]int64, len(srcs))
 	var totalSize, size, totalParts int64
@@ -396,7 +400,7 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 		}
 
 		// Send copy request
-		resp, err := c.executeMethod("PUT", requestMetadata{
+		resp, err := c.executeMethod(ctx, "PUT", requestMetadata{
 			bucketName:   dst.bucket,
 			objectName:   dst.object,
 			customHeader: h,
@@ -430,7 +434,7 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 	for k, v := range metaMap {
 		metaHeaders[k] = append(metaHeaders[k], v)
 	}
-	uploadID, err := c.newUploadID(dst.bucket, dst.object, metaHeaders)
+	uploadID, err := c.newUploadID(ctx, dst.bucket, dst.object, metaHeaders)
 	if err != nil {
 		return fmt.Errorf("Error creating new upload: %v", err)
 	}
@@ -457,7 +461,7 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 				fmt.Sprintf("bytes=%d-%d", start, end))
 
 			// make upload-part-copy request
-			complPart, err := c.uploadPartCopy(dst.bucket,
+			complPart, err := c.uploadPartCopy(ctx, dst.bucket,
 				dst.object, uploadID, partIndex, h)
 			if err != nil {
 				return fmt.Errorf("Error in upload-part-copy - %v", err)
@@ -468,7 +472,7 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 	}
 
 	// 3. Make final complete-multipart request.
-	_, err = c.completeMultipartUpload(dst.bucket, dst.object, uploadID,
+	_, err = c.completeMultipartUpload(ctx, dst.bucket, dst.object, uploadID,
 		completeMultipartUpload{Parts: objParts})
 	if err != nil {
 		err = fmt.Errorf("Error in complete-multipart request - %v", err)

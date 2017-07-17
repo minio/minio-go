@@ -22,6 +22,8 @@ import (
 	"math"
 	"os"
 
+	"context"
+
 	"github.com/minio/minio-go/pkg/s3utils"
 )
 
@@ -100,7 +102,7 @@ func hashCopyN(hashAlgorithms map[string]hash.Hash, hashSums map[string][]byte, 
 
 // getUploadID - fetch upload id if already present for an object name
 // or initiate a new request to fetch a new upload id.
-func (c Client) newUploadID(bucketName, objectName string, metaData map[string][]string) (uploadID string, err error) {
+func (c Client) newUploadID(ctx context.Context, bucketName, objectName string, metaData map[string][]string) (uploadID string, err error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return "", err
@@ -110,7 +112,7 @@ func (c Client) newUploadID(bucketName, objectName string, metaData map[string][
 	}
 
 	// Initiate multipart upload for an object.
-	initMultipartUploadResult, err := c.initiateMultipartUpload(bucketName, objectName, metaData)
+	initMultipartUploadResult, err := c.initiateMultipartUpload(ctx, bucketName, objectName, metaData)
 	if err != nil {
 		return "", err
 	}

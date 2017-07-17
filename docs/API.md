@@ -64,7 +64,10 @@ func main() {
 |                                                   | [`ComposeObject`](#ComposeObject)                   |                                             |                                               |                                                               |                                                       |
 |                                                   | [`NewSourceInfo`](#NewSourceInfo)                   |                                             |                                               |                                                               |                                                       |
 |                                                   | [`NewDestinationInfo`](#NewDestinationInfo)         |                                             |                                               |                                                               |                                                       |
-
+|   | [`PutObjectWithContext`](#PutObjectWithContext)  | |   |   |
+|   | [`FPutObjectWithContext`](#FPutObjectWithContext)  | |   |   |
+|   | [`GetObjectWithContext`](#GetObjectWithContext)  | |   |   |
+|   | [`FGetObjectWithContext`](#FGetObjectWithContext)  | |   |   |
 
 ## 1. Constructor
 <a name="Minio"></a>
@@ -436,7 +439,78 @@ if err != nil {
     return
 }
 ```
+<a name="GetObjectWithContext"></a>
+### GetObjectWithContext(ctx context.Context, bucketName, objectName string) (*Object, error)
 
+Identical to GetObject operation, but accepts a context for request cancellation.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  |Request context  |
+|`bucketName`  | _string_  |Name of the bucket  |
+|`objectName` | _string_  |Name of the object  |
+
+
+__Return Value__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`object`  | _*minio.Object_ |_minio.Object_ represents object reader. It implements io.Reader, io.Seeker, io.ReaderAt and io.Closer interfaces. |
+
+
+__Example__
+
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 100 * time.Seconds)
+defer cancel()
+object, err := minioClient.GetObjectWithContext(ctx, "mybucket", "photo.jpg")
+if err != nil {
+    fmt.Println(err)
+    return
+}
+localFile, err := os.Create("/tmp/local-file.jpg")
+if err != nil {
+    fmt.Println(err)
+    return
+}
+if _, err = io.Copy(localFile, object); err != nil {
+    fmt.Println(err)
+    return
+}
+```
+
+<a name="FGetObjectWithContext"></a>
+### FGetObjectWithContext(ctx context.Context, bucketName, objectName, filePath string) error
+    Identical to FGetObject operation, but allows request cancellation
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  |Request context |
+|`bucketName`  | _string_  |Name of the bucket |
+|`objectName` | _string_  |Name of the object  |
+|`filePath` | _string_  |Path to download object to |
+
+
+__Example__
+
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 100 * time.Seconds)
+defer cancel()
+err := minioClient.FGetObjectWithContext(ctx, "mybucket", "photo.jpg", "/tmp/photo.jpg")
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
 <a name="PutObject"></a>
 ### PutObject(bucketName, objectName string, reader io.Reader, contentType string) (n int, err error)
 
@@ -465,6 +539,44 @@ if err != nil {
 defer file.Close()
 
 n, err := minioClient.PutObject("mybucket", "myobject", file, "application/octet-stream")
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
+
+<a name="PutObjectWithContext"></a>
+### PutObjectWithContext(ctx context.Context, bucketName, objectName string, reader io.Reader, contentType string) (n int, err error)
+
+Identical to PutObject operation, but allows request cancellation.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  |Request context |
+|`bucketName`  | _string_  |Name of the bucket  |
+|`objectName` | _string_  |Name of the object   |
+|`reader` | _io.Reader_  |Any Go type that implements io.Reader |
+|`contentType` | _string_  |Content type of the object  |
+
+
+__Example__
+
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Seconds)
+defer cancel()
+
+file, err := os.Open("my-testfile")
+if err != nil {
+    fmt.Println(err)
+    return
+}
+defer file.Close()
+
+n, err := minioClient.PutObjectWithContext(ctx, "mybucket", "myobject", file, "application/octet-stream")
 if err != nil {
     fmt.Println(err)
     return
@@ -710,7 +822,35 @@ if err != nil {
     return
 }
 ```
+<a name="FPutObjectWithContext"></a>
+### FPutObjectWithContext(ctx context.Context, bucketName, objectName, filePath, contentType string) (length int64, err error)
 
+Identical to FPutObject operation, but allows request cancellation.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  |Request context  |
+|`bucketName`  | _string_  |Name of the bucket  |
+|`objectName` | _string_  |Name of the object |
+|`filePath` | _string_  |Path to file to be uploaded |
+|`contentType` | _string_  |Content type of the object  |
+
+
+__Example__
+
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 100 * time.Seconds)
+defer cancel()
+n, err := minioClient.FPutObjectWithContext(ctx, "mybucket", "myobject.csv", "/tmp/otherobject.csv", "application/csv")
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
 <a name="StatObject"></a>
 ### StatObject(bucketName, objectName string) (ObjectInfo, error)
 

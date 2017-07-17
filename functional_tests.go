@@ -36,6 +36,8 @@ import (
 	"strings"
 	"time"
 
+	"context"
+
 	minio "github.com/minio/minio-go"
 	log "github.com/sirupsen/logrus"
 	logrus "github.com/sirupsen/logrus"
@@ -1089,6 +1091,214 @@ func testFPutObject() {
 	}
 
 	err = os.Remove(fName + ".gtar")
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+
+}
+
+// Tests FPutObjectWithContext request context cancels after timeout
+func testFPutObjectWithContext() {
+	logTrace()
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.New(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		logger().Fatal("Error:", err, bucketName)
+	}
+
+	// Upload 1 parts worth of data to use multipart upload.
+	// Use different data in part for multipart tests to check parts are uploaded in correct order.
+	var fName = getFilePath("datafile-1-MB")
+	if os.Getenv("MINT_DATA_DIR") == "" {
+		// Make a temp file with 1 MiB bytes of data.
+		file, err := ioutil.TempFile(os.TempDir(), "FPutObjectWithContextTest")
+		if err != nil {
+			logger().Fatal("Error:", err)
+		}
+
+		// Upload 1 parts to trigger multipart upload
+		var buffer = bytes.Repeat([]byte(string('a')), 1024*1024*1)
+		if _, err = file.Write(buffer); err != nil {
+			logger().Fatal("Error:", err)
+		}
+		// Close the file pro-actively for windows.
+		err = file.Close()
+		if err != nil {
+			logger().Fatal("Error:", err)
+		}
+		fName = file.Name()
+	}
+	var totalSize = 1024 * 1024 * 1
+
+	// Set base object name
+	objectName := bucketName + "FPutObjectWithContext"
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	// Perform standard FPutObjectWithContext with contentType provided (Expecting application/octet-stream)
+	_, err = c.FPutObjectWithContext(ctx, bucketName, objectName+"-Shorttimeout", fName, "application/octet-stream")
+	if err == nil {
+		logger().Fatal("Error: request context was not cancelled")
+	}
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	// Perform FPutObjectWithContext with a long timeout. Expect the put object to succeed
+	n, err := c.FPutObjectWithContext(ctx, bucketName, objectName+"-Longtimeout", fName, "")
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+	if n != int64(totalSize) {
+		logger().Fatalf("Error: number of bytes does not match, want %v, got %v\n", totalSize, n)
+	}
+
+	_, err = c.StatObject(bucketName, objectName+"-Longtimeout")
+	if err != nil {
+		logger().Fatal("Error:", err, bucketName, objectName+"-Longtimeout")
+	}
+	err = c.RemoveObject(bucketName, objectName+"-Shorttimeout")
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+	// Remove all objects and bucket and temp file
+	err = c.RemoveObject(bucketName, objectName+"-Longtimeout")
+	if err != nil {
+		logger().Fatal("Error: ", err)
+	}
+
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+
+	err = os.Remove(fName)
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+
+}
+
+// Tests FPutObjectWithContext request context cancels after timeout
+func testFPutObjectWithContextV2() {
+	logTrace()
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.NewV2(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		logger().Fatal("Error:", err, bucketName)
+	}
+
+	// Upload 1 parts worth of data to use multipart upload.
+	// Use different data in part for multipart tests to check parts are uploaded in correct order.
+	var fName = getFilePath("datafile-1-MB")
+	if os.Getenv("MINT_DATA_DIR") == "" {
+		// Make a temp file with 1 MiB bytes of data.
+		file, err := ioutil.TempFile(os.TempDir(), "FPutObjectWithContextTest")
+		if err != nil {
+			logger().Fatal("Error:", err)
+		}
+
+		// Upload 1 parts to trigger multipart upload
+		var buffer = bytes.Repeat([]byte(string('a')), 1024*1024*1)
+		if _, err = file.Write(buffer); err != nil {
+			logger().Fatal("Error:", err)
+		}
+		// Close the file pro-actively for windows.
+		err = file.Close()
+		if err != nil {
+			logger().Fatal("Error:", err)
+		}
+		fName = file.Name()
+	}
+	var totalSize = 1024 * 1024 * 1
+
+	// Set base object name
+	objectName := bucketName + "FPutObjectWithContext"
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	// Perform standard FPutObjectWithContext with contentType provided (Expecting application/octet-stream)
+	_, err = c.FPutObjectWithContext(ctx, bucketName, objectName+"-Shorttimeout", fName, "application/octet-stream")
+	if err == nil {
+		logger().Fatal("Error: request context was not cancelled")
+	}
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	// Perform FPutObjectWithContext with a long timeout. Expect the put object to succeed
+	n, err := c.FPutObjectWithContext(ctx, bucketName, objectName+"-Longtimeout", fName, "")
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+	if n != int64(totalSize) {
+		logger().Fatalf("Error: number of bytes does not match, want %v, got %v\n", totalSize, n)
+	}
+
+	_, err = c.StatObject(bucketName, objectName+"-Longtimeout")
+	if err != nil {
+		logger().Fatal("Error:", err, bucketName, objectName+"-Longtimeout")
+	}
+
+	err = c.RemoveObject(bucketName, objectName+"-Shorttimeout")
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+	err = c.RemoveObject(bucketName, objectName+"-Longtimeout")
+	if err != nil {
+		logger().Fatal("Error: ", err)
+	}
+
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+
+	err = os.Remove(fName)
 	if err != nil {
 		logger().Fatal("Error:", err)
 	}
@@ -3624,7 +3834,7 @@ func testPutObject0ByteV2() {
 		mustParseBool(os.Getenv(enableHTTPS)),
 	)
 	if err != nil {
-		log.Fatal("Error:", err)
+		logger().Fatal("Error:", err)
 	}
 
 	// Enable tracing, write to stderr.
@@ -3640,7 +3850,7 @@ func testPutObject0ByteV2() {
 	// Make a new bucket.
 	err = c.MakeBucket(bucketName, "us-east-1")
 	if err != nil {
-		log.Fatal("Error:", err, bucketName)
+		logger().Fatal("Error:", err, bucketName)
 	}
 
 	objectName := bucketName + "unique"
@@ -3648,7 +3858,7 @@ func testPutObject0ByteV2() {
 	// Upload an object.
 	n, err := c.PutObjectWithSize(bucketName, objectName, bytes.NewReader([]byte("")), 0, nil, nil)
 	if err != nil {
-		log.Fatalf("Error: %v %s %s", err, bucketName, objectName)
+		logger().Fatalf("Error: %v %s %s", err, bucketName, objectName)
 	}
 	if n != 0 {
 		log.Error(fmt.Errorf("Expected upload object size 0 but got %d", n))
@@ -3657,13 +3867,13 @@ func testPutObject0ByteV2() {
 	// Remove the object.
 	err = c.RemoveObject(bucketName, objectName)
 	if err != nil {
-		log.Fatal("Error:", err)
+		logger().Fatal("Error:", err)
 	}
 
 	// Remove the bucket.
 	err = c.RemoveBucket(bucketName)
 	if err != nil {
-		log.Fatal("Error:", err)
+		logger().Fatal("Error:", err)
 	}
 }
 
@@ -3988,13 +4198,62 @@ func testFunctionalV2() {
 	}
 }
 
-// Convert string to bool and always return false if any error
-func mustParseBool(str string) bool {
-	b, err := strconv.ParseBool(str)
+// Test validates putObject with context to see if request cancellation is honored.
+func testPutObjectWithContext() {
+	logTrace()
+
+	// Instantiate new minio client object.
+	c, err := minio.NewV4(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
 	if err != nil {
-		return false
+		logger().Fatal("Error:", err)
 	}
-	return b
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Make a new bucket.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		logger().Fatal("Error:", err, bucketName)
+	}
+	defer c.RemoveBucket(bucketName)
+
+	var data = getDataBuffer("datafile-33-kB", rand.Intn(1<<20)+32*1024)
+
+	objectName := fmt.Sprintf("test-file-%v", rand.Uint32())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	_, err = c.PutObjectWithContext(ctx, bucketName, objectName, bytes.NewReader(data), "binary/octet-stream")
+	if err != nil {
+		logger().Fatal("Error: request with timeout context was not cancelled", err)
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+
+	_, err = c.PutObjectWithContext(ctx, bucketName, objectName, bytes.NewReader(data), "binary/octet-stream")
+	if err != nil {
+		logger().Fatal("Error: request with long timeout failed to complete", err)
+	}
+
+	if err = c.RemoveObject(bucketName, objectName); err != nil {
+		logger().Fatal("Error:", err)
+	}
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
 }
 
 func logger() *logrus.Entry {
@@ -4006,8 +4265,399 @@ func logger() *logrus.Entry {
 	return log.WithFields(nil)
 }
 
+// Test get object with GetObjectWithContext
+func testGetObjectWithContext() {
+	logTrace()
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.NewV4(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		logger().Fatal("Error:", err, bucketName)
+	}
+
+	// Generate data more than 32K.
+	var buf = getDataBuffer("datafile-33-kB", rand.Intn(1<<20)+32*1024)
+
+	// Save the data
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+
+	_, err = c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	// Read the data back
+	r, err := c.GetObjectWithContext(ctx, bucketName, objectName)
+	if err != nil {
+		logger().Fatal("Error request was not cancelled upon timeout", err)
+	}
+	ctx, cancel = context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+
+	// Read the data back
+	r, err = c.GetObjectWithContext(ctx, bucketName, objectName)
+	if err != nil {
+		logger().Fatal("Error:", err, bucketName, objectName)
+	}
+
+	st, err := r.Stat()
+	if err != nil {
+		logger().Fatal("Error:", err, bucketName, objectName)
+	}
+	if st.Size != int64(len(buf)) {
+		logger().Fatalf("Error: number of bytes in stat does not match, want %v, got %v\n",
+			len(buf), st.Size)
+	}
+	if err := r.Close(); err != nil {
+		logger().Fatal("Error:", err)
+	}
+
+	err = c.RemoveObject(bucketName, objectName)
+	if err != nil {
+		logger().Fatal("Error: ", err)
+	}
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+}
+
+// Test get object with FGetObjectWithContext
+func testFGetObjectWithContext() {
+	logTrace()
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.NewV4(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		logger().Fatal("Error:", err, bucketName)
+	}
+
+	// Generate data more than 32K.
+	var buf = getDataBuffer("datafile-33-kB", rand.Intn(1<<20)+32*1024)
+
+	// Save the data
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+
+	_, err = c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	fileName := "tempfile-context"
+	// Read the data back
+	err = c.FGetObjectWithContext(ctx, bucketName, objectName, fileName+"-f")
+	if err == nil {
+		logger().Fatal("Error request was not cancelled upon timeout")
+	}
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	// Read the data back
+	err = c.FGetObjectWithContext(ctx, bucketName, objectName, fileName+"-fcontext")
+	if err != nil {
+		logger().Fatal("Error:", err, bucketName, objectName)
+	}
+	if err = os.Remove(fileName + "-fcontext"); err != nil {
+		logger().Fatal("Error:", err)
+	}
+	err = c.RemoveObject(bucketName, objectName)
+	if err != nil {
+		logger().Fatal("Error: ", err)
+	}
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+}
+
+// Test validates putObject with context to see if request cancellation is honored for V2.
+func testPutObjectWithContextV2() {
+	logTrace()
+
+	// Instantiate new minio client object.
+	c, err := minio.NewV2(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Make a new bucket.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		logger().Fatal("Error:", err, bucketName)
+	}
+	defer c.RemoveBucket(bucketName)
+
+	var data = getDataBuffer("datafile-33-kB", rand.Intn(1<<20)+32*1024)
+
+	objectName := fmt.Sprintf("test-file-%v", rand.Uint32())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	_, err = c.PutObjectWithContext(ctx, bucketName, objectName, bytes.NewReader(data), "binary/octet-stream")
+	if err != nil {
+		logger().Fatal("Error: request with timeout context was not cancelled", err)
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+
+	_, err = c.PutObjectWithContext(ctx, bucketName, objectName, bytes.NewReader(data), "binary/octet-stream")
+	if err != nil {
+		logger().Fatal("Error: request with long timeout failed to complete", err)
+	}
+
+	if err = c.RemoveObject(bucketName, objectName); err != nil {
+		logger().Fatal("Error:", err)
+	}
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+}
+
+// Test get object with GetObjectWithContext
+func testGetObjectWithContextV2() {
+	logTrace()
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.NewV2(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		logger().Fatal("Error:", err, bucketName)
+	}
+
+	// Generate data more than 32K.
+	var buf = getDataBuffer("datafile-33-kB", rand.Intn(1<<20)+32*1024)
+
+	// Save the data
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+
+	_, err = c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	// Read the data back
+	r, err := c.GetObjectWithContext(ctx, bucketName, objectName)
+	if err != nil {
+		logger().Fatal("Error request was not cancelled upon timeout", err)
+	}
+	ctx, cancel = context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+
+	// Read the data back
+	r, err = c.GetObjectWithContext(ctx, bucketName, objectName)
+	if err != nil {
+		logger().Fatal("Error:", err, bucketName, objectName)
+	}
+
+	st, err := r.Stat()
+	if err != nil {
+		logger().Fatal("Error:", err, bucketName, objectName)
+	}
+	if st.Size != int64(len(buf)) {
+		logger().Fatalf("Error: number of bytes in stat does not match, want %v, got %v\n",
+			len(buf), st.Size)
+	}
+	if err := r.Close(); err != nil {
+		logger().Fatal("Error:", err)
+	}
+
+	err = c.RemoveObject(bucketName, objectName)
+	if err != nil {
+		logger().Fatal("Error: ", err)
+	}
+
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+}
+
+// Test get object with FGetObjectWithContext
+func testFGetObjectWithContextV2() {
+	logTrace()
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.NewV2(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		logger().Fatal("Error:", err, bucketName)
+	}
+
+	// Generate data more than 32K.
+	var buf = getDataBuffer("datafile-33-kB", rand.Intn(1<<20)+32*1024)
+
+	// Save the data
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+
+	_, err = c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	fileName := "tempfile-context"
+	// Read the data back
+	err = c.FGetObjectWithContext(ctx, bucketName, objectName, fileName+"-f")
+	if err == nil {
+		logger().Fatal("Error request was not cancelled upon timeout")
+	}
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	// Read the data back
+	err = c.FGetObjectWithContext(ctx, bucketName, objectName, fileName+"-fcontext")
+	if err != nil {
+		logger().Fatal("Error:", err, bucketName, objectName)
+	}
+
+	if err = os.Remove(fileName + "-fcontext"); err != nil {
+		logger().Fatal("Error:", err)
+	}
+	err = c.RemoveObject(bucketName, objectName)
+	if err != nil {
+		logger().Fatal("Error: ", err)
+	}
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		logger().Fatal("Error:", err)
+	}
+}
+
+// Convert string to bool and always return false if any error
+func mustParseBool(str string) bool {
+	b, err := strconv.ParseBool(str)
+	if err != nil {
+		return false
+	}
+	return b
+}
+func logTrace() {
+	pc := make([]uintptr, 10) // at least 1 entry needed
+	runtime.Callers(2, pc)
+	f := runtime.FuncForPC(pc[0])
+	_, line := f.FileLine(pc[0])
+	logger().Info(fmt.Sprintf("Running %s at line:%d", f.Name(), line))
+}
+
 func main() {
 	logger().Info("Running functional tests for minio-go sdk....")
+
 	if !isQuickMode() {
 		testMakeBucketErrorV2()
 		testGetObjectClosedTwiceV2()
@@ -4023,6 +4673,10 @@ func main() {
 		testEncryptedCopyObjectV2()
 		testUserMetadataCopyingV2()
 		testPutObject0ByteV2()
+		testGetObjectWithContextV2()
+		testFPutObjectWithContextV2()
+		testFGetObjectWithContextV2()
+		testPutObjectWithContextV2()
 		testMakeBucketError()
 		testMakeBucketRegions()
 		testPutObjectWithMetadata()
@@ -4048,6 +4702,10 @@ func main() {
 		testFunctional()
 		testGetObjectObjectModified()
 		testPutObjectUploadSeekedObject()
+		testGetObjectWithContext()
+		testFPutObjectWithContext()
+		testFGetObjectWithContext()
+		testPutObjectWithContext()
 	} else {
 		logger().Info("Running short functional tests")
 		testFunctional()
