@@ -3611,7 +3611,7 @@ func testUserMetadataCopyingV2() {
 
 // Test put object with 0 byte object.
 func testPutObject0ByteV2() {
-	logTrace()
+	logger().Info()
 
 	// Seed random based on current time.
 	rand.Seed(time.Now().Unix())
