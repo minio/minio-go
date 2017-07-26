@@ -137,32 +137,33 @@ func TestGetBucketLocationRequest(t *testing.T) {
 		endPoint       string
 		accessKey      string
 		secretKey      string
+		enableSecurity bool
 		enableInsecure bool
 	}
 	// dataset for 'NewClient' call.
 	info := []infoForClient{
 		// endpoint localhost.
 		// both access-key and secret-key are empty.
-		{"localhost:9000", "", "", false},
+		{"localhost:9000", "", "", false, false},
 		// both access-key are secret-key exists.
-		{"localhost:9000", "my-access-key", "my-secret-key", false},
+		{"localhost:9000", "my-access-key", "my-secret-key", false, false},
 		// one of acess-key and secret-key are empty.
-		{"localhost:9000", "", "my-secret-key", false},
+		{"localhost:9000", "", "my-secret-key", false, false},
 
 		// endpoint amazon s3.
-		{"s3.amazonaws.com", "", "", false},
-		{"s3.amazonaws.com", "my-access-key", "my-secret-key", false},
-		{"s3.amazonaws.com", "my-acess-key", "", false},
+		{"s3.amazonaws.com", "", "", false, false},
+		{"s3.amazonaws.com", "my-access-key", "my-secret-key", false, false},
+		{"s3.amazonaws.com", "my-acess-key", "", false, false},
 
 		// endpoint google cloud storage.
-		{"storage.googleapis.com", "", "", false},
-		{"storage.googleapis.com", "my-access-key", "my-secret-key", false},
-		{"storage.googleapis.com", "", "my-secret-key", false},
+		{"storage.googleapis.com", "", "", false, false},
+		{"storage.googleapis.com", "my-access-key", "my-secret-key", false, false},
+		{"storage.googleapis.com", "", "my-secret-key", false, false},
 
 		// endpoint custom domain running Minio server.
-		{"play.minio.io", "", "", false},
-		{"play.minio.io", "my-access-key", "my-secret-key", false},
-		{"play.minio.io", "my-acess-key", "", false},
+		{"play.minio.io", "", "", false, false},
+		{"play.minio.io", "my-access-key", "my-secret-key", false, false},
+		{"play.minio.io", "my-acess-key", "", false, false},
 	}
 	testCases := []struct {
 		bucketName string
@@ -232,7 +233,7 @@ func TestGetBucketLocationRequest(t *testing.T) {
 		var err error
 		if testCase.info.endPoint != "" {
 
-			client, err = New(testCase.info.endPoint, testCase.info.accessKey, testCase.info.secretKey, testCase.info.enableInsecure)
+			client, err = New(testCase.info.endPoint, testCase.info.accessKey, testCase.info.secretKey, testCase.info.enableSecurity, testCase.info.enableInsecure)
 			if err != nil {
 				t.Fatalf("Test %d: Failed to create new Client: %s", i+1, err.Error())
 			}

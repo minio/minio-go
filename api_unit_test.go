@@ -288,6 +288,7 @@ func TestMakeTargetURL(t *testing.T) {
 	testCases := []struct {
 		addr           string
 		secure         bool
+		insecure       bool
 		bucketName     string
 		objectName     string
 		bucketLocation string
@@ -296,28 +297,28 @@ func TestMakeTargetURL(t *testing.T) {
 		expectedErr    error
 	}{
 		// Test 1
-		{"localhost:9000", false, "", "", "", nil, url.URL{Host: "localhost:9000", Scheme: "http", Path: "/"}, nil},
+		{"localhost:9000", false, false, "", "", "", nil, url.URL{Host: "localhost:9000", Scheme: "http", Path: "/"}, nil},
 		// Test 2
-		{"localhost", true, "", "", "", nil, url.URL{Host: "localhost", Scheme: "https", Path: "/"}, nil},
+		{"localhost", true, false, "", "", "", nil, url.URL{Host: "localhost", Scheme: "https", Path: "/"}, nil},
 		// Test 3
-		{"localhost:9000", true, "mybucket", "", "", nil, url.URL{Host: "localhost:9000", Scheme: "https", Path: "/mybucket/"}, nil},
+		{"localhost:9000", true, false, "mybucket", "", "", nil, url.URL{Host: "localhost:9000", Scheme: "https", Path: "/mybucket/"}, nil},
 		// Test 4, testing against google storage API
-		{"storage.googleapis.com", true, "mybucket", "", "", nil, url.URL{Host: "mybucket.storage.googleapis.com", Scheme: "https", Path: "/"}, nil},
+		{"storage.googleapis.com", true, false, "mybucket", "", "", nil, url.URL{Host: "mybucket.storage.googleapis.com", Scheme: "https", Path: "/"}, nil},
 		// Test 5, testing against AWS S3 API
-		{"s3.amazonaws.com", true, "mybucket", "myobject", "", nil, url.URL{Host: "mybucket.s3.amazonaws.com", Scheme: "https", Path: "/myobject"}, nil},
+		{"s3.amazonaws.com", true, false, "mybucket", "myobject", "", nil, url.URL{Host: "mybucket.s3.amazonaws.com", Scheme: "https", Path: "/myobject"}, nil},
 		// Test 6
-		{"localhost:9000", false, "mybucket", "myobject", "", nil, url.URL{Host: "localhost:9000", Scheme: "http", Path: "/mybucket/myobject"}, nil},
+		{"localhost:9000", false, false, "mybucket", "myobject", "", nil, url.URL{Host: "localhost:9000", Scheme: "http", Path: "/mybucket/myobject"}, nil},
 		// Test 7, testing with query
-		{"localhost:9000", false, "mybucket", "myobject", "", map[string][]string{"param": []string{"val"}}, url.URL{Host: "localhost:9000", Scheme: "http", Path: "/mybucket/myobject", RawQuery: "param=val"}, nil},
+		{"localhost:9000", false, false, "mybucket", "myobject", "", map[string][]string{"param": []string{"val"}}, url.URL{Host: "localhost:9000", Scheme: "http", Path: "/mybucket/myobject", RawQuery: "param=val"}, nil},
 		// Test 8, testing with port 80
-		{"localhost:80", false, "mybucket", "myobject", "", nil, url.URL{Host: "localhost", Scheme: "http", Path: "/mybucket/myobject"}, nil},
+		{"localhost:80", false, false, "mybucket", "myobject", "", nil, url.URL{Host: "localhost", Scheme: "http", Path: "/mybucket/myobject"}, nil},
 		// Test 9, testing with port 443
-		{"localhost:443", true, "mybucket", "myobject", "", nil, url.URL{Host: "localhost", Scheme: "https", Path: "/mybucket/myobject"}, nil},
+		{"localhost:443", true, false, "mybucket", "myobject", "", nil, url.URL{Host: "localhost", Scheme: "https", Path: "/mybucket/myobject"}, nil},
 	}
 
 	for i, testCase := range testCases {
 		// Initialize a Minio client
-		c, _ := New(testCase.addr, "foo", "bar", testCase.secure)
+		c, _ := New(testCase.addr, "foo", "bar", testCase.secure, testCase.insecure)
 		u, err := c.makeTargetURL(testCase.bucketName, testCase.objectName, testCase.bucketLocation, testCase.queryValues)
 		// Check the returned error
 		if testCase.expectedErr == nil && err != nil {

@@ -34,6 +34,7 @@ const (
 	accessKey      = "ACCESS_KEY"
 	secretKey      = "SECRET_KEY"
 	enableSecurity = "ENABLE_HTTPS"
+	enableInsecure = "ENABLE_INSECURE"
 )
 
 // Minimum part size
@@ -78,6 +79,7 @@ func TestGetObjectCore(t *testing.T) {
 		os.Getenv(accessKey),
 		os.Getenv(secretKey),
 		mustParseBool(os.Getenv(enableSecurity)),
+		mustParseBool(os.Getenv(enableInsecure)),
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -253,6 +255,7 @@ func TestGetObjectContentEncoding(t *testing.T) {
 		os.Getenv(accessKey),
 		os.Getenv(secretKey),
 		mustParseBool(os.Getenv(enableSecurity)),
+		mustParseBool(os.Getenv(enableInsecure)),
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -322,6 +325,7 @@ func TestGetBucketPolicy(t *testing.T) {
 		os.Getenv(accessKey),
 		os.Getenv(secretKey),
 		mustParseBool(os.Getenv(enableSecurity)),
+		mustParseBool(os.Getenv(enableInsecure)),
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -385,6 +389,7 @@ func TestCorePutObject(t *testing.T) {
 		os.Getenv(accessKey),
 		os.Getenv(secretKey),
 		mustParseBool(os.Getenv(enableSecurity)),
+		mustParseBool(os.Getenv(enableInsecure)),
 	)
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -476,7 +481,8 @@ func TestCoreGetObjectMetadata(t *testing.T) {
 		os.Getenv(serverEndpoint),
 		os.Getenv(accessKey),
 		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableSecurity)))
+		mustParseBool(os.Getenv(enableSecurity)),
+		mustParseBool(os.Getenv(enableInsecure)))
 	if err != nil {
 		log.Fatalln(err)
 	}
