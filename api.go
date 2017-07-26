@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
@@ -82,6 +83,8 @@ type Client struct {
 
 	// Random seed.
 	random *rand.Rand
+
+	insecure bool
 }
 
 // Global constants.
@@ -101,9 +104,9 @@ const (
 
 // NewV2 - instantiate minio client with Amazon S3 signature version
 // '2' compatibility.
-func NewV2(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*Client, error) {
+func NewV2(endpoint string, accessKeyID, secretAccessKey string, secure bool, insecure bool) (*Client, error) {
 	creds := credentials.NewStaticV2(accessKeyID, secretAccessKey, "")
-	clnt, err := privateNew(endpoint, creds, secure, "")
+	clnt, err := privateNew(endpoint, creds, secure, "", insecure)
 	if err != nil {
 		return nil, err
 	}
@@ -113,9 +116,9 @@ func NewV2(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*
 
 // NewV4 - instantiate minio client with Amazon S3 signature version
 // '4' compatibility.
-func NewV4(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*Client, error) {
+func NewV4(endpoint string, accessKeyID, secretAccessKey string, secure bool, insecure bool) (*Client, error) {
 	creds := credentials.NewStaticV4(accessKeyID, secretAccessKey, "")
-	clnt, err := privateNew(endpoint, creds, secure, "")
+	clnt, err := privateNew(endpoint, creds, secure, "", insecure)
 	if err != nil {
 		return nil, err
 	}
@@ -124,9 +127,9 @@ func NewV4(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*
 }
 
 // New - instantiate minio client, adds automatic verification of signature.
-func New(endpoint, accessKeyID, secretAccessKey string, secure bool) (*Client, error) {
+func New(endpoint, accessKeyID, secretAccessKey string, secure bool, insecure bool) (*Client, error) {
 	creds := credentials.NewStaticV4(accessKeyID, secretAccessKey, "")
-	clnt, err := privateNew(endpoint, creds, secure, "")
+	clnt, err := privateNew(endpoint, creds, secure, "", insecure)
 	if err != nil {
 		return nil, err
 	}
@@ -144,16 +147,16 @@ func New(endpoint, accessKeyID, secretAccessKey string, secure bool) (*Client, e
 // NewWithCredentials - instantiate minio client with credentials provider
 // for retrieving credentials from various credentials provider such as
 // IAM, File, Env etc.
-func NewWithCredentials(endpoint string, creds *credentials.Credentials, secure bool, region string) (*Client, error) {
-	return privateNew(endpoint, creds, secure, region)
+func NewWithCredentials(endpoint string, creds *credentials.Credentials, secure bool, region string, insecure bool) (*Client, error) {
+	return privateNew(endpoint, creds, secure, region, insecure)
 }
 
 // NewWithRegion - instantiate minio client, with region configured. Unlike New(),
 // NewWithRegion avoids bucket-location lookup operations and it is slightly faster.
 // Use this function when if your application deals with single region.
-func NewWithRegion(endpoint, accessKeyID, secretAccessKey string, secure bool, region string) (*Client, error) {
+func NewWithRegion(endpoint, accessKeyID, secretAccessKey string, secure bool, region string, insecure bool) (*Client, error) {
 	creds := credentials.NewStaticV4(accessKeyID, secretAccessKey, "")
-	return privateNew(endpoint, creds, secure, region)
+	return privateNew(endpoint, creds, secure, region, insecure)
 }
 
 // lockedRandSource provides protected rand source, implements rand.Source interface.
@@ -190,7 +193,7 @@ func redirectHeaders(req *http.Request, via []*http.Request) error {
 	return nil
 }
 
-func privateNew(endpoint string, creds *credentials.Credentials, secure bool, region string) (*Client, error) {
+func privateNew(endpoint string, creds *credentials.Credentials, secure bool, region string, insecure bool) (*Client, error) {
 	// construct endpoint.
 	endpointURL, err := getEndpointURL(endpoint, secure)
 	if err != nil {
@@ -209,11 +212,36 @@ func privateNew(endpoint string, creds *credentials.Credentials, secure bool, re
 	// Save endpoint URL, user agent for future uses.
 	clnt.endpointURL = *endpointURL
 
-	// Instantiate http client and bucket location cache.
-	clnt.httpClient = &http.Client{
-		Transport:     defaultMinioTransport,
-		CheckRedirect: redirectHeaders,
+	clnt.insecure = insecure
+
+	if !insecure {
+		clnt.httpClient = &http.Client{
+			Transport:     defaultMinioTransport,
+			CheckRedirect: redirectHeaders,
+		}
+	} else {
+		tlsConfig := &tls.Config{}
+		tlsConfig.InsecureSkipVerify = true
+		var transport http.RoundTripper = &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			ResponseHeaderTimeout: 5 * time.Minute,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+			TLSClientConfig:       tlsConfig,
+		}
+		clnt.httpClient = &http.Client{
+			Transport:     transport,
+			CheckRedirect: redirectHeaders,
+		}
 	}
+
+	// Instantiate http client and bucket location cache.
 
 	// Sets custom region, if region is empty bucket location cache is used automatically.
 	clnt.region = region
