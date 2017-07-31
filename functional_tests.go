@@ -3246,7 +3246,7 @@ func testComposeObjectErrorCasesWrapper(c *minio.Client) {
 
 	if err := c.ComposeObject(dst, srcSlice); err == nil {
 		logger().Fatal("Error was expected.")
-	} else if err.Error() != "There must be as least one and upto 10000 source objects." {
+	} else if err.Error() != "There must be as least one and up to 10000 source objects." {
 		logger().Fatal("Got unexpected error: ", err)
 	}
 
@@ -3611,7 +3611,7 @@ func testUserMetadataCopyingV2() {
 
 // Test put object with 0 byte object.
 func testPutObject0ByteV2() {
-	logTrace()
+	logger().Info()
 
 	// Seed random based on current time.
 	rand.Seed(time.Now().Unix())
