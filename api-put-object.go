@@ -180,6 +180,7 @@ func (c Client) PutObjectWithProgress(bucketName, objectName string, reader io.R
 	if err != nil {
 		return 0, err
 	}
+
 	return c.putObjectCommon(bucketName, objectName, reader, size, metadata, progress)
 }
 
@@ -252,45 +253,47 @@ func (c Client) putObjectMultipartStreamNoLength(bucketName, objectName string, 
 	// Part number always starts with '1'.
 	partNumber := 1
 
-	// Initialize a temporary buffer.
-	tmpBuffer := new(bytes.Buffer)
-
 	// Initialize parts uploaded map.
 	partsInfo := make(map[int]ObjectPart)
 
 	for partNumber <= totalPartsCount {
-		// Calculates hash sums while copying partSize bytes into tmpBuffer.
-		prtSize, rErr := io.CopyN(tmpBuffer, reader, partSize)
+		bufp := bufPool.Get().(*[]byte)
+		cw := &cappedWriter{
+			buffer: *bufp,
+			cap:    int64(cap(*bufp)),
+		}
+
+		// Copies partSize bytes into tmpBuffer.
+		prtSize, rErr := io.CopyN(cw, reader, partSize)
 		if rErr != nil && rErr != io.EOF {
+			bufPool.Put(bufp)
 			return 0, rErr
 		}
 
-		var reader io.Reader
 		// Update progress reader appropriately to the latest offset
 		// as we read from the source.
-		reader = newHook(tmpBuffer, progress)
+		rd := newHook(bytes.NewReader(cw.GetBytes(prtSize)), progress)
 
 		// Proceed to upload the part.
 		var objPart ObjectPart
-		objPart, err = c.uploadPart(bucketName, objectName, uploadID, reader, partNumber,
+		objPart, err = c.uploadPart(bucketName, objectName, uploadID, rd, partNumber,
 			nil, nil, prtSize, metadata)
 		if err != nil {
-			// Reset the temporary buffer upon any error.
-			tmpBuffer.Reset()
+			bufPool.Put(bufp)
 			return totalUploadedSize, err
 		}
 
 		// Save successfully uploaded part metadata.
 		partsInfo[partNumber] = objPart
 
-		// Reset the temporary buffer.
-		tmpBuffer.Reset()
-
 		// Save successfully uploaded size.
 		totalUploadedSize += prtSize
 
 		// Increment part number.
 		partNumber++
+
+		// Put back data into bufpool.
+		bufPool.Put(bufp)
 
 		// For unknown size, Read EOF we break away.
 		// We do not have to upload till totalPartsCount.
