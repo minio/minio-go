@@ -3671,6 +3671,77 @@ func testPutObjectNoLengthV2() {
 	}
 }
 
+// Test put objects of unknown size.
+func testPutObjectsUnknownV2() {
+	logger().Info()
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.NewV2(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		log.Fatal("Error:", err)
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()),
+		"minio-go-test")
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		log.Fatal("Error:", err, bucketName)
+	}
+
+	// Issues are revealed by trying to upload multiple files of unknown size
+	// sequentially (on 4GB machines)
+	for i := 1; i <= 4; i++ {
+		// Simulate that we could be receiving byte slices of data that we want
+		// to upload as a file
+		rpipe, wpipe := io.Pipe()
+		defer rpipe.Close()
+		go func() {
+			b := []byte("test")
+			wpipe.Write(b)
+			wpipe.Close()
+		}()
+
+		// Upload the object.
+		objectName := fmt.Sprintf("%sunique%d", bucketName, i)
+		n, err := c.PutObjectStreaming(bucketName, objectName, rpipe)
+		if err != nil {
+			log.Fatalf("Error: %v %s %s", err, bucketName, objectName)
+		}
+		if n != int64(4) {
+			log.Error(fmt.Errorf("Expected upload object size %d but got %d", 4, n))
+		}
+
+		// Remove the object.
+		err = c.RemoveObject(bucketName, objectName)
+		if err != nil {
+			log.Fatal("Error:", err)
+		}
+	}
+
+	// Remove the bucket.
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		log.Fatal("Error:", err)
+	}
+}
+
 // Test put object with 0 byte object.
 func testPutObject0ByteV2() {
 	logger().Info()
@@ -4086,6 +4157,7 @@ func main() {
 		testUserMetadataCopyingV2()
 		testPutObject0ByteV2()
 		testPutObjectNoLengthV2()
+		testPutObjectsUnknownV2()
 		testMakeBucketError()
 		testMakeBucketRegions()
 		testPutObjectWithMetadata()
