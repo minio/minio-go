@@ -190,6 +190,31 @@ func redirectHeaders(req *http.Request, via []*http.Request) error {
 	return nil
 }
 
+// getRegionFromURL - parse region from URL if present.
+func getRegionFromURL(u url.URL) (region string) {
+	region = ""
+	if s3utils.IsGoogleEndpoint(u) {
+		return
+	} else if s3utils.IsAmazonChinaEndpoint(u) {
+		// For china specifically we need to set everything to
+		// cn-north-1 for now, there is no easier way until AWS S3
+		// provides a cleaner compatible API across "us-east-1" and
+		// China region.
+		return "cn-north-1"
+	} else if s3utils.IsAmazonGovCloudEndpoint(u) {
+		// For us-gov specifically we need to set everything to
+		// us-gov-west-1 for now, there is no easier way until AWS S3
+		// provides a cleaner compatible API across "us-east-1" and
+		// Gov cloud region.
+		return "us-gov-west-1"
+	}
+	parts := s3utils.AmazonS3Host.FindStringSubmatch(u.Host)
+	if len(parts) > 1 {
+		region = parts[1]
+	}
+	return region
+}
+
 func privateNew(endpoint string, creds *credentials.Credentials, secure bool, region string) (*Client, error) {
 	// construct endpoint.
 	endpointURL, err := getEndpointURL(endpoint, secure)
@@ -216,6 +241,9 @@ func privateNew(endpoint string, creds *credentials.Credentials, secure bool, re
 	}
 
 	// Sets custom region, if region is empty bucket location cache is used automatically.
+	if region == "" {
+		region = getRegionFromURL(clnt.endpointURL)
+	}
 	clnt.region = region
 
 	// Instantiate bucket location cache.
@@ -494,7 +522,7 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 	// Blank indentifier is kept here on purpose since 'range' without
 	// blank identifiers is only supported since go1.4
 	// https://golang.org/doc/go1.4#forrange.
-	for _ = range c.newRetryTimer(MaxRetry, DefaultRetryUnit, DefaultRetryCap, MaxJitter, doneCh) {
+	for range c.newRetryTimer(MaxRetry, DefaultRetryUnit, DefaultRetryCap, MaxJitter, doneCh) {
 		// Retry executes the following function body if request has an
 		// error until maxRetries have been exhausted, retry attempts are
 		// performed after waiting for a given period of time in a
