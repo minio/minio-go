@@ -4218,6 +4218,8 @@ func logger() *logrus.Entry {
 }
 
 func main() {
+	// Output to stdout instead of the default stderr
+	log.SetOutput(os.Stdout)
 	logger().Info("Running functional tests for minio-go sdk....")
 	if !isQuickMode() {
 		testMakeBucketErrorV2()
