@@ -82,6 +82,9 @@ type Client struct {
 
 	// Random seed.
 	random *rand.Rand
+
+	// Total number of parallel workers used for multipart operation.
+	NumParallelWorkers int
 }
 
 // Global constants.
@@ -252,6 +255,8 @@ func privateNew(endpoint string, creds *credentials.Credentials, secure bool, re
 	// Introduce a new locked random seed.
 	clnt.random = rand.New(&lockedRandSource{src: rand.NewSource(time.Now().UTC().UnixNano())})
 
+	// Default Total number of parallel workers used for multipart operation.
+	clnt.NumParallelWorkers = 3
 	// Return.
 	return clnt, nil
 }
