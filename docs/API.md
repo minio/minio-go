@@ -1067,8 +1067,6 @@ Generates a presigned URL for HTTP PUT operations. Browsers/Mobile clients may p
 
 NOTE: you can upload to S3 only with specified object name.
 
-
-
 __Parameters__
 
 
@@ -1093,13 +1091,43 @@ if err != nil {
 fmt.Println(presignedURL)
 ```
 
+<a name="PresignedHeadObject"></a>
+### PresignedHeadObject(bucketName, objectName string, expiry time.Duration, reqParams url.Values) (*url.URL, error)
+
+Generates a presigned URL for HTTP HEAD operations. Browsers/Mobile clients may point to this URL to directly get metadata from objects even if the bucket is private. This presigned URL can have an associated expiration time in seconds after which it is no longer operational. The default expiry is set to 7 days.
+
+__Parameters__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |Name of the bucket   |
+|`objectName` | _string_  |Name of the object   |
+|`expiry` | _time.Duration_  |Expiry of presigned URL in seconds   |
+|`reqParams` | _url.Values_  |Additional response header overrides supports _response-expires_, _response-content-type_, _response-cache-control_, _response-content-disposition_.  |
+
+
+__Example__
+
+
+```go
+// Set request parameters for content-disposition.
+reqParams := make(url.Values)
+reqParams.Set("response-content-disposition", "attachment; filename=\"your-filename.txt\"")
+
+// Generates a presigned url which expires in a day.
+presignedURL, err := minioClient.PresignedHeadObject("mybucket", "myobject", time.Second * 24 * 60 * 60, reqParams)
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
+
 <a name="PresignedPostPolicy"></a>
 ### PresignedPostPolicy(PostPolicy) (*url.URL, map[string]string, error)
 
 Allows setting policy conditions to a presigned URL for POST operations. Policies such as bucket name to receive object uploads, key name prefixes, expiry policy may be set.
 
 Create policy :
-
 
 ```go
 policy := minio.NewPostPolicy()
@@ -1128,9 +1156,7 @@ if err != nil {
 }
 ```
 
-
 POST your content from the command line using `curl`:
-
 
 ```go
 fmt.Printf("curl ")
