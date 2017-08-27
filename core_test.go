@@ -103,7 +103,7 @@ func TestGetObjectCore(t *testing.T) {
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-	n, err := c.Client.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
+	n, err := c.Client.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), &PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
@@ -275,12 +275,12 @@ func TestGetObjectContentEncoding(t *testing.T) {
 
 	// Generate data more than 32K
 	buf := bytes.Repeat([]byte("3"), rand.Intn(1<<20)+32*1024)
-	m := make(map[string][]string)
-	m["Content-Encoding"] = []string{"gzip"}
+	m := make(map[string]string)
+	m["Content-Encoding"] = "gzip"
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-	n, err := c.Client.PutObjectWithMetadata(bucketName, objectName, bytes.NewReader(buf), m, nil)
+	n, err := c.Client.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), &PutObjectOptions{UserMetadata: m, Progress: nil})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
@@ -411,15 +411,15 @@ func TestCorePutObject(t *testing.T) {
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	// Object content type
 	objectContentType := "binary/octet-stream"
-	metadata := make(map[string][]string)
-	metadata["Content-Type"] = []string{objectContentType}
+	metadata := make(map[string]string)
+	metadata["Content-Type"] = objectContentType
 
-	objInfo, err := c.PutObject(bucketName, objectName, int64(len(buf)), bytes.NewReader(buf), md5.New().Sum(nil), nil, metadata)
+	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), md5.New().Sum(nil), nil, metadata)
 	if err == nil {
 		t.Fatal("Error expected: nil, got: ", err)
 	}
 
-	objInfo, err = c.PutObject(bucketName, objectName, int64(len(buf)), bytes.NewReader(buf), nil, nil, metadata)
+	objInfo, err = c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), nil, nil, metadata)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
@@ -490,12 +490,12 @@ func TestCoreGetObjectMetadata(t *testing.T) {
 		t.Fatal("Error:", err, bucketName)
 	}
 
-	metadata := map[string][]string{
-		"X-Amz-Meta-Key-1": {"Val-1"},
+	metadata := map[string]string{
+		"X-Amz-Meta-Key-1": "Val-1",
 	}
 
-	_, err = core.PutObject(bucketName, "my-objectname", 5,
-		bytes.NewReader([]byte("hello")), nil, nil, metadata)
+	_, err = core.PutObject(bucketName, "my-objectname",
+		bytes.NewReader([]byte("hello")), 5, nil, nil, metadata)
 	if err != nil {
 		log.Fatalln(err)
 	}

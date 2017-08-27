@@ -212,3 +212,21 @@ func getDefaultLocation(u url.URL, regionOverride string) (location string) {
 	// Default to location to 'us-east-1'.
 	return "us-east-1"
 }
+
+var supportedHeaders = []string{
+	"content-type",
+	"cache-control",
+	"content-encoding",
+	"content-disposition",
+	// Add more supported headers here.
+}
+
+//isStandardHeader returns true if header is a supported header and not a custom header
+func isStandardHeader(headerKey string) bool {
+	for _, header := range supportedHeaders {
+		if strings.Compare(strings.ToLower(headerKey), header) == 0 {
+			return true
+		}
+	}
+	return false
+}

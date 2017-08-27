@@ -1,7 +1,7 @@
 // +build ignore
 
 /*
- * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2015 Minio, Inc.
+ * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2017 Minio, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,26 +20,46 @@ package main
 
 import (
 	"log"
+	"os"
+	"time"
+
+	"context"
 
 	"github.com/minio/minio-go"
 )
 
 func main() {
-	// Note: YOUR-ACCESSKEYID, YOUR-SECRETACCESSKEY, my-bucketname, my-objectname
-	// and my-filename.csv are dummy values, please replace them with original values.
+	// Note: YOUR-ACCESSKEYID, YOUR-SECRETACCESSKEY, my-testfile, my-bucketname and
+	// my-objectname are dummy values, please replace them with original values.
 
 	// Requests are always secure (HTTPS) by default. Set secure=false to enable insecure (HTTP) access.
 	// This boolean value is the last argument for New().
 
 	// New returns an Amazon S3 compatible client object. API compatibility (v2 or v4) is automatically
 	// determined based on the Endpoint value.
+
 	s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", true)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	if _, err := s3Client.FPutObject("my-bucketname", "my-objectname", "my-filename.csv", &minio.PutObjectOptions{ContentType: "application/csv"}); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	object, err := os.Open("my-testfile")
+	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Println("Successfully uploaded my-filename.csv")
+	defer object.Close()
+
+	objectStat, err := object.Stat()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	n, err := s3Client.PutObjectWithContext(ctx, "my-bucketname", "my-objectname", object, objectStat.Size(), &minio.PutObjectOptions{ContentType: "application/octet-stream"})
+	if err != nil {
+		log.Fatalln(err)
+	}
+	log.Println("Uploaded", "my-objectname", " of size: ", n, "Successfully.")
 }
