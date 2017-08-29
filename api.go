@@ -590,9 +590,14 @@ func (c Client) executeMethod(method string, metadata requestMetadata) (res *htt
 		// Additionally we should only retry if bucketLocation and custom
 		// region is empty.
 		if metadata.bucketLocation == "" && c.region == "" {
-			if res.StatusCode == http.StatusBadRequest && errResponse.Region != "" {
-				c.bucketLocCache.Set(metadata.bucketName, errResponse.Region)
-				continue // Retry.
+			if errResponse.Code == "AuthorizationHeaderMalformed" || errResponse.Code == "InvalidRegion" {
+				if metadata.bucketName != "" && errResponse.Region != "" {
+					// Gather Cached location only if bucketName is present.
+					if _, cachedLocationError := c.bucketLocCache.Get(metadata.bucketName); cachedLocationError != false {
+						c.bucketLocCache.Set(metadata.bucketName, errResponse.Region)
+						continue // Retry.
+					}
+				}
 			}
 		}
 
