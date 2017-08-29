@@ -91,6 +91,12 @@ func (c Client) PresignedGetObject(bucketName string, objectName string, expires
 	return c.presignURL("GET", bucketName, objectName, expires, reqParams)
 }
 
+// PresignedHeadObject - Returns a presigned URL to access an object metadata
+// without credentials. Expires maximum is 7days - ie. 604800 and minimum is 1.
+func (c Client) PresignedHeadObject(bucketName string, objectName string, expires time.Duration, reqParams url.Values) (u *url.URL, err error) {
+	return c.presignURL("HEAD", bucketName, objectName, expires, reqParams)
+}
+
 // PresignedPutObject - Returns a presigned URL to upload an object without credentials.
 // Expires maximum is 7days - ie. 604800 and minimum is 1.
 func (c Client) PresignedPutObject(bucketName string, objectName string, expires time.Duration) (u *url.URL, err error) {
