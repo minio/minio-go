@@ -2166,6 +2166,24 @@ func testFunctional() {
 		logger().Fatal("Error: ", err)
 	}
 
+	// Generate presigned HEAD object url.
+	presignedHeadURL, err := c.PresignedHeadObject(bucketName, objectName, 3600*time.Second, nil)
+	if err != nil {
+		logger().Fatal("Error: ", err)
+	}
+	// Verify if presigned url works.
+	resp, err := http.Head(presignedHeadURL.String())
+	if err != nil {
+		logger().Fatal("Error: ", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		logger().Fatal("Error: ", resp.Status)
+	}
+	if resp.Header.Get("ETag") == "" {
+		logger().Fatal("ETag cannot be empty")
+	}
+	resp.Body.Close()
+
 	// Generate presigned GET object url.
 	presignedGetURL, err := c.PresignedGetObject(bucketName, objectName, 3600*time.Second, nil)
 	if err != nil {
@@ -2173,7 +2191,7 @@ func testFunctional() {
 	}
 
 	// Verify if presigned url works.
-	resp, err := http.Get(presignedGetURL.String())
+	resp, err = http.Get(presignedGetURL.String())
 	if err != nil {
 		logger().Fatal("Error: ", err)
 	}
@@ -2184,6 +2202,7 @@ func testFunctional() {
 	if err != nil {
 		logger().Fatal("Error: ", err)
 	}
+	resp.Body.Close()
 	if !bytes.Equal(newPresignedBytes, buf) {
 		logger().Fatal("Error: bytes mismatch.")
 	}
@@ -4078,13 +4097,31 @@ func testFunctionalV2() {
 		logger().Fatal("Error: ", err)
 	}
 
+	// Generate presigned HEAD object url.
+	presignedHeadURL, err := c.PresignedHeadObject(bucketName, objectName, 3600*time.Second, nil)
+	if err != nil {
+		logger().Fatal("Error: ", err)
+	}
+	// Verify if presigned url works.
+	resp, err := http.Head(presignedHeadURL.String())
+	if err != nil {
+		logger().Fatal("Error: ", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		logger().Fatal("Error: ", resp.Status)
+	}
+	if resp.Header.Get("ETag") == "" {
+		logger().Fatal("ETag cannot be empty")
+	}
+	resp.Body.Close()
+
 	// Generate presigned GET object url.
 	presignedGetURL, err := c.PresignedGetObject(bucketName, objectName, 3600*time.Second, nil)
 	if err != nil {
 		logger().Fatal("Error: ", err)
 	}
 	// Verify if presigned url works.
-	resp, err := http.Get(presignedGetURL.String())
+	resp, err = http.Get(presignedGetURL.String())
 	if err != nil {
 		logger().Fatal("Error: ", err)
 	}
@@ -4095,6 +4132,7 @@ func testFunctionalV2() {
 	if err != nil {
 		logger().Fatal("Error: ", err)
 	}
+	resp.Body.Close()
 	if !bytes.Equal(newPresignedBytes, buf) {
 		logger().Fatal("Error: bytes mismatch.")
 	}
