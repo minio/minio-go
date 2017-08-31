@@ -48,7 +48,7 @@ type Client struct {
 	///  Standard options.
 
 	// Parsed endpoint url provided by the user.
-	endpointURL url.URL
+	endpointURL *url.URL
 
 	// Holds various credential providers.
 	credsProvider *credentials.Credentials
@@ -130,11 +130,11 @@ func New(endpoint, accessKeyID, secretAccessKey string, secure bool) (*Client, e
 		return nil, err
 	}
 	// Google cloud storage should be set to signature V2, force it if not.
-	if s3utils.IsGoogleEndpoint(clnt.endpointURL) {
+	if s3utils.IsGoogleEndpoint(*clnt.endpointURL) {
 		clnt.overrideSignerType = credentials.SignatureV2
 	}
 	// If Amazon S3 set to signature v4.
-	if s3utils.IsAmazonEndpoint(clnt.endpointURL) {
+	if s3utils.IsAmazonEndpoint(*clnt.endpointURL) {
 		clnt.overrideSignerType = credentials.SignatureV4
 	}
 	return clnt, nil
@@ -177,6 +177,68 @@ func (r *lockedRandSource) Seed(seed int64) {
 	r.lk.Unlock()
 }
 
+// Redirect requests by re signing the request.
+func (c *Client) redirectHeaders(req *http.Request, via []*http.Request) error {
+	if len(via) >= 5 {
+		return errors.New("stopped after 5 redirects")
+	}
+	if len(via) == 0 {
+		return nil
+	}
+	lastRequest := via[len(via)-1]
+	var reAuth bool
+	for attr, val := range lastRequest.Header {
+		// if hosts do not match do not copy Authorization header
+		if attr == "Authorization" && req.Host != lastRequest.Host {
+			reAuth = true
+			continue
+		}
+		if _, ok := req.Header[attr]; !ok {
+			req.Header[attr] = val
+		}
+	}
+
+	*c.endpointURL = *req.URL
+
+	value, err := c.credsProvider.Get()
+	if err != nil {
+		return err
+	}
+	var (
+		signerType      = value.SignerType
+		accessKeyID     = value.AccessKeyID
+		secretAccessKey = value.SecretAccessKey
+		sessionToken    = value.SessionToken
+		region          = c.region
+	)
+
+	// Custom signer set then override the behavior.
+	if c.overrideSignerType != credentials.SignatureDefault {
+		signerType = c.overrideSignerType
+	}
+
+	// If signerType returned by credentials helper is anonymous,
+	// then do not sign regardless of signerType override.
+	if value.SignerType == credentials.SignatureAnonymous {
+		signerType = credentials.SignatureAnonymous
+	}
+
+	if reAuth {
+		// Check if there is no region override, if not get it from the URL if possible.
+		if region == "" {
+			region = s3utils.GetRegionFromURL(*c.endpointURL)
+		}
+		switch {
+		case signerType.IsV2():
+			// Add signature version '2' authorization header.
+			req = s3signer.SignV2(*req, accessKeyID, secretAccessKey)
+		case signerType.IsV4():
+			req = s3signer.SignV4(*req, accessKeyID, secretAccessKey, sessionToken, getDefaultLocation(*c.endpointURL, region))
+		}
+	}
+	return nil
+}
+
 func privateNew(endpoint string, creds *credentials.Credentials, secure bool, region string) (*Client, error) {
 	// construct endpoint.
 	endpointURL, err := getEndpointURL(endpoint, secure)
@@ -194,16 +256,17 @@ func privateNew(endpoint string, creds *credentials.Credentials, secure bool, re
 	clnt.secure = secure
 
 	// Save endpoint URL, user agent for future uses.
-	clnt.endpointURL = *endpointURL
+	clnt.endpointURL = endpointURL
 
 	// Instantiate http client and bucket location cache.
 	clnt.httpClient = &http.Client{
-		Transport: defaultMinioTransport,
+		Transport:     defaultMinioTransport,
+		CheckRedirect: clnt.redirectHeaders,
 	}
 
 	// Sets custom region, if region is empty bucket location cache is used automatically.
 	if region == "" {
-		region = s3utils.GetRegionFromURL(clnt.endpointURL)
+		region = s3utils.GetRegionFromURL(*clnt.endpointURL)
 	}
 	clnt.region = region
 
@@ -276,7 +339,7 @@ func (c *Client) TraceOff() {
 // please vist -
 // http://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html
 func (c *Client) SetS3TransferAccelerate(accelerateEndpoint string) {
-	if s3utils.IsAmazonEndpoint(c.endpointURL) {
+	if s3utils.IsAmazonEndpoint(*c.endpointURL) {
 		c.s3AccelerateEndpoint = accelerateEndpoint
 	}
 }
@@ -380,6 +443,7 @@ func (c Client) dumpHTTP(req *http.Request, resp *http.Response) error {
 			}
 		}
 	}
+
 	// Write response to trace output.
 	_, err = fmt.Fprint(c.traceOutput, strings.TrimSuffix(string(respTrace), "\r\n"))
 	if err != nil {
@@ -398,38 +462,22 @@ func (c Client) dumpHTTP(req *http.Request, resp *http.Response) error {
 
 // do - execute http request.
 func (c Client) do(req *http.Request) (*http.Response, error) {
-	var resp *http.Response
-	var err error
-	// Do the request in a loop in case of 307 http is met since golang still doesn't
-	// handle properly this situation (https://github.com/golang/go/issues/7912)
-	for {
-		resp, err = c.httpClient.Do(req)
-		if err != nil {
-			// Handle this specifically for now until future Golang
-			// versions fix this issue properly.
-			urlErr, ok := err.(*url.Error)
-			if ok && strings.Contains(urlErr.Err.Error(), "EOF") {
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		// Handle this specifically for now until future Golang versions fix this issue properly.
+		if urlErr, ok := err.(*url.Error); ok {
+			if strings.Contains(urlErr.Err.Error(), "EOF") {
 				return nil, &url.Error{
 					Op:  urlErr.Op,
 					URL: urlErr.URL,
 					Err: errors.New("Connection closed by foreign host " + urlErr.URL + ". Retry again."),
 				}
 			}
-			return nil, err
 		}
-		// Redo the request with the new redirect url if http 307 is returned, quit the loop otherwise
-		if resp != nil && resp.StatusCode == http.StatusTemporaryRedirect {
-			newURL, err := url.Parse(resp.Header.Get("Location"))
-			if err != nil {
-				break
-			}
-			req.URL = newURL
-		} else {
-			break
-		}
+		return nil, err
 	}
 
-	// Response cannot be non-nil, report if its the case.
+	// Response cannot be non-nil, report error if thats the case.
 	if resp == nil {
 		msg := "Response is empty. " + reportIssue
 		return nil, ErrInvalidArgument(msg)
@@ -442,6 +490,7 @@ func (c Client) do(req *http.Request) (*http.Response, error) {
 			return nil, err
 		}
 	}
+
 	return resp, nil
 }
 
@@ -513,6 +562,7 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 			}
 			return nil, err
 		}
+
 		// Add context to request
 		req = req.WithContext(ctx)
 
@@ -609,7 +659,7 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 			// happen when GetBucketLocation() is disabled using IAM policies.
 		}
 		if location == "" {
-			location = getDefaultLocation(c.endpointURL, c.region)
+			location = getDefaultLocation(*c.endpointURL, c.region)
 		}
 	}
 
@@ -737,7 +787,7 @@ func (c Client) setUserAgent(req *http.Request) {
 func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, queryValues url.Values) (*url.URL, error) {
 	host := c.endpointURL.Host
 	// For Amazon S3 endpoint, try to fetch location based endpoint.
-	if s3utils.IsAmazonEndpoint(c.endpointURL) {
+	if s3utils.IsAmazonEndpoint(*c.endpointURL) {
 		if c.s3AccelerateEndpoint != "" && bucketName != "" {
 			// http://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html
 			// Disable transfer acceleration for non-compliant bucket names.
@@ -750,7 +800,7 @@ func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, que
 			host = c.s3AccelerateEndpoint
 		} else {
 			// Do not change the host if the endpoint URL is a FIPS S3 endpoint.
-			if !s3utils.IsAmazonFIPSGovCloudEndpoint(c.endpointURL) {
+			if !s3utils.IsAmazonFIPSGovCloudEndpoint(*c.endpointURL) {
 				// Fetch new host based on the bucket location.
 				host = getS3Endpoint(bucketLocation)
 			}
@@ -774,7 +824,7 @@ func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, que
 	// endpoint URL.
 	if bucketName != "" {
 		// Save if target url will have buckets which suppport virtual host.
-		isVirtualHostStyle := s3utils.IsVirtualHostSupported(c.endpointURL, bucketName)
+		isVirtualHostStyle := s3utils.IsVirtualHostSupported(*c.endpointURL, bucketName)
 
 		// If endpoint supports virtual host style use that always.
 		// Currently only S3 and Google Cloud Storage would support
