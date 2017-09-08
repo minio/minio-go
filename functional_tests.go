@@ -96,8 +96,13 @@ func failureLog(function string, args map[string]interface{}, startTime time.Tim
 	// calculate the test case duration
 	duration := time.Since(startTime)
 	// log with the fields as per mint
-	fields := log.Fields{"name": "minio-go", "function": function, "args": args,
-		"duration": duration.Nanoseconds() / 1000000, "status": "fail", "alert": alert, "message": message, "error": err}
+	if err != nil {
+		fields := log.Fields{"name": "minio-go", "function": function, "args": args,
+			"duration": duration.Nanoseconds() / 1000000, "status": "fail", "alert": alert, "message": message, "error": err}
+	} else {
+		fields := log.Fields{"name": "minio-go", "function": function, "args": args,
+			"duration": duration.Nanoseconds() / 1000000, "status": "fail", "alert": alert, "message": message}
+	}
 	return log.WithFields(fields)
 }
 
