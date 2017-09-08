@@ -38,12 +38,14 @@ import (
 	minio "github.com/minio/minio-go"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/dustin/go-humanize"
 	"github.com/minio/minio-go/pkg/encrypt"
 	"github.com/minio/minio-go/pkg/policy"
 )
 
 const (
-	sixtyFiveMiB = 1024 * 1024 * 65 // 65MiB
+	sixtyFiveMiB   = 65 * humanize.MiByte // 65MiB
+	thirtyThreeKiB = 33 * humanize.KiByte // 33KiB
 )
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyz01234569"
@@ -729,8 +731,8 @@ func testGetObjectSeekEnd() {
 		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
 	}
 
-	bufSize := rand.Intn(1<<20) + 32*1024
-	var reader = getDataReader("datafile-33-kB", bufSize)
+	// Generate 33K of data.
+	var reader = getDataReader("datafile-33-kB", thirtyThreeKiB)
 	defer reader.Close()
 
 	// Save the data
@@ -747,8 +749,8 @@ func testGetObjectSeekEnd() {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
 
-	if n != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes read doesn't match expected value", err).Fatal()
+	if n != int64(thirtyThreeKiB) {
+    failureLog(function, args, startTime, "", "Number of bytes read does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(n), err).Fatal()
 	}
 
 	// Read the data back
@@ -761,8 +763,9 @@ func testGetObjectSeekEnd() {
 	if err != nil {
 		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
 	}
-	if st.Size != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes read does not match, expected "+string(int64(bufSize))+" got "+string(st.Size), err).Fatal()
+
+	if st.Size != int64(thirtyThreeKiB) {
+    failureLog(function, args, startTime, "", "Number of bytes read does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(st.Size), err).Fatal()
 	}
 
 	pos, err := r.Seek(-100, 2)
@@ -838,9 +841,8 @@ func testGetObjectClosedTwice() {
 		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
 	}
 
-	bufSize := rand.Intn(1<<20) + 32*1024
-	// Generate data more than 32K
-	var reader = getDataReader("datafile-33-kB", bufSize)
+	// Generate 33K of data.
+	var reader = getDataReader("datafile-33-kB", thirtyThreeKiB)
 	defer reader.Close()
 
 	// Save the data
@@ -852,8 +854,8 @@ func testGetObjectClosedTwice() {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
 
-	if n != int64(bufSize) {
-		failureLog(function, args, startTime, "", "PutObject response doesn't match sent bytes", err).Fatal()
+	if n != int64(thirtyThreeKiB) {
+    failureLog(function, args, startTime, "", "PutObject response doesn't match sent bytes, expected "+string(int64(thirtyThreeKiB))+" got "+string(n), err).Fatal()
 	}
 
 	// Read the data back
@@ -866,8 +868,8 @@ func testGetObjectClosedTwice() {
 	if err != nil {
 		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
 	}
-	if st.Size != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(bufSize))+" got "+string(st.Size), err).Fatal()
+	if st.Size != int64(thirtyThreeKiB) {
+    failureLog(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(st.Size), err).Fatal()
 	}
 	if err := r.Close(); err != nil {
 		failureLog(function, args, startTime, "", "Object Close failed", err).Fatal()
@@ -1353,10 +1355,8 @@ func testGetObjectReadSeekFunctional() {
 		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
 	}
 
-	bufSize := rand.Intn(1<<20) + 32*1024
-
-	// Generate data more than 32K
-	var reader = getDataReader("datafile-33-kB", bufSize)
+	// Generate 33K of data.
+	var reader = getDataReader("datafile-33-kB", thirtyThreeKiB)
 	defer reader.Close()
 
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -1373,8 +1373,8 @@ func testGetObjectReadSeekFunctional() {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
 
-	if n != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+", got "+string(n), err).Fatal()
+	if n != int64(thirtyThreeKiB) {
+    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+", got "+string(n), err).Fatal()
 	}
 
 	defer func() {
@@ -1398,8 +1398,9 @@ func testGetObjectReadSeekFunctional() {
 	if err != nil {
 		failureLog(function, args, startTime, "", "Stat object failed", err).Fatal()
 	}
-	if st.Size != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+", got "+string(st.Size), err).Fatal()
+  
+	if st.Size != int64(thirtyThreeKiB) {
+    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+", got "+string(st.Size), err).Fatal()
 	}
 
 	// This following function helps us to compare data from the reader after seek
@@ -1409,7 +1410,7 @@ func testGetObjectReadSeekFunctional() {
 			return
 		}
 		buffer := bytes.NewBuffer([]byte{})
-		if _, err := io.CopyN(buffer, r, int64(bufSize)); err != nil {
+		if _, err := io.CopyN(buffer, r, int64(thirtyThreeKiB)); err != nil {
 			if err != io.EOF {
 				failureLog(function, args, startTime, "", "CopyN failed", err).Fatal()
 			}
@@ -1434,23 +1435,23 @@ func testGetObjectReadSeekFunctional() {
 		// Start from offset 0, fetch data and compare
 		{0, 0, 0, nil, true, 0, 0},
 		// Start from offset 2048, fetch data and compare
-		{2048, 0, 2048, nil, true, 2048, bufSize},
+		{2048, 0, 2048, nil, true, 2048, thirtyThreeKiB},
 		// Start from offset larger than possible
-		{int64(bufSize) + 1024, 0, 0, seekErr, false, 0, 0},
+		{int64(thirtyThreeKiB) + 1024, 0, 0, seekErr, false, 0, 0},
 		// Move to offset 0 without comparing
 		{0, 0, 0, nil, false, 0, 0},
 		// Move one step forward and compare
-		{1, 1, 1, nil, true, 1, bufSize},
+		{1, 1, 1, nil, true, 1, thirtyThreeKiB},
 		// Move larger than possible
-		{int64(bufSize), 1, 0, seekErr, false, 0, 0},
+		{int64(thirtyThreeKiB), 1, 0, seekErr, false, 0, 0},
 		// Provide negative offset with CUR_SEEK
 		{int64(-1), 1, 0, seekErr, false, 0, 0},
 		// Test with whence SEEK_END and with positive offset
-		{1024, 2, int64(bufSize) - 1024, io.EOF, true, 0, 0},
+		{1024, 2, int64(thirtyThreeKiB) - 1024, io.EOF, true, 0, 0},
 		// Test with whence SEEK_END and with negative offset
-		{-1024, 2, int64(bufSize) - 1024, nil, true, bufSize - 1024, bufSize},
+		{-1024, 2, int64(thirtyThreeKiB) - 1024, nil, true, thirtyThreeKiB - 1024, thirtyThreeKiB},
 		// Test with whence SEEK_END and with large negative offset
-		{-int64(bufSize) * 2, 2, 0, seekErr, true, 0, 0},
+		{-int64(thirtyThreeKiB) * 2, 2, 0, seekErr, true, 0, 0},
 	}
 
 	for i, testCase := range testCases {
@@ -1520,10 +1521,8 @@ func testGetObjectReadAtFunctional() {
 		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
 	}
 
-	bufSize := rand.Intn(1<<20) + 32*1024
-
-	// Generate data more than 32K
-	var reader = getDataReader("datafile-33-kB", bufSize)
+	// Generate 33K of data.
+	var reader = getDataReader("datafile-33-kB", thirtyThreeKiB)
 	defer reader.Close()
 
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -1540,8 +1539,8 @@ func testGetObjectReadAtFunctional() {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
 
-	if n != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+", got "+string(n), err).Fatal()
+	if n != int64(thirtyThreeKiB) {
+    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+", got "+string(n), err).Fatal()
 	}
 
 	// read the data back
@@ -1574,8 +1573,9 @@ func testGetObjectReadAtFunctional() {
 	if err != nil {
 		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
 	}
-	if st.Size != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(bufSize))+", got "+string(st.Size), err).Fatal()
+  
+	if st.Size != int64(thirtyThreeKiB) {
+    failureLog(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(thirtyThreeKiB))+", got "+string(st.Size), err).Fatal()
 	}
 
 	m, err = r.ReadAt(buf2, offset)
@@ -1683,9 +1683,8 @@ func testPresignedPostPolicy() {
 		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
 	}
 
-	bufSize := rand.Intn(1<<20) + 32*1024
-	// Generate data more than 32K
-	var reader = getDataReader("datafile-33-kB", bufSize)
+	// Generate 33K of data.
+	var reader = getDataReader("datafile-33-kB", thirtyThreeKiB)
 	defer reader.Close()
 
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -1701,8 +1700,8 @@ func testPresignedPostPolicy() {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
 
-	if n != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+" got "+string(n), err).Fatal()
+	if n != int64(thirtyThreeKiB) {
+    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(n), err).Fatal()
 	}
 
 	policy := minio.NewPostPolicy()
@@ -1797,9 +1796,8 @@ func testCopyObject() {
 		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
 	}
 
-	bufSize := rand.Intn(1<<20) + 32*1024
-	// Generate data more than 32K
-	var reader = getDataReader("datafile-33-kB", bufSize)
+	// Generate 33K of data.
+	var reader = getDataReader("datafile-33-kB", thirtyThreeKiB)
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -1808,8 +1806,8 @@ func testCopyObject() {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
 
-	if n != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+", got "+string(n), err).Fatal()
+	if n != int64(thirtyThreeKiB) {
+    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+", got "+string(n), err).Fatal()
 	}
 
 	r, err := c.GetObject(bucketName, objectName)
@@ -2995,9 +2993,8 @@ func testGetObjectClosedTwiceV2() {
 		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
 	}
 
-	bufSize := rand.Intn(1<<20) + 32*1024
-	// Generate data more than 32K.
-	var reader = getDataReader("datafile-33-kB", bufSize)
+	// Generate 33K of data.
+	var reader = getDataReader("datafile-33-kB", thirtyThreeKiB)
 	defer reader.Close()
 
 	// Save the data
@@ -3009,8 +3006,8 @@ func testGetObjectClosedTwiceV2() {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
 
-	if n != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(bufSize)+""+string(n), err).Fatal()
+	if n != int64(thirtyThreeKiB) {
+    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(thirtyThreeKiB)+" got "+string(n), err).Fatal()
 	}
 
 	// Read the data back
@@ -3023,8 +3020,9 @@ func testGetObjectClosedTwiceV2() {
 	if err != nil {
 		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
 	}
-	if st.Size != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(bufSize)+""+string(st.Size), err).Fatal()
+
+	if st.Size != int64(thirtyThreeKiB) {
+    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(thirtyThreeKiB)+" got "+string(st.Size), err).Fatal()
 	}
 	if err := r.Close(); err != nil {
 		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
@@ -3387,9 +3385,8 @@ func testGetObjectReadSeekFunctionalV2() {
 		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
 	}
 
-	bufSize := rand.Intn(1<<20) + 32*1024
-	// Generate data more than 32K.
-	var reader = getDataReader("datafile-33-kB", bufSize)
+	// Generate 33K of data.
+	var reader = getDataReader("datafile-33-kB", thirtyThreeKiB)
 	defer reader.Close()
 
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -3406,8 +3403,8 @@ func testGetObjectReadSeekFunctionalV2() {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
 
-	if n != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+" got "+string(n), err).Fatal()
+	if n != int64(thirtyThreeKiB) {
+    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(n), err).Fatal()
 	}
 
 	// Read the data back
@@ -3420,8 +3417,9 @@ func testGetObjectReadSeekFunctionalV2() {
 	if err != nil {
 		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
 	}
-	if st.Size != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(bufSize))+" got "+string(st.Size), err).Fatal()
+  
+	if st.Size != int64(thirtyThreeKiB) {
+    failureLog(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(st.Size), err).Fatal()
 	}
 
 	offset := int64(2048)
@@ -3532,9 +3530,8 @@ func testGetObjectReadAtFunctionalV2() {
 		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
 	}
 
-	bufSize := rand.Intn(1<<20) + 32*1024
-	// Generate data more than 32K
-	var reader = getDataReader("datafile-33-kB", bufSize)
+	// Generate 33K of data.
+	var reader = getDataReader("datafile-33-kB", thirtyThreeKiB)
 	defer reader.Close()
 
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -3551,8 +3548,8 @@ func testGetObjectReadAtFunctionalV2() {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
 
-	if n != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(bufSize)+" got "+string(n), err).Fatal()
+	if n != int64(thirtyThreeKiB) {
+    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(thirtyThreeKiB)+" got "+string(n), err).Fatal()
 	}
 
 	// Read the data back
@@ -3565,8 +3562,9 @@ func testGetObjectReadAtFunctionalV2() {
 	if err != nil {
 		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
 	}
-	if st.Size != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(bufSize)+" got "+string(st.Size), err).Fatal()
+  
+	if st.Size != int64(thirtyThreeKiB) {
+    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(thirtyThreeKiB)+" got "+string(st.Size), err).Fatal()
 	}
 
 	offset := int64(2048)
@@ -3688,10 +3686,8 @@ func testCopyObjectV2() {
 		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
 	}
 
-	bufSize := rand.Intn(1<<20) + 32*1024
-
-	// Generate data more than 32K
-	var reader = getDataReader("datafile-33-kB", bufSize)
+	// Generate 33K of data.
+	var reader = getDataReader("datafile-33-kB", thirtyThreeKiB)
 	defer reader.Close()
 
 	// Save the data
@@ -3701,8 +3697,8 @@ func testCopyObjectV2() {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
 
-	if n != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+" got "+string(n), err).Fatal()
+	if n != int64(thirtyThreeKiB) {
+    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(n), err).Fatal()
 	}
 
 	r, err := c.GetObject(bucketName, objectName)
@@ -4779,7 +4775,7 @@ func testFunctionalV2() {
 		failureLog(function, args, startTime, "", "PresignedPutObject failed", err).Fatal()
 	}
 	// Generate data more than 32K
-	buf = bytes.Repeat([]byte("1"), rand.Intn(1<<20)+32*1024)
+	buf = bytes.Repeat([]byte("1"), rand.Intn(1<<10)+32*1024)
 
 	req, err := http.NewRequest("PUT", presignedPutURL.String(), bytes.NewReader(buf))
 	if err != nil {
