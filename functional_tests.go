@@ -785,7 +785,7 @@ func testGetObjectSeekEnd() {
 		failureLog(function, args, startTime, "", "Object Seek failed", err).Fatal()
 	}
 	if pos != st.Size-100 {
-		failureLog(function, args, startTime, "", "Incorrect position failed", err).Fatal()
+		failureLog(function, args, startTime, "", "Incorrect position", err).Fatal()
 	}
 	if err = r.Close(); err != nil {
 		failureLog(function, args, startTime, "", "ObjectClose failed", err).Fatal()
