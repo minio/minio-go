@@ -238,7 +238,7 @@ func testMakeBucketError() {
 		failureLog(function, args, startTime, "", "MakeBucket Failed", err).Fatal()
 	}
 	if err = c.MakeBucket(bucketName, region); err == nil {
-		failureLog(function, args, startTime, "", "Same bucket created twice", err).Fatal()
+		failureLog(function, args, startTime, "", "Bucket already exists", err).Fatal()
 	}
 	// Verify valid error response from server.
 	if minio.ToErrorResponse(err).Code != "BucketAlreadyExists" &&
@@ -326,8 +326,9 @@ func testPutObjectReadAt() {
 	startTime := time.Now()
 	function := "PutObject(bucketName, objectName, reader, objectContentType)"
 	args := map[string]interface{}{
-		"bucketName": "",
-		"objectName": "",
+		"bucketName":        "",
+		"objectName":        "",
+		"objectContentType": "",
 	}
 
 	// Seed random based on current time.
@@ -371,6 +372,7 @@ func testPutObjectReadAt() {
 
 	// Object content type
 	objectContentType := "binary/octet-stream"
+	args["objectContentType"] = objectContentType
 
 	n, err := c.PutObject(bucketName, objectName, reader, objectContentType)
 
@@ -379,7 +381,7 @@ func testPutObjectReadAt() {
 	}
 
 	if n != int64(sixtyFiveMiB) {
-		failureLog(function, args, startTime, "", "Number of bytes returned by PutObject does not match, want "+string(sixtyFiveMiB)+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes returned by PutObject does not match, expected "+string(sixtyFiveMiB)+" got "+string(n), err).Fatal()
 	}
 
 	// Read the data back
@@ -393,7 +395,7 @@ func testPutObjectReadAt() {
 		failureLog(function, args, startTime, "", "Stat Object failed", err).Fatal()
 	}
 	if st.Size != int64(sixtyFiveMiB) {
-		failureLog(function, args, startTime, "", "Number of bytes in stat does not match, want "+string(sixtyFiveMiB)+" got "+string(st.Size), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(sixtyFiveMiB)+" got "+string(st.Size), err).Fatal()
 	}
 	if st.ContentType != objectContentType {
 		failureLog(function, args, startTime, "", "Content types don't match", err).Fatal()
@@ -488,7 +490,7 @@ func testPutObjectWithMetadata() {
 	}
 
 	if n != int64(sixtyFiveMiB) {
-		failureLog(function, args, startTime, "", "Number of bytes returned by PutObject does not match, want "+string(sixtyFiveMiB)+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes returned by PutObject does not match, expected "+string(sixtyFiveMiB)+" got "+string(n), err).Fatal()
 	}
 
 	// Read the data back
@@ -502,10 +504,10 @@ func testPutObjectWithMetadata() {
 		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
 	}
 	if st.Size != int64(sixtyFiveMiB) {
-		failureLog(function, args, startTime, "", "Number of bytes returned by PutObject does not match, want "+string(sixtyFiveMiB)+" got "+string(st.Size), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes returned by PutObject does not match GetObject, expected "+string(sixtyFiveMiB)+" got "+string(st.Size), err).Fatal()
 	}
 	if st.ContentType != customContentType {
-		failureLog(function, args, startTime, "", "ContentType does not match, want "+customContentType+" got "+st.ContentType, err).Fatal()
+		failureLog(function, args, startTime, "", "ContentType does not match, expected "+customContentType+" got "+st.ContentType, err).Fatal()
 	}
 	if err := r.Close(); err != nil {
 		failureLog(function, args, startTime, "", "Object Close failed", err).Fatal()
@@ -599,10 +601,11 @@ func testPutObjectStreaming() {
 func testListPartiallyUploaded() {
 	// initialize logging params
 	startTime := time.Now()
-	function := "PutObject(bucketName, objectName, reader, contentType)"
+	function := "ListIncompleteUploads(bucketName, objectName, isRecursive, doneCh)"
 	args := map[string]interface{}{
-		"bucketName": "",
-		"objectName": "",
+		"bucketName":  "",
+		"objectName":  "",
+		"isRecursive": "",
 	}
 
 	// Seed random based on current time.
@@ -659,12 +662,14 @@ func testListPartiallyUploaded() {
 		failureLog(function, args, startTime, "", "PutObject should fail", err).Fatal()
 	}
 	if !strings.Contains(err.Error(), "proactively closed to be verified later") {
-		failureLog(function, args, startTime, "", "Error string not found in PutObject output", err).Fatal()
+		failureLog(function, args, startTime, "", "String not found in PutObject output", err).Fatal()
 	}
 
 	doneCh := make(chan struct{})
 	defer close(doneCh)
 	isRecursive := true
+	args["isRecursive"] = isRecursive
+
 	multiPartObjectCh := c.ListIncompleteUploads(bucketName, objectName, isRecursive, doneCh)
 	for multiPartObject := range multiPartObjectCh {
 		if multiPartObject.Err != nil {
@@ -749,10 +754,10 @@ func testGetObjectSeekEnd() {
 
 	st, err := r.Stat()
 	if err != nil {
-		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
+		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
 	}
 	if st.Size != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes read does not match, want "+string(int64(bufSize))+" got "+string(st.Size), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes read does not match, expected "+string(int64(bufSize))+" got "+string(st.Size), err).Fatal()
 	}
 
 	pos, err := r.Seek(-100, 2)
@@ -760,7 +765,7 @@ func testGetObjectSeekEnd() {
 		failureLog(function, args, startTime, "", "Object Seek failed", err).Fatal()
 	}
 	if pos != st.Size-100 {
-		failureLog(function, args, startTime, "", "Incorrect position failed", err).Fatal()
+		failureLog(function, args, startTime, "", "Incorrect position", err).Fatal()
 	}
 	buf2 := make([]byte, 100)
 	m, err := io.ReadFull(r, buf2)
@@ -768,7 +773,7 @@ func testGetObjectSeekEnd() {
 		failureLog(function, args, startTime, "", "Error reading through io.ReadFull", err).Fatal()
 	}
 	if m != len(buf2) {
-		failureLog(function, args, startTime, "", "Number of bytes dont match, want "+string(len(buf2))+" got "+string(m), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes dont match, expected "+string(len(buf2))+" got "+string(m), err).Fatal()
 	}
 	hexBuf1 := fmt.Sprintf("%02x", buf[len(buf)-100:])
 	hexBuf2 := fmt.Sprintf("%02x", buf2[:m])
@@ -854,16 +859,16 @@ func testGetObjectClosedTwice() {
 
 	st, err := r.Stat()
 	if err != nil {
-		failureLog(function, args, startTime, "", "Object stat failed", err).Fatal()
+		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
 	}
 	if st.Size != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes in stat does not match, want "+string(int64(bufSize))+" got "+string(st.Size), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(bufSize))+" got "+string(st.Size), err).Fatal()
 	}
 	if err := r.Close(); err != nil {
 		failureLog(function, args, startTime, "", "Object Close failed", err).Fatal()
 	}
 	if err := r.Close(); err == nil {
-		failureLog(function, args, startTime, "", "Already closed object, didn't return error", err).Fatal()
+		failureLog(function, args, startTime, "", "Already closed object. No error returned", err).Fatal()
 	}
 
 	err = c.RemoveObject(bucketName, objectName)
@@ -1021,7 +1026,7 @@ func testRemovePartiallyUploaded() {
 		failureLog(function, args, startTime, "", "PutObject should fail", err).Fatal()
 	}
 	if !strings.Contains(err.Error(), "proactively closed to be verified later") {
-		failureLog(function, args, startTime, "", "Error string not found", err).Fatal()
+		failureLog(function, args, startTime, "", "String not found", err).Fatal()
 	}
 	err = c.RemoveIncompleteUpload(bucketName, objectName)
 	if err != nil {
@@ -1040,8 +1045,10 @@ func testFPutObjectMultipart() {
 	startTime := time.Now()
 	function := "FPutObject(bucketName, objectName, fileName, objectContentType)"
 	args := map[string]interface{}{
-		"bucketName": "",
-		"objectName": "",
+		"bucketName":        "",
+		"objectName":        "",
+		"fileName":          "",
+		"objectContentType": "",
 	}
 
 	// Seed random based on current time.
@@ -1092,6 +1099,7 @@ func testFPutObjectMultipart() {
 			failureLog(function, args, startTime, "", "File Close failed", err).Fatal()
 		}
 		fileName = file.Name()
+		args["fileName"] = fileName
 	}
 	totalSize := sixtyFiveMiB * 1
 	// Set base object name
@@ -1099,6 +1107,7 @@ func testFPutObjectMultipart() {
 	args["objectName"] = objectName
 
 	objectContentType := "testapplication/octet-stream"
+	args["objectContentType"] = objectContentType
 
 	// Perform standard FPutObject with contentType provided (Expecting application/octet-stream)
 	n, err := c.FPutObject(bucketName, objectName, fileName, objectContentType)
@@ -1118,7 +1127,7 @@ func testFPutObjectMultipart() {
 		failureLog(function, args, startTime, "", "Unexpected error", err).Fatal()
 	}
 	if objInfo.Size != int64(totalSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, want "+string(int64(totalSize))+" got "+string(objInfo.Size), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(totalSize))+" got "+string(objInfo.Size), err).Fatal()
 	}
 	if objInfo.ContentType != objectContentType {
 		failureLog(function, args, startTime, "", "ContentType doesn't match", err).Fatal()
@@ -1137,7 +1146,7 @@ func testFPutObjectMultipart() {
 	successLogger(function, args, startTime).Info()
 }
 
-// Tests FPutObject hidden contentType setting
+// Tests FPutObject with null contentType (default = application/octet-stream)
 func testFPutObject() {
 	// initialize logging params
 	startTime := time.Now()
@@ -1210,7 +1219,7 @@ func testFPutObject() {
 		failureLog(function, args, startTime, "", "FPutObject failed", err).Fatal()
 	}
 	if n != int64(totalSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, want "+string(totalSize)+", got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(totalSize)+", got "+string(n), err).Fatal()
 	}
 
 	// Perform FPutObject with no contentType provided (Expecting application/octet-stream)
@@ -1219,7 +1228,7 @@ func testFPutObject() {
 		failureLog(function, args, startTime, "", "File close failed", err).Fatal()
 	}
 	if n != int64(totalSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, want "+string(totalSize)+", got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(totalSize)+", got "+string(n), err).Fatal()
 	}
 	srcFile, err := os.Open(fName)
 	if err != nil {
@@ -1243,7 +1252,7 @@ func testFPutObject() {
 		failureLog(function, args, startTime, "", "FPutObject failed", err).Fatal()
 	}
 	if n != int64(totalSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, want "+string(totalSize)+", got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(totalSize)+", got "+string(n), err).Fatal()
 	}
 
 	// Check headers
@@ -1252,7 +1261,7 @@ func testFPutObject() {
 		failureLog(function, args, startTime, "", "StatObject failed", err).Fatal()
 	}
 	if rStandard.ContentType != "application/octet-stream" {
-		failureLog(function, args, startTime, "", "ContentType does not match, want application/octet-stream, got "+rStandard.ContentType, err).Fatal()
+		failureLog(function, args, startTime, "", "ContentType does not match, expected application/octet-stream, got "+rStandard.ContentType, err).Fatal()
 	}
 
 	rOctet, err := c.StatObject(bucketName, objectName+"-Octet")
@@ -1260,7 +1269,7 @@ func testFPutObject() {
 		failureLog(function, args, startTime, "", "StatObject failed", err).Fatal()
 	}
 	if rOctet.ContentType != "application/octet-stream" {
-		failureLog(function, args, startTime, "", "ContentType does not match, want application/octet-stream, got "+rStandard.ContentType, err).Fatal()
+		failureLog(function, args, startTime, "", "ContentType does not match, expected application/octet-stream, got "+rStandard.ContentType, err).Fatal()
 	}
 
 	rGTar, err := c.StatObject(bucketName, objectName+"-GTar")
@@ -1268,7 +1277,7 @@ func testFPutObject() {
 		failureLog(function, args, startTime, "", "StatObject failed", err).Fatal()
 	}
 	if rGTar.ContentType != "application/x-gtar" {
-		failureLog(function, args, startTime, "", "ContentType does not match, want application/x-gtar, got "+rStandard.ContentType, err).Fatal()
+		failureLog(function, args, startTime, "", "ContentType does not match, expected application/x-gtar, got "+rStandard.ContentType, err).Fatal()
 	}
 
 	// Remove all objects and bucket and temp file
@@ -1360,7 +1369,7 @@ func testGetObjectReadSeekFunctional() {
 	}
 
 	if n != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, want "+string(int64(bufSize))+", got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+", got "+string(n), err).Fatal()
 	}
 
 	defer func() {
@@ -1385,7 +1394,7 @@ func testGetObjectReadSeekFunctional() {
 		failureLog(function, args, startTime, "", "Stat object failed", err).Fatal()
 	}
 	if st.Size != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, want "+string(int64(bufSize))+", got "+string(st.Size), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+", got "+string(st.Size), err).Fatal()
 	}
 
 	// This following function helps us to compare data from the reader after seek
@@ -1456,7 +1465,7 @@ func testGetObjectReadSeekFunctional() {
 		}
 		// Check the returned seek pos
 		if n != testCase.pos {
-			failureLog(function, args, startTime, "", "Test "+string(i+1)+", number of bytes seeked does not match, want "+string(testCase.pos)+", got "+string(n), err).Fatal()
+			failureLog(function, args, startTime, "", "Test "+string(i+1)+", number of bytes seeked does not match, expected "+string(testCase.pos)+", got "+string(n), err).Fatal()
 		}
 		// Compare only if shouldCmp is activated
 		if testCase.shouldCmp {
@@ -1527,7 +1536,7 @@ func testGetObjectReadAtFunctional() {
 	}
 
 	if n != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, want "+string(int64(bufSize))+", got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+", got "+string(n), err).Fatal()
 	}
 
 	// read the data back
@@ -1549,7 +1558,7 @@ func testGetObjectReadAtFunctional() {
 		failureLog(function, args, startTime, "", "ReadAt failed", err).Fatal()
 	}
 	if m != len(buf1) {
-		failureLog(function, args, startTime, "", "ReadAt read shorter bytes before reaching EOF, want "+string(len(buf1))+", got "+string(m), err).Fatal()
+		failureLog(function, args, startTime, "", "ReadAt read shorter bytes before reaching EOF, expected "+string(len(buf1))+", got "+string(m), err).Fatal()
 	}
 	if !bytes.Equal(buf1, buf[offset:offset+512]) {
 		failureLog(function, args, startTime, "", "Incorrect read between two ReadAt from same offset", err).Fatal()
@@ -1561,7 +1570,7 @@ func testGetObjectReadAtFunctional() {
 		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
 	}
 	if st.Size != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes in stat does not match, want "+string(int64(bufSize))+", got "+string(st.Size), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(bufSize))+", got "+string(st.Size), err).Fatal()
 	}
 
 	m, err = r.ReadAt(buf2, offset)
@@ -1569,7 +1578,7 @@ func testGetObjectReadAtFunctional() {
 		failureLog(function, args, startTime, "", "ReadAt failed", err).Fatal()
 	}
 	if m != len(buf2) {
-		failureLog(function, args, startTime, "", "ReadAt read shorter bytes before reaching EOF, want "+string(len(buf2))+", got "+string(m), err).Fatal()
+		failureLog(function, args, startTime, "", "ReadAt read shorter bytes before reaching EOF, expected "+string(len(buf2))+", got "+string(m), err).Fatal()
 	}
 	if !bytes.Equal(buf2, buf[offset:offset+512]) {
 		failureLog(function, args, startTime, "", "Incorrect read between two ReadAt from same offset", err).Fatal()
@@ -1580,7 +1589,7 @@ func testGetObjectReadAtFunctional() {
 		failureLog(function, args, startTime, "", "ReadAt failed", err).Fatal()
 	}
 	if m != len(buf3) {
-		failureLog(function, args, startTime, "", "ReadAt read shorter bytes before reaching EOF, want "+string(len(buf3))+", got "+string(m), err).Fatal()
+		failureLog(function, args, startTime, "", "ReadAt read shorter bytes before reaching EOF, expected "+string(len(buf3))+", got "+string(m), err).Fatal()
 	}
 	if !bytes.Equal(buf3, buf[offset:offset+512]) {
 		failureLog(function, args, startTime, "", "Incorrect read between two ReadAt from same offset", err).Fatal()
@@ -1591,7 +1600,7 @@ func testGetObjectReadAtFunctional() {
 		failureLog(function, args, startTime, "", "ReadAt failed", err).Fatal()
 	}
 	if m != len(buf4) {
-		failureLog(function, args, startTime, "", "ReadAt read shorter bytes before reaching EOF, want "+string(len(buf4))+", got "+string(m), err).Fatal()
+		failureLog(function, args, startTime, "", "ReadAt read shorter bytes before reaching EOF, expected "+string(len(buf4))+", got "+string(m), err).Fatal()
 	}
 	if !bytes.Equal(buf4, buf[offset:offset+512]) {
 		failureLog(function, args, startTime, "", "Incorrect read between two ReadAt from same offset", err).Fatal()
@@ -1606,7 +1615,7 @@ func testGetObjectReadAtFunctional() {
 		}
 	}
 	if m != len(buf5) {
-		failureLog(function, args, startTime, "", "ReadAt read shorter bytes before reaching EOF, want "+string(len(buf5))+", got "+string(m), err).Fatal()
+		failureLog(function, args, startTime, "", "ReadAt read shorter bytes before reaching EOF, expected "+string(len(buf5))+", got "+string(m), err).Fatal()
 	}
 	if !bytes.Equal(buf, buf5) {
 		failureLog(function, args, startTime, "", "Incorrect data read in GetObject, than what was previously uploaded", err).Fatal()
@@ -1688,7 +1697,7 @@ func testPresignedPostPolicy() {
 	}
 
 	if n != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, want "+string(int64(bufSize))+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+" got "+string(n), err).Fatal()
 	}
 
 	policy := minio.NewPostPolicy()
@@ -1795,7 +1804,7 @@ func testCopyObject() {
 	}
 
 	if n != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, want "+string(int64(bufSize))+", got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+", got "+string(n), err).Fatal()
 	}
 
 	r, err := c.GetObject(bucketName, objectName)
@@ -1874,7 +1883,7 @@ func testCopyObject() {
 		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
 	}
 	if objInfo.Size != objInfoCopy.Size {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, want "+string(objInfoCopy.Size)+", got "+string(objInfo.Size), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(objInfoCopy.Size)+", got "+string(objInfo.Size), err).Fatal()
 	}
 
 	// CopyObject again but with wrong conditions
@@ -2066,10 +2075,10 @@ func testEncryptionPutGet() {
 			failureLog(function, args, startTime, "", "Test "+string(i+1)+", error: "+err.Error(), err).Fatal()
 		}
 		if recvBuffer.Len() != len(testCase.buf) {
-			failureLog(function, args, startTime, "", "Test "+string(i+1)+", Number of bytes of received object does not match, want "+string(len(testCase.buf))+", got "+string(recvBuffer.Len()), err).Fatal()
+			failureLog(function, args, startTime, "", "Test "+string(i+1)+", Number of bytes of received object does not match, expected "+string(len(testCase.buf))+", got "+string(recvBuffer.Len()), err).Fatal()
 		}
 		if !bytes.Equal(testCase.buf, recvBuffer.Bytes()) {
-			failureLog(function, args, startTime, "", "Test "+string(i+1)+", Encrypted sent is not equal to decrypted, want "+string(testCase.buf)+", got "+string(recvBuffer.Bytes()), err).Fatal()
+			failureLog(function, args, startTime, "", "Test "+string(i+1)+", Encrypted sent is not equal to decrypted, expected "+string(testCase.buf)+", got "+string(recvBuffer.Bytes()), err).Fatal()
 		}
 
 		// Remove test object
@@ -2384,7 +2393,7 @@ func testFunctional() {
 	}
 
 	if n != int64(len(buf)) {
-		failureLog(function, args, startTime, "", "Length doesn't match, want "+string(int64(len(buf)))+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Length doesn't match, expected "+string(int64(len(buf)))+" got "+string(n), err).Fatal()
 	}
 
 	n, err = c.PutObject(bucketName, objectName+"-nolength", bytes.NewReader(buf), "binary/octet-stream")
@@ -2399,7 +2408,7 @@ func testFunctional() {
 	}
 
 	if n != int64(len(buf)) {
-		failureLog(function, args, startTime, "", "Length doesn't match, want "+string(int64(len(buf)))+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Length doesn't match, expected "+string(int64(len(buf)))+" got "+string(n), err).Fatal()
 	}
 
 	// Instantiate a done channel to close all listing.
@@ -2840,7 +2849,7 @@ func testPutObjectUploadSeekedObject() {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
 	if n != int64(length-offset) {
-		failureLog(function, args, startTime, "", "Invalid length returned, want "+string(int64(length-offset))+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Invalid length returned, expected "+string(int64(length-offset))+" got "+string(n), err).Fatal()
 	}
 	tempfile.Close()
 	if err = os.Remove(tempfile.Name()); err != nil {
@@ -2859,7 +2868,7 @@ func testPutObjectUploadSeekedObject() {
 		failureLog(function, args, startTime, "", "Seek failed", err).Fatal()
 	}
 	if n != int64(offset) {
-		failureLog(function, args, startTime, "", "Invalid offset returned, want "+string(int64(offset))+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Invalid offset returned, expected "+string(int64(offset))+" got "+string(n), err).Fatal()
 	}
 
 	n, err = c.PutObject(bucketName, objectName+"getobject", obj, "binary/octet-stream")
@@ -2867,7 +2876,7 @@ func testPutObjectUploadSeekedObject() {
 		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
 	}
 	if n != int64(length-offset) {
-		failureLog(function, args, startTime, "", "Invalid offset returned, want "+string(int64(length-offset))+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Invalid offset returned, expected "+string(int64(length-offset))+" got "+string(n), err).Fatal()
 	}
 
 	if err = c.RemoveObject(bucketName, objectName); err != nil {
@@ -2996,7 +3005,7 @@ func testGetObjectClosedTwiceV2() {
 	}
 
 	if n != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, want "+string(bufSize)+""+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(bufSize)+""+string(n), err).Fatal()
 	}
 
 	// Read the data back
@@ -3010,7 +3019,7 @@ func testGetObjectClosedTwiceV2() {
 		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
 	}
 	if st.Size != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, want "+string(bufSize)+""+string(st.Size), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(bufSize)+""+string(st.Size), err).Fatal()
 	}
 	if err := r.Close(); err != nil {
 		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
@@ -3161,7 +3170,7 @@ func testFPutObjectV2() {
 		failureLog(function, args, startTime, "", "Copy failed", err).Fatal()
 	}
 	if n != int64(11*1024*1024) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, want "+string(int64(11*1024*1024))+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(11*1024*1024))+" got "+string(n), err).Fatal()
 	}
 
 	// Close the file pro-actively for windows.
@@ -3181,7 +3190,7 @@ func testFPutObjectV2() {
 		failureLog(function, args, startTime, "", "FPutObject failed", err).Fatal()
 	}
 	if n != int64(11*1024*1024) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, want "+string(int64(11*1024*1024))+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(11*1024*1024))+" got "+string(n), err).Fatal()
 	}
 
 	// Perform FPutObject with no contentType provided (Expecting application/octet-stream)
@@ -3193,7 +3202,7 @@ func testFPutObjectV2() {
 		failureLog(function, args, startTime, "", "FPutObject failed", err).Fatal()
 	}
 	if n != int64(11*1024*1024) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, want "+string(int64(11*1024*1024))+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(11*1024*1024))+" got "+string(n), err).Fatal()
 	}
 
 	// Add extension to temp file name
@@ -3213,7 +3222,7 @@ func testFPutObjectV2() {
 		failureLog(function, args, startTime, "", "FPutObject failed", err).Fatal()
 	}
 	if n != int64(11*1024*1024) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, want "+string(int64(11*1024*1024))+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(11*1024*1024))+" got "+string(n), err).Fatal()
 	}
 
 	// Check headers
@@ -3222,7 +3231,7 @@ func testFPutObjectV2() {
 		failureLog(function, args, startTime, "", "StatObject failed", err).Fatal()
 	}
 	if rStandard.ContentType != "application/octet-stream" {
-		failureLog(function, args, startTime, "", "Content-Type headers mismatched, want: application/octet-stream , got "+rStandard.ContentType, err).Fatal()
+		failureLog(function, args, startTime, "", "Content-Type headers mismatched, expected: application/octet-stream , got "+rStandard.ContentType, err).Fatal()
 	}
 
 	rOctet, err := c.StatObject(bucketName, objectName+"-Octet")
@@ -3230,7 +3239,7 @@ func testFPutObjectV2() {
 		failureLog(function, args, startTime, "", "StatObject failed", err).Fatal()
 	}
 	if rOctet.ContentType != "application/octet-stream" {
-		failureLog(function, args, startTime, "", "Content-Type headers mismatched, want: application/octet-stream , got "+rOctet.ContentType, err).Fatal()
+		failureLog(function, args, startTime, "", "Content-Type headers mismatched, expected: application/octet-stream , got "+rOctet.ContentType, err).Fatal()
 	}
 
 	rGTar, err := c.StatObject(bucketName, objectName+"-GTar")
@@ -3238,7 +3247,7 @@ func testFPutObjectV2() {
 		failureLog(function, args, startTime, "", "StatObject failed", err).Fatal()
 	}
 	if rGTar.ContentType != "application/x-gtar" {
-		failureLog(function, args, startTime, "", "Content-Type headers mismatched, want: application/x-gtar , got "+rGTar.ContentType, err).Fatal()
+		failureLog(function, args, startTime, "", "Content-Type headers mismatched, expected: application/x-gtar , got "+rGTar.ContentType, err).Fatal()
 	}
 
 	// Remove all objects and bucket and temp file
@@ -3393,7 +3402,7 @@ func testGetObjectReadSeekFunctionalV2() {
 	}
 
 	if n != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, want "+string(int64(bufSize))+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+" got "+string(n), err).Fatal()
 	}
 
 	// Read the data back
@@ -3407,7 +3416,7 @@ func testGetObjectReadSeekFunctionalV2() {
 		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
 	}
 	if st.Size != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes in stat does not match, want "+string(int64(bufSize))+" got "+string(st.Size), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(bufSize))+" got "+string(st.Size), err).Fatal()
 	}
 
 	offset := int64(2048)
@@ -3416,14 +3425,14 @@ func testGetObjectReadSeekFunctionalV2() {
 		failureLog(function, args, startTime, "", "Seek failed", err).Fatal()
 	}
 	if n != offset {
-		failureLog(function, args, startTime, "", "Number of seeked bytes does not match, want "+string(offset)+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of seeked bytes does not match, expected "+string(offset)+" got "+string(n), err).Fatal()
 	}
 	n, err = r.Seek(0, 1)
 	if err != nil {
 		failureLog(function, args, startTime, "", "Seek failed", err).Fatal()
 	}
 	if n != offset {
-		failureLog(function, args, startTime, "", "Number of seeked bytes does not match, want "+string(offset)+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of seeked bytes does not match, expected "+string(offset)+" got "+string(n), err).Fatal()
 	}
 	_, err = r.Seek(offset, 2)
 	if err == nil {
@@ -3434,7 +3443,7 @@ func testGetObjectReadSeekFunctionalV2() {
 		failureLog(function, args, startTime, "", "Seek failed", err).Fatal()
 	}
 	if n != st.Size-offset {
-		failureLog(function, args, startTime, "", "Number of seeked bytes does not match, want "+string(st.Size-offset)+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of seeked bytes does not match, expected "+string(st.Size-offset)+" got "+string(n), err).Fatal()
 	}
 
 	var buffer1 bytes.Buffer
@@ -3453,7 +3462,7 @@ func testGetObjectReadSeekFunctionalV2() {
 		failureLog(function, args, startTime, "", "Seek failed", err).Fatal()
 	}
 	if n != (offset - 1) {
-		failureLog(function, args, startTime, "", "Number of seeked bytes does not match, want "+string(offset-1)+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of seeked bytes does not match, expected "+string(offset-1)+" got "+string(n), err).Fatal()
 	}
 
 	var buffer2 bytes.Buffer
@@ -3538,7 +3547,7 @@ func testGetObjectReadAtFunctionalV2() {
 	}
 
 	if n != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, want "+string(bufSize)+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(bufSize)+" got "+string(n), err).Fatal()
 	}
 
 	// Read the data back
@@ -3552,7 +3561,7 @@ func testGetObjectReadAtFunctionalV2() {
 		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
 	}
 	if st.Size != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, want "+string(bufSize)+" got "+string(st.Size), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(bufSize)+" got "+string(st.Size), err).Fatal()
 	}
 
 	offset := int64(2048)
@@ -3567,7 +3576,7 @@ func testGetObjectReadAtFunctionalV2() {
 		failureLog(function, args, startTime, "", "ReadAt failed", err).Fatal()
 	}
 	if m != len(buf2) {
-		failureLog(function, args, startTime, "", "ReadAt read shorter bytes before reaching EOF, want "+string(len(buf2))+" got "+string(m), err).Fatal()
+		failureLog(function, args, startTime, "", "ReadAt read shorter bytes before reaching EOF, expected "+string(len(buf2))+" got "+string(m), err).Fatal()
 	}
 	if !bytes.Equal(buf2, buf[offset:offset+512]) {
 		failureLog(function, args, startTime, "", "Incorrect read between two ReadAt from same offset", err).Fatal()
@@ -3578,7 +3587,7 @@ func testGetObjectReadAtFunctionalV2() {
 		failureLog(function, args, startTime, "", "ReadAt failed", err).Fatal()
 	}
 	if m != len(buf3) {
-		failureLog(function, args, startTime, "", "ReadAt read shorter bytes before reaching EOF, want "+string(len(buf3))+" got "+string(m), err).Fatal()
+		failureLog(function, args, startTime, "", "ReadAt read shorter bytes before reaching EOF, expected "+string(len(buf3))+" got "+string(m), err).Fatal()
 	}
 	if !bytes.Equal(buf3, buf[offset:offset+512]) {
 		failureLog(function, args, startTime, "", "Incorrect read between two ReadAt from same offset", err).Fatal()
@@ -3589,7 +3598,7 @@ func testGetObjectReadAtFunctionalV2() {
 		failureLog(function, args, startTime, "", "ReadAt failed", err).Fatal()
 	}
 	if m != len(buf4) {
-		failureLog(function, args, startTime, "", "ReadAt read shorter bytes before reaching EOF, want "+string(len(buf4))+" got "+string(m), err).Fatal()
+		failureLog(function, args, startTime, "", "ReadAt read shorter bytes before reaching EOF, expected "+string(len(buf4))+" got "+string(m), err).Fatal()
 	}
 	if !bytes.Equal(buf4, buf[offset:offset+512]) {
 		failureLog(function, args, startTime, "", "Incorrect read between two ReadAt from same offset", err).Fatal()
@@ -3604,7 +3613,7 @@ func testGetObjectReadAtFunctionalV2() {
 		}
 	}
 	if m != len(buf5) {
-		failureLog(function, args, startTime, "", "ReadAt read shorter bytes before reaching EOF, want "+string(len(buf5))+" got "+string(m), err).Fatal()
+		failureLog(function, args, startTime, "", "ReadAt read shorter bytes before reaching EOF, expected "+string(len(buf5))+" got "+string(m), err).Fatal()
 	}
 	if !bytes.Equal(buf, buf5) {
 		failureLog(function, args, startTime, "", "Incorrect data read in GetObject, than what was previously uploaded", err).Fatal()
@@ -3688,7 +3697,7 @@ func testCopyObjectV2() {
 	}
 
 	if n != int64(bufSize) {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, want "+string(int64(bufSize))+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+" got "+string(n), err).Fatal()
 	}
 
 	r, err := c.GetObject(bucketName, objectName)
@@ -3766,7 +3775,7 @@ func testCopyObjectV2() {
 		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
 	}
 	if objInfo.Size != objInfoCopy.Size {
-		failureLog(function, args, startTime, "", "Number of bytes does not match, want "+string(objInfoCopy.Size)+" got "+string(objInfo.Size), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(objInfoCopy.Size)+" got "+string(objInfo.Size), err).Fatal()
 	}
 
 	// CopyObject again but with wrong conditions
