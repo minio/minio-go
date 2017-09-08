@@ -97,7 +97,7 @@ func successLogger(function string, args map[string]interface{}, startTime time.
 func failureLog(function string, args map[string]interface{}, startTime time.Time, alert string, message string, err error) *log.Entry {
 	// calculate the test case duration
 	duration := time.Since(startTime)
-	fields := log.Fields{}
+	var fields log.Fields
 	// log with the fields as per mint
 	if err != nil {
 		fields = log.Fields{"name": "minio-go", "function": function, "args": args,
