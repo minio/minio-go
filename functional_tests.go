@@ -97,12 +97,13 @@ func successLogger(function string, args map[string]interface{}, startTime time.
 func failureLog(function string, args map[string]interface{}, startTime time.Time, alert string, message string, err error) *log.Entry {
 	// calculate the test case duration
 	duration := time.Since(startTime)
+	fields := log.Fields{}
 	// log with the fields as per mint
 	if err != nil {
-		fields := log.Fields{"name": "minio-go", "function": function, "args": args,
+		fields = log.Fields{"name": "minio-go", "function": function, "args": args,
 			"duration": duration.Nanoseconds() / 1000000, "status": "fail", "alert": alert, "message": message, "error": err}
 	} else {
-		fields := log.Fields{"name": "minio-go", "function": function, "args": args,
+		fields = log.Fields{"name": "minio-go", "function": function, "args": args,
 			"duration": duration.Nanoseconds() / 1000000, "status": "fail", "alert": alert, "message": message}
 	}
 	return log.WithFields(fields)
@@ -750,7 +751,7 @@ func testGetObjectSeekEnd() {
 	}
 
 	if n != int64(thirtyThreeKiB) {
-    failureLog(function, args, startTime, "", "Number of bytes read does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes read does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(n), err).Fatal()
 	}
 
 	// Read the data back
@@ -765,7 +766,7 @@ func testGetObjectSeekEnd() {
 	}
 
 	if st.Size != int64(thirtyThreeKiB) {
-    failureLog(function, args, startTime, "", "Number of bytes read does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(st.Size), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes read does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(st.Size), err).Fatal()
 	}
 
 	pos, err := r.Seek(-100, 2)
@@ -855,7 +856,7 @@ func testGetObjectClosedTwice() {
 	}
 
 	if n != int64(thirtyThreeKiB) {
-    failureLog(function, args, startTime, "", "PutObject response doesn't match sent bytes, expected "+string(int64(thirtyThreeKiB))+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "PutObject response doesn't match sent bytes, expected "+string(int64(thirtyThreeKiB))+" got "+string(n), err).Fatal()
 	}
 
 	// Read the data back
@@ -869,7 +870,7 @@ func testGetObjectClosedTwice() {
 		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
 	}
 	if st.Size != int64(thirtyThreeKiB) {
-    failureLog(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(st.Size), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(st.Size), err).Fatal()
 	}
 	if err := r.Close(); err != nil {
 		failureLog(function, args, startTime, "", "Object Close failed", err).Fatal()
@@ -1374,7 +1375,7 @@ func testGetObjectReadSeekFunctional() {
 	}
 
 	if n != int64(thirtyThreeKiB) {
-    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+", got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+", got "+string(n), err).Fatal()
 	}
 
 	defer func() {
@@ -1398,9 +1399,9 @@ func testGetObjectReadSeekFunctional() {
 	if err != nil {
 		failureLog(function, args, startTime, "", "Stat object failed", err).Fatal()
 	}
-  
+
 	if st.Size != int64(thirtyThreeKiB) {
-    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+", got "+string(st.Size), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+", got "+string(st.Size), err).Fatal()
 	}
 
 	// This following function helps us to compare data from the reader after seek
@@ -1540,7 +1541,7 @@ func testGetObjectReadAtFunctional() {
 	}
 
 	if n != int64(thirtyThreeKiB) {
-    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+", got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+", got "+string(n), err).Fatal()
 	}
 
 	// read the data back
@@ -1573,9 +1574,9 @@ func testGetObjectReadAtFunctional() {
 	if err != nil {
 		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
 	}
-  
+
 	if st.Size != int64(thirtyThreeKiB) {
-    failureLog(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(thirtyThreeKiB))+", got "+string(st.Size), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(thirtyThreeKiB))+", got "+string(st.Size), err).Fatal()
 	}
 
 	m, err = r.ReadAt(buf2, offset)
@@ -1701,7 +1702,7 @@ func testPresignedPostPolicy() {
 	}
 
 	if n != int64(thirtyThreeKiB) {
-    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(n), err).Fatal()
 	}
 
 	policy := minio.NewPostPolicy()
@@ -1807,7 +1808,7 @@ func testCopyObject() {
 	}
 
 	if n != int64(thirtyThreeKiB) {
-    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+", got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+", got "+string(n), err).Fatal()
 	}
 
 	r, err := c.GetObject(bucketName, objectName)
@@ -3007,7 +3008,7 @@ func testGetObjectClosedTwiceV2() {
 	}
 
 	if n != int64(thirtyThreeKiB) {
-    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(thirtyThreeKiB)+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(thirtyThreeKiB)+" got "+string(n), err).Fatal()
 	}
 
 	// Read the data back
@@ -3022,7 +3023,7 @@ func testGetObjectClosedTwiceV2() {
 	}
 
 	if st.Size != int64(thirtyThreeKiB) {
-    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(thirtyThreeKiB)+" got "+string(st.Size), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(thirtyThreeKiB)+" got "+string(st.Size), err).Fatal()
 	}
 	if err := r.Close(); err != nil {
 		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
@@ -3404,7 +3405,7 @@ func testGetObjectReadSeekFunctionalV2() {
 	}
 
 	if n != int64(thirtyThreeKiB) {
-    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(n), err).Fatal()
 	}
 
 	// Read the data back
@@ -3417,9 +3418,9 @@ func testGetObjectReadSeekFunctionalV2() {
 	if err != nil {
 		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
 	}
-  
+
 	if st.Size != int64(thirtyThreeKiB) {
-    failureLog(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(st.Size), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(st.Size), err).Fatal()
 	}
 
 	offset := int64(2048)
@@ -3549,7 +3550,7 @@ func testGetObjectReadAtFunctionalV2() {
 	}
 
 	if n != int64(thirtyThreeKiB) {
-    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(thirtyThreeKiB)+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(thirtyThreeKiB)+" got "+string(n), err).Fatal()
 	}
 
 	// Read the data back
@@ -3562,9 +3563,9 @@ func testGetObjectReadAtFunctionalV2() {
 	if err != nil {
 		failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
 	}
-  
+
 	if st.Size != int64(thirtyThreeKiB) {
-    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(thirtyThreeKiB)+" got "+string(st.Size), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(thirtyThreeKiB)+" got "+string(st.Size), err).Fatal()
 	}
 
 	offset := int64(2048)
@@ -3698,7 +3699,7 @@ func testCopyObjectV2() {
 	}
 
 	if n != int64(thirtyThreeKiB) {
-    failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(n), err).Fatal()
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(n), err).Fatal()
 	}
 
 	r, err := c.GetObject(bucketName, objectName)
