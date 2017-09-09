@@ -1708,22 +1708,22 @@ func testPresignedPostPolicy() {
 	policy := minio.NewPostPolicy()
 
 	if err := policy.SetBucket(""); err == nil {
-		failureLog(function, args, startTime, "", "SetBucket failed", err).Fatal()
+		failureLog(function, args, startTime, "", "SetBucket did not fail for invalid conditions", err).Fatal()
 	}
 	if err := policy.SetKey(""); err == nil {
-		failureLog(function, args, startTime, "", "SetKey failed", err).Fatal()
+		failureLog(function, args, startTime, "", "SetKey did not fail for invalid conditions", err).Fatal()
 	}
 	if err := policy.SetKeyStartsWith(""); err == nil {
-		failureLog(function, args, startTime, "", "SetKeyStartsWith failed", err).Fatal()
+		failureLog(function, args, startTime, "", "SetKeyStartsWith did not fail for invalid conditions", err).Fatal()
 	}
 	if err := policy.SetExpires(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)); err == nil {
-		failureLog(function, args, startTime, "", "SetExpires failed", err).Fatal()
+		failureLog(function, args, startTime, "", "SetExpires did not fail for invalid conditions", err).Fatal()
 	}
 	if err := policy.SetContentType(""); err == nil {
-		failureLog(function, args, startTime, "", "SetContentType failed", err).Fatal()
+		failureLog(function, args, startTime, "", "SetContentType did not fail for invalid conditions", err).Fatal()
 	}
 	if err := policy.SetContentLengthRange(1024*1024, 1024); err == nil {
-		failureLog(function, args, startTime, "", "SetContentLengthRange failed", err).Fatal()
+		failureLog(function, args, startTime, "", "SetContentLengthRange did not fail for invalid conditions", err).Fatal()
 	}
 
 	policy.SetBucket(bucketName)
@@ -1829,19 +1829,19 @@ func testCopyObject() {
 	// All invalid conditions first.
 	err = src.SetModifiedSinceCond(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC))
 	if err == nil {
-		failureLog(function, args, startTime, "", "SetModifiedSinceCond failed", err).Fatal()
+		failureLog(function, args, startTime, "", "SetModifiedSinceCond did not fail for invalid conditions", err).Fatal()
 	}
 	err = src.SetUnmodifiedSinceCond(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC))
 	if err == nil {
-		failureLog(function, args, startTime, "", "SetUnmodifiedSinceCond failed", err).Fatal()
+		failureLog(function, args, startTime, "", "SetUnmodifiedSinceCond did not fail for invalid conditions", err).Fatal()
 	}
 	err = src.SetMatchETagCond("")
 	if err == nil {
-		failureLog(function, args, startTime, "", "SetMatchETagCond failed", err).Fatal()
+		failureLog(function, args, startTime, "", "SetMatchETagCond did not fail for invalid conditions", err).Fatal()
 	}
 	err = src.SetMatchETagExceptCond("")
 	if err == nil {
-		failureLog(function, args, startTime, "", "SetMatchETagExceptCond failed", err).Fatal()
+		failureLog(function, args, startTime, "", "SetMatchETagExceptCond did not fail for invalid conditions", err).Fatal()
 	}
 
 	err = src.SetModifiedSinceCond(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
@@ -1904,7 +1904,7 @@ func testCopyObject() {
 	// Perform the Copy which should fail
 	err = c.CopyObject(dst, src)
 	if err == nil {
-		failureLog(function, args, startTime, "", "CopyObject should have failed", err).Fatal()
+		failureLog(function, args, startTime, "", "CopyObject did not fail for invalid conditions", err).Fatal()
 	}
 
 	// Remove all objects and buckets
@@ -2684,7 +2684,7 @@ func testFunctional() {
 	}
 	err = c.RemoveBucket(bucketName)
 	if err == nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+		failureLog(function, args, startTime, "", "RemoveBucket did not fail for invalid bucket name", err).Fatal()
 	}
 	if err.Error() != "The specified bucket does not exist" {
 		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
@@ -2941,7 +2941,7 @@ func testMakeBucketErrorV2() {
 		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
 	}
 	if err = c.MakeBucket(bucketName, "eu-west-1"); err == nil {
-		failureLog(function, args, startTime, "", "Make bucket should should fail", err).Fatal()
+		failureLog(function, args, startTime, "", "MakeBucket did not fail for existing bucket name", err).Fatal()
 	}
 	// Verify valid error response from server.
 	if minio.ToErrorResponse(err).Code != "BucketAlreadyExists" &&
@@ -3720,19 +3720,19 @@ func testCopyObjectV2() {
 	// All invalid conditions first.
 	err = src.SetModifiedSinceCond(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC))
 	if err == nil {
-		failureLog(function, args, startTime, "", "SetModifiedSinceCond failed", err).Fatal()
+		failureLog(function, args, startTime, "", "SetModifiedSinceCond did not fail for invalid conditions", err).Fatal()
 	}
 	err = src.SetUnmodifiedSinceCond(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC))
 	if err == nil {
-		failureLog(function, args, startTime, "", "SetUnmodifiedSinceCond failed", err).Fatal()
+		failureLog(function, args, startTime, "", "SetUnmodifiedSinceCond did not fail for invalid conditions", err).Fatal()
 	}
 	err = src.SetMatchETagCond("")
 	if err == nil {
-		failureLog(function, args, startTime, "", "SetMatchETagCond failed", err).Fatal()
+		failureLog(function, args, startTime, "", "SetMatchETagCond did not fail for invalid conditions", err).Fatal()
 	}
 	err = src.SetMatchETagExceptCond("")
 	if err == nil {
-		failureLog(function, args, startTime, "", "SetMatchETagExceptCond failed", err).Fatal()
+		failureLog(function, args, startTime, "", "SetMatchETagExceptCond did not fail for invalid conditions", err).Fatal()
 	}
 
 	err = src.SetModifiedSinceCond(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
@@ -3794,7 +3794,7 @@ func testCopyObjectV2() {
 	// Perform the Copy which should fail
 	err = c.CopyObject(dst, src)
 	if err == nil {
-		failureLog(function, args, startTime, "", "CopyObject failed", err).Fatal()
+		failureLog(function, args, startTime, "", "CopyObject did not fail for invalid conditions", err).Fatal()
 	}
 
 	// Remove all objects and buckets
