@@ -55,6 +55,7 @@ func main() {
 	}
 
 	log.Printf("%#v\n", minioClient) // minioClient is now setup
+}
 ```
 
 ## Quick Start Example - File Uploader
