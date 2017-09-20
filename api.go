@@ -498,6 +498,8 @@ var successStatus = []int{
 func (c Client) executeMethod(ctx context.Context, method string, metadata requestMetadata) (res *http.Response, err error) {
 	var isRetryable bool     // Indicates if request can be retried.
 	var bodySeeker io.Seeker // Extracted seeker from io.Reader.
+	var reqRetry = MaxRetry  // Indicates how many times we can retry the request
+
 	if metadata.contentBody != nil {
 		// Check if body is seekable then it is retryable.
 		bodySeeker, isRetryable = metadata.contentBody.(io.Seeker)
@@ -505,6 +507,11 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 		case os.Stdin, os.Stdout, os.Stderr:
 			isRetryable = false
 		}
+		// Retry only when reader is seekable
+		if !isRetryable {
+			reqRetry = 1
+		}
+
 		// Figure out if the body can be closed - if yes
 		// we will definitely close it upon the function
 		// return.
@@ -523,7 +530,7 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 	// Blank indentifier is kept here on purpose since 'range' without
 	// blank identifiers is only supported since go1.4
 	// https://golang.org/doc/go1.4#forrange.
-	for range c.newRetryTimer(MaxRetry, DefaultRetryUnit, DefaultRetryCap, MaxJitter, doneCh) {
+	for range c.newRetryTimer(reqRetry, DefaultRetryUnit, DefaultRetryCap, MaxJitter, doneCh) {
 		// Retry executes the following function body if request has an
 		// error until maxRetries have been exhausted, retry attempts are
 		// performed after waiting for a given period of time in a
