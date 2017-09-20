@@ -289,3 +289,27 @@ func TestIsValidBucketName(t *testing.T) {
 	}
 
 }
+
+// Tests if header is standard supported header
+func TestIsStandardHeader(t *testing.T) {
+	testCases := []struct {
+		// Input.
+		header string
+		// Expected result.
+		expectedValue bool
+	}{
+		{"content-encoding", true},
+		{"content-type", true},
+		{"cache-control", true},
+		{"content-disposition", true},
+		{"random-header", false},
+	}
+
+	for i, testCase := range testCases {
+		actual := isStandardHeader(testCase.header)
+		if actual != testCase.expectedValue {
+			t.Errorf("Test %d: Expected to pass, but failed", i+1)
+		}
+	}
+
+}

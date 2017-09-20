@@ -54,19 +54,20 @@ func main() {
 | :---                                              | :---                                                | :---                                        | :---                                          | :---                                                          | :---                                                  |
 | [`MakeBucket`](#MakeBucket)                       | [`GetObject`](#GetObject)                           | [`NewSymmetricKey`](#NewSymmetricKey)       | [`PresignedGetObject`](#PresignedGetObject)   | [`SetBucketPolicy`](#SetBucketPolicy)                         | [`SetAppInfo`](#SetAppInfo)                           |
 | [`ListBuckets`](#ListBuckets)                     | [`PutObject`](#PutObject)                           | [`NewAsymmetricKey`](#NewAsymmetricKey)     | [`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)                         | [`SetCustomTransport`](#SetCustomTransport)           |
-| [`BucketExists`](#BucketExists)                   | [`PutObjectStreaming`](#PutObjectStreaming)         | [`GetEncryptedObject`](#GetEncryptedObject) | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`ListBucketPolicies`](#ListBucketPolicies)                   | [`TraceOn`](#TraceOn)                                 |
-| [`RemoveBucket`](#RemoveBucket)                   | [`CopyObject`](#CopyObject)                         | [`PutEncryptedObject`](#PutEncryptedObject) |                                               | [`SetBucketNotification`](#SetBucketNotification)             | [`TraceOff`](#TraceOff)                               |
-| [`ListObjects`](#ListObjects)                     | [`StatObject`](#StatObject)                         | [`NewSSEInfo`](#NewSSEInfo)                 |                                               | [`GetBucketNotification`](#GetBucketNotification)             | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
-| [`ListObjectsV2`](#ListObjectsV2)                 | [`RemoveObject`](#RemoveObject)                     |                                             |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification) |                                                       |
-| [`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveObjects`](#RemoveObjects)                   |                                             |                                               | [`ListenBucketNotification`](#ListenBucketNotification)       |                                                       |
-|                                                   | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                             |                                               |                                                               |                                                       |
+| [`BucketExists`](#BucketExists)                   | [`CopyObject`](#CopyObject)                         | [`GetEncryptedObject`](#GetEncryptedObject) | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`ListBucketPolicies`](#ListBucketPolicies)                   | [`TraceOn`](#TraceOn)                                 |
+| [`RemoveBucket`](#RemoveBucket)                   | [`StatObject`](#StatObject)                         | [`PutEncryptedObject`](#PutEncryptedObject) |                                               | [`SetBucketNotification`](#SetBucketNotification)             | [`TraceOff`](#TraceOff)                               |
+| [`ListObjects`](#ListObjects)                     | [`RemoveObject`](#RemoveObject)                     | [`NewSSEInfo`](#NewSSEInfo)               |                                               | [`GetBucketNotification`](#GetBucketNotification)             | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
+| [`ListObjectsV2`](#ListObjectsV2)                 | [`RemoveObjects`](#RemoveObjects)                   |    |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification) |                                                       |
+| [`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                             |                                               | [`ListenBucketNotification`](#ListenBucketNotification)       |                                                       |
 |                                                   | [`FPutObject`](#FPutObject)                         |                                             |                                               |                                                               |                                                       |
 |                                                   | [`FGetObject`](#FGetObject)                         |                                             |                                               |                                                               |                                                       |
 |                                                   | [`ComposeObject`](#ComposeObject)                   |                                             |                                               |                                                               |                                                       |
 |                                                   | [`NewSourceInfo`](#NewSourceInfo)                   |                                             |                                               |                                                               |                                                       |
 |                                                   | [`NewDestinationInfo`](#NewDestinationInfo)         |                                             |                                               |                                                               |                                                       |
-
-
+|   | [`PutObjectWithContext`](#PutObjectWithContext)  | |   |   |
+|   | [`GetObjectWithContext`](#GetObjectWithContext)  | |   |   |
+|   | [`FPutObjectWithContext`](#FPutObjectWithContext)  | |   |   |
+|   | [`FGetObjectWithContext`](#FGetObjectWithContext)  | |   |   |
 ## 1. Constructor
 <a name="Minio"></a>
 
@@ -83,7 +84,7 @@ __Parameters__
 |`ssl`   | _bool_  | If 'true' API requests will be secure (HTTPS), and insecure (HTTP) otherwise  |
 
 ### NewWithRegion(endpoint, accessKeyID, secretAccessKey string, ssl bool, region string) (*Client, error)
-Initializes minio client, with region configured. Unlike New(), NewWithRegion avoids bucket-location lookup operations and it is slightly faster. Use this function when if your application deals with single region.
+Initializes minio client, with region configured. Unlike New(), NewWithRegion avoids bucket-location lookup operations and it is slightly faster. Use this function when your application deals with a single region.
 
 __Parameters__
 
@@ -437,9 +438,81 @@ if err != nil {
     return
 }
 ```
+<a name="GetObjectWithContext"></a>
+### GetObjectWithContext(ctx context.Context, bucketName, objectName string) (*Object, error)
+
+Identical to GetObject operation, but accepts a context for request cancellation.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  |Request context  |
+|`bucketName`  | _string_  |Name of the bucket  |
+|`objectName` | _string_  |Name of the object  |
+
+
+__Return Value__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`object`  | _*minio.Object_ |_minio.Object_ represents object reader. It implements io.Reader, io.Seeker, io.ReaderAt and io.Closer interfaces. |
+
+
+__Example__
+
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 100 * time.Seconds)
+defer cancel()
+object, err := minioClient.GetObjectWithContext(ctx, "mybucket", "photo.jpg")
+if err != nil {
+    fmt.Println(err)
+    return
+}
+localFile, err := os.Create("/tmp/local-file.jpg")
+if err != nil {
+    fmt.Println(err)
+    return
+}
+if _, err = io.Copy(localFile, object); err != nil {
+    fmt.Println(err)
+    return
+}
+```
+
+<a name="FGetObjectWithContext"></a>
+### FGetObjectWithContext(ctx context.Context, bucketName, objectName, filePath string) error
+    Identical to FGetObject operation, but allows request cancellation
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  |Request context |
+|`bucketName`  | _string_  |Name of the bucket |
+|`objectName` | _string_  |Name of the object  |
+|`filePath` | _string_  |Path to download object to |
+
+
+__Example__
+
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 100 * time.Seconds)
+defer cancel()
+err := minioClient.FGetObjectWithContext(ctx, "mybucket", "photo.jpg", "/tmp/photo.jpg")
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
 
 <a name="PutObject"></a>
-### PutObject(bucketName, objectName string, reader io.Reader, contentType string) (n int, err error)
+### PutObject(bucketName, objectName string, reader io.Reader, objectSize int64,opts *PutObjectOptions) (n int, err error)
 
 Uploads objects that are less than 64MiB in a single PUT operation. For objects that are greater than 64MiB in size, PutObject seamlessly uploads the object as parts of 64MiB or more depending on the actual file size. The max upload size for an object is 5TB.
 
@@ -451,7 +524,8 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object   |
 |`reader` | _io.Reader_  |Any Go type that implements io.Reader |
-|`contentType` | _string_  |Content type of the object  |
+|`objectSize`| _int64_ |Size of the object being uploaded. Pass -1 if stream size is unknown |
+|`opts` | _*PutObjectOptions_  |Pointer to struct that allows user to set optional custom metadata, content-type, content-encoding,content-disposition and cache-control headers, pass encryption module for encrypting objects, and optionally configure number of threads for multipart put operation. |
 
 
 __Example__
@@ -465,32 +539,45 @@ if err != nil {
 }
 defer file.Close()
 
-n, err := minioClient.PutObject("mybucket", "myobject", file, "application/octet-stream")
+fileStat, err := fileReader.Stat()
+if err != nil {
+    fmt.Println(err)
+    return
+}
+n, err := minioClient.PutObject("mybucket", "myobject", file, fileStat.Size(), &PutObjectOptions{ContentType:"application/octet-stream"})
 if err != nil {
     fmt.Println(err)
     return
 }
 ```
+API methods PutObjectWithSize, PutObjectWithMetadata, PutObjectStreaming, and PutObjectWithProgress available in minio-go SDK release v3.0.2 are replaced by the new PutObject call variant that accepts a pointer to PutObjectOptions struct.
 
-<a name="PutObjectStreaming"></a>
-### PutObjectStreaming(bucketName, objectName string, reader io.Reader) (n int, err error)
+<a name="PutObjectWithContext"></a>
+### PutObjectWithContext(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64, opts *PutObjectOptions) (n int, err error)
 
-Uploads an object as multiple chunks keeping memory consumption constant. It is similar to PutObject in how objects are broken into multiple parts. Each part in turn is transferred as multiple chunks with constant memory usage. However resuming previously failed uploads from where it was left is not supported.
-
+Identical to PutObject operation, but allows request cancellation.
 
 __Parameters__
 
 
 |Param   |Type   |Description   |
-|:---|:---|:---|
+|:---|:---| :---|
+|`ctx`  | _context.Context_  |Request context |
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object   |
 |`reader` | _io.Reader_  |Any Go type that implements io.Reader |
+|`objectSize`| _int64_ | size of the object being uploaded. Pass -1 if stream size is unknown |
+|`opts` | _*PutObjectOptions_  |Pointer to struct that allows user to set optional custom metadata, content-type, content-encoding,content-disposition and cache-control headers, pass encryption module for encrypting objects, and optionally configure number of threads for multipart put operation. |
+
+
 
 __Example__
 
 
 ```go
+ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Seconds)
+defer cancel()
+
 file, err := os.Open("my-testfile")
 if err != nil {
     fmt.Println(err)
@@ -498,13 +585,17 @@ if err != nil {
 }
 defer file.Close()
 
-n, err := minioClient.PutObjectStreaming("mybucket", "myobject", file)
+fileStat, err := fileReader.Stat()
+if err != nil {
+    fmt.Println(err)
+    return
+}
+n, err := minioClient.PutObjectWithContext(ctx, "mybucket", "myobject", file, fileStat.Size(), &PutObjectOptions{ContentType:"application/octet-stream"})
 if err != nil {
     fmt.Println(err)
     return
 }
 ```
-
 
 <a name="CopyObject"></a>
 ### CopyObject(dst DestinationInfo, src SourceInfo) error
@@ -683,7 +774,7 @@ dst, err := NewDecryptionInfo("bucket", "object", encKey, nil)
 
 
 <a name="FPutObject"></a>
-### FPutObject(bucketName, objectName, filePath, contentType string) (length int64, err error)
+### FPutObject(bucketName, objectName, filePath, opts *PutObjectOptions) (length int64, err error)
 
 Uploads contents from a file to objectName.
 
@@ -698,20 +789,47 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object |
 |`filePath` | _string_  |Path to file to be uploaded |
-|`contentType` | _string_  |Content type of the object  |
+|`opts` | _*PutObjectOptions_  |Pointer to struct that allows user to set optional custom metadata, content-type, content-encoding,content-disposition and cache-control headers, pass encryption module for encrypting objects, and optionally configure number of threads for multipart put operation.  |
 
 
 __Example__
 
 
 ```go
-n, err := minioClient.FPutObject("mybucket", "myobject.csv", "/tmp/otherobject.csv", "application/csv")
+n, err := minioClient.FPutObject("mybucket", "myobject.csv", "/tmp/otherobject.csv", &PutObjectOptions{ContentType:"application/csv"})
 if err != nil {
     fmt.Println(err)
     return
 }
 ```
+<a name="FPutObjectWithContext"></a>
+### FPutObjectWithContext(ctx context.Context, bucketName, objectName, filePath, opts *PutObjectOptions) (length int64, err error)
 
+Identical to FPutObject operation, but allows request cancellation.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  |Request context  |
+|`bucketName`  | _string_  |Name of the bucket  |
+|`objectName` | _string_  |Name of the object |
+|`filePath` | _string_  |Path to file to be uploaded |
+|`opts` | _*PutObjectOptions_  |Pointer to struct that allows user to set optional custom metadata, content-type, content-encoding,content-disposition and cache-control headers, pass encryption module for encrypting objects, and optionally configure number of threads for multipart put operation. |
+
+__Example__
+
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 100 * time.Seconds)
+defer cancel()
+n, err := minioClient.FPutObjectWithContext(ctx, "mybucket", "myobject.csv", "/tmp/otherobject.csv", &PutObjectOptions{ContentType:"application/csv"})
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
 <a name="StatObject"></a>
 ### StatObject(bucketName, objectName string) (ObjectInfo, error)
 
@@ -894,7 +1012,7 @@ if err != nil {
 <a name="GetEncryptedObject"></a>
 ### GetEncryptedObject(bucketName, objectName string, encryptMaterials minio.EncryptionMaterials) (io.ReadCloser, error)
 
-Returns the decrypted stream of the object data based of the given encryption materiels. Most of the common errors occur when reading the stream.
+Returns the decrypted stream of the object data based of the given encryption materials. Most of the common errors occur when reading the stream.
 
 __Parameters__
 
@@ -947,7 +1065,7 @@ if _, err = io.Copy(localFile, object); err != nil {
 
 <a name="PutEncryptedObject"></a>
 
-### PutEncryptedObject(bucketName, objectName string, reader io.Reader, encryptMaterials minio.EncryptionMaterials, metadata map[string][]string, progress io.Reader) (n int, err error)
+### PutObject(bucketName, objectName string, reader io.Reader, objectSize int64, opts *PutObjectOptions) (n int, err error)
 
 Encrypt and upload an object.
 
@@ -959,9 +1077,8 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object   |
 |`reader` | _io.Reader_  |Any Go type that implements io.Reader |
-|`encryptMaterials` | _minio.EncryptionMaterials_  | The module that encrypts data |
-|`metadata` | _map[string][]string_  | Object metadata to be stored  |
-|`progress` | io.Reader | A reader to update the upload progress |
+|`objectSize`| _int64_ | size of the object being uploaded. Pass -1 if stream size is unknown |
+|`opts` | _*PutObjectOptions_  |Pointer to struct that allows user to set optional custom metadata, content-type, content-encoding,content-disposition and cache-control headers, pass encryption module for encrypting objects, and optionally configure number of threads for multipart put operation. |
 
 
 __Example__
@@ -988,7 +1105,7 @@ if err != nil {
 // Build the CBC encryption module
 cbcMaterials, err := NewCBCSecureMaterials(key)
 if err != nil {
-    t.Fatal(err)
+    log.Fatal(err)
 }
 
 // Open a file to upload
@@ -999,8 +1116,18 @@ if err != nil {
 }
 defer file.Close()
 
+fileStat, err := fileReader.Stat()
+if err != nil {
+    log.Fatal(err)
+    return
+}
+opts := &PutObjectOptions{
+    EncryptMaterials: cbcMaterials,
+    Progress:nil,
+    UserMetadata: nil
+}
 // Upload the encrypted form of the file
-n, err := minioClient.PutEncryptedObject("mybucket", "myobject", file, encryptMaterials, nil, nil)
+n, err := minioClient.PutObject("mybucket", "myobject", file, fileStat.Size(), opts)
 if err != nil {
     fmt.Println(err)
     return

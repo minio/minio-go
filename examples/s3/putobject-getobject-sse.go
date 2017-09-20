@@ -54,21 +54,21 @@ func main() {
 	// of the encryption key or to decrypt the contents of the
 	// encrypted object. That means, if you lose the encryption
 	// key, you lose the object.
-	var metadata = map[string][]string{
-		"x-amz-server-side-encryption-customer-algorithm": []string{"AES256"},
-		"x-amz-server-side-encryption-customer-key":       []string{encryptionKey},
-		"x-amz-server-side-encryption-customer-key-MD5":   []string{encryptionKeyMD5},
+	var metadata = map[string]string{
+		"x-amz-server-side-encryption-customer-algorithm": "AES256",
+		"x-amz-server-side-encryption-customer-key":       encryptionKey,
+		"x-amz-server-side-encryption-customer-key-MD5":   encryptionKeyMD5,
 	}
 
 	// minioClient.TraceOn(os.Stderr) // Enable to debug.
-	_, err = minioClient.PutObjectWithMetadata("mybucket", "my-encrypted-object.txt", content, metadata, nil)
+	_, err = minioClient.PutObject("mybucket", "my-encrypted-object.txt", content, 11, &minio.PutObjectOptions{UserMetadata: metadata})
 	if err != nil {
 		log.Fatalln(err)
 	}
 
 	var reqHeaders = minio.RequestHeaders{Header: http.Header{}}
 	for k, v := range metadata {
-		reqHeaders.Set(k, v[0])
+		reqHeaders.Set(k, v)
 	}
 	coreClient := minio.Core{minioClient}
 	reader, _, err := coreClient.GetObject("mybucket", "my-encrypted-object.txt", reqHeaders)

@@ -45,7 +45,7 @@ func main() {
 	}
 	defer object.Close()
 
-	n, err := s3Client.PutObjectStreaming("my-bucketname", "my-objectname", object)
+	n, err := s3Client.PutObject("my-bucketname", "my-objectname", object, -1, &minio.PutObjectOptions{})
 	if err != nil {
 		log.Fatalln(err)
 	}

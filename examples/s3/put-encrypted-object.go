@@ -46,7 +46,10 @@ func main() {
 		log.Fatalln(err)
 	}
 	defer file.Close()
-
+	fileStat, err := file.Stat()
+	if err != nil {
+		log.Fatalln(err)
+	}
 	//// Build an asymmetric key from private and public files
 	//
 	// privateKey, err := ioutil.ReadFile("private.key")
@@ -73,9 +76,15 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-
+	// Specify encryption materials in the PutObjectOptions struct with other additional
+	// options for uploading object to the server.
+	opts := &minio.PutObjectOptions{
+		EncryptMaterials: cbcMaterials,
+		UserMetadata:     nil,
+		Progress:         nil,
+	}
 	// Encrypt file content and upload to the server
-	n, err := s3Client.PutEncryptedObject("my-bucketname", "my-objectname", file, cbcMaterials, nil, nil)
+	n, err := s3Client.PutObject("my-bucketname", "my-objectname", file, fileStat.Size(), opts)
 	if err != nil {
 		log.Fatalln(err)
 	}

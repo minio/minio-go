@@ -20,6 +20,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -46,6 +47,7 @@ import (
 const (
 	sixtyFiveMiB   = 65 * humanize.MiByte // 65MiB
 	thirtyThreeKiB = 33 * humanize.KiByte // 33KiB
+	oneMiB         = 1 * humanize.MiByte  // 1MiB
 )
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyz01234569"
@@ -332,11 +334,11 @@ func testMakeBucketRegions() {
 func testPutObjectReadAt() {
 	// initialize logging params
 	startTime := time.Now()
-	function := "PutObject(bucketName, objectName, reader, objectContentType)"
+	function := "PutObject(bucketName, objectName, reader, opts)"
 	args := map[string]interface{}{
-		"bucketName":        "",
-		"objectName":        "",
-		"objectContentType": "",
+		"bucketName": "",
+		"objectName": "",
+		"opts":       "objectContentType",
 	}
 
 	// Seed random based on current time.
@@ -382,8 +384,7 @@ func testPutObjectReadAt() {
 	objectContentType := "binary/octet-stream"
 	args["objectContentType"] = objectContentType
 
-	n, err := c.PutObject(bucketName, objectName, reader, objectContentType)
-
+	n, err := c.PutObject(bucketName, objectName, reader, int64(sixtyFiveMiB), &minio.PutObjectOptions{ContentType: objectContentType})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -432,11 +433,11 @@ func testPutObjectReadAt() {
 func testPutObjectWithMetadata() {
 	// initialize logging params
 	startTime := time.Now()
-	function := "PutObjectWithMetadata(bucketName, objectName, reader, metadata, progress)"
+	function := "PutObject(bucketName, objectName, reader,size, opts)"
 	args := map[string]interface{}{
 		"bucketName": "",
 		"objectName": "",
-		"metadata":   "",
+		"opts":       "&minio.PutObjectOptions{UserMetadata: metadata, Progress: progress}",
 	}
 
 	if isQuickMode() {
@@ -486,13 +487,12 @@ func testPutObjectWithMetadata() {
 	// Object custom metadata
 	customContentType := "custom/contenttype"
 
-	n, err := c.PutObjectWithMetadata(bucketName, objectName, reader, map[string][]string{
-		"Content-Type": {customContentType},
-	}, nil)
 	args["metadata"] = map[string][]string{
 		"Content-Type": {customContentType},
 	}
 
+	n, err := c.PutObject(bucketName, objectName, reader, int64(sixtyFiveMiB), &minio.PutObjectOptions{
+		ContentType: customContentType})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -540,10 +540,12 @@ func testPutObjectStreaming() {
 	// initialize logging params
 	objectName := "test-object"
 	startTime := time.Now()
-	function := "PutObjectStreaming(bucketName, objectName, reader)"
+	function := "PutObject(bucketName, objectName, reader,size,opts)"
 	args := map[string]interface{}{
 		"bucketName": "",
 		"objectName": objectName,
+		"size":       -1,
+		"opts":       "",
 	}
 
 	// Seed random based on current time.
@@ -581,7 +583,7 @@ func testPutObjectStreaming() {
 
 	for _, size := range sizes {
 		data := bytes.Repeat([]byte("a"), int(size))
-		n, err := c.PutObjectStreaming(bucketName, objectName, bytes.NewReader(data))
+		n, err := c.PutObject(bucketName, objectName, bytes.NewReader(data), int64(size), nil)
 		if err != nil {
 			failureLog(function, args, startTime, "", "PutObjectStreaming failed", err).Fatal()
 		}
@@ -665,7 +667,7 @@ func testListPartiallyUploaded() {
 	objectName := bucketName + "-resumable"
 	args["objectName"] = objectName
 
-	_, err = c.PutObject(bucketName, objectName, reader, "application/octet-stream")
+	_, err = c.PutObject(bucketName, objectName, reader, int64(sixtyFiveMiB*2), &minio.PutObjectOptions{ContentType: "application/octet-stream"})
 	if err == nil {
 		failureLog(function, args, startTime, "", "PutObject should fail", err).Fatal()
 	}
@@ -745,7 +747,7 @@ func testGetObjectSeekEnd() {
 		failureLog(function, args, startTime, "", "ReadAll failed", err).Fatal()
 	}
 
-	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -850,7 +852,7 @@ func testGetObjectClosedTwice() {
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	args["objectName"] = objectName
 
-	n, err := c.PutObject(bucketName, objectName, reader, "binary/octet-stream")
+	n, err := c.PutObject(bucketName, objectName, reader, int64(thirtyThreeKiB), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -942,7 +944,7 @@ func testRemoveMultipleObjects() {
 		// Upload objects and send them to objectsCh
 		for i := 0; i < nrObjects; i++ {
 			objectName := "sample" + strconv.Itoa(i) + ".txt"
-			_, err = c.PutObject(bucketName, objectName, r, "application/octet-stream")
+			_, err = c.PutObject(bucketName, objectName, r, 8, &minio.PutObjectOptions{ContentType: "application/octet-stream"})
 			if err != nil {
 				failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 				continue
@@ -1029,7 +1031,7 @@ func testRemovePartiallyUploaded() {
 	objectName := bucketName + "-resumable"
 	args["objectName"] = objectName
 
-	_, err = c.PutObject(bucketName, objectName, reader, "application/octet-stream")
+	_, err = c.PutObject(bucketName, objectName, reader, 128*1024, &minio.PutObjectOptions{ContentType: "application/octet-stream"})
 	if err == nil {
 		failureLog(function, args, startTime, "", "PutObject should fail", err).Fatal()
 	}
@@ -1051,12 +1053,12 @@ func testRemovePartiallyUploaded() {
 func testFPutObjectMultipart() {
 	// initialize logging params
 	startTime := time.Now()
-	function := "FPutObject(bucketName, objectName, fileName, objectContentType)"
+	function := "FPutObject(bucketName, objectName, fileName, opts)"
 	args := map[string]interface{}{
-		"bucketName":        "",
-		"objectName":        "",
-		"fileName":          "",
-		"objectContentType": "",
+		"bucketName": "",
+		"objectName": "",
+		"fileName":   "",
+		"opts":       "",
 	}
 
 	// Seed random based on current time.
@@ -1118,7 +1120,7 @@ func testFPutObjectMultipart() {
 	args["objectContentType"] = objectContentType
 
 	// Perform standard FPutObject with contentType provided (Expecting application/octet-stream)
-	n, err := c.FPutObject(bucketName, objectName, fileName, objectContentType)
+	n, err := c.FPutObject(bucketName, objectName, fileName, &minio.PutObjectOptions{ContentType: objectContentType})
 	if err != nil {
 		failureLog(function, args, startTime, "", "FPutObject failed", err).Fatal()
 	}
@@ -1158,10 +1160,11 @@ func testFPutObjectMultipart() {
 func testFPutObject() {
 	// initialize logging params
 	startTime := time.Now()
-	function := "FPutObject(bucketName, objectName, fileName, objectContentType)"
+	function := "FPutObject(bucketName, objectName, fileName, opts)"
 	args := map[string]interface{}{
 		"bucketName": "",
 		"objectName": "",
+		"opts":       "",
 	}
 
 	// Seed random based on current time.
@@ -1222,7 +1225,7 @@ func testFPutObject() {
 	args["objectName"] = objectName
 
 	// Perform standard FPutObject with contentType provided (Expecting application/octet-stream)
-	n, err := c.FPutObject(bucketName, objectName+"-standard", fName, "application/octet-stream")
+	n, err := c.FPutObject(bucketName, objectName+"-standard", fName, &minio.PutObjectOptions{ContentType: "application/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "FPutObject failed", err).Fatal()
 	}
@@ -1231,7 +1234,7 @@ func testFPutObject() {
 	}
 
 	// Perform FPutObject with no contentType provided (Expecting application/octet-stream)
-	n, err = c.FPutObject(bucketName, objectName+"-Octet", fName, "")
+	n, err = c.FPutObject(bucketName, objectName+"-Octet", fName, &minio.PutObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "File close failed", err).Fatal()
 	}
@@ -1255,7 +1258,7 @@ func testFPutObject() {
 	}
 
 	// Perform FPutObject with no contentType provided (Expecting application/x-gtar)
-	n, err = c.FPutObject(bucketName, objectName+"-GTar", fName+".gtar", "")
+	n, err = c.FPutObject(bucketName, objectName+"-GTar", fName+".gtar", nil)
 	if err != nil {
 		failureLog(function, args, startTime, "", "FPutObject failed", err).Fatal()
 	}
@@ -1316,6 +1319,302 @@ func testFPutObject() {
 	successLogger(function, args, startTime).Info()
 }
 
+// Tests FPutObjectWithContext request context cancels after timeout
+func testFPutObjectWithContext() {
+	// initialize logging params
+	startTime := time.Now()
+	function := "FPutObject(bucketName, objectName, fileName, opts)"
+	args := map[string]interface{}{
+		"bucketName": "",
+		"objectName": "",
+		"opts":       "",
+	}
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.New(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		failureLog(function, args, startTime, "", "Minio client object creation failed", err).Fatal()
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
+	}
+
+	// Upload 1 parts worth of data to use multipart upload.
+	// Use different data in part for multipart tests to check parts are uploaded in correct order.
+	var fName = getFilePath("datafile-1-MB")
+	if os.Getenv("MINT_DATA_DIR") == "" {
+		// Make a temp file with 1 MiB bytes of data.
+		file, err := ioutil.TempFile(os.TempDir(), "FPutObjectWithContextTest")
+		if err != nil {
+			failureLog(function, args, startTime, "", "TempFile creation failed", err).Fatal()
+		}
+
+		// Upload 1 parts to trigger multipart upload
+		var buffer = bytes.Repeat([]byte(string('a')), 1024*1024*1)
+		if _, err = file.Write(buffer); err != nil {
+			failureLog(function, args, startTime, "", "File buffer write failed", err).Fatal()
+		}
+		// Close the file pro-actively for windows.
+		err = file.Close()
+		if err != nil {
+			failureLog(function, args, startTime, "", "File close failed", err).Fatal()
+
+		}
+		fName = file.Name()
+	}
+	var totalSize = 1024 * 1024 * 1
+
+	// Set base object name
+	objectName := bucketName + "FPutObjectWithContext"
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	// Perform standard FPutObjectWithContext with contentType provided (Expecting application/octet-stream)
+	_, err = c.FPutObjectWithContext(ctx, bucketName, objectName+"-Shorttimeout", fName, &minio.PutObjectOptions{ContentType: "application/octet-stream"})
+	if err == nil {
+		failureLog(function, args, startTime, "", "Request context cancellation failed", err).Fatal()
+	}
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	// Perform FPutObjectWithContext with a long timeout. Expect the put object to succeed
+	n, err := c.FPutObjectWithContext(ctx, bucketName, objectName+"-Longtimeout", fName, nil)
+	if err != nil {
+		failureLog(function, args, startTime, "", "FPutObjectWithContext failed", err).Fatal()
+	}
+	if n != int64(totalSize) {
+		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(totalSize)+", got "+string(n), err).Fatal()
+	}
+
+	_, err = c.StatObject(bucketName, objectName+"-Longtimeout")
+	if err != nil {
+		failureLog(function, args, startTime, "", "StatObject failed", err).Fatal()
+	}
+	err = c.RemoveObject(bucketName, objectName+"-Shorttimeout")
+	if err != nil {
+		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
+	}
+	// Remove all objects and bucket and temp file
+	err = c.RemoveObject(bucketName, objectName+"-Longtimeout")
+	if err != nil {
+		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
+	}
+
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+	}
+
+	err = os.Remove(fName)
+	if err != nil {
+		failureLog(function, args, startTime, "", "Remove file failed", err).Fatal()
+	}
+	successLogger(function, args, startTime).Info()
+
+}
+
+// Tests FPutObjectWithContext request context cancels after timeout
+func testFPutObjectWithContextV2() {
+	// initialize logging params
+	startTime := time.Now()
+	function := "FPutObjectWithContext(ctx, bucketName, objectName, fileName, opts)"
+	args := map[string]interface{}{
+		"bucketName": "",
+		"objectName": "",
+		"opts":       "&minio.PutObjectOptions{ContentType:objectContentType}",
+	}
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.NewV2(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		failureLog(function, args, startTime, "", "Minio client object creation failed", err).Fatal()
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
+	}
+
+	// Upload 1 parts worth of data to use multipart upload.
+	// Use different data in part for multipart tests to check parts are uploaded in correct order.
+	var fName = getFilePath("datafile-1-MB")
+	if os.Getenv("MINT_DATA_DIR") == "" {
+		// Make a temp file with 1 MiB bytes of data.
+		file, err := ioutil.TempFile(os.TempDir(), "FPutObjectWithContextTest")
+		if err != nil {
+			failureLog(function, args, startTime, "", "Temp file creation failed", err).Fatal()
+
+		}
+
+		// Upload 1 parts to trigger multipart upload
+		var buffer = bytes.Repeat([]byte(string('a')), 1024*1024*1)
+		if _, err = file.Write(buffer); err != nil {
+			failureLog(function, args, startTime, "", "Write buffer to file failed", err).Fatal()
+
+		}
+		// Close the file pro-actively for windows.
+		err = file.Close()
+		if err != nil {
+			failureLog(function, args, startTime, "", "File close failed", err).Fatal()
+
+		}
+		fName = file.Name()
+	}
+	var totalSize = 1024 * 1024 * 1
+
+	// Set base object name
+	objectName := bucketName + "FPutObjectWithContext"
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+	defer cancel()
+
+	// Perform standard FPutObjectWithContext with contentType provided (Expecting application/octet-stream)
+	_, err = c.FPutObjectWithContext(ctx, bucketName, objectName+"-Shorttimeout", fName, &minio.PutObjectOptions{ContentType: "application/octet-stream"})
+	if err == nil {
+		failureLog(function, args, startTime, "", "FPutObjectWithContext with short timeout failed", err).Fatal()
+	}
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	// Perform FPutObjectWithContext with a long timeout. Expect the put object to succeed
+	n, err := c.FPutObjectWithContext(ctx, bucketName, objectName+"-Longtimeout", fName, nil)
+	if err != nil {
+		failureLog(function, args, startTime, "", "FPutObjectWithContext with long timeout failed", err).Fatal()
+	}
+	if n != int64(totalSize) {
+		failureLog(function, args, startTime, "", "Number of bytes does not match:wanted"+string(totalSize)+" got "+string(n), err).Fatal()
+	}
+
+	_, err = c.StatObject(bucketName, objectName+"-Longtimeout")
+	if err != nil {
+		failureLog(function, args, startTime, "", "StatObject failed", err).Fatal()
+
+	}
+
+	err = c.RemoveObject(bucketName, objectName+"-Shorttimeout")
+	if err != nil {
+		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
+	}
+	err = c.RemoveObject(bucketName, objectName+"-Longtimeout")
+	if err != nil {
+		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
+	}
+
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+
+	}
+
+	err = os.Remove(fName)
+	if err != nil {
+		failureLog(function, args, startTime, "", "Remove file failed", err).Fatal()
+
+	}
+	successLogger(function, args, startTime).Info()
+
+}
+
+// Test validates putObject with context to see if request cancellation is honored.
+func testPutObjectWithContext() {
+	// initialize logging params
+	startTime := time.Now()
+	function := "PutObjectWithContext(ctx, bucketName, objectName, fileName, opts)"
+	args := map[string]interface{}{
+		"bucketName": "",
+		"objectName": "",
+		"opts":       "&minio.PutObjectOptions{ContentType:objectContentType}",
+	}
+	// Instantiate new minio client object.
+	c, err := minio.NewV4(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		failureLog(function, args, startTime, "", "Minio client object creation failed", err).Fatal()
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Make a new bucket.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		failureLog(function, args, startTime, "", "MakeBucket call failed", err).Fatal()
+	}
+	defer c.RemoveBucket(bucketName)
+	bufSize := 1<<20 + 32*1024
+	var reader = getDataReader("datafile-33-kB", bufSize)
+	defer reader.Close()
+	objectName := fmt.Sprintf("test-file-%v", rand.Uint32())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	_, err = c.PutObjectWithContext(ctx, bucketName, objectName, reader, int64(bufSize), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	if err != nil {
+		failureLog(function, args, startTime, "", "PutObjectWithContext with short timeout failed", err).Fatal()
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	reader = getDataReader("datafile-33-kB", bufSize)
+	defer reader.Close()
+	_, err = c.PutObjectWithContext(ctx, bucketName, objectName, reader, int64(bufSize), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	if err != nil {
+		failureLog(function, args, startTime, "", "PutObjectWithContext with long timeout failed", err).Fatal()
+	}
+
+	if err = c.RemoveObject(bucketName, objectName); err != nil {
+		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
+	}
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+	}
+	successLogger(function, args, startTime).Info()
+
+}
+
 // Tests get object ReaderSeeker interface methods.
 func testGetObjectReadSeekFunctional() {
 	// initialize logging params
@@ -1369,7 +1668,7 @@ func testGetObjectReadSeekFunctional() {
 	}
 
 	// Save the data
-	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -1535,7 +1834,7 @@ func testGetObjectReadAtFunctional() {
 	}
 
 	// Save the data
-	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -1696,7 +1995,7 @@ func testPresignedPostPolicy() {
 	}
 
 	// Save the data
-	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -1802,7 +2101,7 @@ func testCopyObject() {
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-	n, err := c.PutObject(bucketName, objectName, reader, "binary/octet-stream")
+	n, err := c.PutObject(bucketName, objectName, reader, int64(thirtyThreeKiB), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -2061,7 +2360,9 @@ func testEncryptionPutGet() {
 		}
 
 		// Put encrypted data
-		_, err = c.PutEncryptedObject(bucketName, objectName, bytes.NewReader(testCase.buf), cbcMaterials, map[string][]string{"Content-Type": {customContentType}}, nil)
+		_, err = c.PutObject(bucketName, objectName, bytes.NewReader(testCase.buf), int64(len(testCase.buf)), &minio.PutObjectOptions{EncryptMaterials: cbcMaterials, ContentType: customContentType})
+
+		//KPDEL	_, err = c.PutEncryptedObject(bucketName, objectName, bytes.NewReader(testCase.buf), cbcMaterials, map[string][]string{"Content-Type": {customContentType}}, nil)
 		if err != nil {
 			failureLog(function, args, startTime, "", "PutEncryptedObject failed", err).Fatal()
 		}
@@ -2090,6 +2391,7 @@ func testEncryptionPutGet() {
 		if err != nil {
 			failureLog(function, args, startTime, "", "Test "+string(i+1)+", RemoveObject failed with: "+err.Error(), err).Fatal()
 		}
+		successLogger(function, args, startTime).Info()
 
 	}
 
@@ -2384,7 +2686,6 @@ func testFunctional() {
 	// Generate data
 	buf := bytes.Repeat([]byte("f"), 1<<19)
 
-	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "")
 	function = "PutObject(bucketName, objectName, reader, contentType)"
 	args = map[string]interface{}{
 		"bucketName":  bucketName,
@@ -2392,6 +2693,7 @@ func testFunctional() {
 		"contentType": "",
 	}
 
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), nil)
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -2400,13 +2702,13 @@ func testFunctional() {
 		failureLog(function, args, startTime, "", "Length doesn't match, expected "+string(int64(len(buf)))+" got "+string(n), err).Fatal()
 	}
 
-	n, err = c.PutObject(bucketName, objectName+"-nolength", bytes.NewReader(buf), "binary/octet-stream")
 	args = map[string]interface{}{
 		"bucketName":  bucketName,
 		"objectName":  objectName + "-nolength",
 		"contentType": "binary/octet-stream",
 	}
 
+	n, err = c.PutObject(bucketName, objectName+"-nolength", bytes.NewReader(buf), int64(len(buf)), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -2740,7 +3042,7 @@ func testGetObjectObjectModified() {
 	// Upload an object.
 	objectName := "myobject"
 	content := "helloworld"
-	_, err = c.PutObject(bucketName, objectName, strings.NewReader(content), "application/text")
+	_, err = c.PutObject(bucketName, objectName, strings.NewReader(content), int64(len(content)), &minio.PutObjectOptions{ContentType: "application/text"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "Failed to upload "+objectName+", to bucket "+bucketName, err).Fatal()
 	}
@@ -2762,7 +3064,7 @@ func testGetObjectObjectModified() {
 
 	// Upload different contents to the same object while object is being read.
 	newContent := "goodbyeworld"
-	_, err = c.PutObject(bucketName, objectName, strings.NewReader(newContent), "application/text")
+	_, err = c.PutObject(bucketName, objectName, strings.NewReader(newContent), int64(len(newContent)), &minio.PutObjectOptions{ContentType: "application/text"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "Failed to upload "+objectName+", to bucket "+bucketName, err).Fatal()
 	}
@@ -2832,7 +3134,7 @@ func testPutObjectUploadSeekedObject() {
 	if fileName := getFilePath("datafile-100-kB"); fileName != "" {
 		data, _ = ioutil.ReadFile(fileName)
 	} else {
-		// Generate data more than 32K
+		// Generate 100kB data
 		data = bytes.Repeat([]byte("1"), 120000)
 	}
 	var length = len(data)
@@ -2848,7 +3150,7 @@ func testPutObjectUploadSeekedObject() {
 		failureLog(function, args, startTime, "", "TempFile seek failed", err).Fatal()
 	}
 
-	n, err := c.PutObject(bucketName, objectName, tempfile, "binary/octet-stream")
+	n, err := c.PutObject(bucketName, objectName, tempfile, int64(length), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -2875,7 +3177,7 @@ func testPutObjectUploadSeekedObject() {
 		failureLog(function, args, startTime, "", "Invalid offset returned, expected "+string(int64(offset))+" got "+string(n), err).Fatal()
 	}
 
-	n, err = c.PutObject(bucketName, objectName+"getobject", obj, "binary/octet-stream")
+	n, err = c.PutObject(bucketName, objectName+"getobject", obj, int64(length), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
 	}
@@ -3002,7 +3304,7 @@ func testGetObjectClosedTwiceV2() {
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	args["objectName"] = objectName
 
-	n, err := c.PutObject(bucketName, objectName, reader, "binary/octet-stream")
+	n, err := c.PutObject(bucketName, objectName, reader, int64(thirtyThreeKiB), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -3102,7 +3404,7 @@ func testRemovePartiallyUploadedV2() {
 	objectName := bucketName + "-resumable"
 	args["objectName"] = objectName
 
-	_, err = c.PutObject(bucketName, objectName, reader, "application/octet-stream")
+	_, err = c.PutObject(bucketName, objectName, reader, -1, &minio.PutObjectOptions{ContentType: "application/octet-stream"})
 	if err == nil {
 		failureLog(function, args, startTime, "", "PutObject should fail", err).Fatal()
 	}
@@ -3124,12 +3426,12 @@ func testRemovePartiallyUploadedV2() {
 func testFPutObjectV2() {
 	// initialize logging params
 	startTime := time.Now()
-	function := "FPutObject(bucketName, objectName, fileName, contentType)"
+	function := "FPutObject(bucketName, objectName, fileName, opts)"
 	args := map[string]interface{}{
-		"bucketName":  "",
-		"objectName":  "",
-		"fileName":    "",
-		"contentType": "application/octet-stream",
+		"bucketName": "",
+		"objectName": "",
+		"fileName":   "",
+		"opts":       "",
 	}
 
 	// Seed random based on current time.
@@ -3189,7 +3491,7 @@ func testFPutObjectV2() {
 	args["fileName"] = file.Name()
 
 	// Perform standard FPutObject with contentType provided (Expecting application/octet-stream)
-	n, err = c.FPutObject(bucketName, objectName+"-standard", file.Name(), "application/octet-stream")
+	n, err = c.FPutObject(bucketName, objectName+"-standard", file.Name(), &minio.PutObjectOptions{ContentType: "application/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "FPutObject failed", err).Fatal()
 	}
@@ -3198,10 +3500,10 @@ func testFPutObjectV2() {
 	}
 
 	// Perform FPutObject with no contentType provided (Expecting application/octet-stream)
-	n, err = c.FPutObject(bucketName, objectName+"-Octet", file.Name(), "")
 	args["objectName"] = objectName + "-Octet"
 	args["contentType"] = ""
 
+	n, err = c.FPutObject(bucketName, objectName+"-Octet", file.Name(), nil)
 	if err != nil {
 		failureLog(function, args, startTime, "", "FPutObject failed", err).Fatal()
 	}
@@ -3217,11 +3519,11 @@ func testFPutObjectV2() {
 	}
 
 	// Perform FPutObject with no contentType provided (Expecting application/x-gtar)
-	n, err = c.FPutObject(bucketName, objectName+"-GTar", fileName+".gtar", "")
 	args["objectName"] = objectName + "-Octet"
 	args["contentType"] = ""
 	args["fileName"] = fileName + ".gtar"
 
+	n, err = c.FPutObject(bucketName, objectName+"-GTar", fileName+".gtar", nil)
 	if err != nil {
 		failureLog(function, args, startTime, "", "FPutObject failed", err).Fatal()
 	}
@@ -3399,7 +3701,7 @@ func testGetObjectReadSeekFunctionalV2() {
 	}
 
 	// Save the data.
-	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(thirtyThreeKiB), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -3544,7 +3846,7 @@ func testGetObjectReadAtFunctionalV2() {
 	}
 
 	// Save the data
-	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "binary/octet-stream")
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(thirtyThreeKiB), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -3693,7 +3995,7 @@ func testCopyObjectV2() {
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-	n, err := c.PutObject(bucketName, objectName, reader, "binary/octet-stream")
+	n, err := c.PutObject(bucketName, objectName, reader, int64(thirtyThreeKiB), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -3856,7 +4158,7 @@ func testComposeObjectErrorCasesWrapper(c *minio.Client) {
 	// 1. Create the source object.
 	const badSrcSize = 5 * 1024 * 1024
 	buf := bytes.Repeat([]byte("1"), badSrcSize)
-	_, err = c.PutObject(bucketName, "badObject", bytes.NewReader(buf), "")
+	_, err = c.PutObject(bucketName, "badObject", bytes.NewReader(buf), int64(len(buf)), nil)
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -3917,7 +4219,7 @@ func testComposeMultipleSources(c *minio.Client) {
 	// Upload a small source object
 	const srcSize = 1024 * 1024 * 5
 	buf := bytes.Repeat([]byte("1"), srcSize)
-	_, err = c.PutObject(bucketName, "srcObject", bytes.NewReader(buf), "binary/octet-stream")
+	_, err = c.PutObject(bucketName, "srcObject", bytes.NewReader(buf), int64(srcSize), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -3997,13 +4299,13 @@ func testEncryptedCopyObjectWrapper(c *minio.Client) {
 	// 1. create an sse-c encrypted object to copy by uploading
 	const srcSize = 1024 * 1024
 	buf := bytes.Repeat([]byte("abcde"), srcSize) // gives a buffer of 5MiB
-	metadata := make(map[string][]string)
+	metadata := make(map[string]string)
 	for k, v := range key1.GetSSEHeaders() {
-		metadata[k] = append(metadata[k], v)
+		metadata[k] = v
 	}
-	_, err = c.PutObjectWithSize(bucketName, "srcObject", bytes.NewReader(buf), int64(len(buf)), metadata, nil)
+	_, err = c.PutObject(bucketName, "srcObject", bytes.NewReader(buf), int64(len(buf)), &minio.PutObjectOptions{UserMetadata: metadata, Progress: nil})
 	if err != nil {
-		failureLog(function, args, startTime, "", "PutObjectWithSize failed", err).Fatal()
+		failureLog(function, args, startTime, "", "PutObject call failed", err).Fatal()
 	}
 
 	// 2. copy object and change encryption key
@@ -4142,8 +4444,10 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 	buf := bytes.Repeat([]byte("abcde"), srcSize) // gives a buffer of 5MiB
 	metadata := make(http.Header)
 	metadata.Set("x-amz-meta-myheader", "myvalue")
-	_, err = c.PutObjectWithMetadata(bucketName, "srcObject",
-		bytes.NewReader(buf), metadata, nil)
+	m := make(map[string]string)
+	m["x-amz-meta-myheader"] = "myvalue"
+	_, err = c.PutObject(bucketName, "srcObject",
+		bytes.NewReader(buf), int64(len(buf)), &minio.PutObjectOptions{UserMetadata: m})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObjectWithMetadata failed", err).Fatal()
 	}
@@ -4275,12 +4579,12 @@ func testUserMetadataCopyingV2() {
 func testPutObjectNoLengthV2() {
 	// initialize logging params
 	startTime := time.Now()
-	function := "PutObjectWithSize(bucketName, objectName, reader, size, metadata, progress)"
+	function := "PutObject(bucketName, objectName, reader, size, opts)"
 	args := map[string]interface{}{
 		"bucketName": "",
 		"objectName": "",
 		"size":       -1,
-		"metadata":   nil,
+		"opts":       "",
 	}
 
 	// Seed random based on current time.
@@ -4323,7 +4627,8 @@ func testPutObjectNoLengthV2() {
 	defer reader.Close()
 
 	// Upload an object.
-	n, err := c.PutObjectWithSize(bucketName, objectName, reader, -1, nil, nil)
+	n, err := c.PutObject(bucketName, objectName, reader, -1, &minio.PutObjectOptions{})
+
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObjectWithSize failed", err).Fatal()
 	}
@@ -4349,10 +4654,12 @@ func testPutObjectNoLengthV2() {
 func testPutObjectsUnknownV2() {
 	// initialize logging params
 	startTime := time.Now()
-	function := "PutObjectStreaming(bucketName, objectName, reader)"
+	function := "PutObject(bucketName, objectName, reader,size,opts)"
 	args := map[string]interface{}{
 		"bucketName": "",
 		"objectName": "",
+		"size":       "",
+		"opts":       "",
 	}
 
 	// Seed random based on current time.
@@ -4403,7 +4710,7 @@ func testPutObjectsUnknownV2() {
 		objectName := fmt.Sprintf("%sunique%d", bucketName, i)
 		args["objectName"] = objectName
 
-		n, err := c.PutObjectStreaming(bucketName, objectName, rpipe)
+		n, err := c.PutObject(bucketName, objectName, rpipe, -1, nil)
 		if err != nil {
 			failureLog(function, args, startTime, "", "PutObjectStreaming failed", err).Fatal()
 		}
@@ -4430,12 +4737,12 @@ func testPutObjectsUnknownV2() {
 func testPutObject0ByteV2() {
 	// initialize logging params
 	startTime := time.Now()
-	function := "PutObjectWithSize(bucketName, objectName, reader, size, metadata, progress)"
+	function := "PutObject(bucketName, objectName, reader, size, opts)"
 	args := map[string]interface{}{
 		"bucketName": "",
 		"objectName": "",
 		"size":       0,
-		"metadata":   nil,
+		"opts":       "",
 	}
 
 	// Seed random based on current time.
@@ -4471,7 +4778,8 @@ func testPutObject0ByteV2() {
 	objectName := bucketName + "unique"
 
 	// Upload an object.
-	n, err := c.PutObjectWithSize(bucketName, objectName, bytes.NewReader([]byte("")), 0, nil, nil)
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader([]byte("")), 0, &minio.PutObjectOptions{})
+
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObjectWithSize failed", err).Fatal()
 	}
@@ -4628,7 +4936,7 @@ func testFunctionalV2() {
 	// Generate data
 	buf := bytes.Repeat([]byte("n"), rand.Intn(1<<19))
 
-	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), "")
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), nil)
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -4636,7 +4944,7 @@ func testFunctionalV2() {
 		failureLog(function, args, startTime, "", "Expected uploaded object length "+string(len(buf))+" got "+string(n), err).Fatal()
 	}
 
-	n, err = c.PutObject(bucketName, objectName+"-nolength", bytes.NewReader(buf), "binary/octet-stream")
+	n, err = c.PutObject(bucketName, objectName+"-nolength", bytes.NewReader(buf), int64(len(buf)), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -4844,6 +5152,433 @@ func testFunctionalV2() {
 	successLogger(function, args, startTime).Info()
 }
 
+// Test get object with GetObjectWithContext
+func testGetObjectWithContext() {
+	// initialize logging params
+	startTime := time.Now()
+	function := "GetObjectWithContext(ctx, bucketName, objectName)"
+	args := map[string]interface{}{
+		"ctx":        "",
+		"bucketName": "",
+		"objectName": "",
+	}
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.NewV4(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		failureLog(function, args, startTime, "", "Minio client v4 object creation failed", err).Fatal()
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
+	}
+
+	// Generate data more than 32K.
+	bufSize := 1<<20 + 32*1024
+	var reader = getDataReader("datafile-33-kB", bufSize)
+	defer reader.Close()
+	// Save the data
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+
+	_, err = c.PutObject(bucketName, objectName, reader, int64(bufSize), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	if err != nil {
+		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
+
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	// Read the data back
+	r, err := c.GetObjectWithContext(ctx, bucketName, objectName)
+	if err != nil {
+		failureLog(function, args, startTime, "", "GetObjectWithContext failed - request timeout not honored", err).Fatal()
+
+	}
+	ctx, cancel = context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+
+	// Read the data back
+	r, err = c.GetObjectWithContext(ctx, bucketName, objectName)
+	if err != nil {
+		failureLog(function, args, startTime, "", "GetObjectWithContext failed", err).Fatal()
+
+	}
+
+	st, err := r.Stat()
+	if err != nil {
+		failureLog(function, args, startTime, "", "object Stat call failed", err).Fatal()
+	}
+	if st.Size != int64(bufSize) {
+		failureLog(function, args, startTime, "", "Number of bytes in stat does not match: want "+string(bufSize)+", got"+string(st.Size), err).Fatal()
+	}
+	if err := r.Close(); err != nil {
+		failureLog(function, args, startTime, "", "object Close() call failed", err).Fatal()
+	}
+
+	err = c.RemoveObject(bucketName, objectName)
+	if err != nil {
+		failureLog(function, args, startTime, "", "RemoveObject call failed", err).Fatal()
+	}
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		failureLog(function, args, startTime, "", "RemoveBucket call failed", err).Fatal()
+	}
+	successLogger(function, args, startTime).Info()
+
+}
+
+// Test get object with FGetObjectWithContext
+func testFGetObjectWithContext() {
+	// initialize logging params
+	startTime := time.Now()
+	function := "FGetObjectWithContext(ctx, bucketName, objectName, fileName)"
+	args := map[string]interface{}{
+		"ctx":        "",
+		"bucketName": "",
+		"objectName": "",
+	}
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.NewV4(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		failureLog(function, args, startTime, "", "Minio client v4 object creation failed", err).Fatal()
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
+	}
+
+	// Generate data more than 32K.
+	var reader = getDataReader("datafile-1-MiB", oneMiB)
+	defer reader.Close()
+	// Save the data
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+
+	_, err = c.PutObject(bucketName, objectName, reader, int64(oneMiB), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	if err != nil {
+		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+	defer cancel()
+
+	fileName := "tempfile-context"
+	// Read the data back
+	err = c.FGetObjectWithContext(ctx, bucketName, objectName, fileName+"-f")
+	if err == nil {
+		failureLog(function, args, startTime, "", "FGetObjectWithContext with short timeout failed", err).Fatal()
+	}
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	// Read the data back
+	err = c.FGetObjectWithContext(ctx, bucketName, objectName, fileName+"-fcontext")
+	if err != nil {
+		failureLog(function, args, startTime, "", "FGetObjectWithContext with long timeout failed", err).Fatal()
+	}
+	if err = os.Remove(fileName + "-fcontext"); err != nil {
+		failureLog(function, args, startTime, "", "Remove file failed", err).Fatal()
+
+	}
+	err = c.RemoveObject(bucketName, objectName)
+	if err != nil {
+		failureLog(function, args, startTime, "", "RemoveObject call failed", err).Fatal()
+
+	}
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		failureLog(function, args, startTime, "", "RemoveBucket call failed", err).Fatal()
+
+	}
+	successLogger(function, args, startTime).Info()
+
+}
+
+// Test validates putObject with context to see if request cancellation is honored for V2.
+func testPutObjectWithContextV2() {
+	// initialize logging params
+	startTime := time.Now()
+	function := "PutObjectWithContext(ctx, bucketName, objectName, fileName, opts)"
+	args := map[string]interface{}{
+		"bucketName": "",
+		"objectName": "",
+		"opts":       "&minio.PutObjectOptions{ContentType:objectContentType}",
+	}
+	// Instantiate new minio client object.
+	c, err := minio.NewV2(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		failureLog(function, args, startTime, "", "Minio client v2 object creation failed", err).Fatal()
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Make a new bucket.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
+
+	}
+	defer c.RemoveBucket(bucketName)
+	bufSize := 1<<20 + 32*1024
+	var reader = getDataReader("datafile-33-kB", bufSize)
+	defer reader.Close()
+	objectName := fmt.Sprintf("test-file-%v", rand.Uint32())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	_, err = c.PutObjectWithContext(ctx, bucketName, objectName, reader, int64(bufSize), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	if err != nil {
+		failureLog(function, args, startTime, "", "PutObjectWithContext with short timeout failed", err).Fatal()
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	reader = getDataReader("datafile-33-kB", bufSize)
+	defer reader.Close()
+	_, err = c.PutObjectWithContext(ctx, bucketName, objectName, reader, int64(bufSize), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	if err != nil {
+		failureLog(function, args, startTime, "", "PutObjectWithContext with long timeout failed", err).Fatal()
+	}
+
+	if err = c.RemoveObject(bucketName, objectName); err != nil {
+		failureLog(function, args, startTime, "", "RemoveObject call failed", err).Fatal()
+	}
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		failureLog(function, args, startTime, "", "RemoveBucket call failed", err).Fatal()
+	}
+	successLogger(function, args, startTime).Info()
+
+}
+
+// Test get object with GetObjectWithContext
+func testGetObjectWithContextV2() {
+	// initialize logging params
+	startTime := time.Now()
+	function := "GetObjectWithContext(ctx, bucketName, objectName)"
+	args := map[string]interface{}{
+		"bucketName": "",
+		"objectName": "",
+	}
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.NewV2(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		failureLog(function, args, startTime, "", "Minio client v2 object creation failed", err).Fatal()
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
+	}
+
+	// Generate data more than 32K.
+	bufSize := 1<<20 + 32*1024
+	var reader = getDataReader("datafile-33-kB", bufSize)
+	defer reader.Close()
+	// Save the data
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+
+	_, err = c.PutObject(bucketName, objectName, reader, int64(bufSize), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	if err != nil {
+		failureLog(function, args, startTime, "", "PutObject call failed", err).Fatal()
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	// Read the data back
+	r, err := c.GetObjectWithContext(ctx, bucketName, objectName)
+	if err != nil {
+		failureLog(function, args, startTime, "", "GetObjectWithContext failed due to non-cancellation upon short timeout", err).Fatal()
+
+	}
+	ctx, cancel = context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+
+	// Read the data back
+	r, err = c.GetObjectWithContext(ctx, bucketName, objectName)
+	if err != nil {
+		failureLog(function, args, startTime, "", "GetObjectWithContext failed due to non-cancellation upon long timeout", err).Fatal()
+
+	}
+
+	st, err := r.Stat()
+	if err != nil {
+		failureLog(function, args, startTime, "", "object Stat call failed", err).Fatal()
+	}
+	if st.Size != int64(bufSize) {
+		failureLog(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(bufSize)+" got "+string(st.Size), err).Fatal()
+	}
+	if err := r.Close(); err != nil {
+		failureLog(function, args, startTime, "", " object Close() call failed", err).Fatal()
+	}
+
+	err = c.RemoveObject(bucketName, objectName)
+	if err != nil {
+		failureLog(function, args, startTime, "", "RemoveObject call failed", err).Fatal()
+
+	}
+
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		failureLog(function, args, startTime, "", "RemoveBucket call failed", err).Fatal()
+	}
+	successLogger(function, args, startTime).Info()
+
+}
+
+// Test get object with FGetObjectWithContext
+func testFGetObjectWithContextV2() {
+	// initialize logging params
+	startTime := time.Now()
+	function := "FGetObjectWithContext(ctx, bucketName, objectName,fileName)"
+	args := map[string]interface{}{
+		"bucketName": "",
+		"objectName": "",
+		"fileName":   "",
+	}
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.NewV2(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		failureLog(function, args, startTime, "", "Minio client v2 object creation failed", err).Fatal()
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		failureLog(function, args, startTime, "", "MakeBucket call failed", err).Fatal()
+	}
+
+	// Generate data more than 32K.
+
+	var reader = getDataReader("datafile-1-MiB", oneMiB)
+	defer reader.Close()
+	// Save the data
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+
+	_, err = c.PutObject(bucketName, objectName, reader, int64(oneMiB), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	if err != nil {
+		failureLog(function, args, startTime, "", "PutObject call failed", err).Fatal()
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	defer cancel()
+
+	fileName := "tempfile-context"
+	// Read the data back
+	err = c.FGetObjectWithContext(ctx, bucketName, objectName, fileName+"-f")
+	if err == nil {
+		failureLog(function, args, startTime, "", "FGetObjectWithContext call with short request timeout failed", err).Fatal()
+
+	}
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	// Read the data back
+	err = c.FGetObjectWithContext(ctx, bucketName, objectName, fileName+"-fcontext")
+	if err != nil {
+		failureLog(function, args, startTime, "", "FGetObjectWithContext call with long request timeout failed", err).Fatal()
+	}
+
+	if err = os.Remove(fileName + "-fcontext"); err != nil {
+		failureLog(function, args, startTime, "", "Remove file failed", err).Fatal()
+
+	}
+	err = c.RemoveObject(bucketName, objectName)
+	if err != nil {
+		failureLog(function, args, startTime, "", "RemoveObject call failed", err).Fatal()
+	}
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		failureLog(function, args, startTime, "", "RemoveBucket call failed", err).Fatal()
+	}
+	successLogger(function, args, startTime).Info()
+
+}
+
 // Convert string to bool and always return false if any error
 func mustParseBool(str string) bool {
 	b, err := strconv.ParseBool(str)
@@ -4880,6 +5615,10 @@ func main() {
 		testPutObject0ByteV2()
 		testPutObjectNoLengthV2()
 		testPutObjectsUnknownV2()
+		testGetObjectWithContextV2()
+		testFPutObjectWithContextV2()
+		testFGetObjectWithContextV2()
+		testPutObjectWithContextV2()
 		testMakeBucketError()
 		testMakeBucketRegions()
 		testPutObjectWithMetadata()
@@ -4905,6 +5644,10 @@ func main() {
 		testFunctional()
 		testGetObjectObjectModified()
 		testPutObjectUploadSeekedObject()
+		testGetObjectWithContext()
+		testFPutObjectWithContext()
+		testFGetObjectWithContext()
+		testPutObjectWithContext()
 	} else {
 		testFunctional()
 		testFunctionalV2()
