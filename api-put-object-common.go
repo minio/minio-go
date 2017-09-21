@@ -78,7 +78,7 @@ func optimalPartInfo(objectSize int64) (totalPartsCount int, partSize int64, las
 
 // getUploadID - fetch upload id if already present for an object name
 // or initiate a new request to fetch a new upload id.
-func (c Client) newUploadID(ctx context.Context, bucketName, objectName string, opts *PutObjectOptions) (uploadID string, err error) {
+func (c Client) newUploadID(ctx context.Context, bucketName, objectName string, opts PutObjectOptions) (uploadID string, err error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return "", err

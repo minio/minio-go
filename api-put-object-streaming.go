@@ -38,7 +38,7 @@ import (
 //  - Any reader which has a method 'ReadAt()'
 //
 func (c Client) putObjectMultipartStream(ctx context.Context, bucketName, objectName string,
-	reader io.Reader, size int64, opts *PutObjectOptions) (n int64, err error) {
+	reader io.Reader, size int64, opts PutObjectOptions) (n int64, err error) {
 
 	// Verify if reader is *minio.Object, *os.File or io.ReaderAt.
 	// NOTE: Verification of object is kept for a specific purpose
@@ -91,7 +91,7 @@ type uploadPartReq struct {
 // cleaned automatically when the caller i.e http client closes the
 // stream after uploading all the contents successfully.
 func (c Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketName, objectName string,
-	reader io.ReaderAt, size int64, opts *PutObjectOptions) (n int64, err error) {
+	reader io.ReaderAt, size int64, opts PutObjectOptions) (n int64, err error) {
 	// Input validation.
 	if err = s3utils.CheckValidBucketName(bucketName); err != nil {
 		return 0, err
@@ -234,7 +234,7 @@ func (c Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketNa
 }
 
 func (c Client) putObjectMultipartStreamNoChecksum(ctx context.Context, bucketName, objectName string,
-	reader io.Reader, size int64, opts *PutObjectOptions) (n int64, err error) {
+	reader io.Reader, size int64, opts PutObjectOptions) (n int64, err error) {
 	// Input validation.
 	if err = s3utils.CheckValidBucketName(bucketName); err != nil {
 		return 0, err
@@ -332,7 +332,7 @@ func (c Client) putObjectMultipartStreamNoChecksum(ctx context.Context, bucketNa
 
 // putObjectNoChecksum special function used Google Cloud Storage. This special function
 // is used for Google Cloud Storage since Google's multipart API is not S3 compatible.
-func (c Client) putObjectNoChecksum(ctx context.Context, bucketName, objectName string, reader io.Reader, size int64, opts *PutObjectOptions) (n int64, err error) {
+func (c Client) putObjectNoChecksum(ctx context.Context, bucketName, objectName string, reader io.Reader, size int64, opts PutObjectOptions) (n int64, err error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return 0, err
@@ -370,7 +370,7 @@ func (c Client) putObjectNoChecksum(ctx context.Context, bucketName, objectName 
 
 // putObjectDo - executes the put object http operation.
 // NOTE: You must have WRITE permissions on a bucket to add an object to it.
-func (c Client) putObjectDo(ctx context.Context, bucketName, objectName string, reader io.Reader, md5Sum []byte, sha256Sum []byte, size int64, opts *PutObjectOptions) (ObjectInfo, error) {
+func (c Client) putObjectDo(ctx context.Context, bucketName, objectName string, reader io.Reader, md5Sum []byte, sha256Sum []byte, size int64, opts PutObjectOptions) (ObjectInfo, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return ObjectInfo{}, err
@@ -379,7 +379,7 @@ func (c Client) putObjectDo(ctx context.Context, bucketName, objectName string, 
 		return ObjectInfo{}, err
 	}
 	// Set headers.
-	customHeader := opts.getMetadata()
+	customHeader := opts.Header()
 
 	// Populate request metadata.
 	reqMetadata := requestMetadata{

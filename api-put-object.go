@@ -44,7 +44,7 @@ type PutObjectOptions struct {
 
 // getNumThreads - gets the number of threads to be used in the multipart
 // put object operation
-func (opts *PutObjectOptions) getNumThreads() (numThreads int) {
+func (opts PutObjectOptions) getNumThreads() (numThreads int) {
 	if opts.NumThreads > 0 {
 		numThreads = int(opts.NumThreads)
 	} else {
@@ -53,38 +53,49 @@ func (opts *PutObjectOptions) getNumThreads() (numThreads int) {
 	return
 }
 
-// getMetaData - constructs the headers from metadata entered by user in
+// Header - constructs the headers from metadata entered by user in
 // PutObjectOptions struct
-func (opts *PutObjectOptions) getMetadata() (headers http.Header) {
-	headers = make(http.Header)
+func (opts PutObjectOptions) Header() (header http.Header) {
+	header = make(http.Header)
 
 	if opts.ContentType != "" {
-		headers["Content-Type"] = []string{opts.ContentType}
+		header["Content-Type"] = []string{opts.ContentType}
 	} else {
-		headers["Content-Type"] = []string{"application/octet-stream"}
+		header["Content-Type"] = []string{"application/octet-stream"}
 	}
 	if opts.ContentEncoding != "" {
-		headers["Content-Encoding"] = []string{opts.ContentEncoding}
+		header["Content-Encoding"] = []string{opts.ContentEncoding}
 	}
 	if opts.ContentDisposition != "" {
-		headers["Content-Disposition"] = []string{opts.ContentDisposition}
+		header["Content-Disposition"] = []string{opts.ContentDisposition}
 	}
 	if opts.CacheControl != "" {
-		headers["Cache-Control"] = []string{opts.CacheControl}
+		header["Cache-Control"] = []string{opts.CacheControl}
 	}
 	if opts.EncryptMaterials != nil {
-		headers[amzHeaderIV] = []string{opts.EncryptMaterials.GetIV()}
-		headers[amzHeaderKey] = []string{opts.EncryptMaterials.GetKey()}
-		headers[amzHeaderMatDesc] = []string{opts.EncryptMaterials.GetDesc()}
+		header[amzHeaderIV] = []string{opts.EncryptMaterials.GetIV()}
+		header[amzHeaderKey] = []string{opts.EncryptMaterials.GetKey()}
+		header[amzHeaderMatDesc] = []string{opts.EncryptMaterials.GetDesc()}
 	}
 	for k, v := range opts.UserMetadata {
 		if !strings.HasPrefix(strings.ToLower(k), "x-amz-meta-") && !isStandardHeader(k) {
-			headers["X-Amz-Meta-"+k] = []string{v}
+			header["X-Amz-Meta-"+k] = []string{v}
 		} else {
-			headers[k] = []string{v}
+			header[k] = []string{v}
 		}
 	}
 	return
+}
+
+// validate() checks if the UserMetadata map has standard headers or client side
+// encryption headers and raises an error if so.
+func (opts PutObjectOptions) validate() (err error) {
+	for k := range opts.UserMetadata {
+		if isStandardHeader(k) || isCSEHeader(k) {
+			return ErrInvalidArgument(k + " unsupported request parameter for user defined metadata")
+		}
+	}
+	return nil
 }
 
 // completedParts is a collection of parts sortable by their part numbers.
@@ -107,11 +118,11 @@ func (a completedParts) Less(i, j int) bool { return a[i].PartNumber < a[j].Part
 //    until input stream reaches EOF. Maximum object size that can
 //    be uploaded through this operation will be 5TiB.
 func (c Client) PutObject(bucketName, objectName string, reader io.Reader, objectSize int64,
-	opts *PutObjectOptions) (n int64, err error) {
+	opts PutObjectOptions) (n int64, err error) {
 	return c.PutObjectWithContext(context.Background(), bucketName, objectName, reader, objectSize, opts)
 }
 
-func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName string, reader io.Reader, size int64, opts *PutObjectOptions) (n int64, err error) {
+func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName string, reader io.Reader, size int64, opts PutObjectOptions) (n int64, err error) {
 	// Check for largest object size allowed.
 	if size > int64(maxMultipartPutObjectSize) {
 		return 0, ErrEntityTooLarge(size, maxMultipartPutObjectSize, bucketName, objectName)
@@ -140,7 +151,7 @@ func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName stri
 	return c.putObjectMultipartStream(ctx, bucketName, objectName, reader, size, opts)
 }
 
-func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName, objectName string, reader io.Reader, opts *PutObjectOptions) (n int64, err error) {
+func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName, objectName string, reader io.Reader, opts PutObjectOptions) (n int64, err error) {
 	// Input validation.
 	if err = s3utils.CheckValidBucketName(bucketName); err != nil {
 		return 0, err

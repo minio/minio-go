@@ -55,11 +55,11 @@ func (c Core) ListObjectsV2(bucketName, objectPrefix, continuationToken string, 
 
 // PutObject - Upload object. Uploads using single PUT call.
 func (c Core) PutObject(bucket, object string, data io.Reader, size int64, md5Sum, sha256Sum []byte, metadata map[string]string) (ObjectInfo, error) {
-	return c.putObjectDo(context.Background(), bucket, object, data, md5Sum, sha256Sum, size, &PutObjectOptions{UserMetadata: metadata})
+	return c.putObjectDo(context.Background(), bucket, object, data, md5Sum, sha256Sum, size, PutObjectOptions{UserMetadata: metadata})
 }
 
 // NewMultipartUpload - Initiates new multipart upload and returns the new uploadID.
-func (c Core) NewMultipartUpload(bucket, object string, opts *PutObjectOptions) (uploadID string, err error) {
+func (c Core) NewMultipartUpload(bucket, object string, opts PutObjectOptions) (uploadID string, err error) {
 	result, err := c.initiateMultipartUpload(context.Background(), bucket, object, opts)
 	return result.UploadID, err
 }

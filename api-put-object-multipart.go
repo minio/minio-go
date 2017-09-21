@@ -34,7 +34,7 @@ import (
 )
 
 func (c Client) putObjectMultipart(ctx context.Context, bucketName, objectName string, reader io.Reader, size int64,
-	opts *PutObjectOptions) (n int64, err error) {
+	opts PutObjectOptions) (n int64, err error) {
 	n, err = c.putObjectMultipartNoStream(ctx, bucketName, objectName, reader, opts)
 	if err != nil {
 		errResp := ToErrorResponse(err)
@@ -52,7 +52,7 @@ func (c Client) putObjectMultipart(ctx context.Context, bucketName, objectName s
 	return n, err
 }
 
-func (c Client) putObjectMultipartNoStream(ctx context.Context, bucketName, objectName string, reader io.Reader, opts *PutObjectOptions) (n int64, err error) {
+func (c Client) putObjectMultipartNoStream(ctx context.Context, bucketName, objectName string, reader io.Reader, opts PutObjectOptions) (n int64, err error) {
 	// Input validation.
 	if err = s3utils.CheckValidBucketName(bucketName); err != nil {
 		return 0, err
@@ -168,7 +168,7 @@ func (c Client) putObjectMultipartNoStream(ctx context.Context, bucketName, obje
 }
 
 // initiateMultipartUpload - Initiates a multipart upload and returns an upload ID.
-func (c Client) initiateMultipartUpload(ctx context.Context, bucketName, objectName string, opts *PutObjectOptions) (initiateMultipartUploadResult, error) {
+func (c Client) initiateMultipartUpload(ctx context.Context, bucketName, objectName string, opts PutObjectOptions) (initiateMultipartUploadResult, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return initiateMultipartUploadResult{}, err
@@ -182,7 +182,7 @@ func (c Client) initiateMultipartUpload(ctx context.Context, bucketName, objectN
 	urlValues.Set("uploads", "")
 
 	// Set ContentType header.
-	customHeader := opts.getMetadata()
+	customHeader := opts.Header()
 
 	reqMetadata := requestMetadata{
 		bucketName:   bucketName,

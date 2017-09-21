@@ -26,7 +26,7 @@ import (
 )
 
 // FPutObjectWithContext - Create an object in a bucket, with contents from file at filePath. Allows request cancellation.
-func (c Client) FPutObjectWithContext(ctx context.Context, bucketName, objectName, filePath string, opts *PutObjectOptions) (n int64, err error) {
+func (c Client) FPutObjectWithContext(ctx context.Context, bucketName, objectName, filePath string, opts PutObjectOptions) (n int64, err error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return 0, err
@@ -52,9 +52,6 @@ func (c Client) FPutObjectWithContext(ctx context.Context, bucketName, objectNam
 	// Save the file size.
 	fileSize := fileStat.Size()
 
-	if opts == nil {
-		opts = &PutObjectOptions{}
-	}
 	// Set contentType based on filepath extension if not given or default
 	// value of "application/octet-stream" if the extension has no associated type.
 	if opts.ContentType == "" {

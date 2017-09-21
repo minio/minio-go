@@ -21,6 +21,6 @@ import (
 )
 
 // FPutObject - Create an object in a bucket, with contents from file at filePath
-func (c Client) FPutObject(bucketName, objectName, filePath string, opts *PutObjectOptions) (n int64, err error) {
+func (c Client) FPutObject(bucketName, objectName, filePath string, opts PutObjectOptions) (n int64, err error) {
 	return c.FPutObjectWithContext(context.Background(), bucketName, objectName, filePath, opts)
 }

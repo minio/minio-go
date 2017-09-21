@@ -61,7 +61,7 @@ func main() {
 	}
 
 	// minioClient.TraceOn(os.Stderr) // Enable to debug.
-	_, err = minioClient.PutObject("mybucket", "my-encrypted-object.txt", content, 11, &minio.PutObjectOptions{UserMetadata: metadata})
+	_, err = minioClient.PutObject("mybucket", "my-encrypted-object.txt", content, 11, minio.PutObjectOptions{UserMetadata: metadata})
 	if err != nil {
 		log.Fatalln(err)
 	}

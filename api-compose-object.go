@@ -431,7 +431,7 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 	for k, v := range metaMap {
 		metaHeaders[k] = v
 	}
-	uploadID, err := c.newUploadID(ctx, dst.bucket, dst.object, &PutObjectOptions{UserMetadata: metaHeaders})
+	uploadID, err := c.newUploadID(ctx, dst.bucket, dst.object, PutObjectOptions{UserMetadata: metaHeaders})
 	if err != nil {
 		return fmt.Errorf("Error creating new upload: %v", err)
 	}

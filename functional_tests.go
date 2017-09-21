@@ -303,7 +303,7 @@ func testMetadataSizeLimit() {
 	metadata["X-Amz-Meta-Mint-Test"] = string(bytes.Repeat([]byte("m"), 1+UserMetadataLimit-len("X-Amz-Meta-Mint-Test")))
 	args["metadata"] = fmt.Sprint(metadata)
 
-	_, err = c.PutObject(bucketName, objectName, bytes.NewReader(nil), 0, &minio.PutObjectOptions{UserMetadata: metadata})
+	_, err = c.PutObject(bucketName, objectName, bytes.NewReader(nil), 0, minio.PutObjectOptions{UserMetadata: metadata})
 	if err == nil {
 		failureLog(function, args, startTime, "", "Created object with user-defined metadata exceeding metadata size limits", nil).Fatal()
 	}
@@ -312,7 +312,7 @@ func testMetadataSizeLimit() {
 	metadata = make(map[string]string)
 	metadata["X-Amz-Mint-Test"] = string(bytes.Repeat([]byte("m"), 1+HeaderSizeLimit-len("X-Amz-Mint-Test")))
 	args["metadata"] = fmt.Sprint(metadata)
-	_, err = c.PutObject(bucketName, objectName, bytes.NewReader(nil), 0, &minio.PutObjectOptions{UserMetadata: metadata})
+	_, err = c.PutObject(bucketName, objectName, bytes.NewReader(nil), 0, minio.PutObjectOptions{UserMetadata: metadata})
 	if err == nil {
 		failureLog(function, args, startTime, "", "Created object with headers exceeding header size limits", nil).Fatal()
 	}
@@ -441,7 +441,7 @@ func testPutObjectReadAt() {
 	objectContentType := "binary/octet-stream"
 	args["objectContentType"] = objectContentType
 
-	n, err := c.PutObject(bucketName, objectName, reader, int64(sixtyFiveMiB), &minio.PutObjectOptions{ContentType: objectContentType})
+	n, err := c.PutObject(bucketName, objectName, reader, int64(sixtyFiveMiB), minio.PutObjectOptions{ContentType: objectContentType})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -494,7 +494,7 @@ func testPutObjectWithMetadata() {
 	args := map[string]interface{}{
 		"bucketName": "",
 		"objectName": "",
-		"opts":       "&minio.PutObjectOptions{UserMetadata: metadata, Progress: progress}",
+		"opts":       "minio.PutObjectOptions{UserMetadata: metadata, Progress: progress}",
 	}
 
 	if isQuickMode() {
@@ -548,7 +548,7 @@ func testPutObjectWithMetadata() {
 		"Content-Type": {customContentType},
 	}
 
-	n, err := c.PutObject(bucketName, objectName, reader, int64(sixtyFiveMiB), &minio.PutObjectOptions{
+	n, err := c.PutObject(bucketName, objectName, reader, int64(sixtyFiveMiB), minio.PutObjectOptions{
 		ContentType: customContentType})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
@@ -640,7 +640,7 @@ func testPutObjectStreaming() {
 
 	for _, size := range sizes {
 		data := bytes.Repeat([]byte("a"), int(size))
-		n, err := c.PutObject(bucketName, objectName, bytes.NewReader(data), int64(size), nil)
+		n, err := c.PutObject(bucketName, objectName, bytes.NewReader(data), int64(size), minio.PutObjectOptions{})
 		if err != nil {
 			failureLog(function, args, startTime, "", "PutObjectStreaming failed", err).Fatal()
 		}
@@ -724,7 +724,7 @@ func testListPartiallyUploaded() {
 	objectName := bucketName + "-resumable"
 	args["objectName"] = objectName
 
-	_, err = c.PutObject(bucketName, objectName, reader, int64(sixtyFiveMiB*2), &minio.PutObjectOptions{ContentType: "application/octet-stream"})
+	_, err = c.PutObject(bucketName, objectName, reader, int64(sixtyFiveMiB*2), minio.PutObjectOptions{ContentType: "application/octet-stream"})
 	if err == nil {
 		failureLog(function, args, startTime, "", "PutObject should fail", err).Fatal()
 	}
@@ -804,7 +804,7 @@ func testGetObjectSeekEnd() {
 		failureLog(function, args, startTime, "", "ReadAll failed", err).Fatal()
 	}
 
-	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -909,7 +909,7 @@ func testGetObjectClosedTwice() {
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	args["objectName"] = objectName
 
-	n, err := c.PutObject(bucketName, objectName, reader, int64(thirtyThreeKiB), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err := c.PutObject(bucketName, objectName, reader, int64(thirtyThreeKiB), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -1001,7 +1001,7 @@ func testRemoveMultipleObjects() {
 		// Upload objects and send them to objectsCh
 		for i := 0; i < nrObjects; i++ {
 			objectName := "sample" + strconv.Itoa(i) + ".txt"
-			_, err = c.PutObject(bucketName, objectName, r, 8, &minio.PutObjectOptions{ContentType: "application/octet-stream"})
+			_, err = c.PutObject(bucketName, objectName, r, 8, minio.PutObjectOptions{ContentType: "application/octet-stream"})
 			if err != nil {
 				failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 				continue
@@ -1088,7 +1088,7 @@ func testRemovePartiallyUploaded() {
 	objectName := bucketName + "-resumable"
 	args["objectName"] = objectName
 
-	_, err = c.PutObject(bucketName, objectName, reader, 128*1024, &minio.PutObjectOptions{ContentType: "application/octet-stream"})
+	_, err = c.PutObject(bucketName, objectName, reader, 128*1024, minio.PutObjectOptions{ContentType: "application/octet-stream"})
 	if err == nil {
 		failureLog(function, args, startTime, "", "PutObject should fail", err).Fatal()
 	}
@@ -1177,7 +1177,7 @@ func testFPutObjectMultipart() {
 	args["objectContentType"] = objectContentType
 
 	// Perform standard FPutObject with contentType provided (Expecting application/octet-stream)
-	n, err := c.FPutObject(bucketName, objectName, fileName, &minio.PutObjectOptions{ContentType: objectContentType})
+	n, err := c.FPutObject(bucketName, objectName, fileName, minio.PutObjectOptions{ContentType: objectContentType})
 	if err != nil {
 		failureLog(function, args, startTime, "", "FPutObject failed", err).Fatal()
 	}
@@ -1282,7 +1282,7 @@ func testFPutObject() {
 	args["objectName"] = objectName
 
 	// Perform standard FPutObject with contentType provided (Expecting application/octet-stream)
-	n, err := c.FPutObject(bucketName, objectName+"-standard", fName, &minio.PutObjectOptions{ContentType: "application/octet-stream"})
+	n, err := c.FPutObject(bucketName, objectName+"-standard", fName, minio.PutObjectOptions{ContentType: "application/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "FPutObject failed", err).Fatal()
 	}
@@ -1291,7 +1291,7 @@ func testFPutObject() {
 	}
 
 	// Perform FPutObject with no contentType provided (Expecting application/octet-stream)
-	n, err = c.FPutObject(bucketName, objectName+"-Octet", fName, &minio.PutObjectOptions{})
+	n, err = c.FPutObject(bucketName, objectName+"-Octet", fName, minio.PutObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "File close failed", err).Fatal()
 	}
@@ -1315,7 +1315,7 @@ func testFPutObject() {
 	}
 
 	// Perform FPutObject with no contentType provided (Expecting application/x-gtar)
-	n, err = c.FPutObject(bucketName, objectName+"-GTar", fName+".gtar", nil)
+	n, err = c.FPutObject(bucketName, objectName+"-GTar", fName+".gtar", minio.PutObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "FPutObject failed", err).Fatal()
 	}
@@ -1446,14 +1446,14 @@ func testFPutObjectWithContext() {
 	defer cancel()
 
 	// Perform standard FPutObjectWithContext with contentType provided (Expecting application/octet-stream)
-	_, err = c.FPutObjectWithContext(ctx, bucketName, objectName+"-Shorttimeout", fName, &minio.PutObjectOptions{ContentType: "application/octet-stream"})
+	_, err = c.FPutObjectWithContext(ctx, bucketName, objectName+"-Shorttimeout", fName, minio.PutObjectOptions{ContentType: "application/octet-stream"})
 	if err == nil {
 		failureLog(function, args, startTime, "", "Request context cancellation failed", err).Fatal()
 	}
 	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	// Perform FPutObjectWithContext with a long timeout. Expect the put object to succeed
-	n, err := c.FPutObjectWithContext(ctx, bucketName, objectName+"-Longtimeout", fName, nil)
+	n, err := c.FPutObjectWithContext(ctx, bucketName, objectName+"-Longtimeout", fName, minio.PutObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "FPutObjectWithContext failed", err).Fatal()
 	}
@@ -1496,7 +1496,7 @@ func testFPutObjectWithContextV2() {
 	args := map[string]interface{}{
 		"bucketName": "",
 		"objectName": "",
-		"opts":       "&minio.PutObjectOptions{ContentType:objectContentType}",
+		"opts":       "minio.PutObjectOptions{ContentType:objectContentType}",
 	}
 	// Seed random based on current time.
 	rand.Seed(time.Now().Unix())
@@ -1560,14 +1560,14 @@ func testFPutObjectWithContextV2() {
 	defer cancel()
 
 	// Perform standard FPutObjectWithContext with contentType provided (Expecting application/octet-stream)
-	_, err = c.FPutObjectWithContext(ctx, bucketName, objectName+"-Shorttimeout", fName, &minio.PutObjectOptions{ContentType: "application/octet-stream"})
+	_, err = c.FPutObjectWithContext(ctx, bucketName, objectName+"-Shorttimeout", fName, minio.PutObjectOptions{ContentType: "application/octet-stream"})
 	if err == nil {
 		failureLog(function, args, startTime, "", "FPutObjectWithContext with short timeout failed", err).Fatal()
 	}
 	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	// Perform FPutObjectWithContext with a long timeout. Expect the put object to succeed
-	n, err := c.FPutObjectWithContext(ctx, bucketName, objectName+"-Longtimeout", fName, nil)
+	n, err := c.FPutObjectWithContext(ctx, bucketName, objectName+"-Longtimeout", fName, minio.PutObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "FPutObjectWithContext with long timeout failed", err).Fatal()
 	}
@@ -1613,7 +1613,7 @@ func testPutObjectWithContext() {
 	args := map[string]interface{}{
 		"bucketName": "",
 		"objectName": "",
-		"opts":       "&minio.PutObjectOptions{ContentType:objectContentType}",
+		"opts":       "minio.PutObjectOptions{ContentType:objectContentType}",
 	}
 	// Instantiate new minio client object.
 	c, err := minio.NewV4(
@@ -1647,7 +1647,7 @@ func testPutObjectWithContext() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	_, err = c.PutObjectWithContext(ctx, bucketName, objectName, reader, int64(bufSize), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	_, err = c.PutObjectWithContext(ctx, bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObjectWithContext with short timeout failed", err).Fatal()
 	}
@@ -1656,7 +1656,7 @@ func testPutObjectWithContext() {
 	defer cancel()
 	reader = getDataReader("datafile-33-kB", bufSize)
 	defer reader.Close()
-	_, err = c.PutObjectWithContext(ctx, bucketName, objectName, reader, int64(bufSize), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	_, err = c.PutObjectWithContext(ctx, bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObjectWithContext with long timeout failed", err).Fatal()
 	}
@@ -1725,7 +1725,7 @@ func testGetObjectReadSeekFunctional() {
 	}
 
 	// Save the data
-	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -1891,7 +1891,7 @@ func testGetObjectReadAtFunctional() {
 	}
 
 	// Save the data
-	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -2052,7 +2052,7 @@ func testPresignedPostPolicy() {
 	}
 
 	// Save the data
-	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -2158,7 +2158,7 @@ func testCopyObject() {
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-	n, err := c.PutObject(bucketName, objectName, reader, int64(thirtyThreeKiB), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err := c.PutObject(bucketName, objectName, reader, int64(thirtyThreeKiB), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -2375,10 +2375,6 @@ func testEncryptionPutGet() {
 		failureLog(function, args, startTime, "", "NewAsymmetricKey for symmetric Key generation failed", err).Fatal()
 	}
 
-	// Object custom metadata
-	customContentType := "custom/contenttype"
-	args["metadata"] = customContentType
-
 	testCases := []struct {
 		buf    []byte
 		encKey encrypt.Key
@@ -2417,9 +2413,7 @@ func testEncryptionPutGet() {
 		}
 
 		// Put encrypted data
-		_, err = c.PutObject(bucketName, objectName, bytes.NewReader(testCase.buf), int64(len(testCase.buf)), &minio.PutObjectOptions{EncryptMaterials: cbcMaterials, ContentType: customContentType})
-
-		//KPDEL	_, err = c.PutEncryptedObject(bucketName, objectName, bytes.NewReader(testCase.buf), cbcMaterials, map[string][]string{"Content-Type": {customContentType}}, nil)
+		_, err = c.PutEncryptedObject(bucketName, objectName, bytes.NewReader(testCase.buf), cbcMaterials)
 		if err != nil {
 			failureLog(function, args, startTime, "", "PutEncryptedObject failed", err).Fatal()
 		}
@@ -2461,6 +2455,189 @@ func testEncryptionPutGet() {
 	successLogger(function, args, startTime).Info()
 }
 
+// TestEncryptionFPut tests client side encryption
+func testEncryptionFPut() {
+	// initialize logging params
+	startTime := time.Now()
+	function := "FPutEncryptedObject(bucketName, objectName, filePath, contentType, cbcMaterials)"
+	args := map[string]interface{}{
+		"bucketName":   "",
+		"objectName":   "",
+		"filePath":     "",
+		"contentType":  "",
+		"cbcMaterials": "",
+	}
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object
+	c, err := minio.NewV4(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		failureLog(function, args, startTime, "", "Minio client object creation failed", err).Fatal()
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
+	}
+
+	// Generate a symmetric key
+	symKey := encrypt.NewSymmetricKey([]byte("my-secret-key-00"))
+
+	// Generate an assymmetric key from predefine public and private certificates
+	privateKey, err := hex.DecodeString(
+		"30820277020100300d06092a864886f70d0101010500048202613082025d" +
+			"0201000281810087b42ea73243a3576dc4c0b6fa245d339582dfdbddc20c" +
+			"bb8ab666385034d997210c54ba79275c51162a1221c3fb1a4c7c61131ca6" +
+			"5563b319d83474ef5e803fbfa7e52b889e1893b02586b724250de7ac6351" +
+			"cc0b7c638c980acec0a07020a78eed7eaa471eca4b92071394e061346c06" +
+			"15ccce2f465dee2080a89e43f29b5702030100010281801dd5770c3af8b3" +
+			"c85cd18cacad81a11bde1acfac3eac92b00866e142301fee565365aa9af4" +
+			"57baebf8bb7711054d071319a51dd6869aef3848ce477a0dc5f0dbc0c336" +
+			"5814b24c820491ae2bb3c707229a654427e03307fec683e6b27856688f08" +
+			"bdaa88054c5eeeb773793ff7543ee0fb0e2ad716856f2777f809ef7e6fa4" +
+			"41024100ca6b1edf89e8a8f93cce4b98c76c6990a09eb0d32ad9d3d04fbf" +
+			"0b026fa935c44f0a1c05dd96df192143b7bda8b110ec8ace28927181fd8c" +
+			"d2f17330b9b63535024100aba0260afb41489451baaeba423bee39bcbd1e" +
+			"f63dd44ee2d466d2453e683bf46d019a8baead3a2c7fca987988eb4d565e" +
+			"27d6be34605953f5034e4faeec9bdb0241009db2cb00b8be8c36710aff96" +
+			"6d77a6dec86419baca9d9e09a2b761ea69f7d82db2ae5b9aae4246599bb2" +
+			"d849684d5ab40e8802cfe4a2b358ad56f2b939561d2902404e0ead9ecafd" +
+			"bb33f22414fa13cbcc22a86bdf9c212ce1a01af894e3f76952f36d6c904c" +
+			"bd6a7e0de52550c9ddf31f1e8bfe5495f79e66a25fca5c20b3af5b870241" +
+			"0083456232aa58a8c45e5b110494599bda8dbe6a094683a0539ddd24e19d" +
+			"47684263bbe285ad953d725942d670b8f290d50c0bca3d1dc9688569f1d5" +
+			"9945cb5c7d")
+
+	if err != nil {
+		failureLog(function, args, startTime, "", "DecodeString for symmetric Key generation failed", err).Fatal()
+	}
+
+	publicKey, err := hex.DecodeString("30819f300d06092a864886f70d010101050003818d003081890281810087" +
+		"b42ea73243a3576dc4c0b6fa245d339582dfdbddc20cbb8ab666385034d9" +
+		"97210c54ba79275c51162a1221c3fb1a4c7c61131ca65563b319d83474ef" +
+		"5e803fbfa7e52b889e1893b02586b724250de7ac6351cc0b7c638c980ace" +
+		"c0a07020a78eed7eaa471eca4b92071394e061346c0615ccce2f465dee20" +
+		"80a89e43f29b570203010001")
+	if err != nil {
+		failureLog(function, args, startTime, "", "DecodeString for symmetric Key generation failed", err).Fatal()
+	}
+
+	// Generate an asymmetric key
+	asymKey, err := encrypt.NewAsymmetricKey(privateKey, publicKey)
+	if err != nil {
+		failureLog(function, args, startTime, "", "NewAsymmetricKey for symmetric Key generation failed", err).Fatal()
+	}
+
+	// Object custom metadata
+	customContentType := "custom/contenttype"
+	args["metadata"] = customContentType
+
+	testCases := []struct {
+		buf    []byte
+		encKey encrypt.Key
+	}{
+		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 0)},
+		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 1)},
+		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 15)},
+		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 16)},
+		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 17)},
+		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 31)},
+		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 32)},
+		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 33)},
+		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 1024)},
+		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 1024*2)},
+		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 1024*1024)},
+
+		{encKey: asymKey, buf: bytes.Repeat([]byte("F"), 0)},
+		{encKey: asymKey, buf: bytes.Repeat([]byte("F"), 1)},
+		{encKey: asymKey, buf: bytes.Repeat([]byte("F"), 16)},
+		{encKey: asymKey, buf: bytes.Repeat([]byte("F"), 32)},
+		{encKey: asymKey, buf: bytes.Repeat([]byte("F"), 1024)},
+		{encKey: asymKey, buf: bytes.Repeat([]byte("F"), 1024*1024)},
+	}
+
+	for i, testCase := range testCases {
+		// Generate a random object name
+		objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+		args["objectName"] = objectName
+
+		// Secured object
+		cbcMaterials, err := encrypt.NewCBCSecureMaterials(testCase.encKey)
+		args["cbcMaterials"] = cbcMaterials
+
+		if err != nil {
+			failureLog(function, args, startTime, "", "NewCBCSecureMaterials failed", err).Fatal()
+		}
+		// Generate a random file name.
+		fileName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+		file, err := os.Create(fileName)
+		if err != nil {
+			failureLog(function, args, startTime, "", "file create failed", err).Fatal()
+		}
+		_, err = file.Write(testCase.buf)
+		if err != nil {
+			failureLog(function, args, startTime, "", "file write failed", err).Fatal()
+		}
+		file.Close()
+		// Put encrypted data
+		if _, err = c.FPutEncryptedObject(bucketName, objectName, fileName, cbcMaterials); err != nil {
+			failureLog(function, args, startTime, "", "FPutEncryptedObject failed", err).Fatal()
+		}
+
+		// Read the data back
+		r, err := c.GetEncryptedObject(bucketName, objectName, cbcMaterials)
+		if err != nil {
+			failureLog(function, args, startTime, "", "GetEncryptedObject failed", err).Fatal()
+		}
+		defer r.Close()
+
+		// Compare the sent object with the received one
+		recvBuffer := bytes.NewBuffer([]byte{})
+		if _, err = io.Copy(recvBuffer, r); err != nil {
+			failureLog(function, args, startTime, "", "Test "+string(i+1)+", error: "+err.Error(), err).Fatal()
+		}
+		if recvBuffer.Len() != len(testCase.buf) {
+			failureLog(function, args, startTime, "", "Test "+string(i+1)+", Number of bytes of received object does not match, expected "+string(len(testCase.buf))+", got "+string(recvBuffer.Len()), err).Fatal()
+		}
+		if !bytes.Equal(testCase.buf, recvBuffer.Bytes()) {
+			failureLog(function, args, startTime, "", "Test "+string(i+1)+", Encrypted sent is not equal to decrypted, expected "+string(testCase.buf)+", got "+string(recvBuffer.Bytes()), err).Fatal()
+		}
+
+		// Remove test object
+		err = c.RemoveObject(bucketName, objectName)
+		if err != nil {
+			failureLog(function, args, startTime, "", "Test "+string(i+1)+", RemoveObject failed with: "+err.Error(), err).Fatal()
+		}
+		if err = os.Remove(fileName); err != nil {
+			failureLog(function, args, startTime, "", "File remove failed", err).Fatal()
+		}
+	}
+
+	// Remove test bucket
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		err = c.RemoveBucket(bucketName)
+		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+	}
+	successLogger(function, args, startTime).Info()
+}
 func testBucketNotification() {
 	// initialize logging params
 	startTime := time.Now()
@@ -2750,7 +2927,7 @@ func testFunctional() {
 		"contentType": "",
 	}
 
-	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), nil)
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -2765,7 +2942,7 @@ func testFunctional() {
 		"contentType": "binary/octet-stream",
 	}
 
-	n, err = c.PutObject(bucketName, objectName+"-nolength", bytes.NewReader(buf), int64(len(buf)), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err = c.PutObject(bucketName, objectName+"-nolength", bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -3099,7 +3276,7 @@ func testGetObjectObjectModified() {
 	// Upload an object.
 	objectName := "myobject"
 	content := "helloworld"
-	_, err = c.PutObject(bucketName, objectName, strings.NewReader(content), int64(len(content)), &minio.PutObjectOptions{ContentType: "application/text"})
+	_, err = c.PutObject(bucketName, objectName, strings.NewReader(content), int64(len(content)), minio.PutObjectOptions{ContentType: "application/text"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "Failed to upload "+objectName+", to bucket "+bucketName, err).Fatal()
 	}
@@ -3121,7 +3298,7 @@ func testGetObjectObjectModified() {
 
 	// Upload different contents to the same object while object is being read.
 	newContent := "goodbyeworld"
-	_, err = c.PutObject(bucketName, objectName, strings.NewReader(newContent), int64(len(newContent)), &minio.PutObjectOptions{ContentType: "application/text"})
+	_, err = c.PutObject(bucketName, objectName, strings.NewReader(newContent), int64(len(newContent)), minio.PutObjectOptions{ContentType: "application/text"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "Failed to upload "+objectName+", to bucket "+bucketName, err).Fatal()
 	}
@@ -3207,7 +3384,7 @@ func testPutObjectUploadSeekedObject() {
 		failureLog(function, args, startTime, "", "TempFile seek failed", err).Fatal()
 	}
 
-	n, err := c.PutObject(bucketName, objectName, tempfile, int64(length), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err := c.PutObject(bucketName, objectName, tempfile, int64(length), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -3234,7 +3411,7 @@ func testPutObjectUploadSeekedObject() {
 		failureLog(function, args, startTime, "", "Invalid offset returned, expected "+string(int64(offset))+" got "+string(n), err).Fatal()
 	}
 
-	n, err = c.PutObject(bucketName, objectName+"getobject", obj, int64(length), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err = c.PutObject(bucketName, objectName+"getobject", obj, int64(length), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
 	}
@@ -3361,7 +3538,7 @@ func testGetObjectClosedTwiceV2() {
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	args["objectName"] = objectName
 
-	n, err := c.PutObject(bucketName, objectName, reader, int64(thirtyThreeKiB), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err := c.PutObject(bucketName, objectName, reader, int64(thirtyThreeKiB), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -3461,7 +3638,7 @@ func testRemovePartiallyUploadedV2() {
 	objectName := bucketName + "-resumable"
 	args["objectName"] = objectName
 
-	_, err = c.PutObject(bucketName, objectName, reader, -1, &minio.PutObjectOptions{ContentType: "application/octet-stream"})
+	_, err = c.PutObject(bucketName, objectName, reader, -1, minio.PutObjectOptions{ContentType: "application/octet-stream"})
 	if err == nil {
 		failureLog(function, args, startTime, "", "PutObject should fail", err).Fatal()
 	}
@@ -3548,7 +3725,7 @@ func testFPutObjectV2() {
 	args["fileName"] = file.Name()
 
 	// Perform standard FPutObject with contentType provided (Expecting application/octet-stream)
-	n, err = c.FPutObject(bucketName, objectName+"-standard", file.Name(), &minio.PutObjectOptions{ContentType: "application/octet-stream"})
+	n, err = c.FPutObject(bucketName, objectName+"-standard", file.Name(), minio.PutObjectOptions{ContentType: "application/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "FPutObject failed", err).Fatal()
 	}
@@ -3560,7 +3737,7 @@ func testFPutObjectV2() {
 	args["objectName"] = objectName + "-Octet"
 	args["contentType"] = ""
 
-	n, err = c.FPutObject(bucketName, objectName+"-Octet", file.Name(), nil)
+	n, err = c.FPutObject(bucketName, objectName+"-Octet", file.Name(), minio.PutObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "FPutObject failed", err).Fatal()
 	}
@@ -3580,7 +3757,7 @@ func testFPutObjectV2() {
 	args["contentType"] = ""
 	args["fileName"] = fileName + ".gtar"
 
-	n, err = c.FPutObject(bucketName, objectName+"-GTar", fileName+".gtar", nil)
+	n, err = c.FPutObject(bucketName, objectName+"-GTar", fileName+".gtar", minio.PutObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "FPutObject failed", err).Fatal()
 	}
@@ -3758,7 +3935,7 @@ func testGetObjectReadSeekFunctionalV2() {
 	}
 
 	// Save the data.
-	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(thirtyThreeKiB), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(thirtyThreeKiB), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -3903,7 +4080,7 @@ func testGetObjectReadAtFunctionalV2() {
 	}
 
 	// Save the data
-	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(thirtyThreeKiB), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(thirtyThreeKiB), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -4052,7 +4229,7 @@ func testCopyObjectV2() {
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-	n, err := c.PutObject(bucketName, objectName, reader, int64(thirtyThreeKiB), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err := c.PutObject(bucketName, objectName, reader, int64(thirtyThreeKiB), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -4215,7 +4392,7 @@ func testComposeObjectErrorCasesWrapper(c *minio.Client) {
 	// 1. Create the source object.
 	const badSrcSize = 5 * 1024 * 1024
 	buf := bytes.Repeat([]byte("1"), badSrcSize)
-	_, err = c.PutObject(bucketName, "badObject", bytes.NewReader(buf), int64(len(buf)), nil)
+	_, err = c.PutObject(bucketName, "badObject", bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -4276,7 +4453,7 @@ func testComposeMultipleSources(c *minio.Client) {
 	// Upload a small source object
 	const srcSize = 1024 * 1024 * 5
 	buf := bytes.Repeat([]byte("1"), srcSize)
-	_, err = c.PutObject(bucketName, "srcObject", bytes.NewReader(buf), int64(srcSize), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	_, err = c.PutObject(bucketName, "srcObject", bytes.NewReader(buf), int64(srcSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -4360,7 +4537,7 @@ func testEncryptedCopyObjectWrapper(c *minio.Client) {
 	for k, v := range key1.GetSSEHeaders() {
 		metadata[k] = v
 	}
-	_, err = c.PutObject(bucketName, "srcObject", bytes.NewReader(buf), int64(len(buf)), &minio.PutObjectOptions{UserMetadata: metadata, Progress: nil})
+	_, err = c.PutObject(bucketName, "srcObject", bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{UserMetadata: metadata, Progress: nil})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject call failed", err).Fatal()
 	}
@@ -4504,7 +4681,7 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 	m := make(map[string]string)
 	m["x-amz-meta-myheader"] = "myvalue"
 	_, err = c.PutObject(bucketName, "srcObject",
-		bytes.NewReader(buf), int64(len(buf)), &minio.PutObjectOptions{UserMetadata: m})
+		bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{UserMetadata: m})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObjectWithMetadata failed", err).Fatal()
 	}
@@ -4684,7 +4861,7 @@ func testPutObjectNoLengthV2() {
 	defer reader.Close()
 
 	// Upload an object.
-	n, err := c.PutObject(bucketName, objectName, reader, -1, &minio.PutObjectOptions{})
+	n, err := c.PutObject(bucketName, objectName, reader, -1, minio.PutObjectOptions{})
 
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObjectWithSize failed", err).Fatal()
@@ -4767,7 +4944,7 @@ func testPutObjectsUnknownV2() {
 		objectName := fmt.Sprintf("%sunique%d", bucketName, i)
 		args["objectName"] = objectName
 
-		n, err := c.PutObject(bucketName, objectName, rpipe, -1, nil)
+		n, err := c.PutObject(bucketName, objectName, rpipe, -1, minio.PutObjectOptions{})
 		if err != nil {
 			failureLog(function, args, startTime, "", "PutObjectStreaming failed", err).Fatal()
 		}
@@ -4835,7 +5012,7 @@ func testPutObject0ByteV2() {
 	objectName := bucketName + "unique"
 
 	// Upload an object.
-	n, err := c.PutObject(bucketName, objectName, bytes.NewReader([]byte("")), 0, &minio.PutObjectOptions{})
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader([]byte("")), 0, minio.PutObjectOptions{})
 
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObjectWithSize failed", err).Fatal()
@@ -4993,7 +5170,7 @@ func testFunctionalV2() {
 	// Generate data
 	buf := bytes.Repeat([]byte("n"), rand.Intn(1<<19))
 
-	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), nil)
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -5001,7 +5178,7 @@ func testFunctionalV2() {
 		failureLog(function, args, startTime, "", "Expected uploaded object length "+string(len(buf))+" got "+string(n), err).Fatal()
 	}
 
-	n, err = c.PutObject(bucketName, objectName+"-nolength", bytes.NewReader(buf), int64(len(buf)), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err = c.PutObject(bucketName, objectName+"-nolength", bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -5255,7 +5432,7 @@ func testGetObjectWithContext() {
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 
-	_, err = c.PutObject(bucketName, objectName, reader, int64(bufSize), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	_, err = c.PutObject(bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 
@@ -5348,7 +5525,7 @@ func testFGetObjectWithContext() {
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 
-	_, err = c.PutObject(bucketName, objectName, reader, int64(oneMiB), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	_, err = c.PutObject(bucketName, objectName, reader, int64(oneMiB), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -5396,7 +5573,7 @@ func testPutObjectWithContextV2() {
 	args := map[string]interface{}{
 		"bucketName": "",
 		"objectName": "",
-		"opts":       "&minio.PutObjectOptions{ContentType:objectContentType}",
+		"opts":       "minio.PutObjectOptions{ContentType:objectContentType}",
 	}
 	// Instantiate new minio client object.
 	c, err := minio.NewV2(
@@ -5431,7 +5608,7 @@ func testPutObjectWithContextV2() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	_, err = c.PutObjectWithContext(ctx, bucketName, objectName, reader, int64(bufSize), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	_, err = c.PutObjectWithContext(ctx, bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObjectWithContext with short timeout failed", err).Fatal()
 	}
@@ -5440,7 +5617,7 @@ func testPutObjectWithContextV2() {
 	defer cancel()
 	reader = getDataReader("datafile-33-kB", bufSize)
 	defer reader.Close()
-	_, err = c.PutObjectWithContext(ctx, bucketName, objectName, reader, int64(bufSize), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	_, err = c.PutObjectWithContext(ctx, bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObjectWithContext with long timeout failed", err).Fatal()
 	}
@@ -5501,7 +5678,7 @@ func testGetObjectWithContextV2() {
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 
-	_, err = c.PutObject(bucketName, objectName, reader, int64(bufSize), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	_, err = c.PutObject(bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject call failed", err).Fatal()
 	}
@@ -5596,7 +5773,7 @@ func testFGetObjectWithContextV2() {
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 
-	_, err = c.PutObject(bucketName, objectName, reader, int64(oneMiB), &minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	_, err = c.PutObject(bucketName, objectName, reader, int64(oneMiB), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject call failed", err).Fatal()
 	}
@@ -5622,7 +5799,6 @@ func testFGetObjectWithContextV2() {
 
 	if err = os.Remove(fileName + "-fcontext"); err != nil {
 		failureLog(function, args, startTime, "", "Remove file failed", err).Fatal()
-
 	}
 	err = c.RemoveObject(bucketName, objectName)
 	if err != nil {
@@ -5693,6 +5869,7 @@ func main() {
 		testPresignedPostPolicy()
 		testCopyObject()
 		testEncryptionPutGet()
+		testEncryptionFPut()
 		testComposeObjectErrorCases()
 		testCompose10KSources()
 		testUserMetadataCopying()
