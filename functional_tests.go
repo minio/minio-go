@@ -36,10 +36,10 @@ import (
 	"strings"
 	"time"
 
+	humanize "github.com/dustin/go-humanize"
 	minio "github.com/minio/minio-go"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/dustin/go-humanize"
 	"github.com/minio/minio-go/pkg/encrypt"
 	"github.com/minio/minio-go/pkg/policy"
 )
@@ -259,6 +259,63 @@ func testMakeBucketError() {
 		failureLog(function, args, startTime, "", "Remove bucket failed", err).Fatal()
 	}
 
+	successLogger(function, args, startTime).Info()
+}
+
+func testMetadataSizeLimit() {
+	startTime := time.Now()
+	function := "PutObject(bucketName, objectName, reader, objectSize, opts)"
+	args := map[string]interface{}{
+		"bucketName":        "",
+		"objectName":        "",
+		"opts.UserMetadata": "",
+	}
+	rand.Seed(startTime.Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.New(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		failureLog(function, args, startTime, "", "Minio client creation failed", err).Fatal()
+	}
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+	args["bucketName"] = bucketName
+
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	args["objectName"] = objectName
+
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		failureLog(function, args, startTime, "", "Make bucket failed", err).Fatal()
+	}
+
+	const HeaderSizeLimit = 8 * 1024
+	const UserMetadataLimit = 2 * 1024
+
+	// Meta-data greater than the 2 KB limit of AWS - PUT calls with this meta-data should fail
+	metadata := make(map[string]string)
+	metadata["X-Amz-Meta-Mint-Test"] = string(bytes.Repeat([]byte("m"), 1+UserMetadataLimit-len("X-Amz-Meta-Mint-Test")))
+	args["metadata"] = fmt.Sprint(metadata)
+
+	_, err = c.PutObject(bucketName, objectName, bytes.NewReader(nil), 0, &minio.PutObjectOptions{UserMetadata: metadata})
+	if err == nil {
+		failureLog(function, args, startTime, "", "Created object with user-defined metadata exceeding metadata size limits", nil).Fatal()
+	}
+
+	// Meta-data (headers) greater than the 8 KB limit of AWS - PUT calls with this meta-data should fail
+	metadata = make(map[string]string)
+	metadata["X-Amz-Mint-Test"] = string(bytes.Repeat([]byte("m"), 1+HeaderSizeLimit-len("X-Amz-Mint-Test")))
+	args["metadata"] = fmt.Sprint(metadata)
+	_, err = c.PutObject(bucketName, objectName, bytes.NewReader(nil), 0, &minio.PutObjectOptions{UserMetadata: metadata})
+	if err == nil {
+		failureLog(function, args, startTime, "", "Created object with headers exceeding header size limits", nil).Fatal()
+	}
 	successLogger(function, args, startTime).Info()
 }
 
