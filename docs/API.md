@@ -371,7 +371,7 @@ for multiPartObject := range multiPartObjectCh {
 ## 3. Object operations
 
 <a name="GetObject"></a>
-### GetObject(bucketName, objectName string) (*Object, error)
+### GetObject(bucketName, objectName string, opts GetObjectOptions) (*Object, error)
 
 Returns a stream of the object data. Most of the common errors occur when reading the stream.
 
@@ -383,6 +383,7 @@ __Parameters__
 |:---|:---| :---|
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object  |
+|`opts` | _GetObjectOptions_ | Options for GET requests specifying additional options like encryption, If-Match |
 
 
 __Return Value__
@@ -397,7 +398,7 @@ __Example__
 
 
 ```go
-object, err := minioClient.GetObject("mybucket", "photo.jpg")
+object, err := minioClient.GetObject("mybucket", "photo.jpg", GetObjectOptions{})
 if err != nil {
     fmt.Println(err)
     return
@@ -414,7 +415,7 @@ if _, err = io.Copy(localFile, object); err != nil {
 ```
 
 <a name="FGetObject"></a>
-### FGetObject(bucketName, objectName, filePath string) error
+### FGetObject(bucketName, objectName, filePath string, opts GetObjectOptions) error
  Downloads and saves the object as a file in the local filesystem.
 
 
@@ -426,20 +427,21 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket |
 |`objectName` | _string_  |Name of the object  |
 |`filePath` | _string_  |Path to download object to |
+|`opts` | _GetObjectOptions_ | Options for GET requests specifying additional options like encryption, If-Match |
 
 
 __Example__
 
 
 ```go
-err := minioClient.FGetObject("mybucket", "photo.jpg", "/tmp/photo.jpg")
+err := minioClient.FGetObject("mybucket", "photo.jpg", "/tmp/photo.jpg", GetObjectOptions{})
 if err != nil {
     fmt.Println(err)
     return
 }
 ```
 <a name="GetObjectWithContext"></a>
-### GetObjectWithContext(ctx context.Context, bucketName, objectName string) (*Object, error)
+### GetObjectWithContext(ctx context.Context, bucketName, objectName string, opts GetObjectOptions) (*Object, error)
 
 Identical to GetObject operation, but accepts a context for request cancellation.
 
@@ -451,6 +453,7 @@ __Parameters__
 |`ctx`  | _context.Context_  |Request context  |
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object  |
+|`opts` | _GetObjectOptions_ | Options for GET requests specifying additional options like encryption, If-Match |
 
 
 __Return Value__
@@ -467,7 +470,7 @@ __Example__
 ```go
 ctx, cancel := context.WithTimeout(context.Background(), 100 * time.Seconds)
 defer cancel()
-object, err := minioClient.GetObjectWithContext(ctx, "mybucket", "photo.jpg")
+object, err := minioClient.GetObjectWithContext(ctx, "mybucket", "photo.jpg", GetObjectOptions{})
 if err != nil {
     fmt.Println(err)
     return
@@ -484,7 +487,7 @@ if _, err = io.Copy(localFile, object); err != nil {
 ```
 
 <a name="FGetObjectWithContext"></a>
-### FGetObjectWithContext(ctx context.Context, bucketName, objectName, filePath string) error
+### FGetObjectWithContext(ctx context.Context, bucketName, objectName, filePath string, opts GetObjectOptions) error
     Identical to FGetObject operation, but allows request cancellation
 
 __Parameters__
@@ -496,6 +499,7 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket |
 |`objectName` | _string_  |Name of the object  |
 |`filePath` | _string_  |Path to download object to |
+|`opts` | _GetObjectOptions_ | Options for GET requests specifying additional options like encryption, If-Match |
 
 
 __Example__
@@ -504,7 +508,42 @@ __Example__
 ```go
 ctx, cancel := context.WithTimeout(context.Background(), 100 * time.Seconds)
 defer cancel()
-err := minioClient.FGetObjectWithContext(ctx, "mybucket", "photo.jpg", "/tmp/photo.jpg")
+err := minioClient.FGetObjectWithContext(ctx, "mybucket", "photo.jpg", "/tmp/photo.jpg", GetObjectOptions{})
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
+
+<a name="FGetEncryptedObject"></a>
+### FGetEncryptedObject(bucketName, objectName, filePath string, materials encrypt.Materials) error
+    Identical to FGetObject operation, but decrypts an encrypted request
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |Name of the bucket |
+|`objectName` | _string_  |Name of the object  |
+|`filePath` | _string_  |Path to download object to |
+|`materials` | _encrypt.Materials_ | The module to decrypt the object data |
+
+
+__Example__
+
+
+```go
+// Generate a master symmetric key
+key := minio.NewSymmetricKey("my-secret-key-00")
+
+// Build the CBC encryption material
+cbcMaterials, err := NewCBCSecureMaterials(key)
+if err != nil {
+    t.Fatal(err)
+}
+
+err = minioClient.FGetEncryptedObject("mybucket", "photo.jpg", "/tmp/photo.jpg", cbcMaterials)
 if err != nil {
     fmt.Println(err)
     return
@@ -831,7 +870,7 @@ if err != nil {
 }
 ```
 <a name="StatObject"></a>
-### StatObject(bucketName, objectName string) (ObjectInfo, error)
+### StatObject(bucketName, objectName string, opts StatObjectOptions) (ObjectInfo, error)
 
 Gets metadata of an object.
 
@@ -843,6 +882,7 @@ __Parameters__
 |:---|:---| :---|
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object   |
+|`opts` | _StatObjectOptions_ | Options for GET info/stat requests specifying additional options like encryption, If-Match |
 
 
 __Return Value__
@@ -864,7 +904,7 @@ __Return Value__
 
 
 ```go
-objInfo, err := minioClient.StatObject("mybucket", "photo.jpg")
+objInfo, err := minioClient.StatObject("mybucket", "photo.jpg", GetObjectOptions{})
 if err != nil {
     fmt.Println(err)
     return

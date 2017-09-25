@@ -45,7 +45,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	if err := s3Client.FGetObjectWithContext(ctx, "my-bucketname", "my-objectname", "my-filename.csv"); err != nil {
+	if err := s3Client.FGetObjectWithContext(ctx, "my-bucketname", "my-objectname", "my-filename.csv", minio.GetObjectOptions{}); err != nil {
 		log.Fatalln(err)
 	}
 	log.Println("Successfully saved my-filename.csv")

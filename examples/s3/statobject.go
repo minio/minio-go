@@ -37,7 +37,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	stat, err := s3Client.StatObject("my-bucketname", "my-objectname")
+	stat, err := s3Client.StatObject("my-bucketname", "my-objectname", minio.StatObjectOptions{})
 	if err != nil {
 		log.Fatalln(err)
 	}

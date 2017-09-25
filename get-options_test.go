@@ -40,17 +40,17 @@ func TestSetHeader(t *testing.T) {
 		{1, -5, fmt.Errorf("Invalid range specified: start=1 end=-5"), ""},
 	}
 	for i, testCase := range testCases {
-		rh := NewGetReqHeaders()
-		err := rh.SetRange(testCase.start, testCase.end)
+		opts := GetObjectOptions{}
+		err := opts.SetRange(testCase.start, testCase.end)
 		if err == nil && testCase.errVal != nil {
 			t.Errorf("Test %d: Expected to fail with '%v' but it passed",
 				i+1, testCase.errVal)
 		} else if err != nil && testCase.errVal.Error() != err.Error() {
 			t.Errorf("Test %d: Expected error '%v' but got error '%v'",
 				i+1, testCase.errVal, err)
-		} else if err == nil && rh.Get("Range") != testCase.expected {
+		} else if err == nil && opts.headers["Range"] != testCase.expected {
 			t.Errorf("Test %d: Expected range header '%s', but got '%s'",
-				i+1, testCase.expected, rh.Get("Range"))
+				i+1, testCase.expected, opts.headers["Range"])
 		}
 	}
 }

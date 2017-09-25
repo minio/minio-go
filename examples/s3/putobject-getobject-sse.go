@@ -24,7 +24,6 @@ import (
 	"encoding/base64"
 	"io/ioutil"
 	"log"
-	"net/http"
 
 	minio "github.com/minio/minio-go"
 )
@@ -66,12 +65,12 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	var reqHeaders = minio.RequestHeaders{Header: http.Header{}}
+	opts := minio.GetObjectOptions{}
 	for k, v := range metadata {
-		reqHeaders.Set(k, v)
+		opts.Set(k, v)
 	}
 	coreClient := minio.Core{minioClient}
-	reader, _, err := coreClient.GetObject("mybucket", "my-encrypted-object.txt", reqHeaders)
+	reader, _, err := coreClient.GetObject("mybucket", "my-encrypted-object.txt", opts)
 	if err != nil {
 		log.Fatalln(err)
 	}
