@@ -112,8 +112,6 @@ func TestGetObjectCore(t *testing.T) {
 		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), n)
 	}
 
-	reqHeaders := NewGetReqHeaders()
-
 	offset := int64(2048)
 
 	// read directly
@@ -122,8 +120,9 @@ func TestGetObjectCore(t *testing.T) {
 	buf3 := make([]byte, n)
 	buf4 := make([]byte, 1)
 
-	reqHeaders.SetRange(offset, offset+int64(len(buf1))-1)
-	reader, objectInfo, err := c.GetObject(bucketName, objectName, reqHeaders)
+	opts := GetObjectOptions{}
+	opts.SetRange(offset, offset+int64(len(buf1))-1)
+	reader, objectInfo, err := c.GetObject(bucketName, objectName, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,8 +140,8 @@ func TestGetObjectCore(t *testing.T) {
 	}
 	offset += 512
 
-	reqHeaders.SetRange(offset, offset+int64(len(buf2))-1)
-	reader, objectInfo, err = c.GetObject(bucketName, objectName, reqHeaders)
+	opts.SetRange(offset, offset+int64(len(buf2))-1)
+	reader, objectInfo, err = c.GetObject(bucketName, objectName, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,8 +159,8 @@ func TestGetObjectCore(t *testing.T) {
 		t.Fatal("Error: Incorrect read between two GetObject from same offset.")
 	}
 
-	reqHeaders.SetRange(0, int64(len(buf3)))
-	reader, objectInfo, err = c.GetObject(bucketName, objectName, reqHeaders)
+	opts.SetRange(0, int64(len(buf3)))
+	reader, objectInfo, err = c.GetObject(bucketName, objectName, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,9 +179,9 @@ func TestGetObjectCore(t *testing.T) {
 		t.Fatal("Error: Incorrect data read in GetObject, than what was previously upoaded.")
 	}
 
-	reqHeaders = NewGetReqHeaders()
-	reqHeaders.SetMatchETag("etag")
-	_, _, err = c.GetObject(bucketName, objectName, reqHeaders)
+	opts = GetObjectOptions{}
+	opts.SetMatchETag("etag")
+	_, _, err = c.GetObject(bucketName, objectName, opts)
 	if err == nil {
 		t.Fatal("Unexpected GetObject should fail with mismatching etags")
 	}
@@ -190,9 +189,9 @@ func TestGetObjectCore(t *testing.T) {
 		t.Fatalf("Expected \"PreconditionFailed\" as code, got %s instead", errResp.Code)
 	}
 
-	reqHeaders = NewGetReqHeaders()
-	reqHeaders.SetMatchETagExcept("etag")
-	reader, objectInfo, err = c.GetObject(bucketName, objectName, reqHeaders)
+	opts = GetObjectOptions{}
+	opts.SetMatchETagExcept("etag")
+	reader, objectInfo, err = c.GetObject(bucketName, objectName, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,9 +209,9 @@ func TestGetObjectCore(t *testing.T) {
 		t.Fatal("Error: Incorrect data read in GetObject, than what was previously upoaded.")
 	}
 
-	reqHeaders = NewGetReqHeaders()
-	reqHeaders.SetRange(0, 0)
-	reader, objectInfo, err = c.GetObject(bucketName, objectName, reqHeaders)
+	opts = GetObjectOptions{}
+	opts.SetRange(0, 0)
+	reader, objectInfo, err = c.GetObject(bucketName, objectName, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,8 +286,7 @@ func TestGetObjectContentEncoding(t *testing.T) {
 		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), n)
 	}
 
-	reqHeaders := NewGetReqHeaders()
-	rwc, objInfo, err := c.GetObject(bucketName, objectName, reqHeaders)
+	rwc, objInfo, err := c.GetObject(bucketName, objectName, GetObjectOptions{})
 	if err != nil {
 		t.Fatalf("Error: %v", err)
 	}
@@ -427,7 +425,7 @@ func TestCorePutObject(t *testing.T) {
 	}
 
 	// Read the data back
-	r, err := c.Client.GetObject(bucketName, objectName)
+	r, err := c.Client.GetObject(bucketName, objectName, GetObjectOptions{})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
@@ -498,8 +496,7 @@ func TestCoreGetObjectMetadata(t *testing.T) {
 		log.Fatalln(err)
 	}
 
-	reader, objInfo, err := core.GetObject(bucketName, "my-objectname",
-		RequestHeaders{})
+	reader, objInfo, err := core.GetObject(bucketName, "my-objectname", GetObjectOptions{})
 	if err != nil {
 		log.Fatalln(err)
 	}

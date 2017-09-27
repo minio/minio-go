@@ -244,11 +244,11 @@ func (s *SourceInfo) getProps(c Client) (size int64, etag string, userMeta map[s
 	// Get object info - need size and etag here. Also, decryption
 	// headers are added to the stat request if given.
 	var objInfo ObjectInfo
-	rh := NewGetReqHeaders()
+	opts := StatObjectOptions{}
 	for k, v := range s.decryptKey.getSSEHeaders(false) {
-		rh.Set(k, v)
+		opts.Set(k, v)
 	}
-	objInfo, err = c.statObject(s.bucket, s.object, rh)
+	objInfo, err = c.statObject(s.bucket, s.object, opts)
 	if err != nil {
 		err = fmt.Errorf("Could not stat object - %s/%s: %v", s.bucket, s.object, err)
 	} else {

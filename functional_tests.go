@@ -451,7 +451,7 @@ func testPutObjectReadAt() {
 	}
 
 	// Read the data back
-	r, err := c.GetObject(bucketName, objectName)
+	r, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "Get Object failed", err).Fatal()
 	}
@@ -559,7 +559,7 @@ func testPutObjectWithMetadata() {
 	}
 
 	// Read the data back
-	r, err := c.GetObject(bucketName, objectName)
+	r, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
 	}
@@ -814,7 +814,7 @@ func testGetObjectSeekEnd() {
 	}
 
 	// Read the data back
-	r, err := c.GetObject(bucketName, objectName)
+	r, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
 	}
@@ -919,7 +919,7 @@ func testGetObjectClosedTwice() {
 	}
 
 	// Read the data back
-	r, err := c.GetObject(bucketName, objectName)
+	r, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
 	}
@@ -1185,7 +1185,7 @@ func testFPutObjectMultipart() {
 		failureLog(function, args, startTime, "", "FPutObject failed", err).Fatal()
 	}
 
-	r, err := c.GetObject(bucketName, objectName)
+	r, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
 	}
@@ -1324,7 +1324,7 @@ func testFPutObject() {
 	}
 
 	// Check headers
-	rStandard, err := c.StatObject(bucketName, objectName+"-standard")
+	rStandard, err := c.StatObject(bucketName, objectName+"-standard", minio.StatObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "StatObject failed", err).Fatal()
 	}
@@ -1332,7 +1332,7 @@ func testFPutObject() {
 		failureLog(function, args, startTime, "", "ContentType does not match, expected application/octet-stream, got "+rStandard.ContentType, err).Fatal()
 	}
 
-	rOctet, err := c.StatObject(bucketName, objectName+"-Octet")
+	rOctet, err := c.StatObject(bucketName, objectName+"-Octet", minio.StatObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "StatObject failed", err).Fatal()
 	}
@@ -1340,7 +1340,7 @@ func testFPutObject() {
 		failureLog(function, args, startTime, "", "ContentType does not match, expected application/octet-stream, got "+rStandard.ContentType, err).Fatal()
 	}
 
-	rGTar, err := c.StatObject(bucketName, objectName+"-GTar")
+	rGTar, err := c.StatObject(bucketName, objectName+"-GTar", minio.StatObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "StatObject failed", err).Fatal()
 	}
@@ -1461,7 +1461,7 @@ func testFPutObjectWithContext() {
 		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(totalSize)+", got "+string(n), err).Fatal()
 	}
 
-	_, err = c.StatObject(bucketName, objectName+"-Longtimeout")
+	_, err = c.StatObject(bucketName, objectName+"-Longtimeout", minio.StatObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "StatObject failed", err).Fatal()
 	}
@@ -1575,7 +1575,7 @@ func testFPutObjectWithContextV2() {
 		failureLog(function, args, startTime, "", "Number of bytes does not match:wanted"+string(totalSize)+" got "+string(n), err).Fatal()
 	}
 
-	_, err = c.StatObject(bucketName, objectName+"-Longtimeout")
+	_, err = c.StatObject(bucketName, objectName+"-Longtimeout", minio.StatObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "StatObject failed", err).Fatal()
 
@@ -1746,7 +1746,7 @@ func testGetObjectReadSeekFunctional() {
 	}()
 
 	// Read the data back
-	r, err := c.GetObject(bucketName, objectName)
+	r, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
 	}
@@ -1901,7 +1901,7 @@ func testGetObjectReadAtFunctional() {
 	}
 
 	// read the data back
-	r, err := c.GetObject(bucketName, objectName)
+	r, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
@@ -2167,7 +2167,7 @@ func testCopyObject() {
 		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+", got "+string(n), err).Fatal()
 	}
 
-	r, err := c.GetObject(bucketName, objectName)
+	r, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
 	}
@@ -2223,13 +2223,13 @@ func testCopyObject() {
 	}
 
 	// Source object
-	r, err = c.GetObject(bucketName, objectName)
+	r, err = c.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
 	}
 
 	// Destination object
-	readerCopy, err := c.GetObject(bucketName+"-copy", objectName+"-copy")
+	readerCopy, err := c.GetObject(bucketName+"-copy", objectName+"-copy", minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
 	}
@@ -3013,7 +3013,7 @@ func testFunctional() {
 		failureLog(function, args, startTime, "", "Unexpected dangling incomplete upload found", err).Fatal()
 	}
 
-	newReader, err := c.GetObject(bucketName, objectName)
+	newReader, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	function = "GetObject(bucketName, objectName)"
 	args = map[string]interface{}{
 		"bucketName": bucketName,
@@ -3033,7 +3033,7 @@ func testFunctional() {
 		failureLog(function, args, startTime, "", "GetObject bytes mismatch", err).Fatal()
 	}
 
-	err = c.FGetObject(bucketName, objectName, fileName+"-f")
+	err = c.FGetObject(bucketName, objectName, fileName+"-f", minio.GetObjectOptions{})
 	function = "FGetObject(bucketName, objectName, fileName)"
 	args = map[string]interface{}{
 		"bucketName": bucketName,
@@ -3164,7 +3164,7 @@ func testFunctional() {
 		failureLog(function, args, startTime, "", "PresignedPutObject failed", err).Fatal()
 	}
 
-	newReader, err = c.GetObject(bucketName, objectName+"-presigned")
+	newReader, err = c.GetObject(bucketName, objectName+"-presigned", minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObject after PresignedPutObject failed", err).Fatal()
 	}
@@ -3283,7 +3283,7 @@ func testGetObjectObjectModified() {
 
 	defer c.RemoveObject(bucketName, objectName)
 
-	reader, err := c.GetObject(bucketName, objectName)
+	reader, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "Failed to GetObject "+objectName+", from bucket "+bucketName, err).Fatal()
 	}
@@ -3398,7 +3398,7 @@ func testPutObjectUploadSeekedObject() {
 
 	length = int(n)
 
-	obj, err := c.GetObject(bucketName, objectName)
+	obj, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
 	}
@@ -3548,7 +3548,7 @@ func testGetObjectClosedTwiceV2() {
 	}
 
 	// Read the data back
-	r, err := c.GetObject(bucketName, objectName)
+	r, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
 	}
@@ -3766,7 +3766,7 @@ func testFPutObjectV2() {
 	}
 
 	// Check headers
-	rStandard, err := c.StatObject(bucketName, objectName+"-standard")
+	rStandard, err := c.StatObject(bucketName, objectName+"-standard", minio.StatObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "StatObject failed", err).Fatal()
 	}
@@ -3774,7 +3774,7 @@ func testFPutObjectV2() {
 		failureLog(function, args, startTime, "", "Content-Type headers mismatched, expected: application/octet-stream , got "+rStandard.ContentType, err).Fatal()
 	}
 
-	rOctet, err := c.StatObject(bucketName, objectName+"-Octet")
+	rOctet, err := c.StatObject(bucketName, objectName+"-Octet", minio.StatObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "StatObject failed", err).Fatal()
 	}
@@ -3782,7 +3782,7 @@ func testFPutObjectV2() {
 		failureLog(function, args, startTime, "", "Content-Type headers mismatched, expected: application/octet-stream , got "+rOctet.ContentType, err).Fatal()
 	}
 
-	rGTar, err := c.StatObject(bucketName, objectName+"-GTar")
+	rGTar, err := c.StatObject(bucketName, objectName+"-GTar", minio.StatObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "StatObject failed", err).Fatal()
 	}
@@ -3945,7 +3945,7 @@ func testGetObjectReadSeekFunctionalV2() {
 	}
 
 	// Read the data back
-	r, err := c.GetObject(bucketName, objectName)
+	r, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
 	}
@@ -4090,7 +4090,7 @@ func testGetObjectReadAtFunctionalV2() {
 	}
 
 	// Read the data back
-	r, err := c.GetObject(bucketName, objectName)
+	r, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
 	}
@@ -4238,7 +4238,7 @@ func testCopyObjectV2() {
 		failureLog(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(n), err).Fatal()
 	}
 
-	r, err := c.GetObject(bucketName, objectName)
+	r, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
 	}
@@ -4294,12 +4294,12 @@ func testCopyObjectV2() {
 	}
 
 	// Source object
-	r, err = c.GetObject(bucketName, objectName)
+	r, err = c.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
 	}
 	// Destination object
-	readerCopy, err := c.GetObject(bucketName+"-copy", objectName+"-copy")
+	readerCopy, err := c.GetObject(bucketName+"-copy", objectName+"-copy", minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
 	}
@@ -4481,7 +4481,7 @@ func testComposeMultipleSources(c *minio.Client) {
 		failureLog(function, args, startTime, "", "ComposeObject failed", err).Fatal()
 	}
 
-	objProps, err := c.StatObject(bucketName, "dstObject")
+	objProps, err := c.StatObject(bucketName, "dstObject", minio.StatObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "StatObject failed", err).Fatal()
 	}
@@ -4555,12 +4555,12 @@ func testEncryptedCopyObjectWrapper(c *minio.Client) {
 	}
 
 	// 3. get copied object and check if content is equal
-	reqH := minio.NewGetReqHeaders()
+	opts := minio.GetObjectOptions{}
 	for k, v := range key2.GetSSEHeaders() {
-		reqH.Set(k, v)
+		opts.Set(k, v)
 	}
 	coreClient := minio.Core{c}
-	reader, _, err := coreClient.GetObject(bucketName, "dstObject", reqH)
+	reader, _, err := coreClient.GetObject(bucketName, "dstObject", minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
 	}
@@ -4658,7 +4658,7 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 	}
 
 	fetchMeta := func(object string) (h http.Header) {
-		objInfo, err := c.StatObject(bucketName, object)
+		objInfo, err := c.StatObject(bucketName, object, minio.StatObjectOptions{})
 		if err != nil {
 			failureLog(function, args, startTime, "", "Stat failed", err).Fatal()
 		}
@@ -5226,7 +5226,7 @@ func testFunctionalV2() {
 		failureLog(function, args, startTime, "", "Unexpected dangling incomplete upload found", err).Fatal()
 	}
 
-	newReader, err := c.GetObject(bucketName, objectName)
+	newReader, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
 	}
@@ -5240,7 +5240,7 @@ func testFunctionalV2() {
 		failureLog(function, args, startTime, "", "Bytes mismatch", err).Fatal()
 	}
 
-	err = c.FGetObject(bucketName, objectName, fileName+"-f")
+	err = c.FGetObject(bucketName, objectName, fileName+"-f", minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "FgetObject failed", err).Fatal()
 	}
@@ -5336,7 +5336,7 @@ func testFunctionalV2() {
 		failureLog(function, args, startTime, "", "HTTP request to PresignedPutObject URL failed", err).Fatal()
 	}
 
-	newReader, err = c.GetObject(bucketName, objectName+"-presigned")
+	newReader, err = c.GetObject(bucketName, objectName+"-presigned", minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObject failed", err).Fatal()
 	}
@@ -5442,7 +5442,7 @@ func testGetObjectWithContext() {
 	defer cancel()
 
 	// Read the data back
-	r, err := c.GetObjectWithContext(ctx, bucketName, objectName)
+	r, err := c.GetObjectWithContext(ctx, bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObjectWithContext failed - request timeout not honored", err).Fatal()
 
@@ -5451,7 +5451,7 @@ func testGetObjectWithContext() {
 	defer cancel()
 
 	// Read the data back
-	r, err = c.GetObjectWithContext(ctx, bucketName, objectName)
+	r, err = c.GetObjectWithContext(ctx, bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObjectWithContext failed", err).Fatal()
 
@@ -5535,7 +5535,7 @@ func testFGetObjectWithContext() {
 
 	fileName := "tempfile-context"
 	// Read the data back
-	err = c.FGetObjectWithContext(ctx, bucketName, objectName, fileName+"-f")
+	err = c.FGetObjectWithContext(ctx, bucketName, objectName, fileName+"-f", minio.GetObjectOptions{})
 	if err == nil {
 		failureLog(function, args, startTime, "", "FGetObjectWithContext with short timeout failed", err).Fatal()
 	}
@@ -5543,7 +5543,7 @@ func testFGetObjectWithContext() {
 	defer cancel()
 
 	// Read the data back
-	err = c.FGetObjectWithContext(ctx, bucketName, objectName, fileName+"-fcontext")
+	err = c.FGetObjectWithContext(ctx, bucketName, objectName, fileName+"-fcontext", minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "FGetObjectWithContext with long timeout failed", err).Fatal()
 	}
@@ -5687,7 +5687,7 @@ func testGetObjectWithContextV2() {
 	defer cancel()
 
 	// Read the data back
-	r, err := c.GetObjectWithContext(ctx, bucketName, objectName)
+	r, err := c.GetObjectWithContext(ctx, bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObjectWithContext failed due to non-cancellation upon short timeout", err).Fatal()
 
@@ -5696,7 +5696,7 @@ func testGetObjectWithContextV2() {
 	defer cancel()
 
 	// Read the data back
-	r, err = c.GetObjectWithContext(ctx, bucketName, objectName)
+	r, err = c.GetObjectWithContext(ctx, bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "GetObjectWithContext failed due to non-cancellation upon long timeout", err).Fatal()
 
@@ -5783,7 +5783,7 @@ func testFGetObjectWithContextV2() {
 
 	fileName := "tempfile-context"
 	// Read the data back
-	err = c.FGetObjectWithContext(ctx, bucketName, objectName, fileName+"-f")
+	err = c.FGetObjectWithContext(ctx, bucketName, objectName, fileName+"-f", minio.GetObjectOptions{})
 	if err == nil {
 		failureLog(function, args, startTime, "", "FGetObjectWithContext call with short request timeout failed", err).Fatal()
 
@@ -5792,7 +5792,7 @@ func testFGetObjectWithContextV2() {
 	defer cancel()
 
 	// Read the data back
-	err = c.FGetObjectWithContext(ctx, bucketName, objectName, fileName+"-fcontext")
+	err = c.FGetObjectWithContext(ctx, bucketName, objectName, fileName+"-fcontext", minio.GetObjectOptions{})
 	if err != nil {
 		failureLog(function, args, startTime, "", "FGetObjectWithContext call with long request timeout failed", err).Fatal()
 	}

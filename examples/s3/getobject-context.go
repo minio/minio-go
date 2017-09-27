@@ -47,7 +47,9 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	reader, err := s3Client.GetObjectWithContext(ctx, "my-bucketname", "my-objectname")
+	opts := minio.GetObjectOptions{}
+	opts.SetModified(time.Now().Round(10 * time.Minute)) // get object if was modified within the last 10 minutes
+	reader, err := s3Client.GetObjectWithContext(ctx, "my-bucketname", "my-objectname", opts)
 	if err != nil {
 		log.Fatalln(err)
 	}
