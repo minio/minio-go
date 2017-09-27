@@ -221,10 +221,30 @@ var supportedHeaders = []string{
 	// Add more supported headers here.
 }
 
-//isStandardHeader returns true if header is a supported header and not a custom header
+// cseHeaders is list of client side encryption headers
+var cseHeaders = []string{
+	"X-Amz-Iv",
+	"X-Amz-Key",
+	"X-Amz-Matdesc",
+}
+
+// isStandardHeader returns true if header is a supported header and not a custom header
 func isStandardHeader(headerKey string) bool {
 	for _, header := range supportedHeaders {
 		if strings.Compare(strings.ToLower(headerKey), header) == 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// isCSEHeader returns true if header is a client side encryption header.
+func isCSEHeader(headerKey string) bool {
+	key := strings.ToLower(headerKey)
+	for _, h := range cseHeaders {
+		header := strings.ToLower(h)
+		if (header == key) ||
+			(("x-amz-meta-" + header) == key) {
 			return true
 		}
 	}

@@ -103,7 +103,7 @@ func TestGetObjectCore(t *testing.T) {
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-	n, err := c.Client.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), &PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err := c.Client.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
@@ -275,12 +275,10 @@ func TestGetObjectContentEncoding(t *testing.T) {
 
 	// Generate data more than 32K
 	buf := bytes.Repeat([]byte("3"), rand.Intn(1<<20)+32*1024)
-	m := make(map[string]string)
-	m["Content-Encoding"] = "gzip"
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-	n, err := c.Client.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), &PutObjectOptions{UserMetadata: m, Progress: nil})
+	n, err := c.Client.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), PutObjectOptions{Progress: nil, ContentEncoding: "gzip"})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}

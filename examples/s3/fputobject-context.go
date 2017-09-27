@@ -45,7 +45,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	if _, err := s3Client.FPutObjectWithContext(ctx, "my-bucketname", "my-objectname", "my-filename.csv", &minio.PutObjectOptions{ContentType: "application/csv"}); err != nil {
+	if _, err := s3Client.FPutObjectWithContext(ctx, "my-bucketname", "my-objectname", "my-filename.csv", minio.PutObjectOptions{ContentType: "application/csv"}); err != nil {
 		log.Fatalln(err)
 	}
 	log.Println("Successfully uploaded my-filename.csv")
