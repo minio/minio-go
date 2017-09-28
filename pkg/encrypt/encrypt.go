@@ -15,9 +15,14 @@
  */
 
 // Package encrypt implements a generic interface to encrypt any stream of data.
-// currently this package implements two types of encryption
-// - Symmetric encryption using AES.
-// - Asymmetric encrytion using RSA.
+// currently this package implements two types of encryption.
+// - Symmetric encryption using DARE-HMAC_SHA256. This algorithm provides tamper-proof
+//   encryption and should be prefered over any current AWS client-side-encryption
+//   algorithm.
+// - Symmetric encryption using AES-CBC-PKCS5. This algorithm is provided for
+//   AWS compability but is not recommended because of security issues.
+//   Notice that AWS calls this algorithm AES-CBC-PKCS5 but actaully implements
+//   AES-CBC-PKCS7.
 package encrypt
 
 import (
@@ -35,9 +40,11 @@ const (
 	// DareHmacSha256 specifies the client-side-encryption algorithm DARE with
 	// a HMAC-SHA256 KDF scheme. This algorithm provides tamper-proof encryption
 	// and is recommended over any current AWS S3 client-side-encryption algorithm.
-	DareHmacSha256 = "DARE-HAMC-SHA256"
+	DareHmacSha256 = "DARE-HMAC-SHA256"
 )
 
+// AWS client-side-encryption headers.
+// See: https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingClientSideEncryption.html
 const (
 	cseIV        = "X-Amz-Meta-X-Amz-Iv"
 	cseKey       = "X-Amz-Meta-X-Amz-Key-v2"
@@ -45,12 +52,25 @@ const (
 )
 
 // Cipher is a generic interface for en/decrypting streams using
-// S3 client/server side encryption.
+// S3 client/server side encryption. Cipher is the functional equalient
+// of EncryptionMaterials of the aws-go-sdk.
 type Cipher interface {
+
+	// Seal returns an io.ReadCloser encrypting everything it reads from
+	// the provided io.Reader. It adds HTTP headers to the provided header
+	// if neccessary. Seal returns an error if it is not able to encrypt
+	// the io.Reader
 	Seal(header map[string]string, src io.Reader) (io.ReadCloser, error)
 
+	// Seal returns an io.ReadCloser decrypting everything it reads from
+	// the provided io.Reader. It reads HTTP headers from the provided header
+	// if neccessary. Open returns an error if it is not able to decrypt
+	// the io.Reader
 	Open(header map[string]string, src io.Reader) (io.ReadCloser, error)
 
+	// Overhead retruns the size of an encrypted stream with the provided
+	// size. The size of an encrypted stream is usually larger than an
+	// unencrypted one.
 	Overhead(size int64) int64
 }
 

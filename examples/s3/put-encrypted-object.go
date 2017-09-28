@@ -69,9 +69,9 @@ func main() {
 	symmetricKey := encrypt.NewSymmetricKey([]byte("my-secret-key-00"))
 
 	// Encrypt file content and upload to the server
-	n, err := s3Client.PutEncryptedObject("aead", "my-objectname", file, symmetricKey)
+	n, err := s3Client.PutEncryptedObject("my-bucket", "my-objectname", file, symmetricKey)
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
 	log.Println("Uploaded", "my-objectname", " of size: ", n, "Successfully.")
