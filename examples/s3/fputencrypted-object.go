@@ -61,7 +61,7 @@ func main() {
 	////
 
 	// Build a symmetric key
-	symmetricKey := encrypt.NewSymmetricKey([]byte("my-secret-key-00"))
+	symmetricKey := encrypt.DeriveKey("my-password", []byte("my-salt")) // customize this parameters!
 
 	// Encrypt file content and upload to the server
 	n, err := s3Client.FPutEncryptedObject("my-bucketname", "my-objectname", filePath, symmetricKey)

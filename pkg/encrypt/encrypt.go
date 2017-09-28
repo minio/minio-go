@@ -62,7 +62,7 @@ type Cipher interface {
 	// the io.Reader
 	Seal(header map[string]string, src io.Reader) (io.ReadCloser, error)
 
-	// Seal returns an io.ReadCloser decrypting everything it reads from
+	// Open returns an io.ReadCloser decrypting everything it reads from
 	// the provided io.Reader. It reads HTTP headers from the provided header
 	// if neccessary. Open returns an error if it is not able to decrypt
 	// the io.Reader

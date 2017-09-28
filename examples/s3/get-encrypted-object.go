@@ -60,7 +60,7 @@ func main() {
 	////
 
 	// Build a symmetric key
-	symmetricKey := encrypt.NewSymmetricKey([]byte("my-secret-key-00"))
+	symmetricKey := encrypt.DeriveKey("my-password", []byte("my-salt")) // customize this parameters!
 
 	// Get a deciphered data from the server, deciphering is assured by cbcMaterials
 	reader, err := s3Client.GetEncryptedObject("my-bucketname", "my-objectname", symmetricKey)

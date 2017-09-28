@@ -18,6 +18,8 @@ package encrypt
 
 import (
 	"crypto/aes"
+
+	"golang.org/x/crypto/scrypt"
 )
 
 // Key - generic interface to encrypt/decrypt a key.
@@ -100,4 +102,31 @@ func (s *SymmetricKey) Decrypt(cipher []byte) ([]byte, error) {
 // key from the provided byte slice.
 func NewSymmetricKey(b []byte) *SymmetricKey {
 	return &SymmetricKey{masterKey: b}
+}
+
+// PBKDF specifies a password-based key-derivation-function
+// to derive a symmetric encryption key from a password.
+type PBKDF func([]byte, []byte) ([]byte, error)
+
+func scrypt2009(password, salt []byte) ([]byte, error) {
+	return scrypt.Key(password, salt, 16384, 8, 1, 32)
+}
+
+// DeriveKey derives a 256 bit symmetric encryption key from a
+// password and a salt. The salt may be nil.
+//
+// The key is derived using
+// scrypt with the parameters N=16384, r=8 and p=1.
+func DeriveKey(password string, salt []byte) *SymmetricKey {
+	key, err := DeriveKeyUsing(scrypt2009, password, salt)
+	if err != nil {
+		panic("key deriviation failed for fixed PBKDF - please report this bug at: https://github.com/minio/minio-go/issues")
+	}
+	return NewSymmetricKey(key)
+}
+
+// DeriveKeyUsing derives a symmetric encryption key from a
+// password and a salt using the provided PBKDF.
+func DeriveKeyUsing(pbkdf PBKDF, password string, salt []byte) ([]byte, error) {
+	return pbkdf([]byte(password), salt)
 }
