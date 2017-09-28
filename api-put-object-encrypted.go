@@ -24,20 +24,19 @@ import (
 )
 
 // PutEncryptedObject - Encrypt and store object.
-func (c Client) PutEncryptedObject(bucketName, objectName string, reader io.Reader, encryptMaterials encrypt.Materials) (n int64, err error) {
-
-	if encryptMaterials == nil {
-		return 0, ErrInvalidArgument("Unable to recognize empty encryption properties")
-	}
-
-	if err := encryptMaterials.SetupEncryptMode(reader); err != nil {
+func (c Client) PutEncryptedObject(bucketName, objectName string, reader io.Reader, key encrypt.Key) (n int64, err error) {
+	cipher, err := encrypt.NewCipher(encrypt.DareHmacSha256, key)
+	if err != nil {
 		return 0, err
 	}
-
-	return c.PutObjectWithContext(context.Background(), bucketName, objectName, reader, -1, PutObjectOptions{EncryptMaterials: encryptMaterials})
+	return c.PutObjectWithContext(context.Background(), bucketName, objectName, reader, -1, PutObjectOptions{Cipher: cipher})
 }
 
 // FPutEncryptedObject - Encrypt and store an object with contents from file at filePath.
-func (c Client) FPutEncryptedObject(bucketName, objectName, filePath string, encryptMaterials encrypt.Materials) (n int64, err error) {
-	return c.FPutObjectWithContext(context.Background(), bucketName, objectName, filePath, PutObjectOptions{EncryptMaterials: encryptMaterials})
+func (c Client) FPutEncryptedObject(bucketName, objectName, filePath string, key encrypt.Key) (n int64, err error) {
+	cipher, err := encrypt.NewCipher(encrypt.DareHmacSha256, key)
+	if err != nil {
+		return 0, err
+	}
+	return c.FPutObjectWithContext(context.Background(), bucketName, objectName, filePath, PutObjectOptions{Cipher: cipher})
 }

@@ -68,16 +68,10 @@ func main() {
 	// Build a symmetric key
 	symmetricKey := encrypt.NewSymmetricKey([]byte("my-secret-key-00"))
 
-	// Build encryption materials which will encrypt uploaded data
-	cbcMaterials, err := encrypt.NewCBCSecureMaterials(symmetricKey)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
 	// Encrypt file content and upload to the server
-	n, err := s3Client.PutEncryptedObject("my-bucketname", "my-objectname", file, cbcMaterials)
+	n, err := s3Client.PutEncryptedObject("aead", "my-objectname", file, symmetricKey)
 	if err != nil {
-		log.Fatalln(err)
+		panic(err)
 	}
 
 	log.Println("Uploaded", "my-objectname", " of size: ", n, "Successfully.")

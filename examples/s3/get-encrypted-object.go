@@ -62,14 +62,8 @@ func main() {
 	// Build a symmetric key
 	symmetricKey := encrypt.NewSymmetricKey([]byte("my-secret-key-00"))
 
-	// Build encryption materials which will encrypt uploaded data
-	cbcMaterials, err := encrypt.NewCBCSecureMaterials(symmetricKey)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
 	// Get a deciphered data from the server, deciphering is assured by cbcMaterials
-	reader, err := s3Client.GetEncryptedObject("my-bucketname", "my-objectname", cbcMaterials)
+	reader, err := s3Client.GetEncryptedObject("my-bucketname", "my-objectname", symmetricKey)
 	if err != nil {
 		log.Fatalln(err)
 	}

@@ -32,12 +32,12 @@ import (
 
 // GetEncryptedObject deciphers and streams data stored in the server after applying a specified encryption materials,
 // returned stream should be closed by the caller.
-func (c Client) GetEncryptedObject(bucketName, objectName string, encryptMaterials encrypt.Materials) (io.ReadCloser, error) {
-	if encryptMaterials == nil {
-		return nil, ErrInvalidArgument("Unable to recognize empty encryption properties")
+func (c Client) GetEncryptedObject(bucketName, objectName string, key encrypt.Key) (io.ReadCloser, error) {
+	cipher, err := encrypt.NewCipher(encrypt.DareHmacSha256, key)
+	if err != nil {
+		return nil, err
 	}
-
-	return c.GetObject(bucketName, objectName, GetObjectOptions{Materials: encryptMaterials})
+	return c.GetObject(bucketName, objectName, GetObjectOptions{Cipher: cipher})
 }
 
 // GetObject - returns an seekable, readable object.
@@ -662,12 +662,15 @@ func (c Client) getObject(ctx context.Context, bucketName, objectName string, op
 	}
 
 	reader := resp.Body
-	if opts.Materials != nil {
-		err = opts.Materials.SetupDecryptMode(reader, objectStat.Metadata.Get(amzHeaderIV), objectStat.Metadata.Get(amzHeaderKey))
+	if opts.Cipher != nil {
+		header := make(map[string]string, len(objectStat.Metadata))
+		for k := range objectStat.Metadata {
+			header[k] = objectStat.Metadata.Get(k)
+		}
+		reader, err = opts.Cipher.Open(header, reader)
 		if err != nil {
 			return nil, ObjectInfo{}, err
 		}
-		reader = opts.Materials
 	}
 
 	// do not close body here, caller will close

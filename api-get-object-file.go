@@ -17,14 +17,12 @@
 package minio
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/minio/minio-go/pkg/encrypt"
-
-	"context"
-
 	"github.com/minio/minio-go/pkg/s3utils"
 )
 
@@ -40,11 +38,12 @@ func (c Client) FGetObject(bucketName, objectName, filePath string, opts GetObje
 }
 
 // FGetEncryptedObject - Decrypt and store an object at filePath.
-func (c Client) FGetEncryptedObject(bucketName, objectName, filePath string, materials encrypt.Materials) error {
-	if materials == nil {
-		return ErrInvalidArgument("Unable to recognize empty encryption properties")
+func (c Client) FGetEncryptedObject(bucketName, objectName, filePath string, key encrypt.Key) error {
+	cipher, err := encrypt.NewCipher(encrypt.DareHmacSha256, key)
+	if err != nil {
+		return err
 	}
-	return c.FGetObject(bucketName, objectName, filePath, GetObjectOptions{Materials: materials})
+	return c.FGetObject(bucketName, objectName, filePath, GetObjectOptions{Cipher: cipher})
 }
 
 // fGetObjectWithContext - fgetObject wrapper function with context

@@ -29,7 +29,7 @@ import (
 type GetObjectOptions struct {
 	headers map[string]string
 
-	Materials encrypt.Materials
+	Cipher encrypt.Cipher
 }
 
 // StatObjectOptions are used to specify additional headers or options
