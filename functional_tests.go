@@ -3029,6 +3029,16 @@ func testFunctional() {
 		failureLog(function, args, startTime, "", "FGetObject failed", err).Fatal()
 	}
 
+	function = "PresignedHeadObject(bucketName, objectName, expires, reqParams)"
+	args = map[string]interface{}{
+		"bucketName": bucketName,
+		"objectName": "",
+		"expires":    3600 * time.Second,
+	}
+	if _, err = c.PresignedHeadObject(bucketName, "", 3600*time.Second, nil); err == nil {
+		failureLog(function, args, startTime, "", "PresignedHeadObject success", err).Fatal()
+	}
+
 	// Generate presigned HEAD object url.
 	presignedHeadURL, err := c.PresignedHeadObject(bucketName, objectName, 3600*time.Second, nil)
 	function = "PresignedHeadObject(bucketName, objectName, expires, reqParams)"
@@ -3053,6 +3063,17 @@ func testFunctional() {
 		failureLog(function, args, startTime, "", "PresignedHeadObject response incorrect", err).Fatal()
 	}
 	resp.Body.Close()
+
+	_, err = c.PresignedGetObject(bucketName, "", 3600*time.Second, nil)
+	function = "PresignedGetObject(bucketName, objectName, expires, reqParams)"
+	args = map[string]interface{}{
+		"bucketName": bucketName,
+		"objectName": "",
+		"expires":    3600 * time.Second,
+	}
+	if err == nil {
+		failureLog(function, args, startTime, "", "PresignedGetObject success", err).Fatal()
+	}
 
 	// Generate presigned GET object url.
 	presignedGetURL, err := c.PresignedGetObject(bucketName, objectName, 3600*time.Second, nil)
@@ -3117,8 +3138,18 @@ func testFunctional() {
 		failureLog(function, args, startTime, "", "wrong Content-Disposition received "+string(resp.Header.Get("Content-Disposition")), err).Fatal()
 	}
 
-	presignedPutURL, err := c.PresignedPutObject(bucketName, objectName+"-presigned", 3600*time.Second)
+	_, err = c.PresignedPutObject(bucketName, "", 3600*time.Second)
+	function = "PresignedPutObject(bucketName, objectName, expires)"
+	args = map[string]interface{}{
+		"bucketName": bucketName,
+		"objectName": "",
+		"expires":    3600 * time.Second,
+	}
+	if err == nil {
+		failureLog(function, args, startTime, "", "PresignedPutObject success", err).Fatal()
+	}
 
+	presignedPutURL, err := c.PresignedPutObject(bucketName, objectName+"-presigned", 3600*time.Second)
 	function = "PresignedPutObject(bucketName, objectName, expires)"
 	args = map[string]interface{}{
 		"bucketName": bucketName,
