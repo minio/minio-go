@@ -19,6 +19,7 @@ package minio
 import (
 	"context"
 	"io"
+	"strings"
 
 	"github.com/minio/minio-go/pkg/policy"
 )
@@ -53,9 +54,30 @@ func (c Core) ListObjectsV2(bucketName, objectPrefix, continuationToken string, 
 	return c.listObjectsV2Query(bucketName, objectPrefix, continuationToken, fetchOwner, delimiter, maxkeys)
 }
 
+// CopyObject - copies an object from source object to destination object on server side.
+func (c Core) CopyObject(sourceBucket, sourceObject, destBucket, destObject string, metadata map[string]string) (ObjectInfo, error) {
+	return c.copyObjectDo(context.Background(), sourceBucket, sourceObject, destBucket, destObject, metadata)
+}
+
 // PutObject - Upload object. Uploads using single PUT call.
 func (c Core) PutObject(bucket, object string, data io.Reader, size int64, md5Sum, sha256Sum []byte, metadata map[string]string) (ObjectInfo, error) {
-	return c.putObjectDo(context.Background(), bucket, object, data, md5Sum, sha256Sum, size, PutObjectOptions{UserMetadata: metadata})
+	opts := PutObjectOptions{}
+	m := make(map[string]string)
+	for k, v := range metadata {
+		if strings.ToLower(k) == "content-encoding" {
+			opts.ContentEncoding = v
+		} else if strings.ToLower(k) == "content-disposition" {
+			opts.ContentDisposition = v
+		} else if strings.ToLower(k) == "content-type" {
+			opts.ContentType = v
+		} else if strings.ToLower(k) == "cache-control" {
+			opts.CacheControl = v
+		} else {
+			m[k] = metadata[k]
+		}
+	}
+	opts.UserMetadata = m
+	return c.putObjectDo(context.Background(), bucket, object, data, md5Sum, sha256Sum, size, opts)
 }
 
 // NewMultipartUpload - Initiates new multipart upload and returns the new uploadID.
