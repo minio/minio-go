@@ -18,6 +18,7 @@ package minio
 
 import (
 	"bytes"
+	"crypto/md5"
 	"io"
 	"log"
 	"os"
@@ -25,7 +26,6 @@ import (
 	"testing"
 	"time"
 
-	"crypto/md5"
 	"math/rand"
 )
 
@@ -366,6 +366,120 @@ func TestGetBucketPolicy(t *testing.T) {
 	}
 }
 
+// Tests Core CopyObject API implementation.
+func TestCoreCopyObject(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping functional tests for short runs")
+	}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := NewCore(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableSecurity)),
+	)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		t.Fatal("Error:", err, bucketName)
+	}
+
+	buf := bytes.Repeat([]byte("a"), 32*1024)
+
+	// Save the data
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), nil, nil, map[string]string{
+		"Content-Type": "binary/octet-stream",
+	})
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
+
+	if objInfo.Size != int64(len(buf)) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), objInfo.Size)
+	}
+
+	destBucketName := bucketName
+	destObjectName := objectName + "-dest"
+
+	cobjInfo, err := c.CopyObject(bucketName, objectName, destBucketName, destObjectName, map[string]string{
+		"X-Amz-Metadata-Directive": "REPLACE",
+		"Content-Type":             "application/javascript",
+	})
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName, destBucketName, destObjectName)
+	}
+	if cobjInfo.ETag != objInfo.ETag {
+		t.Fatalf("Error: expected etag to be same as source object %s, but found different etag :%s", objInfo.ETag, cobjInfo.ETag)
+	}
+
+	// Attempt to read from destBucketName and object name.
+	r, err := c.Client.GetObject(destBucketName, destObjectName, GetObjectOptions{})
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
+
+	st, err := r.Stat()
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
+
+	if st.Size != int64(len(buf)) {
+		t.Fatalf("Error: number of bytes in stat does not match, want %v, got %v\n",
+			len(buf), st.Size)
+	}
+
+	if st.ContentType != "application/javascript" {
+		t.Fatalf("Error: Content types don't match, expected: application/javascript, found: %+v\n", st.ContentType)
+	}
+
+	if st.ETag != objInfo.ETag {
+		t.Fatalf("Error: expected etag to be same as source object %s, but found different etag :%s", objInfo.ETag, st.ETag)
+	}
+
+	if err := r.Close(); err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	if err := r.Close(); err == nil {
+		t.Fatal("Error: object is already closed, should return error")
+	}
+
+	err = c.RemoveObject(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+
+	err = c.RemoveObject(destBucketName, destObjectName)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	// Do not need to remove destBucketName its same as bucketName.
+}
+
 // Test Core PutObject.
 func TestCorePutObject(t *testing.T) {
 	if testing.Short() {
@@ -401,7 +515,7 @@ func TestCorePutObject(t *testing.T) {
 		t.Fatal("Error:", err, bucketName)
 	}
 
-	buf := bytes.Repeat([]byte("a"), minPartSize)
+	buf := bytes.Repeat([]byte("a"), 32*1024)
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -412,7 +526,7 @@ func TestCorePutObject(t *testing.T) {
 
 	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), md5.New().Sum(nil), nil, metadata)
 	if err == nil {
-		t.Fatal("Error expected: nil, got: ", err)
+		t.Fatal("Error expected: error, got: nil(success)")
 	}
 
 	objInfo, err = c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), nil, nil, metadata)
