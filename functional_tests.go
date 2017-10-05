@@ -121,6 +121,43 @@ func ignoredLog(function string, args map[string]interface{}, startTime time.Tim
 	return log.WithFields(fields)
 }
 
+// Delete objects in given bucket, recursively
+func cleanupBucket(bucketName string, c *minio.Client) error {
+	// Create a done channel to control 'ListObjectsV2' go routine.
+	doneCh := make(chan struct{})
+	// Exit cleanly upon return.
+	defer close(doneCh)
+	// Iterate over all objects in the bucket via listObjectsV2 and delete
+	for objCh := range c.ListObjectsV2(bucketName, "", true, doneCh) {
+		if objCh.Err != nil {
+			return objCh.Err
+		}
+		if objCh.Key != "" {
+			err := c.RemoveObject(bucketName, objCh.Key)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	for objPartInfo := range c.ListIncompleteUploads(bucketName, "", true, doneCh) {
+		if objPartInfo.Err != nil {
+			return objPartInfo.Err
+		}
+		if objPartInfo.Key != "" {
+			err := c.RemoveIncompleteUpload(bucketName, objPartInfo.Key)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	// objects are already deleted, clear the buckets now
+	err := c.RemoveBucket(bucketName)
+	if err != nil {
+		return err
+	}
+	return err
+}
+
 func init() {
 	// If server endpoint is not set, all tests default to
 	// using https://play.minio.io:9000
@@ -255,10 +292,10 @@ func testMakeBucketError() {
 		minio.ToErrorResponse(err).Code != "BucketAlreadyOwnedByYou" {
 		failureLog(function, args, startTime, "", "Invalid error returned by server", err).Fatal()
 	}
-	if err = c.RemoveBucket(bucketName); err != nil {
-		failureLog(function, args, startTime, "", "Remove bucket failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
-
 	successLogger(function, args, startTime).Info()
 }
 
@@ -316,6 +353,12 @@ func testMetadataSizeLimit() {
 	if err == nil {
 		failureLog(function, args, startTime, "", "Created object with headers exceeding header size limits", nil).Fatal()
 	}
+
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
+	}
+
 	successLogger(function, args, startTime).Info()
 }
 
@@ -366,8 +409,9 @@ func testMakeBucketRegions() {
 		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
 	}
 
-	if err = c.RemoveBucket(bucketName); err != nil {
-		failureLog(function, args, startTime, "", "Remove bucket failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
 
 	// Make a new bucket with '.' in its name, in 'us-west-2'. This
@@ -379,11 +423,10 @@ func testMakeBucketRegions() {
 		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
 	}
 
-	// Remove the newly created bucket.
-	if err = c.RemoveBucket(bucketName + ".withperiod"); err != nil {
-		failureLog(function, args, startTime, "", "Remove bucket failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName+".withperiod", c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
-
 	successLogger(function, args, startTime).Info()
 }
 
@@ -473,14 +516,9 @@ func testPutObjectReadAt() {
 		failureLog(function, args, startTime, "", "Object is already closed, didn't return error on Close", err).Fatal()
 	}
 
-	err = c.RemoveObject(bucketName, objectName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
-	}
-	err = c.RemoveBucket(bucketName)
-
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
 
 	successLogger(function, args, startTime).Info()
@@ -581,12 +619,9 @@ func testPutObjectWithMetadata() {
 		failureLog(function, args, startTime, "", "Object already closed, should respond with error", err).Fatal()
 	}
 
-	if err = c.RemoveObject(bucketName, objectName); err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
-	}
-
-	if err = c.RemoveBucket(bucketName); err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
 
 	successLogger(function, args, startTime).Info()
@@ -650,17 +685,11 @@ func testPutObjectStreaming() {
 		}
 	}
 
-	// Remove the object.
-	err = c.RemoveObject(bucketName, objectName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
 
-	// Remove the bucket.
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
-	}
 	successLogger(function, args, startTime).Info()
 }
 
@@ -744,10 +773,11 @@ func testListPartiallyUploaded() {
 		}
 	}
 
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
+
 	successLogger(function, args, startTime).Info()
 }
 
@@ -858,6 +888,12 @@ func testGetObjectSeekEnd() {
 	if err = r.Close(); err != nil {
 		failureLog(function, args, startTime, "", "ObjectClose failed", err).Fatal()
 	}
+
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
+	}
+
 	successLogger(function, args, startTime).Info()
 }
 
@@ -938,14 +974,11 @@ func testGetObjectClosedTwice() {
 		failureLog(function, args, startTime, "", "Already closed object. No error returned", err).Fatal()
 	}
 
-	err = c.RemoveObject(bucketName, objectName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
-	}
+
 	successLogger(function, args, startTime).Info()
 }
 
@@ -1021,11 +1054,11 @@ func testRemoveMultipleObjects() {
 		}
 	}
 
-	// Clean the bucket created by the test
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
+
 	successLogger(function, args, startTime).Info()
 }
 
@@ -1099,10 +1132,11 @@ func testRemovePartiallyUploaded() {
 	if err != nil {
 		failureLog(function, args, startTime, "", "RemoveIncompleteUpload failed", err).Fatal()
 	}
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
+
 	successLogger(function, args, startTime).Info()
 }
 
@@ -1200,16 +1234,11 @@ func testFPutObjectMultipart() {
 		failureLog(function, args, startTime, "", "ContentType doesn't match", err).Fatal()
 	}
 
-	// Remove all objects and bucket and temp file
-	err = c.RemoveObject(bucketName, objectName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
 
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
-	}
 	successLogger(function, args, startTime).Info()
 }
 
@@ -1221,6 +1250,7 @@ func testFPutObject() {
 	args := map[string]interface{}{
 		"bucketName": "",
 		"objectName": "",
+		"fileName":   "",
 		"opts":       "",
 	}
 
@@ -1246,6 +1276,7 @@ func testFPutObject() {
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+	args["bucketName"] = bucketName
 
 	// Make a new bucket.
 	err = c.MakeBucket(bucketName, "us-east-1")
@@ -1280,9 +1311,11 @@ func testFPutObject() {
 	// Set base object name
 	objectName := bucketName + "FPutObject"
 	args["objectName"] = objectName
+	args["opts"] = minio.PutObjectOptions{ContentType: "application/octet-stream"}
 
 	// Perform standard FPutObject with contentType provided (Expecting application/octet-stream)
 	n, err := c.FPutObject(bucketName, objectName+"-standard", fName, minio.PutObjectOptions{ContentType: "application/octet-stream"})
+
 	if err != nil {
 		failureLog(function, args, startTime, "", "FPutObject failed", err).Fatal()
 	}
@@ -1348,25 +1381,9 @@ func testFPutObject() {
 		failureLog(function, args, startTime, "", "ContentType does not match, expected application/x-gtar, got "+rStandard.ContentType, err).Fatal()
 	}
 
-	// Remove all objects and bucket and temp file
-	err = c.RemoveObject(bucketName, objectName+"-standard")
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
-	}
-
-	err = c.RemoveObject(bucketName, objectName+"-Octet")
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
-	}
-
-	err = c.RemoveObject(bucketName, objectName+"-GTar")
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
-	}
-
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
 
 	err = os.Remove(fName + ".gtar")
@@ -1384,6 +1401,7 @@ func testFPutObjectWithContext() {
 	args := map[string]interface{}{
 		"bucketName": "",
 		"objectName": "",
+		"fileName":   "",
 		"opts":       "",
 	}
 	// Seed random based on current time.
@@ -1408,6 +1426,7 @@ func testFPutObjectWithContext() {
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+	args["bucketName"] = bucketName
 
 	// Make a new bucket.
 	err = c.MakeBucket(bucketName, "us-east-1")
@@ -1442,7 +1461,9 @@ func testFPutObjectWithContext() {
 
 	// Set base object name
 	objectName := bucketName + "FPutObjectWithContext"
+	args["objectName"] = objectName
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	args["ctx"] = ctx
 	defer cancel()
 
 	// Perform standard FPutObjectWithContext with contentType provided (Expecting application/octet-stream)
@@ -1465,19 +1486,10 @@ func testFPutObjectWithContext() {
 	if err != nil {
 		failureLog(function, args, startTime, "", "StatObject failed", err).Fatal()
 	}
-	err = c.RemoveObject(bucketName, objectName+"-Shorttimeout")
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
-	}
-	// Remove all objects and bucket and temp file
-	err = c.RemoveObject(bucketName, objectName+"-Longtimeout")
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
-	}
 
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
 
 	err = os.Remove(fName)
@@ -1520,6 +1532,7 @@ func testFPutObjectWithContextV2() {
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+	args["bucketName"] = bucketName
 
 	// Make a new bucket.
 	err = c.MakeBucket(bucketName, "us-east-1")
@@ -1556,7 +1569,10 @@ func testFPutObjectWithContextV2() {
 
 	// Set base object name
 	objectName := bucketName + "FPutObjectWithContext"
+	args["objectName"] = objectName
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+	args["ctx"] = ctx
 	defer cancel()
 
 	// Perform standard FPutObjectWithContext with contentType provided (Expecting application/octet-stream)
@@ -1581,19 +1597,9 @@ func testFPutObjectWithContextV2() {
 
 	}
 
-	err = c.RemoveObject(bucketName, objectName+"-Shorttimeout")
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
-	}
-	err = c.RemoveObject(bucketName, objectName+"-Longtimeout")
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
-	}
-
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
-
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
 
 	err = os.Remove(fName)
@@ -1611,9 +1617,10 @@ func testPutObjectWithContext() {
 	startTime := time.Now()
 	function := "PutObjectWithContext(ctx, bucketName, objectName, fileName, opts)"
 	args := map[string]interface{}{
+		"ctx":        "",
 		"bucketName": "",
 		"objectName": "",
-		"opts":       "minio.PutObjectOptions{ContentType:objectContentType}",
+		"opts":       "",
 	}
 	// Instantiate new minio client object.
 	c, err := minio.NewV4(
@@ -1634,17 +1641,21 @@ func testPutObjectWithContext() {
 
 	// Make a new bucket.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+	args["bucketName"] = bucketName
+
 	err = c.MakeBucket(bucketName, "us-east-1")
 	if err != nil {
 		failureLog(function, args, startTime, "", "MakeBucket call failed", err).Fatal()
 	}
-	defer c.RemoveBucket(bucketName)
 	bufSize := 1<<20 + 32*1024
 	var reader = getDataReader("datafile-33-kB", bufSize)
 	defer reader.Close()
 	objectName := fmt.Sprintf("test-file-%v", rand.Uint32())
+	args["objectName"] = objectName
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	args["ctx"] = ctx
+	args["opts"] = minio.PutObjectOptions{ContentType: "binary/octet-stream"}
 	defer cancel()
 
 	_, err = c.PutObjectWithContext(ctx, bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
@@ -1653,6 +1664,8 @@ func testPutObjectWithContext() {
 	}
 
 	ctx, cancel = context.WithTimeout(context.Background(), 3*time.Minute)
+	args["ctx"] = ctx
+
 	defer cancel()
 	reader = getDataReader("datafile-33-kB", bufSize)
 	defer reader.Close()
@@ -1661,13 +1674,11 @@ func testPutObjectWithContext() {
 		failureLog(function, args, startTime, "", "PutObjectWithContext with long timeout failed", err).Fatal()
 	}
 
-	if err = c.RemoveObject(bucketName, objectName); err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
-	}
+
 	successLogger(function, args, startTime).Info()
 
 }
@@ -1735,13 +1746,9 @@ func testGetObjectReadSeekFunctional() {
 	}
 
 	defer func() {
-		err = c.RemoveObject(bucketName, objectName)
-		if err != nil {
-			failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
-		}
-		err = c.RemoveBucket(bucketName)
-		if err != nil {
-			failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+		// Delete all objects and buckets
+		if err = cleanupBucket(bucketName, c); err != nil {
+			failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 		}
 	}()
 
@@ -1991,13 +1998,9 @@ func testGetObjectReadAtFunctional() {
 			failureLog(function, args, startTime, "", "ReadAt failed", err).Fatal()
 		}
 	}
-	err = c.RemoveObject(bucketName, objectName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
-	}
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
 	successLogger(function, args, startTime).Info()
 }
@@ -2096,16 +2099,11 @@ func testPresignedPostPolicy() {
 
 	policy = minio.NewPostPolicy()
 
-	// Remove all objects and buckets
-	err = c.RemoveObject(bucketName, objectName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
 
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
-	}
 	successLogger(function, args, startTime).Info()
 }
 
@@ -2263,25 +2261,12 @@ func testCopyObject() {
 		failureLog(function, args, startTime, "", "CopyObject did not fail for invalid conditions", err).Fatal()
 	}
 
-	// Remove all objects and buckets
-	err = c.RemoveObject(bucketName, objectName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
-
-	err = c.RemoveObject(bucketName+"-copy", objectName+"-copy")
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
-	}
-
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
-	}
-
-	err = c.RemoveBucket(bucketName + "-copy")
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+	if err = cleanupBucket(bucketName+"-copy", c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
 	successLogger(function, args, startTime).Info()
 }
@@ -2437,21 +2422,15 @@ func testEncryptionPutGet() {
 			failureLog(function, args, startTime, "", "Test "+string(i+1)+", Encrypted sent is not equal to decrypted, expected "+string(testCase.buf)+", got "+string(recvBuffer.Bytes()), err).Fatal()
 		}
 
-		// Remove test object
-		err = c.RemoveObject(bucketName, objectName)
-		if err != nil {
-			failureLog(function, args, startTime, "", "Test "+string(i+1)+", RemoveObject failed with: "+err.Error(), err).Fatal()
-		}
 		successLogger(function, args, startTime).Info()
 
 	}
 
-	// Remove test bucket
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		err = c.RemoveBucket(bucketName)
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
+
 	successLogger(function, args, startTime).Info()
 }
 
@@ -2620,24 +2599,19 @@ func testEncryptionFPut() {
 			failureLog(function, args, startTime, "", "Test "+string(i+1)+", Encrypted sent is not equal to decrypted, expected "+string(testCase.buf)+", got "+string(recvBuffer.Bytes()), err).Fatal()
 		}
 
-		// Remove test object
-		err = c.RemoveObject(bucketName, objectName)
-		if err != nil {
-			failureLog(function, args, startTime, "", "Test "+string(i+1)+", RemoveObject failed with: "+err.Error(), err).Fatal()
-		}
 		if err = os.Remove(fileName); err != nil {
 			failureLog(function, args, startTime, "", "File remove failed", err).Fatal()
 		}
 	}
 
-	// Remove test bucket
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		err = c.RemoveBucket(bucketName)
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
+
 	successLogger(function, args, startTime).Info()
 }
+
 func testBucketNotification() {
 	// initialize logging params
 	startTime := time.Now()
@@ -2725,6 +2699,12 @@ func testBucketNotification() {
 	if err != nil {
 		failureLog(function, args, startTime, "", "RemoveAllBucketNotification failed", err).Fatal()
 	}
+
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
+	}
+
 	successLogger(function, args, startTime).Info()
 }
 
@@ -3225,6 +3205,7 @@ func testFunctional() {
 	if err.Error() != "The specified bucket does not exist" {
 		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
 	}
+
 	if err = os.Remove(fileName); err != nil {
 		failureLog(function, args, startTime, "", "File Remove failed", err).Fatal()
 	}
@@ -3315,6 +3296,11 @@ func testGetObjectObjectModified() {
 	if err.Error() != expectedError {
 		failureLog(function, args, startTime, "", "Expected ReadAt to fail with error "+expectedError+", but received "+err.Error(), err).Fatal()
 	}
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
+	}
+
 	successLogger(function, args, startTime).Info()
 }
 
@@ -3419,17 +3405,11 @@ func testPutObjectUploadSeekedObject() {
 		failureLog(function, args, startTime, "", "Invalid offset returned, expected "+string(int64(length-offset))+" got "+string(n), err).Fatal()
 	}
 
-	if err = c.RemoveObject(bucketName, objectName); err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
 
-	if err = c.RemoveObject(bucketName, objectName+"getobject"); err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
-	}
-
-	if err = c.RemoveBucket(bucketName); err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
-	}
 	successLogger(function, args, startTime).Info()
 }
 
@@ -3484,9 +3464,11 @@ func testMakeBucketErrorV2() {
 		minio.ToErrorResponse(err).Code != "BucketAlreadyOwnedByYou" {
 		failureLog(function, args, startTime, "", "Invalid error returned by server", err).Fatal()
 	}
-	if err = c.RemoveBucket(bucketName); err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
+
 	successLogger(function, args, startTime).Info()
 }
 
@@ -3568,14 +3550,11 @@ func testGetObjectClosedTwiceV2() {
 		failureLog(function, args, startTime, "", "Object is already closed, should return error", err).Fatal()
 	}
 
-	err = c.RemoveObject(bucketName, objectName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
-	}
+
 	successLogger(function, args, startTime).Info()
 }
 
@@ -3649,10 +3628,11 @@ func testRemovePartiallyUploadedV2() {
 	if err != nil {
 		failureLog(function, args, startTime, "", "RemoveIncompleteUpload failed", err).Fatal()
 	}
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
+
 	successLogger(function, args, startTime).Info()
 }
 
@@ -3790,25 +3770,9 @@ func testFPutObjectV2() {
 		failureLog(function, args, startTime, "", "Content-Type headers mismatched, expected: application/x-gtar , got "+rGTar.ContentType, err).Fatal()
 	}
 
-	// Remove all objects and bucket and temp file
-	err = c.RemoveObject(bucketName, objectName+"-standard")
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
-	}
-
-	err = c.RemoveObject(bucketName, objectName+"-Octet")
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
-	}
-
-	err = c.RemoveObject(bucketName, objectName+"-GTar")
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
-	}
-
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
 
 	err = os.Remove(fileName + ".gtar")
@@ -3862,8 +3826,8 @@ func testMakeBucketRegionsV2() {
 		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
 	}
 
-	if err = c.RemoveBucket(bucketName); err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
 
 	// Make a new bucket with '.' in its name, in 'us-west-2'. This
@@ -3875,10 +3839,11 @@ func testMakeBucketRegionsV2() {
 		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
 	}
 
-	// Remove the newly created bucket.
-	if err = c.RemoveBucket(bucketName + ".withperiod"); err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName+".withperiod", c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
+
 	successLogger(function, args, startTime).Info()
 }
 
@@ -4016,14 +3981,11 @@ func testGetObjectReadSeekFunctionalV2() {
 		failureLog(function, args, startTime, "", "Incorrect read bytes v/s original buffer", err).Fatal()
 	}
 
-	err = c.RemoveObject(bucketName, objectName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
-	}
+
 	successLogger(function, args, startTime).Info()
 }
 
@@ -4167,14 +4129,11 @@ func testGetObjectReadAtFunctionalV2() {
 			failureLog(function, args, startTime, "", "ReadAt failed", err).Fatal()
 		}
 	}
-	err = c.RemoveObject(bucketName, objectName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
-	}
+
 	successLogger(function, args, startTime).Info()
 }
 
@@ -4333,25 +4292,12 @@ func testCopyObjectV2() {
 		failureLog(function, args, startTime, "", "CopyObject did not fail for invalid conditions", err).Fatal()
 	}
 
-	// Remove all objects and buckets
-	err = c.RemoveObject(bucketName, objectName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
-
-	err = c.RemoveObject(bucketName+"-copy", objectName+"-copy")
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
-	}
-
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
-	}
-
-	err = c.RemoveBucket(bucketName + "-copy")
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
+	if err = cleanupBucket(bucketName+"-copy", c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
 	successLogger(function, args, startTime).Info()
 }
@@ -4409,6 +4355,12 @@ func testComposeObjectErrorCasesWrapper(c *minio.Client) {
 	} else if !strings.Contains(err.Error(), "has invalid segment-to-copy") {
 		failureLog(function, args, startTime, "", "Got invalid error", err).Fatal()
 	}
+
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
+	}
+
 	successLogger(function, args, startTime).Info()
 }
 
@@ -4488,6 +4440,10 @@ func testComposeMultipleSources(c *minio.Client) {
 
 	if objProps.Size != 9*srcSize+1 {
 		failureLog(function, args, startTime, "", "Size mismatched! Expected "+string(10000*srcSize)+" got "+string(objProps.Size), err).Fatal()
+	}
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
 	successLogger(function, args, startTime).Info()
 }
@@ -4573,6 +4529,11 @@ func testEncryptedCopyObjectWrapper(c *minio.Client) {
 	if !bytes.Equal(decBytes, buf) {
 		failureLog(function, args, startTime, "", "Downloaded object mismatched for encrypted object", err).Fatal()
 	}
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
+	}
+
 	successLogger(function, args, startTime).Info()
 }
 
@@ -4785,6 +4746,12 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 	if !reflect.DeepEqual(expectedHeaders, fetchMeta("dstObject-4")) {
 		failureLog(function, args, startTime, "", "Metadata match failed", err).Fatal()
 	}
+
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
+	}
+
 	successLogger(function, args, startTime).Info()
 }
 
@@ -4870,17 +4837,11 @@ func testPutObjectNoLengthV2() {
 		failureLog(function, args, startTime, "", "Expected upload object size "+string(sixtyFiveMiB)+" got "+string(n), err).Fatal()
 	}
 
-	// Remove the object.
-	err = c.RemoveObject(bucketName, objectName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
 
-	// Remove the bucket.
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
-	}
 	successLogger(function, args, startTime).Info()
 }
 
@@ -4952,18 +4913,13 @@ func testPutObjectsUnknownV2() {
 			failureLog(function, args, startTime, "", "Expected upload object size "+string(4)+" got "+string(n), err).Fatal()
 		}
 
-		// Remove the object.
-		err = c.RemoveObject(bucketName, objectName)
-		if err != nil {
-			failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
-		}
 	}
 
-	// Remove the bucket.
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
+
 	successLogger(function, args, startTime).Info()
 }
 
@@ -5002,6 +4958,7 @@ func testPutObject0ByteV2() {
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()),
 		"minio-go-test")
+	args["bucketName"] = bucketName
 
 	// Make a new bucket.
 	err = c.MakeBucket(bucketName, "us-east-1")
@@ -5010,6 +4967,8 @@ func testPutObject0ByteV2() {
 	}
 
 	objectName := bucketName + "unique"
+	args["objectName"] = objectName
+	args["opts"] = minio.PutObjectOptions{}
 
 	// Upload an object.
 	n, err := c.PutObject(bucketName, objectName, bytes.NewReader([]byte("")), 0, minio.PutObjectOptions{})
@@ -5021,17 +4980,11 @@ func testPutObject0ByteV2() {
 		failureLog(function, args, startTime, "", "Expected upload object size 0 but got "+string(n), err).Fatal()
 	}
 
-	// Remove the object.
-	err = c.RemoveObject(bucketName, objectName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
 
-	// Remove the bucket.
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
-	}
 	successLogger(function, args, startTime).Info()
 }
 
@@ -5350,33 +5303,11 @@ func testFunctionalV2() {
 		failureLog(function, args, startTime, "", "Bytes mismatch", err).Fatal()
 	}
 
-	err = c.RemoveObject(bucketName, objectName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
-	err = c.RemoveObject(bucketName, objectName+"-f")
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
-	}
-	err = c.RemoveObject(bucketName, objectName+"-nolength")
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
-	}
-	err = c.RemoveObject(bucketName, objectName+"-presigned")
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject failed", err).Fatal()
-	}
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket failed", err).Fatal()
-	}
-	err = c.RemoveBucket(bucketName)
-	if err == nil {
-		failureLog(function, args, startTime, "", "RemoveBucket should fail as bucket does not exist", err).Fatal()
-	}
-	if err.Error() != "The specified bucket does not exist" {
-		failureLog(function, args, startTime, "", "RemoveBucket failed with wrong error message", err).Fatal()
-	}
+
 	if err = os.Remove(fileName); err != nil {
 		failureLog(function, args, startTime, "", "File remove failed", err).Fatal()
 	}
@@ -5418,6 +5349,7 @@ func testGetObjectWithContext() {
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+	args["bucketName"] = bucketName
 
 	// Make a new bucket.
 	err = c.MakeBucket(bucketName, "us-east-1")
@@ -5431,6 +5363,7 @@ func testGetObjectWithContext() {
 	defer reader.Close()
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	args["objectName"] = objectName
 
 	_, err = c.PutObject(bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
@@ -5439,6 +5372,7 @@ func testGetObjectWithContext() {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	args["ctx"] = ctx
 	defer cancel()
 
 	// Read the data back
@@ -5448,6 +5382,7 @@ func testGetObjectWithContext() {
 
 	}
 	ctx, cancel = context.WithTimeout(context.Background(), 3*time.Minute)
+	args["ctx"] = ctx
 	defer cancel()
 
 	// Read the data back
@@ -5468,14 +5403,11 @@ func testGetObjectWithContext() {
 		failureLog(function, args, startTime, "", "object Close() call failed", err).Fatal()
 	}
 
-	err = c.RemoveObject(bucketName, objectName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject call failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket call failed", err).Fatal()
-	}
+
 	successLogger(function, args, startTime).Info()
 
 }
@@ -5489,6 +5421,7 @@ func testFGetObjectWithContext() {
 		"ctx":        "",
 		"bucketName": "",
 		"objectName": "",
+		"fileName":   "",
 	}
 	// Seed random based on current time.
 	rand.Seed(time.Now().Unix())
@@ -5512,6 +5445,7 @@ func testFGetObjectWithContext() {
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+	args["bucketName"] = bucketName
 
 	// Make a new bucket.
 	err = c.MakeBucket(bucketName, "us-east-1")
@@ -5524,6 +5458,7 @@ func testFGetObjectWithContext() {
 	defer reader.Close()
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	args["objectName"] = objectName
 
 	_, err = c.PutObject(bucketName, objectName, reader, int64(oneMiB), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
@@ -5531,9 +5466,11 @@ func testFGetObjectWithContext() {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+	args["ctx"] = ctx
 	defer cancel()
 
 	fileName := "tempfile-context"
+	args["fileName"] = fileName
 	// Read the data back
 	err = c.FGetObjectWithContext(ctx, bucketName, objectName, fileName+"-f", minio.GetObjectOptions{})
 	if err == nil {
@@ -5551,16 +5488,11 @@ func testFGetObjectWithContext() {
 		failureLog(function, args, startTime, "", "Remove file failed", err).Fatal()
 
 	}
-	err = c.RemoveObject(bucketName, objectName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject call failed", err).Fatal()
-
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket call failed", err).Fatal()
 
-	}
 	successLogger(function, args, startTime).Info()
 
 }
@@ -5569,11 +5501,12 @@ func testFGetObjectWithContext() {
 func testPutObjectWithContextV2() {
 	// initialize logging params
 	startTime := time.Now()
-	function := "PutObjectWithContext(ctx, bucketName, objectName, fileName, opts)"
+	function := "PutObjectWithContext(ctx, bucketName, objectName, reader, size, opts)"
 	args := map[string]interface{}{
+		"ctx":        "",
 		"bucketName": "",
 		"objectName": "",
-		"opts":       "minio.PutObjectOptions{ContentType:objectContentType}",
+		"opts":       "",
 	}
 	// Instantiate new minio client object.
 	c, err := minio.NewV2(
@@ -5594,6 +5527,8 @@ func testPutObjectWithContextV2() {
 
 	// Make a new bucket.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+	args["bucketName"] = bucketName
+
 	err = c.MakeBucket(bucketName, "us-east-1")
 	if err != nil {
 		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
@@ -5603,9 +5538,12 @@ func testPutObjectWithContextV2() {
 	bufSize := 1<<20 + 32*1024
 	var reader = getDataReader("datafile-33-kB", bufSize)
 	defer reader.Close()
+
 	objectName := fmt.Sprintf("test-file-%v", rand.Uint32())
+	args["objectName"] = objectName
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	args["ctx"] = ctx
 	defer cancel()
 
 	_, err = c.PutObjectWithContext(ctx, bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
@@ -5614,6 +5552,8 @@ func testPutObjectWithContextV2() {
 	}
 
 	ctx, cancel = context.WithTimeout(context.Background(), 3*time.Minute)
+	args["ctx"] = ctx
+
 	defer cancel()
 	reader = getDataReader("datafile-33-kB", bufSize)
 	defer reader.Close()
@@ -5622,13 +5562,11 @@ func testPutObjectWithContextV2() {
 		failureLog(function, args, startTime, "", "PutObjectWithContext with long timeout failed", err).Fatal()
 	}
 
-	if err = c.RemoveObject(bucketName, objectName); err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject call failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket call failed", err).Fatal()
-	}
+
 	successLogger(function, args, startTime).Info()
 
 }
@@ -5639,6 +5577,7 @@ func testGetObjectWithContextV2() {
 	startTime := time.Now()
 	function := "GetObjectWithContext(ctx, bucketName, objectName)"
 	args := map[string]interface{}{
+		"ctx":        "",
 		"bucketName": "",
 		"objectName": "",
 	}
@@ -5664,6 +5603,7 @@ func testGetObjectWithContextV2() {
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+	args["bucketName"] = bucketName
 
 	// Make a new bucket.
 	err = c.MakeBucket(bucketName, "us-east-1")
@@ -5677,6 +5617,7 @@ func testGetObjectWithContextV2() {
 	defer reader.Close()
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	args["objectName"] = objectName
 
 	_, err = c.PutObject(bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
@@ -5684,6 +5625,7 @@ func testGetObjectWithContextV2() {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	args["ctx"] = ctx
 	defer cancel()
 
 	// Read the data back
@@ -5713,16 +5655,11 @@ func testGetObjectWithContextV2() {
 		failureLog(function, args, startTime, "", " object Close() call failed", err).Fatal()
 	}
 
-	err = c.RemoveObject(bucketName, objectName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject call failed", err).Fatal()
-
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
 
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket call failed", err).Fatal()
-	}
 	successLogger(function, args, startTime).Info()
 
 }
@@ -5759,6 +5696,7 @@ func testFGetObjectWithContextV2() {
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+	args["bucketName"] = bucketName
 
 	// Make a new bucket.
 	err = c.MakeBucket(bucketName, "us-east-1")
@@ -5772,6 +5710,7 @@ func testFGetObjectWithContextV2() {
 	defer reader.Close()
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	args["objectName"] = objectName
 
 	_, err = c.PutObject(bucketName, objectName, reader, int64(oneMiB), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
@@ -5779,14 +5718,16 @@ func testFGetObjectWithContextV2() {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	args["ctx"] = ctx
 	defer cancel()
 
 	fileName := "tempfile-context"
+	args["fileName"] = fileName
+
 	// Read the data back
 	err = c.FGetObjectWithContext(ctx, bucketName, objectName, fileName+"-f", minio.GetObjectOptions{})
 	if err == nil {
 		failureLog(function, args, startTime, "", "FGetObjectWithContext call with short request timeout failed", err).Fatal()
-
 	}
 	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
@@ -5800,14 +5741,11 @@ func testFGetObjectWithContextV2() {
 	if err = os.Remove(fileName + "-fcontext"); err != nil {
 		failureLog(function, args, startTime, "", "Remove file failed", err).Fatal()
 	}
-	err = c.RemoveObject(bucketName, objectName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveObject call failed", err).Fatal()
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		failureLog(function, args, startTime, "", "Cleanup failed", err).Fatal()
 	}
-	err = c.RemoveBucket(bucketName)
-	if err != nil {
-		failureLog(function, args, startTime, "", "RemoveBucket call failed", err).Fatal()
-	}
+
 	successLogger(function, args, startTime).Info()
 
 }
