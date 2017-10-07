@@ -158,6 +158,10 @@ func cleanupBucket(bucketName string, c *minio.Client) error {
 	return err
 }
 
+func isErrNotImplemented(err error) bool {
+	return minio.ToErrorResponse(err).Code != "NotImplemented"
+}
+
 func init() {
 	// If server endpoint is not set, all tests default to
 	// using https://play.minio.io:9000
@@ -4430,6 +4434,10 @@ func testComposeMultipleSources(c *minio.Client) {
 	}
 	err = c.ComposeObject(dst, srcs)
 	if err != nil {
+		if isErrNotImplemented(err) {
+			ignoredLog(function, args, startTime, err.Error()).Info()
+			return
+		}
 		failureLog(function, args, startTime, "", "ComposeObject failed", err).Fatal()
 	}
 
@@ -4713,6 +4721,10 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 	args["source"] = srcs
 
 	if err != nil {
+		if isErrNotImplemented(err) {
+			ignoredLog(function, args, startTime, err.Error()).Info()
+			return
+		}
 		failureLog(function, args, startTime, "", "ComposeObject failed", err).Fatal()
 	}
 
@@ -4737,6 +4749,10 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 	args["source"] = srcs
 
 	if err != nil {
+		if isErrNotImplemented(err) {
+			ignoredLog(function, args, startTime, err.Error()).Info()
+			return
+		}
 		failureLog(function, args, startTime, "", "ComposeObject failed", err).Fatal()
 	}
 
