@@ -28,6 +28,8 @@ import (
 	"github.com/minio/sio"
 )
 
+// dareHmacSha256 implements encrypt.Cipher with the DARE format
+// and HMAC-SHA256 as encryption key derivation function.
 type dareHmacSha256 [32]byte
 
 func (d dareHmacSha256) Seal(header map[string]string, r io.Reader) (io.ReadCloser, error) {
@@ -56,7 +58,7 @@ func (d dareHmacSha256) Seal(header map[string]string, r io.Reader) (io.ReadClos
 
 func (d dareHmacSha256) Open(header map[string]string, r io.Reader) (io.ReadCloser, error) {
 	if header[cseAlgorithm] != DareHmacSha256 {
-		return nil, errors.New("invalid encryption algorithm")
+		return nil, errors.New("unexpected encryption algorithm")
 	}
 	iv, err := base64.StdEncoding.DecodeString(header[cseIV])
 	if err != nil {
@@ -79,6 +81,7 @@ func (d dareHmacSha256) Open(header map[string]string, r io.Reader) (io.ReadClos
 }
 
 func (d dareHmacSha256) Overhead(size int64) int64 {
+	// See https://github.com/minio/sio/blob/master/DARE.md#3-package-format
 	encSize := (size / (64 * 1024)) * (64*1024 + 32)
 	if mod := size % (64 * 1024); mod > 0 {
 		encSize += mod + 32

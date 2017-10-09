@@ -68,7 +68,7 @@ type Cipher interface {
 	// the io.Reader
 	Open(header map[string]string, src io.Reader) (io.ReadCloser, error)
 
-	// Overhead retruns the size of an encrypted stream with the provided
+	// Overhead returns the size of an encrypted stream with the provided
 	// size. The size of an encrypted stream is usually larger than an
 	// unencrypted one.
 	Overhead(size int64) int64

@@ -21,6 +21,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -2388,7 +2389,9 @@ func testEncryptionPutGet() {
 	}
 
 	// Generate a symmetric key
-	symKey := encrypt.NewSymmetricKey(make([]byte, 32))
+	var salt [8]byte
+	binary.LittleEndian.PutUint64(salt[:], uint64(time.Now().Unix()))
+	symKey := encrypt.DeriveKey("my-password", salt[:])
 
 	testCases := []struct {
 		buf    []byte
@@ -2493,7 +2496,7 @@ func testEncryptionFPut() {
 	}
 
 	// Generate a symmetric key
-	symKey := encrypt.NewSymmetricKey(make([]byte, 32))
+	symKey := encrypt.DeriveKey("my-passwod", []byte("salt-123"))
 	// Object custom metadata
 	customContentType := "custom/contenttype"
 	args["metadata"] = customContentType
