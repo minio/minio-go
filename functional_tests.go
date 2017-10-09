@@ -2052,6 +2052,8 @@ func testPresignedPostPolicy() {
 	defer reader.Close()
 
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	metadataKey := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	metadataValue := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 
 	buf, err := ioutil.ReadAll(reader)
 	if err != nil {
@@ -2088,12 +2090,16 @@ func testPresignedPostPolicy() {
 	if err := policy.SetContentLengthRange(1024*1024, 1024); err == nil {
 		failureLog(function, args, startTime, "", "SetContentLengthRange did not fail for invalid conditions", err).Fatal()
 	}
+	if err := policy.SetUserMetadata("", ""); err == nil {
+		failureLog(function, args, startTime, "", "SetUserMetadata did not fail for invalid conditions", err).Fatal()
+	}
 
 	policy.SetBucket(bucketName)
 	policy.SetKey(objectName)
 	policy.SetExpires(time.Now().UTC().AddDate(0, 0, 10)) // expires in 10 days
 	policy.SetContentType("image/png")
 	policy.SetContentLengthRange(1024, 1024*1024)
+	policy.SetUserMetadata(metadataKey, metadataValue)
 	args["policy"] = policy
 
 	_, _, err = c.PresignedPostPolicy(policy)
