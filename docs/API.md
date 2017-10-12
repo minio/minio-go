@@ -138,10 +138,12 @@ Lists all buckets.
 
 | Param  | Type  | Description  |
 |---|---|---|
-|`bucketList`  | _[]BucketInfo_  | Lists of all buckets |
+|`bucketList`  | _[]minio.BucketInfo_  | Lists of all buckets |
 
 
-| Param  | Type  | Description  |
+__minio.BucketInfo__
+
+| Field  | Type  | Description  |
 |---|---|---|
 |`bucket.Name`  | _string_  | Name of the bucket |
 |`bucket.CreationDate`  | _time.Time_  | Date of bucket creation |
@@ -239,9 +241,11 @@ __Return Value__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`chan ObjectInfo`  | _chan ObjectInfo_ |Read channel for all objects in the bucket, the object is of the format listed below: |
+|`objectInfo`  | _chan minio.ObjectInfo_ |Read channel for all objects in the bucket, the object is of the format listed below: |
 
-|Param   |Type   |Description   |
+__minio.ObjectInfo__
+
+|Field   |Type   |Description   |
 |:---|:---| :---|
 |`objectInfo.Key`  | _string_ |Name of the object |
 |`objectInfo.Size`  | _int64_ |Size of the object |
@@ -288,14 +292,7 @@ __Return Value__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`chan ObjectInfo`  | _chan ObjectInfo_ |Read channel for all the objects in the bucket, the object is of the format listed below: |
-
-|Param   |Type   |Description   |
-|:---|:---| :---|
-|`objectInfo.Key`  | _string_ |Name of the object |
-|`objectInfo.Size`  | _int64_ |Size of the object |
-|`objectInfo.ETag`  | _string_ |MD5 checksum of the object |
-|`objectInfo.LastModified`  | _time.Time_ |Time when object was last modified |
+|`objectInfo`  | _chan minio.ObjectInfo_ |Read channel for all the objects in the bucket, the object is of the format listed below: |
 
 
 ```go
@@ -337,11 +334,11 @@ __Return Value__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`chan ObjectMultipartInfo`  | _chan ObjectMultipartInfo_  |Emits multipart objects of the format listed below: |
+|`multiPartInfo`  | _chan minio.ObjectMultipartInfo_  |Emits multipart objects of the format listed below: |
 
-__Return Value__
+__minio.ObjectMultipartInfo__
 
-|Param   |Type   |Description   |
+|Field   |Type   |Description   |
 |:---|:---| :---|
 |`multiPartObjInfo.Key`  | _string_  |Name of incompletely uploaded object |
 |`multiPartObjInfo.UploadID` | _string_ |Upload ID of incompletely uploaded object |
@@ -383,7 +380,7 @@ __Parameters__
 |:---|:---| :---|
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object  |
-|`opts` | _GetObjectOptions_ | Options for GET requests specifying additional options like encryption, If-Match |
+|`opts` | _minio.GetObjectOptions_ | Options for GET requests specifying additional options like encryption, If-Match |
 
 
 __Return Value__
@@ -398,7 +395,7 @@ __Example__
 
 
 ```go
-object, err := minioClient.GetObject("mybucket", "photo.jpg", GetObjectOptions{})
+object, err := minioClient.GetObject("mybucket", "photo.jpg", minio.GetObjectOptions{})
 if err != nil {
     fmt.Println(err)
     return
@@ -427,14 +424,14 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket |
 |`objectName` | _string_  |Name of the object  |
 |`filePath` | _string_  |Path to download object to |
-|`opts` | _GetObjectOptions_ | Options for GET requests specifying additional options like encryption, If-Match |
+|`opts` | _minio.GetObjectOptions_ | Options for GET requests specifying additional options like encryption, If-Match |
 
 
 __Example__
 
 
 ```go
-err := minioClient.FGetObject("mybucket", "photo.jpg", "/tmp/photo.jpg", GetObjectOptions{})
+err := minioClient.FGetObject("mybucket", "photo.jpg", "/tmp/photo.jpg", minio.GetObjectOptions{})
 if err != nil {
     fmt.Println(err)
     return
@@ -453,7 +450,7 @@ __Parameters__
 |`ctx`  | _context.Context_  |Request context  |
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object  |
-|`opts` | _GetObjectOptions_ | Options for GET requests specifying additional options like encryption, If-Match |
+|`opts` | _minio.GetObjectOptions_ | Options for GET requests specifying additional options like encryption, If-Match |
 
 
 __Return Value__
@@ -470,7 +467,7 @@ __Example__
 ```go
 ctx, cancel := context.WithTimeout(context.Background(), 100 * time.Seconds)
 defer cancel()
-object, err := minioClient.GetObjectWithContext(ctx, "mybucket", "photo.jpg", GetObjectOptions{})
+object, err := minioClient.GetObjectWithContext(ctx, "mybucket", "photo.jpg", minio.GetObjectOptions{})
 if err != nil {
     fmt.Println(err)
     return
@@ -499,7 +496,7 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket |
 |`objectName` | _string_  |Name of the object  |
 |`filePath` | _string_  |Path to download object to |
-|`opts` | _GetObjectOptions_ | Options for GET requests specifying additional options like encryption, If-Match |
+|`opts` | _minio.GetObjectOptions_ | Options for GET requests specifying additional options like encryption, If-Match |
 
 
 __Example__
@@ -508,7 +505,7 @@ __Example__
 ```go
 ctx, cancel := context.WithTimeout(context.Background(), 100 * time.Seconds)
 defer cancel()
-err := minioClient.FGetObjectWithContext(ctx, "mybucket", "photo.jpg", "/tmp/photo.jpg", GetObjectOptions{})
+err := minioClient.FGetObjectWithContext(ctx, "mybucket", "photo.jpg", "/tmp/photo.jpg", minio.GetObjectOptions{})
 if err != nil {
     fmt.Println(err)
     return
@@ -535,18 +532,17 @@ __Example__
 
 ```go
 // Generate a master symmetric key
-key := minio.NewSymmetricKey("my-secret-key-00")
+key := encrypt.NewSymmetricKey("my-secret-key-00")
 
 // Build the CBC encryption material
-cbcMaterials, err := NewCBCSecureMaterials(key)
+cbcMaterials, err := encrypt.NewCBCSecureMaterials(key)
 if err != nil {
-    t.Fatal(err)
+    log.Fatalln(err)
 }
 
 err = minioClient.FGetEncryptedObject("mybucket", "photo.jpg", "/tmp/photo.jpg", cbcMaterials)
 if err != nil {
-    fmt.Println(err)
-    return
+    log.Fatalln(err)
 }
 ```
 
@@ -564,7 +560,7 @@ __Parameters__
 |`objectName` | _string_  |Name of the object   |
 |`reader` | _io.Reader_  |Any Go type that implements io.Reader |
 |`objectSize`| _int64_ |Size of the object being uploaded. Pass -1 if stream size is unknown |
-|`opts` | _PutObjectOptions_  |Pointer to struct that allows user to set optional custom metadata, content-type, content-encoding,content-disposition and cache-control headers, pass encryption module for encrypting objects, and optionally configure number of threads for multipart put operation. |
+|`opts` | _minio.PutObjectOptions_  |Pointer to struct that allows user to set optional custom metadata, content-type, content-encoding,content-disposition and cache-control headers, pass encryption module for encrypting objects, and optionally configure number of threads for multipart put operation. |
 
 
 __Example__
@@ -576,14 +572,16 @@ if err != nil {
     fmt.Println(err)
     return
 }
+
 defer file.Close()
 
-fileStat, err := fileReader.Stat()
+fileStat, err := file.Stat()
 if err != nil {
     fmt.Println(err)
     return
 }
-n, err := minioClient.PutObject("mybucket", "myobject", file, fileStat.Size(), PutObjectOptions{ContentType:"application/octet-stream"})
+
+n, err := minioClient.PutObject("mybucket", "myobject", file, fileStat.Size(), minio.PutObjectOptions{ContentType:"application/octet-stream"})
 if err != nil {
     fmt.Println(err)
     return
@@ -606,7 +604,7 @@ __Parameters__
 |`objectName` | _string_  |Name of the object   |
 |`reader` | _io.Reader_  |Any Go type that implements io.Reader |
 |`objectSize`| _int64_ | size of the object being uploaded. Pass -1 if stream size is unknown |
-|`opts` | _PutObjectOptions_  |Pointer to struct that allows user to set optional custom metadata, content-type, content-encoding,content-disposition and cache-control headers, pass encryption module for encrypting objects, and optionally configure number of threads for multipart put operation. |
+|`opts` | _minio.PutObjectOptions_  |Pointer to struct that allows user to set optional custom metadata, content-type, content-encoding,content-disposition and cache-control headers, pass encryption module for encrypting objects, and optionally configure number of threads for multipart put operation. |
 
 
 
@@ -624,12 +622,13 @@ if err != nil {
 }
 defer file.Close()
 
-fileStat, err := fileReader.Stat()
+fileStat, err := file.Stat()
 if err != nil {
     fmt.Println(err)
     return
 }
-n, err := minioClient.PutObjectWithContext(ctx, "mybucket", "myobject", file, fileStat.Size(), PutObjectOptions{ContentType:"application/octet-stream"})
+
+n, err := minioClient.PutObjectWithContext(ctx, "mybucket", "myobject", file, fileStat.Size(), minio.PutObjectOptions{ContentType:"application/octet-stream"})
 if err != nil {
     fmt.Println(err)
     return
@@ -649,8 +648,8 @@ __Parameters__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`dst`  | _DestinationInfo_  |Argument describing the destination object |
-|`src` | _SourceInfo_  |Argument describing the source object |
+|`dst`  | _minio.DestinationInfo_  |Argument describing the destination object |
+|`src` | _minio.SourceInfo_  |Argument describing the source object |
 
 
 __Example__
@@ -712,7 +711,7 @@ if err != nil {
 ```
 
 <a name="ComposeObject"></a>
-### ComposeObject(dst DestinationInfo, srcs []SourceInfo) error
+### ComposeObject(dst minio.DestinationInfo, srcs []minio.SourceInfo) error
 
 Create an object by concatenating a list of source objects using
 server-side copying.
@@ -779,11 +778,11 @@ __Example__
 
 ``` go
 // No decryption parameter.
-src := NewSourceInfo("bucket", "object", nil)
+src := minio.NewSourceInfo("bucket", "object", nil)
 
 // With decryption parameter.
-decKey := NewSSEKey([]byte{1,2,3}, "")
-src := NewSourceInfo("bucket", "object", decKey)
+decKey := minio.NewSSEKey([]byte{1,2,3}, "")
+src := minio.NewSourceInfo("bucket", "object", decKey)
 ```
 
 <a name="NewDestinationInfo"></a>
@@ -804,11 +803,11 @@ __Example__
 
 ``` go
 // No encryption parameter.
-dst, err := NewDestinationInfo("bucket", "object", nil, nil)
+dst, err := minio.NewDestinationInfo("bucket", "object", nil, nil)
 
 // With encryption parameter.
-encKey := NewSSEKey([]byte{1,2,3}, "")
-dst, err := NewDecryptionInfo("bucket", "object", encKey, nil)
+encKey := minio.NewSSEInfo([]byte{1,2,3}, "")
+dst, err := minio.NewDecryptionInfo("bucket", "object", encKey, nil)
 ```
 
 
@@ -828,14 +827,14 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object |
 |`filePath` | _string_  |Path to file to be uploaded |
-|`opts` | _PutObjectOptions_  |Pointer to struct that allows user to set optional custom metadata, content-type, content-encoding,content-disposition and cache-control headers, pass encryption module for encrypting objects, and optionally configure number of threads for multipart put operation.  |
+|`opts` | _minio.PutObjectOptions_  |Pointer to struct that allows user to set optional custom metadata, content-type, content-encoding,content-disposition and cache-control headers, pass encryption module for encrypting objects, and optionally configure number of threads for multipart put operation.  |
 
 
 __Example__
 
 
 ```go
-n, err := minioClient.FPutObject("mybucket", "myobject.csv", "/tmp/otherobject.csv", PutObjectOptions{ContentType:"application/csv"})
+n, err := minioClient.FPutObject("mybucket", "myobject.csv", "/tmp/otherobject.csv", minio.PutObjectOptions{ContentType:"application/csv"})
 if err != nil {
     fmt.Println(err)
     return
@@ -855,7 +854,7 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object |
 |`filePath` | _string_  |Path to file to be uploaded |
-|`opts` | _PutObjectOptions_  |Pointer to struct that allows user to set optional custom metadata, content-type, content-encoding,content-disposition and cache-control headers, pass encryption module for encrypting objects, and optionally configure number of threads for multipart put operation. |
+|`opts` | _minio.PutObjectOptions_  |Pointer to struct that allows user to set optional custom metadata, content-type, content-encoding,content-disposition and cache-control headers, pass encryption module for encrypting objects, and optionally configure number of threads for multipart put operation. |
 
 __Example__
 
@@ -863,7 +862,7 @@ __Example__
 ```go
 ctx, cancel := context.WithTimeout(context.Background(), 100 * time.Seconds)
 defer cancel()
-n, err := minioClient.FPutObjectWithContext(ctx, "mybucket", "myobject.csv", "/tmp/otherobject.csv", PutObjectOptions{ContentType:"application/csv"})
+n, err := minioClient.FPutObjectWithContext(ctx, "mybucket", "myobject.csv", "/tmp/otherobject.csv", minio.PutObjectOptions{ContentType:"application/csv"})
 if err != nil {
     fmt.Println(err)
     return
@@ -882,17 +881,19 @@ __Parameters__
 |:---|:---| :---|
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object   |
-|`opts` | _StatObjectOptions_ | Options for GET info/stat requests specifying additional options like encryption, If-Match |
+|`opts` | _minio.StatObjectOptions_ | Options for GET info/stat requests specifying additional options like encryption, If-Match |
 
 
 __Return Value__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`objInfo`  | _ObjectInfo_  |Object stat information |
+|`objInfo`  | _minio.ObjectInfo_  |Object stat information |
 
 
-|Param   |Type   |Description   |
+__minio.ObjectInfo__
+
+|Field   |Type   |Description   |
 |:---|:---| :---|
 |`objInfo.LastModified`  | _time.Time_  |Time when object was last modified |
 |`objInfo.ETag` | _string_ |MD5 checksum of the object|
@@ -900,11 +901,11 @@ __Return Value__
 |`objInfo.Size` | _int64_ |Size of the object|
 
 
-  __Example__
+__Example__
 
 
 ```go
-objInfo, err := minioClient.StatObject("mybucket", "photo.jpg", GetObjectOptions{})
+objInfo, err := minioClient.StatObject("mybucket", "photo.jpg", minio.GetObjectOptions{})
 if err != nil {
     fmt.Println(err)
     return
@@ -935,7 +936,7 @@ if err != nil {
 }
 ```
 <a name="RemoveObjects"></a>
-### RemoveObjects(bucketName string, objectsCh chan string) errorCh chan minio.RemoveObjectError
+### RemoveObjects(bucketName string, objectsCh chan string) (errorCh <-chan RemoveObjectError)
 
 Removes a list of objects obtained from an input channel. The call sends a delete request to the server up to 1000 objects at a time.
 The errors observed are sent over the error channel.
@@ -952,7 +953,7 @@ __Return Values__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`errorCh` | _chan minio.RemoveObjectError  | Channel of errors observed during deletion.  |
+|`errorCh` | _<-chan minio.RemoveObjectError_  | Receive-only channel of errors observed during deletion.  |
 
 
 
@@ -992,7 +993,7 @@ if err != nil {
 ## 4. Encrypted object operations
 
 <a name="NewSymmetricKey"></a>
-### NewSymmetricKey(key []byte) *minio.SymmetricKey
+### NewSymmetricKey(key []byte) *encrypt.SymmetricKey
 
 __Parameters__
 
@@ -1005,15 +1006,15 @@ __Return Value__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`symmetricKey`  | _*minio.SymmetricKey_ |_minio.SymmetricKey_ represents a symmetric key structure which can be used to encrypt and decrypt data. |
+|`symmetricKey`  | _*encrypt.SymmetricKey_ | represents a symmetric key structure which can be used to encrypt and decrypt data |
 
 ```go
-symKey := minio.NewSymmetricKey([]byte("my-secret-key-00"))
+symKey := encrypt.NewSymmetricKey([]byte("my-secret-key-00"))
 ```
 
 
 <a name="NewAsymmetricKey"></a>
-### NewAsymmetricKey(privateKey []byte, publicKey[]byte) (*minio.AsymmetricKey, error)
+### NewAsymmetricKey(privateKey []byte, publicKey[]byte) (*encrypt.AsymmetricKey, error)
 
 __Parameters__
 
@@ -1027,8 +1028,8 @@ __Return Value__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`asymmetricKey`  | _*minio.AsymmetricKey_ | represents an asymmetric key structure which can be used to encrypt and decrypt data. |
-|`err`  | _error_ |  encountered errors. |
+|`asymmetricKey`  | _*encrypt.AsymmetricKey_ | represents an asymmetric key structure which can be used to encrypt and decrypt data |
+|`err`  | _error_ |  encountered errors |
 
 
 ```go
@@ -1043,14 +1044,14 @@ if err != nil {
 }
 
 // Initialize the asymmetric key
-asymmetricKey, err := minio.NewAsymmetricKey(privateKey, publicKey)
+asymmetricKey, err := encrypt.NewAsymmetricKey(privateKey, publicKey)
 if err != nil {
     log.Fatal(err)
 }
 ```
 
 <a name="GetEncryptedObject"></a>
-### GetEncryptedObject(bucketName, objectName string, encryptMaterials minio.EncryptionMaterials) (io.ReadCloser, error)
+### GetEncryptedObject(bucketName, objectName string, encryptMaterials encrypt.Materials) (io.ReadCloser, error)
 
 Returns the decrypted stream of the object data based of the given encryption materials. Most of the common errors occur when reading the stream.
 
@@ -1060,7 +1061,7 @@ __Parameters__
 |:---|:---| :---|
 |`bucketName`  | _string_  | Name of the bucket  |
 |`objectName` | _string_  | Name of the object  |
-|`encryptMaterials` | _minio.EncryptionMaterials_ | The module to decrypt the object data   |
+|`encryptMaterials` | _encrypt.Materials_ | The module to decrypt the object data   |
 
 
 __Return Value__
@@ -1076,10 +1077,10 @@ __Example__
 
 ```go
 // Generate a master symmetric key
-key := minio.NewSymmetricKey("my-secret-key-00")
+key := encrypt.NewSymmetricKey("my-secret-key-00")
 
 // Build the CBC encryption material
-cbcMaterials, err := NewCBCSecureMaterials(key)
+cbcMaterials, err := encrypt.NewCBCSecureMaterials(key)
 if err != nil {
     t.Fatal(err)
 }
@@ -1105,7 +1106,7 @@ if _, err = io.Copy(localFile, object); err != nil {
 
 <a name="PutEncryptedObject"></a>
 
-### PutEncryptedObject(bucketName, objectName string, reader io.Reader, encryptMaterials minio.EncryptionMaterials) (n int, err error)
+### PutEncryptedObject(bucketName, objectName string, reader io.Reader, encryptMaterials encrypt.Materials) (n int, err error)
 Encrypt and upload an object.
 
 __Parameters__
@@ -1115,7 +1116,7 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object   |
 |`reader` | _io.Reader_  |Any Go type that implements io.Reader |
-|`encryptMaterials` | _minio.EncryptionMaterials_  | The module that encrypts data |
+|`encryptMaterials` | _encrypt.Materials_  | The module that encrypts data |
 
 __Example__
 
@@ -1133,13 +1134,13 @@ if err != nil {
 }
 
 // Build an asymmetric key
-key, err := NewAssymetricKey(privateKey, publicKey)
+key, err := encrypt.NewAsymetricKey(privateKey, publicKey)
 if err != nil {
     log.Fatal(err)
 }
 
 // Build the CBC encryption module
-cbcMaterials, err := NewCBCSecureMaterials(key)
+cbcMaterials, err := encrypt.NewCBCSecureMaterials(key)
 if err != nil {
     log.Fatal(err)
 }
@@ -1153,14 +1154,14 @@ if err != nil {
 defer file.Close()
 
 // Upload the encrypted form of the file
-n, err := minioClient.PutEncryptedObject("mybucket", "myobject", file, encryptMaterials)
+n, err := minioClient.PutEncryptedObject("mybucket", "myobject", file, cbcMaterials)
 if err != nil {
     fmt.Println(err)
     return
 }
 ```
 <a name="FPutEncryptedObject"></a>
-### FPutEncryptedObject(bucketName, objectName, filePath, encryptMaterials minio.EncryptionMaterials) (n int, err error)
+### FPutEncryptedObject(bucketName, objectName, filePath, encryptMaterials encrypt.Materials) (n int, err error)
 
 Encrypt and upload an object from a file.
 
@@ -1172,7 +1173,7 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object |
 |`filePath` | _string_  |Path to file to be uploaded |
-|`encryptMaterials` | _minio.EncryptionMaterials_  | The module that encrypts data |
+|`encryptMaterials` | _encrypt.Materials_  | The module that encrypts data |
 
 __Example__
 
@@ -1191,13 +1192,13 @@ if err != nil {
 }
 
 // Build an asymmetric key
-key, err := NewAssymetricKey(privateKey, publicKey)
+key, err := encrypt.NewAsymetricKey(privateKey, publicKey)
 if err != nil {
     log.Fatal(err)
 }
 
 // Build the CBC encryption module
-cbcMaterials, err := NewCBCSecureMaterials(key)
+cbcMaterials, err := encrypt.NewCBCSecureMaterials(key)
 if err != nil {
     log.Fatal(err)
 }
@@ -1224,7 +1225,7 @@ __Example__
 
 ``` go
 // Key for use in encryption/decryption
-keyInfo := NewSSEInfo([]byte{1,2,3}, "")
+keyInfo := minio.NewSSEInfo([]byte{1,2,3}, "")
 ```
 
 ## 5. Presigned operations
@@ -1463,7 +1464,7 @@ __Return Values__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`bucketPolicies`  | _map[string]BucketPolicy_ |Map of object resource paths and their permissions  |
+|`bucketPolicies`  | _map[string]minio.BucketPolicy_ |Map of object resource paths and their permissions  |
 |`err` | _error_  |Standard Error  |
 
 __Example__
@@ -1497,7 +1498,7 @@ __Return Values__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`bucketNotification`  | _BucketNotification_ |structure which holds all notification configurations|
+|`bucketNotification`  | _minio.BucketNotification_ |structure which holds all notification configurations|
 |`err` | _error_  |Standard Error  |
 
 __Example__
@@ -1526,7 +1527,7 @@ __Parameters__
 |Param   |Type   |Description   |
 |:---|:---| :---|
 |`bucketName`  | _string_  |Name of the bucket   |
-|`bucketNotification`  | _BucketNotification_  |Represents the XML to be sent to the configured web service  |
+|`bucketNotification`  | _minio.BucketNotification_  |Represents the XML to be sent to the configured web service  |
 
 __Return Values__
 
@@ -1539,14 +1540,14 @@ __Example__
 
 
 ```go
-topicArn := NewArn("aws", "sns", "us-east-1", "804605494417", "PhotoUpdate")
+topicArn := minio.NewArn("aws", "sns", "us-east-1", "804605494417", "PhotoUpdate")
 
-topicConfig := NewNotificationConfig(topicArn)
+topicConfig := minio.NewNotificationConfig(topicArn)
 topicConfig.AddEvents(minio.ObjectCreatedAll, minio.ObjectRemovedAll)
-lambdaConfig.AddFilterPrefix("photos/")
-lambdaConfig.AddFilterSuffix(".jpg")
+topicConfig.AddFilterPrefix("photos/")
+topicConfig.AddFilterSuffix(".jpg")
 
-bucketNotification := BucketNotification{}
+bucketNotification := minio.BucketNotification{}
 bucketNotification.AddTopic(topicConfig)
 err := c.SetBucketNotification(bucketName, bucketNotification)
 if err != nil {
@@ -1603,16 +1604,19 @@ __Parameters__
 |`bucketName`  | _string_  | Bucket to listen notifications on   |
 |`prefix`  | _string_ | Object key prefix to filter notifications for  |
 |`suffix`  | _string_ | Object key suffix to filter notifications for  |
-|`events`  | _[]string_| Enables notifications for specific event types |
+|`events`  | _[]string_ | Enables notifications for specific event types |
 |`doneCh`  | _chan struct{}_ | A message on this channel ends the ListenBucketNotification iterator  |
 
 __Return Values__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`chan NotificationInfo` | _chan_ | Read channel for all notifications on bucket |
-|`NotificationInfo` | _object_ | Notification object represents events info |
-|`notificationInfo.Records` | _[]NotificationEvent_ | Collection of notification events |
+|`notificationInfo` | _chan minio.NotificationInfo_ | Channel of bucket notifications |
+
+__minio.NotificationInfo__
+
+|Field   |Type   |Description   |
+|`notificationInfo.Records` | _[]minio.NotificationEvent_ | Collection of notification events |
 |`notificationInfo.Err` | _error_ | Carries any error occurred during the operation |
 
 
