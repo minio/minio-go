@@ -945,7 +945,7 @@ __Parameters__
 |Param   |Type   |Description   |
 |:---|:---| :---|
 |`bucketName`  | _string_  |Name of the bucket  |
-|`objectsCh` | _chan string_  | Prefix of objects to be removed   |
+|`objectsCh` | _chan string_  | Channel of objects to be removed   |
 
 
 __Return Values__
