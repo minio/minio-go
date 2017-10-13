@@ -155,6 +155,7 @@ The full API Reference is available here.
 * [`FGetObject`](https://docs.minio.io/docs/golang-client-api-reference#FPutObject)
 * [`FPutObjectWithContext`](https://docs.minio.io/docs/golang-client-api-reference#FPutObjectWithContext)
 * [`FGetObjectWithContext`](https://docs.minio.io/docs/golang-client-api-reference#FGetObjectWithContext)
+
 ### API Reference : Object Operations
 * [`GetObject`](https://docs.minio.io/docs/golang-client-api-reference#GetObject)
 * [`PutObject`](https://docs.minio.io/docs/golang-client-api-reference#PutObject)
