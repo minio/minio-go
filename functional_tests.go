@@ -28,6 +28,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
@@ -2097,17 +2098,82 @@ func testPresignedPostPolicy() {
 	policy.SetBucket(bucketName)
 	policy.SetKey(objectName)
 	policy.SetExpires(time.Now().UTC().AddDate(0, 0, 10)) // expires in 10 days
-	policy.SetContentType("image/png")
-	policy.SetContentLengthRange(1024, 1024*1024)
+	policy.SetContentType("binary/octet-stream")
+	policy.SetContentLengthRange(10, 1024*1024)
 	policy.SetUserMetadata(metadataKey, metadataValue)
-	args["policy"] = policy
+	args["policy"] = policy.String()
 
-	_, _, err = c.PresignedPostPolicy(policy)
+	presignedPostPolicyURL, formData, err := c.PresignedPostPolicy(policy)
 	if err != nil {
 		failureLog(function, args, startTime, "", "PresignedPostPolicy failed", err).Fatal()
 	}
 
-	policy = minio.NewPostPolicy()
+	var formBuf bytes.Buffer
+	writer := multipart.NewWriter(&formBuf)
+	for k, v := range formData {
+		writer.WriteField(k, v)
+	}
+
+	// Get a 33KB file to upload and test if set post policy works
+	var filePath = getFilePath("datafile-33-KB")
+	if os.Getenv("MINT_DATA_DIR") == "" {
+		// Make a temp file with 33 KB data.
+		file, err := ioutil.TempFile(os.TempDir(), "PresignedPostPolicyTest")
+		if err != nil {
+			failureLog(function, args, startTime, "", "TempFile creation failed", err).Fatal()
+		}
+		_, err = io.Copy(file, getDataReader("non-existent", thirtyThreeKiB))
+		if err != nil {
+			failureLog(function, args, startTime, "", "Copy failed", err).Fatal()
+		}
+		err = file.Close()
+		if err != nil {
+			failureLog(function, args, startTime, "", "File Close failed", err).Fatal()
+		}
+		filePath = file.Name()
+	}
+
+	// add file to post request
+	f, err := os.Open(filePath)
+	defer f.Close()
+	if err != nil {
+		failureLog(function, args, startTime, "", "File open failed", err).Fatal()
+	}
+	w, err := writer.CreateFormFile("file", filePath)
+	if err != nil {
+		failureLog(function, args, startTime, "", "CreateFormFile failed", err).Fatal()
+	}
+
+	_, err = io.Copy(w, f)
+	if err != nil {
+		failureLog(function, args, startTime, "", "Copy failed", err).Fatal()
+	}
+	writer.Close()
+
+	// make post request with correct form data
+	res, err := http.Post(presignedPostPolicyURL.String(), writer.FormDataContentType(), bytes.NewReader(formBuf.Bytes()))
+	defer res.Body.Close()
+	if err != nil {
+		failureLog(function, args, startTime, "", "Http request failed", err).Fatal()
+	}
+
+	// expected path should be absolute path of the object
+	var scheme string
+	if mustParseBool(os.Getenv(enableHTTPS)) {
+		scheme = "https://"
+	} else {
+		scheme = "http://"
+	}
+
+	expectedLocation := scheme + os.Getenv(serverEndpoint) + "/" + bucketName + "/" + objectName
+
+	if val, ok := res.Header["Location"]; ok {
+		if val[0] != expectedLocation {
+			failureLog(function, args, startTime, "", "Location in header response is incorrect", err).Fatal()
+		}
+	} else {
+		failureLog(function, args, startTime, "", "Location not found in header response", err).Fatal()
+	}
 
 	// Delete all objects and buckets
 	if err = cleanupBucket(bucketName, c); err != nil {
