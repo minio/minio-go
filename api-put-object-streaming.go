@@ -106,6 +106,10 @@ func (c Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketNa
 		return 0, err
 	}
 
+	if 0 < int64(opts.PartSize) && int64(opts.PartSize) < partSize {
+		partSize = int64(opts.PartSize)
+	}
+
 	// Initiate a new multipart upload.
 	uploadID, err := c.newUploadID(ctx, bucketName, objectName, opts)
 	if err != nil {
@@ -248,6 +252,11 @@ func (c Client) putObjectMultipartStreamNoChecksum(ctx context.Context, bucketNa
 	if err != nil {
 		return 0, err
 	}
+
+	if 0 < int64(opts.PartSize) && int64(opts.PartSize) < partSize {
+		partSize = int64(opts.PartSize)
+	}
+
 	// Initiates a new multipart request
 	uploadID, err := c.newUploadID(ctx, bucketName, objectName, opts)
 	if err != nil {
