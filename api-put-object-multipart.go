@@ -74,6 +74,10 @@ func (c Client) putObjectMultipartNoStream(ctx context.Context, bucketName, obje
 		return 0, err
 	}
 
+	if 0 < int64(opts.PartSize) && int64(opts.PartSize) < partSize {
+		partSize = int64(opts.PartSize)
+	}
+
 	// Initiate a new multipart upload.
 	uploadID, err := c.newUploadID(ctx, bucketName, objectName, opts)
 	if err != nil {

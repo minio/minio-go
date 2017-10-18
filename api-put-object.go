@@ -1,5 +1,6 @@
 /*
- * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2015, 2016 Minio, Inc.
+ * Minio Go Library for Amazon S3 Compatible Cloud Storage
+ * (C) 2015, 2016, 2017 Minio, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,6 +41,7 @@ type PutObjectOptions struct {
 	CacheControl       string
 	EncryptMaterials   encrypt.Materials
 	NumThreads         uint
+	PartSize           uint64
 }
 
 // getNumThreads - gets the number of threads to be used in the multipart
@@ -90,6 +92,19 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 // validate() checks if the UserMetadata map has standard headers or client side
 // encryption headers and raises an error if so.
 func (opts PutObjectOptions) validate() (err error) {
+	// At least minimum part size should be 5MiB.
+	if opts.PartSize > 0 && opts.PartSize < absMinPartSize {
+		return ErrInvalidArgument("Part size must be at least 5MiB bytes")
+	}
+
+	// Optimal max part is chosen instead of 5GiB to validate here is
+	// to avoid mistakes caller might make while uploading an object,
+	// allocating a contigous any memory larger than optimal part
+	// size while uploading a streaming input might lead to application crash.
+	if opts.PartSize > 0 && opts.PartSize > optimalMaxPartSize {
+		return ErrInvalidArgument("Part size must be at most 576MiB bytes")
+	}
+
 	for k := range opts.UserMetadata {
 		if isStandardHeader(k) || isCSEHeader(k) {
 			return ErrInvalidArgument(k + " unsupported request parameter for user defined metadata")
@@ -119,6 +134,9 @@ func (a completedParts) Less(i, j int) bool { return a[i].PartNumber < a[j].Part
 //    be uploaded through this operation will be 5TiB.
 func (c Client) PutObject(bucketName, objectName string, reader io.Reader, objectSize int64,
 	opts PutObjectOptions) (n int64, err error) {
+	if err = opts.validate(); err != nil {
+		return 0, err
+	}
 	return c.PutObjectWithContext(context.Background(), bucketName, objectName, reader, objectSize, opts)
 }
 
@@ -172,6 +190,11 @@ func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName
 	if err != nil {
 		return 0, err
 	}
+
+	if 0 < int64(opts.PartSize) && int64(opts.PartSize) < partSize {
+		partSize = int64(opts.PartSize)
+	}
+
 	// Initiate a new multipart upload.
 	uploadID, err := c.newUploadID(ctx, bucketName, objectName, opts)
 	if err != nil {

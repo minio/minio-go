@@ -22,6 +22,10 @@ package minio
 // a part in a multipart upload may not be uploaded.
 const absMinPartSize = 1024 * 1024 * 5
 
+// Optimal max part size required to upload 5TiB object, with
+// least number of parts.
+const optimalMaxPartSize = 1024 * 1024 * 576 // 576MiB
+
 // minPartSize - minimum part size 64MiB per object after which
 // putObject behaves internally as multipart.
 const minPartSize = 1024 * 1024 * 64
