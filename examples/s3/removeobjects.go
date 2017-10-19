@@ -20,7 +20,6 @@ package main
 
 import (
 	"log"
-	"strconv"
 
 	"github.com/minio/minio-go"
 )
@@ -44,8 +43,12 @@ func main() {
 	// Send object names that are needed to be removed to objectsCh
 	go func() {
 		defer close(objectsCh)
-		for i := 0; i < 10; i++ {
-			objectsCh <- "/path/to/my-objectname" + strconv.Itoa(i)
+		// List all objects from a bucket-name with a matching prefix.
+		for object := range s3Client.ListObjects("my-bucketname", "my-prefixname", true, doneCh) {
+			if object.Err != nil {
+				log.Fatalln(object.Err)
+			}
+			objectsCh <- object.Key
 		}
 	}()
 
