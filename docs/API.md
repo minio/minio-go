@@ -383,6 +383,12 @@ __Parameters__
 |`opts` | _minio.GetObjectOptions_ | Options for GET requests specifying additional options like encryption, If-Match |
 
 
+__minio.GetObjectOptions__
+
+|Field | Type | Description |
+|:---|:---|:---|
+| `opts.Materials` | _encrypt.Materials_ | Interface provided by `encrypt` package to encrypt a stream of data (For more information see https://godoc.org/github.com/minio/minio-go) |
+
 __Return Value__
 
 
@@ -524,7 +530,7 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket |
 |`objectName` | _string_  |Name of the object  |
 |`filePath` | _string_  |Path to download object to |
-|`materials` | _encrypt.Materials_ | The module to decrypt the object data |
+|`materials` | _encrypt.Materials_ | Interface provided by `encrypt` package to encrypt a stream of data (For more information see https://godoc.org/github.com/minio/minio-go) |
 
 
 __Example__
@@ -560,7 +566,19 @@ __Parameters__
 |`objectName` | _string_  |Name of the object   |
 |`reader` | _io.Reader_  |Any Go type that implements io.Reader |
 |`objectSize`| _int64_ |Size of the object being uploaded. Pass -1 if stream size is unknown |
-|`opts` | _minio.PutObjectOptions_  |Pointer to struct that allows user to set optional custom metadata, content-type, content-encoding,content-disposition and cache-control headers, pass encryption module for encrypting objects, and optionally configure number of threads for multipart put operation. |
+|`opts` | _minio.PutObjectOptions_  | Allows user to set optional custom metadata, content headers, encryption keys and number of threads for multipart upload operation. |
+
+__minio.PutObjectOptions__
+
+|Field | Type | Description |
+|:--- |:--- | :--- |
+| `opts.UserMetadata` | _map[string]string_ | Map of user metadata|
+| `opts.Progress` | _io.Reader_ | Reader to fetch progress of an upload |
+| `opts.ContentType` | _string_ | Content type of object, e.g "application/text" |
+| `opts.ContentEncoding` | _string_ | Content encoding of object, e.g "gzip" |
+| `opts.ContentDisposition` | _string_ | Content disposition of object, "inline" |
+| `opts.CacheControl` | _string_ | Used to specify directives for caching mechanisms in both requests and responses e.g "max-age=600"|
+| `opts.EncryptMaterials` | _encrypt.Materials_ | Interface provided by `encrypt` package to encrypt a stream of data (For more information see https://godoc.org/github.com/minio/minio-go) |
 
 
 __Example__
@@ -1061,7 +1079,7 @@ __Parameters__
 |:---|:---| :---|
 |`bucketName`  | _string_  | Name of the bucket  |
 |`objectName` | _string_  | Name of the object  |
-|`encryptMaterials` | _encrypt.Materials_ | The module to decrypt the object data   |
+|`encryptMaterials` | _encrypt.Materials_ | Interface provided by `encrypt` package to encrypt a stream of data (For more information see https://godoc.org/github.com/minio/minio-go) |
 
 
 __Return Value__
@@ -1116,7 +1134,7 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object   |
 |`reader` | _io.Reader_  |Any Go type that implements io.Reader |
-|`encryptMaterials` | _encrypt.Materials_  | The module that encrypts data |
+|`encryptMaterials` | _encrypt.Materials_  | Interface provided by `encrypt` package to encrypt a stream of data (For more information see https://godoc.org/github.com/minio/minio-go) |
 
 __Example__
 
@@ -1173,7 +1191,7 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object |
 |`filePath` | _string_  |Path to file to be uploaded |
-|`encryptMaterials` | _encrypt.Materials_  | The module that encrypts data |
+|`encryptMaterials` | _encrypt.Materials_  | Interface provided by `encrypt` package to encrypt a stream of data (For more information see https://godoc.org/github.com/minio/minio-go)The module that encrypts data |
 
 __Example__
 
