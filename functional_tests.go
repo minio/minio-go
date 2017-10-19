@@ -2496,7 +2496,7 @@ func testEncryptionFPut() {
 	}
 
 	// Generate a symmetric key
-	symKey := encrypt.DeriveKey("my-passwod", []byte("salt-123"))
+	symKey := encrypt.DeriveKey("my-password", []byte("salt-123"))
 	// Object custom metadata
 	customContentType := "custom/contenttype"
 	args["metadata"] = customContentType
