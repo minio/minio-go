@@ -21,7 +21,7 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -2351,12 +2351,12 @@ func testCopyObject() {
 func testEncryptionPutGet() {
 	// initialize logging params
 	startTime := time.Now()
-	function := "PutEncryptedObject(bucketName, objectName, reader, cbcMaterials, metadata, progress)"
+	function := "PutEncryptedObject(bucketName, objectName, reader, key, metadata, progress)"
 	args := map[string]interface{}{
-		"bucketName":   "",
-		"objectName":   "",
-		"cbcMaterials": "",
-		"metadata":     "",
+		"bucketName": "",
+		"objectName": "",
+		"key":        "",
+		"metadata":   "",
 	}
 	// Seed random based on current time.
 	rand.Seed(time.Now().Unix())
@@ -2389,52 +2389,9 @@ func testEncryptionPutGet() {
 	}
 
 	// Generate a symmetric key
-	symKey := encrypt.NewSymmetricKey([]byte("my-secret-key-00"))
-
-	// Generate an assymmetric key from predefine public and private certificates
-	privateKey, err := hex.DecodeString(
-		"30820277020100300d06092a864886f70d0101010500048202613082025d" +
-			"0201000281810087b42ea73243a3576dc4c0b6fa245d339582dfdbddc20c" +
-			"bb8ab666385034d997210c54ba79275c51162a1221c3fb1a4c7c61131ca6" +
-			"5563b319d83474ef5e803fbfa7e52b889e1893b02586b724250de7ac6351" +
-			"cc0b7c638c980acec0a07020a78eed7eaa471eca4b92071394e061346c06" +
-			"15ccce2f465dee2080a89e43f29b5702030100010281801dd5770c3af8b3" +
-			"c85cd18cacad81a11bde1acfac3eac92b00866e142301fee565365aa9af4" +
-			"57baebf8bb7711054d071319a51dd6869aef3848ce477a0dc5f0dbc0c336" +
-			"5814b24c820491ae2bb3c707229a654427e03307fec683e6b27856688f08" +
-			"bdaa88054c5eeeb773793ff7543ee0fb0e2ad716856f2777f809ef7e6fa4" +
-			"41024100ca6b1edf89e8a8f93cce4b98c76c6990a09eb0d32ad9d3d04fbf" +
-			"0b026fa935c44f0a1c05dd96df192143b7bda8b110ec8ace28927181fd8c" +
-			"d2f17330b9b63535024100aba0260afb41489451baaeba423bee39bcbd1e" +
-			"f63dd44ee2d466d2453e683bf46d019a8baead3a2c7fca987988eb4d565e" +
-			"27d6be34605953f5034e4faeec9bdb0241009db2cb00b8be8c36710aff96" +
-			"6d77a6dec86419baca9d9e09a2b761ea69f7d82db2ae5b9aae4246599bb2" +
-			"d849684d5ab40e8802cfe4a2b358ad56f2b939561d2902404e0ead9ecafd" +
-			"bb33f22414fa13cbcc22a86bdf9c212ce1a01af894e3f76952f36d6c904c" +
-			"bd6a7e0de52550c9ddf31f1e8bfe5495f79e66a25fca5c20b3af5b870241" +
-			"0083456232aa58a8c45e5b110494599bda8dbe6a094683a0539ddd24e19d" +
-			"47684263bbe285ad953d725942d670b8f290d50c0bca3d1dc9688569f1d5" +
-			"9945cb5c7d")
-
-	if err != nil {
-		failureLog(function, args, startTime, "", "DecodeString for symmetric Key generation failed", err).Fatal()
-	}
-
-	publicKey, err := hex.DecodeString("30819f300d06092a864886f70d010101050003818d003081890281810087" +
-		"b42ea73243a3576dc4c0b6fa245d339582dfdbddc20cbb8ab666385034d9" +
-		"97210c54ba79275c51162a1221c3fb1a4c7c61131ca65563b319d83474ef" +
-		"5e803fbfa7e52b889e1893b02586b724250de7ac6351cc0b7c638c980ace" +
-		"c0a07020a78eed7eaa471eca4b92071394e061346c0615ccce2f465dee20" +
-		"80a89e43f29b570203010001")
-	if err != nil {
-		failureLog(function, args, startTime, "", "DecodeString for symmetric Key generation failed", err).Fatal()
-	}
-
-	// Generate an asymmetric key
-	asymKey, err := encrypt.NewAsymmetricKey(privateKey, publicKey)
-	if err != nil {
-		failureLog(function, args, startTime, "", "NewAsymmetricKey for symmetric Key generation failed", err).Fatal()
-	}
+	var salt [8]byte
+	binary.LittleEndian.PutUint64(salt[:], uint64(time.Now().Unix()))
+	symKey := encrypt.DeriveKey("my-password", salt[:])
 
 	testCases := []struct {
 		buf    []byte
@@ -2451,36 +2408,22 @@ func testEncryptionPutGet() {
 		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 1024)},
 		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 1024*2)},
 		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 1024*1024)},
-
-		{encKey: asymKey, buf: bytes.Repeat([]byte("F"), 0)},
-		{encKey: asymKey, buf: bytes.Repeat([]byte("F"), 1)},
-		{encKey: asymKey, buf: bytes.Repeat([]byte("F"), 16)},
-		{encKey: asymKey, buf: bytes.Repeat([]byte("F"), 32)},
-		{encKey: asymKey, buf: bytes.Repeat([]byte("F"), 1024)},
-		{encKey: asymKey, buf: bytes.Repeat([]byte("F"), 1024*1024)},
 	}
 
 	for i, testCase := range testCases {
 		// Generate a random object name
 		objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 		args["objectName"] = objectName
-
-		// Secured object
-		cbcMaterials, err := encrypt.NewCBCSecureMaterials(testCase.encKey)
-		args["cbcMaterials"] = cbcMaterials
-
-		if err != nil {
-			failureLog(function, args, startTime, "", "NewCBCSecureMaterials failed", err).Fatal()
-		}
+		args["key"] = testCase.encKey
 
 		// Put encrypted data
-		_, err = c.PutEncryptedObject(bucketName, objectName, bytes.NewReader(testCase.buf), cbcMaterials)
+		_, err = c.PutEncryptedObject(bucketName, objectName, bytes.NewReader(testCase.buf), testCase.encKey)
 		if err != nil {
 			failureLog(function, args, startTime, "", "PutEncryptedObject failed", err).Fatal()
 		}
 
 		// Read the data back
-		r, err := c.GetEncryptedObject(bucketName, objectName, cbcMaterials)
+		r, err := c.GetEncryptedObject(bucketName, objectName, testCase.encKey)
 		if err != nil {
 			failureLog(function, args, startTime, "", "GetEncryptedObject failed", err).Fatal()
 		}
@@ -2514,13 +2457,13 @@ func testEncryptionPutGet() {
 func testEncryptionFPut() {
 	// initialize logging params
 	startTime := time.Now()
-	function := "FPutEncryptedObject(bucketName, objectName, filePath, contentType, cbcMaterials)"
+	function := "FPutEncryptedObject(bucketName, objectName, filePath, contentType, key)"
 	args := map[string]interface{}{
-		"bucketName":   "",
-		"objectName":   "",
-		"filePath":     "",
-		"contentType":  "",
-		"cbcMaterials": "",
+		"bucketName":  "",
+		"objectName":  "",
+		"filePath":    "",
+		"contentType": "",
+		"key":         "",
 	}
 	// Seed random based on current time.
 	rand.Seed(time.Now().Unix())
@@ -2553,53 +2496,7 @@ func testEncryptionFPut() {
 	}
 
 	// Generate a symmetric key
-	symKey := encrypt.NewSymmetricKey([]byte("my-secret-key-00"))
-
-	// Generate an assymmetric key from predefine public and private certificates
-	privateKey, err := hex.DecodeString(
-		"30820277020100300d06092a864886f70d0101010500048202613082025d" +
-			"0201000281810087b42ea73243a3576dc4c0b6fa245d339582dfdbddc20c" +
-			"bb8ab666385034d997210c54ba79275c51162a1221c3fb1a4c7c61131ca6" +
-			"5563b319d83474ef5e803fbfa7e52b889e1893b02586b724250de7ac6351" +
-			"cc0b7c638c980acec0a07020a78eed7eaa471eca4b92071394e061346c06" +
-			"15ccce2f465dee2080a89e43f29b5702030100010281801dd5770c3af8b3" +
-			"c85cd18cacad81a11bde1acfac3eac92b00866e142301fee565365aa9af4" +
-			"57baebf8bb7711054d071319a51dd6869aef3848ce477a0dc5f0dbc0c336" +
-			"5814b24c820491ae2bb3c707229a654427e03307fec683e6b27856688f08" +
-			"bdaa88054c5eeeb773793ff7543ee0fb0e2ad716856f2777f809ef7e6fa4" +
-			"41024100ca6b1edf89e8a8f93cce4b98c76c6990a09eb0d32ad9d3d04fbf" +
-			"0b026fa935c44f0a1c05dd96df192143b7bda8b110ec8ace28927181fd8c" +
-			"d2f17330b9b63535024100aba0260afb41489451baaeba423bee39bcbd1e" +
-			"f63dd44ee2d466d2453e683bf46d019a8baead3a2c7fca987988eb4d565e" +
-			"27d6be34605953f5034e4faeec9bdb0241009db2cb00b8be8c36710aff96" +
-			"6d77a6dec86419baca9d9e09a2b761ea69f7d82db2ae5b9aae4246599bb2" +
-			"d849684d5ab40e8802cfe4a2b358ad56f2b939561d2902404e0ead9ecafd" +
-			"bb33f22414fa13cbcc22a86bdf9c212ce1a01af894e3f76952f36d6c904c" +
-			"bd6a7e0de52550c9ddf31f1e8bfe5495f79e66a25fca5c20b3af5b870241" +
-			"0083456232aa58a8c45e5b110494599bda8dbe6a094683a0539ddd24e19d" +
-			"47684263bbe285ad953d725942d670b8f290d50c0bca3d1dc9688569f1d5" +
-			"9945cb5c7d")
-
-	if err != nil {
-		failureLog(function, args, startTime, "", "DecodeString for symmetric Key generation failed", err).Fatal()
-	}
-
-	publicKey, err := hex.DecodeString("30819f300d06092a864886f70d010101050003818d003081890281810087" +
-		"b42ea73243a3576dc4c0b6fa245d339582dfdbddc20cbb8ab666385034d9" +
-		"97210c54ba79275c51162a1221c3fb1a4c7c61131ca65563b319d83474ef" +
-		"5e803fbfa7e52b889e1893b02586b724250de7ac6351cc0b7c638c980ace" +
-		"c0a07020a78eed7eaa471eca4b92071394e061346c0615ccce2f465dee20" +
-		"80a89e43f29b570203010001")
-	if err != nil {
-		failureLog(function, args, startTime, "", "DecodeString for symmetric Key generation failed", err).Fatal()
-	}
-
-	// Generate an asymmetric key
-	asymKey, err := encrypt.NewAsymmetricKey(privateKey, publicKey)
-	if err != nil {
-		failureLog(function, args, startTime, "", "NewAsymmetricKey for symmetric Key generation failed", err).Fatal()
-	}
-
+	symKey := encrypt.DeriveKey("my-password", []byte("salt-123"))
 	// Object custom metadata
 	customContentType := "custom/contenttype"
 	args["metadata"] = customContentType
@@ -2619,27 +2516,14 @@ func testEncryptionFPut() {
 		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 1024)},
 		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 1024*2)},
 		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 1024*1024)},
-
-		{encKey: asymKey, buf: bytes.Repeat([]byte("F"), 0)},
-		{encKey: asymKey, buf: bytes.Repeat([]byte("F"), 1)},
-		{encKey: asymKey, buf: bytes.Repeat([]byte("F"), 16)},
-		{encKey: asymKey, buf: bytes.Repeat([]byte("F"), 32)},
-		{encKey: asymKey, buf: bytes.Repeat([]byte("F"), 1024)},
-		{encKey: asymKey, buf: bytes.Repeat([]byte("F"), 1024*1024)},
 	}
 
 	for i, testCase := range testCases {
 		// Generate a random object name
 		objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 		args["objectName"] = objectName
+		args["key"] = testCase.encKey
 
-		// Secured object
-		cbcMaterials, err := encrypt.NewCBCSecureMaterials(testCase.encKey)
-		args["cbcMaterials"] = cbcMaterials
-
-		if err != nil {
-			failureLog(function, args, startTime, "", "NewCBCSecureMaterials failed", err).Fatal()
-		}
 		// Generate a random file name.
 		fileName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 		file, err := os.Create(fileName)
@@ -2652,12 +2536,12 @@ func testEncryptionFPut() {
 		}
 		file.Close()
 		// Put encrypted data
-		if _, err = c.FPutEncryptedObject(bucketName, objectName, fileName, cbcMaterials); err != nil {
+		if _, err = c.FPutEncryptedObject(bucketName, objectName, fileName, testCase.encKey); err != nil {
 			failureLog(function, args, startTime, "", "FPutEncryptedObject failed", err).Fatal()
 		}
 
 		// Read the data back
-		r, err := c.GetEncryptedObject(bucketName, objectName, cbcMaterials)
+		r, err := c.GetEncryptedObject(bucketName, objectName, testCase.encKey)
 		if err != nil {
 			failureLog(function, args, startTime, "", "GetEncryptedObject failed", err).Fatal()
 		}

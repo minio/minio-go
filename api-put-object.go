@@ -38,7 +38,7 @@ type PutObjectOptions struct {
 	ContentEncoding    string
 	ContentDisposition string
 	CacheControl       string
-	EncryptMaterials   encrypt.Materials
+	Cipher             encrypt.Cipher
 	NumThreads         uint
 }
 
@@ -71,11 +71,6 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 	}
 	if opts.CacheControl != "" {
 		header["Cache-Control"] = []string{opts.CacheControl}
-	}
-	if opts.EncryptMaterials != nil {
-		header[amzHeaderIV] = []string{opts.EncryptMaterials.GetIV()}
-		header[amzHeaderKey] = []string{opts.EncryptMaterials.GetKey()}
-		header[amzHeaderMatDesc] = []string{opts.EncryptMaterials.GetDesc()}
 	}
 	for k, v := range opts.UserMetadata {
 		if !strings.HasPrefix(strings.ToLower(k), "x-amz-meta-") && !isStandardHeader(k) {
@@ -132,6 +127,19 @@ func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName stri
 	if s3utils.IsGoogleEndpoint(c.endpointURL) {
 		// Do not compute MD5 for Google Cloud Storage.
 		return c.putObjectNoChecksum(ctx, bucketName, objectName, reader, size, opts)
+	}
+
+	if opts.Cipher != nil {
+		if opts.UserMetadata == nil {
+			opts.UserMetadata = make(map[string]string)
+		}
+		reader, err = opts.Cipher.Seal(opts.UserMetadata, reader)
+		if err != nil {
+			return 0, err
+		}
+		if size > 0 {
+			size = opts.Cipher.Overhead(size)
+		}
 	}
 
 	if c.overrideSignerType.IsV2() {
@@ -199,7 +207,7 @@ func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName
 		if rErr == io.EOF && partNumber > 1 {
 			break
 		}
-		if rErr != nil && rErr != io.ErrUnexpectedEOF {
+		if rErr != nil && rErr != io.ErrUnexpectedEOF && length != 0 {
 			return 0, rErr
 		}
 		// Update progress reader appropriately to the latest offset

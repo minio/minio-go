@@ -378,6 +378,7 @@ func (c Client) putObjectDo(ctx context.Context, bucketName, objectName string, 
 	if err := s3utils.CheckValidObjectName(objectName); err != nil {
 		return ObjectInfo{}, err
 	}
+
 	// Set headers.
 	customHeader := opts.Header()
 

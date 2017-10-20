@@ -513,8 +513,8 @@ if err != nil {
 ```
 
 <a name="FGetEncryptedObject"></a>
-### FGetEncryptedObject(bucketName, objectName, filePath string, materials encrypt.Materials) error
-    Identical to FGetObject operation, but decrypts an encrypted request
+### FGetEncryptedObject(bucketName, objectName, filePath string, key encrypt.Key) error
+    Identical to FGetObject operation, but decrypts an request
 
 __Parameters__
 
@@ -524,7 +524,7 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket |
 |`objectName` | _string_  |Name of the object  |
 |`filePath` | _string_  |Path to download object to |
-|`materials` | _encrypt.Materials_ | The module to decrypt the object data |
+|`key` | _encrypt.Key_ | The decryption key for decrypting the object |
 
 
 __Example__
@@ -532,15 +532,9 @@ __Example__
 
 ```go
 // Generate a master symmetric key
-key := encrypt.NewSymmetricKey("my-secret-key-00")
+key := minio.DeriveKey("my-password", []byte("my-salt"))
 
-// Build the CBC encryption material
-cbcMaterials, err := encrypt.NewCBCSecureMaterials(key)
-if err != nil {
-    log.Fatalln(err)
-}
-
-err = minioClient.FGetEncryptedObject("mybucket", "photo.jpg", "/tmp/photo.jpg", cbcMaterials)
+err = minioClient.FGetEncryptedObject("mybucket", "photo.jpg", "/tmp/photo.jpg", key)
 if err != nil {
     log.Fatalln(err)
 }
@@ -1051,7 +1045,7 @@ if err != nil {
 ```
 
 <a name="GetEncryptedObject"></a>
-### GetEncryptedObject(bucketName, objectName string, encryptMaterials encrypt.Materials) (io.ReadCloser, error)
+### GetEncryptedObject(bucketName, objectName string, key encrypt.Key) (io.ReadCloser, error)
 
 Returns the decrypted stream of the object data based of the given encryption materials. Most of the common errors occur when reading the stream.
 
@@ -1061,7 +1055,7 @@ __Parameters__
 |:---|:---| :---|
 |`bucketName`  | _string_  | Name of the bucket  |
 |`objectName` | _string_  | Name of the object  |
-|`encryptMaterials` | _encrypt.Materials_ | The module to decrypt the object data   |
+|`key` | _encrypt.Key_ | The decryption key  |
 
 
 __Return Value__
@@ -1077,15 +1071,9 @@ __Example__
 
 ```go
 // Generate a master symmetric key
-key := encrypt.NewSymmetricKey("my-secret-key-00")
+key := encrypt.DeriveKey("password", []byte("my-salt"))
 
-// Build the CBC encryption material
-cbcMaterials, err := encrypt.NewCBCSecureMaterials(key)
-if err != nil {
-    t.Fatal(err)
-}
-
-object, err := minioClient.GetEncryptedObject("mybucket", "photo.jpg", cbcMaterials)
+object, err := minioClient.GetEncryptedObject("mybucket", "photo.jpg", key)
 if err != nil {
     fmt.Println(err)
     return
@@ -1116,35 +1104,11 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object   |
 |`reader` | _io.Reader_  |Any Go type that implements io.Reader |
-|`encryptMaterials` | _encrypt.Materials_  | The module that encrypts data |
+|`key` | _encrypt.Key_  | The encryption key |
 
 __Example__
 
 ```go
-// Load a private key
-privateKey, err := ioutil.ReadFile("private.key")
-if err != nil {
-    log.Fatal(err)
-}
-
-// Load a public key
-publicKey, err := ioutil.ReadFile("public.key")
-if err != nil {
-    log.Fatal(err)
-}
-
-// Build an asymmetric key
-key, err := encrypt.NewAsymetricKey(privateKey, publicKey)
-if err != nil {
-    log.Fatal(err)
-}
-
-// Build the CBC encryption module
-cbcMaterials, err := encrypt.NewCBCSecureMaterials(key)
-if err != nil {
-    log.Fatal(err)
-}
-
 // Open a file to upload
 file, err := os.Open("my-testfile")
 if err != nil {
@@ -1153,15 +1117,18 @@ if err != nil {
 }
 defer file.Close()
 
+// Generate key from password
+key := encrypt.DeriveKey("my-password", []byte("my-salt"))
+
 // Upload the encrypted form of the file
-n, err := minioClient.PutEncryptedObject("mybucket", "myobject", file, cbcMaterials)
+n, err := minioClient.PutEncryptedObject("mybucket", "myobject", file, key)
 if err != nil {
     fmt.Println(err)
     return
 }
 ```
 <a name="FPutEncryptedObject"></a>
-### FPutEncryptedObject(bucketName, objectName, filePath, encryptMaterials encrypt.Materials) (n int, err error)
+### FPutEncryptedObject(bucketName, objectName, filePath, key encrypt.Key) (n int, err error)
 
 Encrypt and upload an object from a file.
 
@@ -1173,36 +1140,17 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object |
 |`filePath` | _string_  |Path to file to be uploaded |
-|`encryptMaterials` | _encrypt.Materials_  | The module that encrypts data |
+|`key` | _encrypt.Key_  | The key to encrypt the object |
 
 __Example__
 
 
 ```go
-// Load a private key
-privateKey, err := ioutil.ReadFile("private.key")
-if err != nil {
-    log.Fatal(err)
-}
 
-// Load a public key
-publicKey, err := ioutil.ReadFile("public.key")
-if err != nil {
-    log.Fatal(err)
-}
+// Generate key
+key := encrypt.DeriveKey("my-password", []byte(salt))
 
-// Build an asymmetric key
-key, err := encrypt.NewAsymetricKey(privateKey, publicKey)
-if err != nil {
-    log.Fatal(err)
-}
-
-// Build the CBC encryption module
-cbcMaterials, err := encrypt.NewCBCSecureMaterials(key)
-if err != nil {
-    log.Fatal(err)
-}
-n, err := minioClient.FPutEncryptedObject("mybucket", "myobject.csv", "/tmp/otherobject.csv", cbcMaterials)
+n, err := minioClient.FPutEncryptedObject("mybucket", "myobject.csv", "/tmp/otherobject.csv", key)
 if err != nil {
     fmt.Println(err)
     return

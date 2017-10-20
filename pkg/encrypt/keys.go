@@ -18,10 +18,8 @@ package encrypt
 
 import (
 	"crypto/aes"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"errors"
+
+	"golang.org/x/crypto/scrypt"
 )
 
 // Key - generic interface to encrypt/decrypt a key.
@@ -100,66 +98,35 @@ func (s *SymmetricKey) Decrypt(cipher []byte) ([]byte, error) {
 	return plain, nil
 }
 
-// NewSymmetricKey generates a new encrypt/decrypt crypto using
-// an AES master key password
+// NewSymmetricKey creates a symmetric en/decryption
+// key from the provided byte slice.
 func NewSymmetricKey(b []byte) *SymmetricKey {
 	return &SymmetricKey{masterKey: b}
 }
 
-// AsymmetricKey - struct which encrypts/decrypts data
-// using RSA public/private certificates
-type AsymmetricKey struct {
-	publicKey  *rsa.PublicKey
-	privateKey *rsa.PrivateKey
+// PBKDF specifies a password-based key-derivation-function
+// to derive a symmetric encryption key from a password.
+type PBKDF func([]byte, []byte) ([]byte, error)
+
+func scrypt2009(password, salt []byte) ([]byte, error) {
+	return scrypt.Key(password, salt, 16384, 8, 1, 32)
 }
 
-// Encrypt data using public key
-func (a *AsymmetricKey) Encrypt(plain []byte) ([]byte, error) {
-	cipher, err := rsa.EncryptPKCS1v15(rand.Reader, a.publicKey, plain)
+// DeriveKey derives a 256 bit symmetric encryption key from a
+// password and a salt. The salt may be nil.
+//
+// The key is derived using
+// scrypt with the parameters N=16384, r=8 and p=1.
+func DeriveKey(password string, salt []byte) *SymmetricKey {
+	key, err := DeriveKeyUsing(scrypt2009, password, salt)
 	if err != nil {
-		return nil, err
+		panic("key deriviation failed for fixed PBKDF - please report this bug at: https://github.com/minio/minio-go/issues")
 	}
-	return cipher, nil
+	return NewSymmetricKey(key)
 }
 
-// Decrypt data using public key
-func (a *AsymmetricKey) Decrypt(cipher []byte) ([]byte, error) {
-	cipher, err := rsa.DecryptPKCS1v15(rand.Reader, a.privateKey, cipher)
-	if err != nil {
-		return nil, err
-	}
-	return cipher, nil
-}
-
-// NewAsymmetricKey - generates a crypto module able to encrypt/decrypt
-// data using a pair for private and public key
-func NewAsymmetricKey(privData []byte, pubData []byte) (*AsymmetricKey, error) {
-	// Parse private key from passed data
-	priv, err := x509.ParsePKCS8PrivateKey(privData)
-	if err != nil {
-		return nil, err
-	}
-	privKey, ok := priv.(*rsa.PrivateKey)
-	if !ok {
-		return nil, errors.New("not a valid private key")
-	}
-
-	// Parse public key from passed data
-	pub, err := x509.ParsePKIXPublicKey(pubData)
-	if err != nil {
-		return nil, err
-	}
-
-	pubKey, ok := pub.(*rsa.PublicKey)
-	if !ok {
-		return nil, errors.New("not a valid public key")
-	}
-
-	// Associate the private key with the passed public key
-	privKey.PublicKey = *pubKey
-
-	return &AsymmetricKey{
-		publicKey:  pubKey,
-		privateKey: privKey,
-	}, nil
+// DeriveKeyUsing derives a symmetric encryption key from a
+// password and a salt using the provided PBKDF.
+func DeriveKeyUsing(pbkdf PBKDF, password string, salt []byte) ([]byte, error) {
+	return pbkdf([]byte(password), salt)
 }
