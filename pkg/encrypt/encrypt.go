@@ -52,7 +52,7 @@ const (
 )
 
 // Cipher is a generic interface for en/decrypting streams using
-// S3 client/server side encryption. Cipher is the functional equalient
+// S3 client/server side encryption. Cipher is the functional equivalent
 // of EncryptionMaterials of the aws-go-sdk.
 type Cipher interface {
 
