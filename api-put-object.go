@@ -209,7 +209,7 @@ func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName
 		// Proceed to upload the part.
 		var objPart ObjectPart
 		objPart, err = c.uploadPart(ctx, bucketName, objectName, uploadID, rd, partNumber,
-			nil, nil, int64(length), opts.UserMetadata)
+			"", "", int64(length), opts.UserMetadata)
 		if err != nil {
 			return totalUploadedSize, err
 		}

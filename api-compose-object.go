@@ -59,7 +59,7 @@ func (s *SSEInfo) getSSEHeaders(isCopySource bool) map[string]string {
 	return map[string]string{
 		"x-amz-" + cs + "server-side-encryption-customer-algorithm": s.algo,
 		"x-amz-" + cs + "server-side-encryption-customer-key":       base64.StdEncoding.EncodeToString(s.key),
-		"x-amz-" + cs + "server-side-encryption-customer-key-MD5":   base64.StdEncoding.EncodeToString(sumMD5(s.key)),
+		"x-amz-" + cs + "server-side-encryption-customer-key-MD5":   sumMD5Base64(s.key),
 	}
 }
 
