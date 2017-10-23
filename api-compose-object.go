@@ -366,7 +366,7 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 	for i, src := range srcs {
 		size, etag, srcUserMeta, err = src.getProps(c)
 		if err != nil {
-			return fmt.Errorf("Could not get source props for %s/%s: %v", src.bucket, src.object, err)
+			return err
 		}
 
 		// Error out if client side encryption is used in this source object when
@@ -506,7 +506,7 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 			complPart, err := c.uploadPartCopy(ctx, dst.bucket,
 				dst.object, uploadID, partIndex, h)
 			if err != nil {
-				return fmt.Errorf("Error in upload-part-copy - %v", err)
+				return err
 			}
 			objParts = append(objParts, complPart)
 			partIndex++
@@ -517,7 +517,7 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 	_, err = c.completeMultipartUpload(ctx, dst.bucket, dst.object, uploadID,
 		completeMultipartUpload{Parts: objParts})
 	if err != nil {
-		err = fmt.Errorf("Error in complete-multipart request - %v", err)
+		return err
 	}
 	return err
 }
