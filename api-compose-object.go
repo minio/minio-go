@@ -93,9 +93,10 @@ type DestinationInfo struct {
 //
 // `userMeta` is the user-metadata key-value pairs to be set on the
 // destination. The keys are automatically prefixed with `x-amz-meta-`
-// if needed. If nil is passed, and if only a single source (of any
-// size) is provided in the ComposeObject call, then metadata from the
-// source is copied to the destination.
+// if needed (certain common headers do not need this.). If nil is
+// passed, and if only a single source (of any size) is provided in
+// the ComposeObject call, then metadata from the source is copied to
+// the destination.
 func NewDestinationInfo(bucket, object string, encryptSSEC *SSEInfo,
 	userMeta map[string]string) (d DestinationInfo, err error) {
 
@@ -107,18 +108,35 @@ func NewDestinationInfo(bucket, object string, encryptSSEC *SSEInfo,
 		return d, err
 	}
 
-	// Process custom-metadata to remove a `x-amz-meta-` prefix if
-	// present and validate that keys are distinct (after this
-	// prefix removal).
+	// Clean and pre-compute metadata to have `x-amz-meta-` prefix
+	// for custom metadata and no prefix for common metadata
+
+	// Map to store pre-computed metadata
 	m := make(map[string]string)
+	// Map to store keys to check for duplicate custom metadata
+	dupMap := make(map[string]interface{})
 	for k, v := range userMeta {
-		if strings.HasPrefix(strings.ToLower(k), "x-amz-meta-") {
-			k = k[len("x-amz-meta-"):]
+		if isStandardHeader(k) {
+			m[k] = v
+			continue
 		}
-		if _, ok := m[k]; ok {
-			return d, fmt.Errorf("Cannot add both %s and x-amz-meta-%s keys as custom metadata", k, k)
+
+		// Add `x-amz-meta-` prefix if needed and check for
+		// duplicates.
+		lowercasedKey := strings.ToLower(k)
+		var noPrefixKey string
+		if strings.HasPrefix(lowercasedKey, "x-amz-meta-") {
+			noPrefixKey = lowercasedKey[len("x-amz-meta-"):]
+		} else {
+			noPrefixKey = lowercasedKey
 		}
-		m[k] = v
+		if _, ok := dupMap[noPrefixKey]; ok {
+			return d, fmt.Errorf("Cannot add both %s and x-amz-meta-%s keys as custom metadata", noPrefixKey, noPrefixKey)
+		}
+		// Insert key into dupMap to check for duplicates.
+		dupMap[noPrefixKey] = ""
+		// Insert with prefix into output map
+		m["x-amz-meta-"+noPrefixKey] = v
 	}
 
 	return DestinationInfo{
@@ -144,7 +162,7 @@ func (d *DestinationInfo) getUserMetaHeadersMap(withCopyDirectiveHeader bool) ma
 		r["x-amz-metadata-directive"] = "REPLACE"
 	}
 	for k, v := range d.userMetadata {
-		r["x-amz-meta-"+k] = v
+		r[k] = v
 	}
 	return r
 }
@@ -251,17 +269,20 @@ func (s *SourceInfo) getProps(c Client) (size int64, etag string, userMeta map[s
 	objInfo, err = c.statObject(s.bucket, s.object, opts)
 	if err != nil {
 		err = fmt.Errorf("Could not stat object - %s/%s: %v", s.bucket, s.object, err)
-	} else {
-		size = objInfo.Size
-		etag = objInfo.ETag
-		userMeta = make(map[string]string)
-		for k, v := range objInfo.Metadata {
-			if strings.HasPrefix(k, "x-amz-meta-") {
-				if len(v) > 0 {
-					userMeta[k] = v[0]
-				}
-			}
+		return
+	}
+
+	size = objInfo.Size
+	etag = objInfo.ETag
+	userMeta = make(map[string]string)
+	for k, v := range objInfo.Metadata {
+		if len(v) > 0 {
+			userMeta[k] = v[0]
 		}
+	}
+	// Add content-type header too
+	if objInfo.ContentType != "" {
+		userMeta["content-type"] = objInfo.ContentType
 	}
 	return
 }

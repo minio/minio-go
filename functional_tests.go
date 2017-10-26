@@ -4742,6 +4742,10 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 				}
 			}
 		}
+		// Also add content-type header
+		if objInfo.ContentType != "" {
+			h.Add("content-type", objInfo.ContentType)
+		}
 		return h
 	}
 
@@ -4764,7 +4768,11 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 	// 2. create source
 	src := minio.NewSourceInfo(bucketName, "srcObject", nil)
 	// 2.1 create destination with metadata set
-	dst1, err := minio.NewDestinationInfo(bucketName, "dstObject-1", nil, map[string]string{"notmyheader": "notmyvalue"})
+	dst1, err := minio.NewDestinationInfo(bucketName, "dstObject-1", nil,
+		map[string]string{
+			"notmyheader":  "notmyvalue",
+			"content-type": "application/javascript",
+		})
 	if err != nil {
 		failureLog(function, args, startTime, "", "NewDestinationInfo failed", err).Fatal()
 	}
@@ -4781,6 +4789,7 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 
 	expectedHeaders := make(http.Header)
 	expectedHeaders.Set("x-amz-meta-notmyheader", "notmyvalue")
+	expectedHeaders.Set("content-type", "application/javascript")
 	if !reflect.DeepEqual(expectedHeaders, fetchMeta("dstObject-1")) {
 		failureLog(function, args, startTime, "", "Metadata match failed", err).Fatal()
 	}
