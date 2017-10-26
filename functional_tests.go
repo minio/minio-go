@@ -3477,7 +3477,7 @@ func testPutObjectUploadSeekedObject() {
 		failureLog(function, args, startTime, "", "TempFile seek failed", err).Fatal()
 	}
 
-	n, err := c.PutObject(bucketName, objectName, tempfile, int64(length), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err := c.PutObject(bucketName, objectName, tempfile, int64(length-offset), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		failureLog(function, args, startTime, "", "PutObject failed", err).Fatal()
 	}
