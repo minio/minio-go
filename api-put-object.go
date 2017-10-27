@@ -78,7 +78,7 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 		header[amzHeaderMatDesc] = []string{opts.EncryptMaterials.GetDesc()}
 	}
 	for k, v := range opts.UserMetadata {
-		if !strings.HasPrefix(strings.ToLower(k), "x-amz-meta-") && !isStandardHeader(k) {
+		if !strings.HasPrefix(strings.ToLower(k), "x-amz-meta-") && !isStandardHeader(k) && !isSSEHeader(k) {
 			header["X-Amz-Meta-"+k] = []string{v}
 		} else {
 			header[k] = []string{v}

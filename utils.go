@@ -235,8 +235,9 @@ var cseHeaders = []string{
 
 // isStandardHeader returns true if header is a supported header and not a custom header
 func isStandardHeader(headerKey string) bool {
+	key := strings.ToLower(headerKey)
 	for _, header := range supportedHeaders {
-		if strings.Compare(strings.ToLower(headerKey), header) == 0 {
+		if strings.ToLower(header) == key {
 			return true
 		}
 	}
@@ -250,6 +251,27 @@ func isCSEHeader(headerKey string) bool {
 		header := strings.ToLower(h)
 		if (header == key) ||
 			(("x-amz-meta-" + header) == key) {
+			return true
+		}
+	}
+	return false
+}
+
+// sseHeaders is list of server side encryption headers
+var sseHeaders = []string{
+	"x-amz-server-side-encryption",
+	"x-amz-server-side-encryption-aws-kms-key-id",
+	"x-amz-server-side-encryption-context",
+	"x-amz-server-side-encryption-customer-algorithm",
+	"x-amz-server-side-encryption-customer-key",
+	"x-amz-server-side-encryption-customer-key-MD5",
+}
+
+// isSSEHeader returns true if header is a server side encryption header.
+func isSSEHeader(headerKey string) bool {
+	key := strings.ToLower(headerKey)
+	for _, h := range sseHeaders {
+		if strings.ToLower(h) == key {
 			return true
 		}
 	}
