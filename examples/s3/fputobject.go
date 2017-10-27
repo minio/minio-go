@@ -38,7 +38,9 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	if _, err := s3Client.FPutObject("my-bucketname", "my-objectname", "my-filename.csv", minio.PutObjectOptions{ContentType: "application/csv"}); err != nil {
+	if _, err := s3Client.FPutObject("my-bucketname", "my-objectname", "my-filename.csv", minio.PutObjectOptions{
+		ContentType: "application/csv",
+	}); err != nil {
 		log.Fatalln(err)
 	}
 	log.Println("Successfully uploaded my-filename.csv")
