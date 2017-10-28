@@ -177,18 +177,6 @@ func (r *lockedRandSource) Seed(seed int64) {
 	r.lk.Unlock()
 }
 
-// redirectHeaders copies all headers when following a redirect URL.
-// This won't be needed anymore from go 1.8 (https://github.com/golang/go/issues/4800)
-func redirectHeaders(req *http.Request, via []*http.Request) error {
-	if len(via) == 0 {
-		return nil
-	}
-	for key, val := range via[0].Header {
-		req.Header[key] = val
-	}
-	return nil
-}
-
 // getRegionFromURL - parse region from URL if present.
 func getRegionFromURL(u url.URL) (region string) {
 	region = ""
@@ -235,8 +223,7 @@ func privateNew(endpoint string, creds *credentials.Credentials, secure bool, re
 
 	// Instantiate http client and bucket location cache.
 	clnt.httpClient = &http.Client{
-		Transport:     defaultMinioTransport,
-		CheckRedirect: redirectHeaders,
+		Transport: defaultMinioTransport,
 	}
 
 	// Sets custom region, if region is empty bucket location cache is used automatically.

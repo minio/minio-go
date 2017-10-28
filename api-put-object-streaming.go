@@ -343,7 +343,12 @@ func (c Client) putObjectNoChecksum(ctx context.Context, bucketName, objectName 
 	}
 	if size > 0 {
 		if isReadAt(reader) && !isObject(reader) {
-			reader = io.NewSectionReader(reader.(io.ReaderAt), 0, size)
+			seeker, _ := reader.(io.Seeker)
+			offset, err := seeker.Seek(0, io.SeekCurrent)
+			if err != nil {
+				return 0, ErrInvalidArgument(err.Error())
+			}
+			reader = io.NewSectionReader(reader.(io.ReaderAt), offset, size)
 		}
 	}
 
