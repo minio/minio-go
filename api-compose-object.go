@@ -366,7 +366,7 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 	for i, src := range srcs {
 		size, etag, srcUserMeta, err = src.getProps(c)
 		if err != nil {
-			return ErrInvalidArgument(fmt.Sprintf("Could not get source props for %s/%s: %v", src.bucket, src.object, err))
+			return err
 		}
 
 		// Error out if client side encryption is used in this source object when
