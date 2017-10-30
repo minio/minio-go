@@ -167,6 +167,13 @@ func newBucketStatement(policy BucketPolicy, bucketName string, prefix string) (
 			Resources: bucketResource,
 			Sid:       "",
 		}
+		if prefix != "" {
+			condKeyMap := make(ConditionKeyMap)
+			condKeyMap.Add("s3:prefix", set.CreateStringSet(prefix))
+			condMap := make(ConditionMap)
+			condMap.Add("StringEquals", condKeyMap)
+			statement.Conditions = condMap
+		}
 		statements = append(statements, statement)
 	}
 
