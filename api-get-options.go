@@ -29,7 +29,8 @@ import (
 type GetObjectOptions struct {
 	headers map[string]string
 
-	Cipher encrypt.Cipher
+	Cipher               encrypt.Cipher
+	ServerSideEncryption *encrypt.ServerSide
 }
 
 // StatObjectOptions are used to specify additional headers or options
@@ -43,6 +44,11 @@ func (o GetObjectOptions) Header() http.Header {
 	headers := make(http.Header, len(o.headers))
 	for k, v := range o.headers {
 		headers.Set(k, v)
+	}
+	if o.ServerSideEncryption != nil {
+		for k, v := range o.ServerSideEncryption.Header() {
+			headers[k] = v
+		}
 	}
 	return headers
 }

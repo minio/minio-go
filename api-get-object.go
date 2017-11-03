@@ -32,12 +32,17 @@ import (
 
 // GetEncryptedObject deciphers and streams data stored in the server after applying a specified encryption materials,
 // returned stream should be closed by the caller.
-func (c Client) GetEncryptedObject(bucketName, objectName string, key encrypt.Key) (io.ReadCloser, error) {
-	cipher, err := encrypt.NewCipher(encrypt.DareHmacSha256, key)
+func (c Client) GetEncryptedObject(bucketName, objectName, password string) (io.ReadCloser, error) {
+	key, err := encrypt.SCrypt2017.DeriveKey([]byte(password), []byte(bucketName+objectName), 32)
 	if err != nil {
 		return nil, err
 	}
-	return c.GetObject(bucketName, objectName, GetObjectOptions{Cipher: cipher})
+	return c.GetObject(bucketName, objectName, GetObjectOptions{
+		ServerSideEncryption: &encrypt.ServerSide{
+			Key:       key,
+			Algorithm: "AES256",
+		},
+	})
 }
 
 // GetObject - returns an seekable, readable object.
@@ -608,6 +613,9 @@ func (c Client) getObject(ctx context.Context, bucketName, objectName string, op
 	}
 	if err := s3utils.CheckValidObjectName(objectName); err != nil {
 		return nil, ObjectInfo{}, err
+	}
+	if opts.ServerSideEncryption != nil && !c.secure { // don't send SSE key over insecure connection
+		return nil, ObjectInfo{}, errors.New("server-side-encryption request require TLS connection")
 	}
 
 	// Execute GET on objectName.

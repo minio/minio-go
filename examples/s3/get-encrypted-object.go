@@ -41,29 +41,8 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	//// Build an asymmetric key from private and public files
-	//
-	// privateKey, err := ioutil.ReadFile("private.key")
-	// if err != nil {
-	//	t.Fatal(err)
-	// }
-	//
-	// publicKey, err := ioutil.ReadFile("public.key")
-	// if err != nil {
-	//	t.Fatal(err)
-	// }
-	//
-	// asymmetricKey, err := NewAsymmetricKey(privateKey, publicKey)
-	// if err != nil {
-	//	t.Fatal(err)
-	// }
-	////
-
-	// Build a symmetric key
-	symmetricKey := encrypt.DeriveKey("my-password", []byte("my-salt")) // customize this parameters!
-
-	// Get a deciphered data from the server, deciphering is assured by cbcMaterials
-	reader, err := s3Client.GetEncryptedObject("my-bucketname", "my-objectname", symmetricKey)
+	// Get server-side-encrypted object. This requires TLS (HTTPS).
+	reader, err := s3Client.GetEncryptedObject("my-bucketname", "my-objectname", "my-password")
 	if err != nil {
 		log.Fatalln(err)
 	}

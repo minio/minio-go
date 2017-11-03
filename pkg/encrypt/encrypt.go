@@ -14,33 +14,26 @@
  * limitations under the License.
  */
 
-// Package encrypt implements a generic interface to encrypt any stream of data.
-// currently this package implements two types of encryption.
-// - Symmetric encryption using DARE-HMAC_SHA256. This algorithm provides tamper-proof
-//   encryption and should be prefered over any current AWS client-side-encryption
+// Package encrypt implements a generic interface to encrypt S3 objects.
+// Currently this package implements three types of encryption.
+// - Symmetric encryption using the encryption capabilities of the server as defined by
+//   the AWS S3 specification.
+// - Symmetric encryption using DARE-HMAC-SHA256. This algorithm provides authenticated
+//   encryption and should be preferred over any current AWS client-side-encryption
 //   algorithm.
-// - Symmetric encryption using AES-CBC-PKCS5. This algorithm is provided for
+// - Symmetric encryption using AES-CBC-PKCS-5. This algorithm is provided for
 //   AWS compability but is not recommended because of security issues.
-//   Notice that AWS calls this algorithm AES-CBC-PKCS5 but actaully implements
-//   AES-CBC-PKCS7.
 package encrypt
 
 import (
-	"errors"
+	"crypto/md5"
+	"encoding/base64"
 	"fmt"
 	"io"
-)
+	"net/http"
+	"strconv"
 
-const (
-	// AesCbcPkcs5 specifies the client-side-encryption algorithm AES-CBC with
-	// PKCS5 padding. This algorithm is implemented for AWS compability but is
-	// not recommended because of security issues.
-	AesCbcPkcs5 = "AES/CBC/PKCS5"
-
-	// DareHmacSha256 specifies the client-side-encryption algorithm DARE with
-	// a HMAC-SHA256 KDF scheme. This algorithm provides tamper-proof encryption
-	// and is recommended over any current AWS S3 client-side-encryption algorithm.
-	DareHmacSha256 = "DARE-HMAC-SHA256"
+	"golang.org/x/crypto/scrypt"
 )
 
 // AWS client-side-encryption headers.
@@ -51,20 +44,27 @@ const (
 	cseAlgorithm = "X-Amz-Meta-X-Amz-Cek-Alg"
 )
 
+// AWS client-side-encryption headers.
+// See: https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html
+const (
+	sseAlgorithm = "X-Amz-Server-Side-Encryption-Customer-Algorithm"
+	sseKey       = "X-Amz-Server-Side-Encryption-Customer-Key"
+	sseKeyMD5    = "X-Amz-Server-Side-Encryption-Customer-Key-Md5"
+)
+
 // Cipher is a generic interface for en/decrypting streams using
 // S3 client/server side encryption. Cipher is the functional equivalent
 // of EncryptionMaterials of the aws-go-sdk.
 type Cipher interface {
-
 	// Seal returns an io.ReadCloser encrypting everything it reads from
 	// the provided io.Reader. It adds HTTP headers to the provided header
-	// if neccessary. Seal returns an error if it is not able to encrypt
+	// if necessary. Seal returns an error if it is not able to encrypt
 	// the io.Reader
 	Seal(header map[string]string, src io.Reader) (io.ReadCloser, error)
 
 	// Open returns an io.ReadCloser decrypting everything it reads from
 	// the provided io.Reader. It reads HTTP headers from the provided header
-	// if neccessary. Open returns an error if it is not able to decrypt
+	// if necessary. Open returns an error if it is not able to decrypt
 	// the io.Reader
 	Open(header map[string]string, src io.Reader) (io.ReadCloser, error)
 
@@ -74,23 +74,54 @@ type Cipher interface {
 	Overhead(size int64) int64
 }
 
-// NewCipher creates a new cipher using the provided algorithm and key.
-func NewCipher(algorithm string, key Key) (Cipher, error) {
-	switch algorithm {
+const (
+	// SCrypt2017 specifies the PBKDF scrypt with the recommended security parameters
+	// for 2017. (N = 32768, r = 8, p = 1)
+	SCrypt2017 PBKDF = 1 + iota
+)
+
+// PBKDF specifies a password-based key-derivation-function
+// to derive a secret key from a password and salt.
+type PBKDF uint
+
+// DeriveKey derives a 'size'-bytes long secret key from the provided
+// password and salt.
+func (kdf PBKDF) DeriveKey(password, salt []byte, size int) ([]byte, error) {
+	switch kdf {
 	default:
-		return nil, fmt.Errorf("algorithm '%s' is not supported", algorithm)
-	case AesCbcPkcs5:
-		return aesCbcPkcs5{key: key}, nil
-	case DareHmacSha256:
-		symKey, ok := key.(*SymmetricKey)
-		if !ok {
-			return nil, errors.New("encryption key must be a symmetric key")
-		}
-		if len(symKey.masterKey) != 32 {
-			return nil, errors.New("encryption key must be 256 bit long")
-		}
-		d := dareHmacSha256{}
-		copy(d[:], symKey.masterKey)
-		return d, nil
+		return nil, fmt.Errorf("PBKDF '%s' is not supported", kdf)
+	case SCrypt2017:
+		return scrypt.Key(password, salt, 32768, 8, 1, size)
+	}
+}
+
+func (kdf PBKDF) String() string {
+	switch kdf {
+	default:
+		return strconv.Itoa(int(kdf))
+	case SCrypt2017:
+		return "scrypt: N=32768 r=8 p=1"
+	}
+}
+
+// ServerSide implements Cipher and specifies server-side-encryption as
+// defined by the AWS S3 specification.
+type ServerSide struct {
+	// The secret encryption key. Notice that this key will be sent to the server.
+	// The key must be 32 bytes long.
+	Key []byte
+	// The Algorithm used to encrypt the object at the server. The only valid
+	// value is "AES256".
+	Algorithm string
+}
+
+// Header returns the HTTP header representation of the S3 server-side-encryption
+// key and algorithm.
+func (s *ServerSide) Header() http.Header {
+	keyMD5 := md5.Sum(s.Key)
+	return http.Header{
+		sseAlgorithm: []string{s.Algorithm},
+		sseKey:       []string{base64.StdEncoding.EncodeToString(s.Key)},
+		sseKeyMD5:    []string{base64.StdEncoding.EncodeToString(keyMD5[:])},
 	}
 }

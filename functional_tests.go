@@ -21,7 +21,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -41,7 +40,6 @@ import (
 	minio "github.com/minio/minio-go"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/minio/minio-go/pkg/encrypt"
 	"github.com/minio/minio-go/pkg/policy"
 )
 
@@ -2388,42 +2386,37 @@ func testEncryptionPutGet() {
 		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
 	}
 
-	// Generate a symmetric key
-	var salt [8]byte
-	binary.LittleEndian.PutUint64(salt[:], uint64(time.Now().Unix()))
-	symKey := encrypt.DeriveKey("my-password", salt[:])
-
 	testCases := []struct {
-		buf    []byte
-		encKey encrypt.Key
+		buf      []byte
+		password string
 	}{
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 0)},
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 1)},
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 15)},
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 16)},
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 17)},
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 31)},
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 32)},
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 33)},
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 1024)},
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 1024*2)},
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 1024*1024)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 0)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 1)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 15)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 16)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 17)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 31)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 32)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 33)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 1024)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 1024*2)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 1024*1024)},
 	}
 
 	for i, testCase := range testCases {
 		// Generate a random object name
 		objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 		args["objectName"] = objectName
-		args["key"] = testCase.encKey
+		args["password"] = testCase.password
 
 		// Put encrypted data
-		_, err = c.PutEncryptedObject(bucketName, objectName, bytes.NewReader(testCase.buf), testCase.encKey)
+		_, err = c.PutEncryptedObject(bucketName, objectName, bytes.NewReader(testCase.buf), testCase.password)
 		if err != nil {
 			failureLog(function, args, startTime, "", "PutEncryptedObject failed", err).Fatal()
 		}
 
 		// Read the data back
-		r, err := c.GetEncryptedObject(bucketName, objectName, testCase.encKey)
+		r, err := c.GetEncryptedObject(bucketName, objectName, testCase.password)
 		if err != nil {
 			failureLog(function, args, startTime, "", "GetEncryptedObject failed", err).Fatal()
 		}
@@ -2495,34 +2488,32 @@ func testEncryptionFPut() {
 		failureLog(function, args, startTime, "", "MakeBucket failed", err).Fatal()
 	}
 
-	// Generate a symmetric key
-	symKey := encrypt.DeriveKey("my-password", []byte("salt-123"))
 	// Object custom metadata
 	customContentType := "custom/contenttype"
 	args["metadata"] = customContentType
 
 	testCases := []struct {
-		buf    []byte
-		encKey encrypt.Key
+		buf      []byte
+		password string
 	}{
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 0)},
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 1)},
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 15)},
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 16)},
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 17)},
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 31)},
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 32)},
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 33)},
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 1024)},
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 1024*2)},
-		{encKey: symKey, buf: bytes.Repeat([]byte("F"), 1024*1024)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 0)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 1)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 15)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 16)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 17)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 31)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 32)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 33)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 1024)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 1024*2)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 1024*1024)},
 	}
 
 	for i, testCase := range testCases {
 		// Generate a random object name
 		objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 		args["objectName"] = objectName
-		args["key"] = testCase.encKey
+		args["password"] = testCase.password
 
 		// Generate a random file name.
 		fileName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -2536,12 +2527,12 @@ func testEncryptionFPut() {
 		}
 		file.Close()
 		// Put encrypted data
-		if _, err = c.FPutEncryptedObject(bucketName, objectName, fileName, testCase.encKey); err != nil {
+		if _, err = c.FPutEncryptedObject(bucketName, objectName, fileName, testCase.password); err != nil {
 			failureLog(function, args, startTime, "", "FPutEncryptedObject failed", err).Fatal()
 		}
 
 		// Read the data back
-		r, err := c.GetEncryptedObject(bucketName, objectName, testCase.encKey)
+		r, err := c.GetEncryptedObject(bucketName, objectName, testCase.password)
 		if err != nil {
 			failureLog(function, args, startTime, "", "GetEncryptedObject failed", err).Fatal()
 		}

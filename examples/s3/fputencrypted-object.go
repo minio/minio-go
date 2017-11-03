@@ -42,29 +42,8 @@ func main() {
 	// Specify a local file that we will upload
 	filePath := "my-testfile"
 
-	//// Build an asymmetric key from private and public files
-	//
-	// privateKey, err := ioutil.ReadFile("private.key")
-	// if err != nil {
-	//	t.Fatal(err)
-	// }
-	//
-	// publicKey, err := ioutil.ReadFile("public.key")
-	// if err != nil {
-	//	t.Fatal(err)
-	// }
-	//
-	// asymmetricKey, err := NewAsymmetricKey(privateKey, publicKey)
-	// if err != nil {
-	//	t.Fatal(err)
-	// }
-	////
-
-	// Build a symmetric key
-	symmetricKey := encrypt.DeriveKey("my-password", []byte("my-salt")) // customize this parameters!
-
-	// Encrypt file content and upload to the server
-	n, err := s3Client.FPutEncryptedObject("my-bucketname", "my-objectname", filePath, symmetricKey)
+	// Create server-side-encrypted object. This requires TLS (HTTPS).
+	n, err := s3Client.FPutEncryptedObject("my-bucketname", "my-objectname", filePath, "my-password")
 	if err != nil {
 		log.Fatalln(err)
 	}

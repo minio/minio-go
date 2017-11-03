@@ -35,7 +35,20 @@ const (
 )
 
 type aesCbcPkcs5 struct {
-	key Key
+	key aesCbcKey
+}
+
+// NewAesCbcPkcs5 returns a new Cipher which implements the
+// encryption algorithm AES-CBC-PKCS-5 as implemented by AWS.
+//
+// AES-CBC only provides confidentiality but no authenticity of an
+// encrypted object. Therefore it is not recommended to use AES-CBC.
+//
+// Notice that AWS calls the padding scheme PKCS-5 but uses PKCS-7.
+func NewAesCbcPkcs5(key []byte) (Cipher, error) {
+	aesKey := make(aesCbcKey, len(key))
+	copy(aesKey, key)
+	return aesCbcPkcs5{aesKey}, nil
 }
 
 func (c aesCbcPkcs5) Seal(header map[string]string, r io.Reader) (io.ReadCloser, error) {
@@ -58,7 +71,7 @@ func (c aesCbcPkcs5) Seal(header map[string]string, r io.Reader) (io.ReadCloser,
 	}
 	header[cseIV] = base64.StdEncoding.EncodeToString(iv)
 	header[cseKey] = base64.StdEncoding.EncodeToString(encryptedKey)
-	header[cseAlgorithm] = AesCbcPkcs5
+	header[cseAlgorithm] = "AES/CBC/PKCS5"
 
 	return &aesCbcPkcs5Reader{
 		stream:    r,
@@ -70,7 +83,7 @@ func (c aesCbcPkcs5) Seal(header map[string]string, r io.Reader) (io.ReadCloser,
 }
 
 func (c aesCbcPkcs5) Open(header map[string]string, r io.Reader) (io.ReadCloser, error) {
-	if header[cseAlgorithm] != AesCbcPkcs5 {
+	if header[cseAlgorithm] != "AES/CBC/PKCS5" {
 		return nil, errors.New("invalid encryption algorithm")
 	}
 	iv, err := base64.StdEncoding.DecodeString(header[cseIV])
@@ -206,6 +219,69 @@ func (r *aesCbcPkcs5Reader) Read(buf []byte) (n int, err error) {
 		}
 	}
 	return
+}
+
+type aesCbcKey []byte
+
+// Encrypt passed bytes
+func (s aesCbcKey) Encrypt(plain []byte) ([]byte, error) {
+	// Initialize an AES encryptor using a master key
+	keyBlock, err := aes.NewCipher(s[:])
+	if err != nil {
+		return []byte{}, err
+	}
+
+	// Pad the key before encryption
+	plain, _ = pkcs5Pad(plain, aes.BlockSize)
+
+	encKey := []byte{}
+	encPart := make([]byte, aes.BlockSize)
+
+	// Encrypt the passed key by block
+	for {
+		if len(plain) < aes.BlockSize {
+			break
+		}
+		// Encrypt the passed key
+		keyBlock.Encrypt(encPart, plain[:aes.BlockSize])
+		// Add the encrypted block to the total encrypted key
+		encKey = append(encKey, encPart...)
+		// Pass to the next plain block
+		plain = plain[aes.BlockSize:]
+	}
+	return encKey, nil
+}
+
+// Decrypt passed bytes
+func (s aesCbcKey) Decrypt(cipher []byte) ([]byte, error) {
+	// Initialize AES decrypter
+	keyBlock, err := aes.NewCipher(s[:])
+	if err != nil {
+		return nil, err
+	}
+
+	var plain []byte
+	plainPart := make([]byte, aes.BlockSize)
+
+	// Decrypt the encrypted data block by block
+	for {
+		if len(cipher) < aes.BlockSize {
+			break
+		}
+		keyBlock.Decrypt(plainPart, cipher[:aes.BlockSize])
+		// Add the decrypted block to the total result
+		plain = append(plain, plainPart...)
+		// Pass to the next cipher block
+		cipher = cipher[aes.BlockSize:]
+	}
+
+	// Unpad the resulted plain data
+	plain, err = pkcs5Unpad(plain, aes.BlockSize)
+	if err != nil {
+		return nil, err
+	}
+
+	return plain, nil
 }
 
 // Unpad a set of bytes following PKCS5 algorithm

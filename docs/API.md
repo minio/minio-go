@@ -52,12 +52,12 @@ func main() {
 
 | Bucket operations                                 | Object operations                                   | Encrypted Object operations                 | Presigned operations                          | Bucket Policy/Notification Operations                         | Client custom settings                                |
 | :---                                              | :---                                                | :---                                        | :---                                          | :---                                                          | :---                                                  |
-| [`MakeBucket`](#MakeBucket)                       | [`GetObject`](#GetObject)                           | [`NewSymmetricKey`](#NewSymmetricKey)       | [`PresignedGetObject`](#PresignedGetObject)   | [`SetBucketPolicy`](#SetBucketPolicy)                         | [`SetAppInfo`](#SetAppInfo)                           |
-| [`ListBuckets`](#ListBuckets)                     | [`PutObject`](#PutObject)                           | [`NewAsymmetricKey`](#NewAsymmetricKey)     | [`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)                         | [`SetCustomTransport`](#SetCustomTransport)           |
-| [`BucketExists`](#BucketExists)                   | [`CopyObject`](#CopyObject)                         | [`GetEncryptedObject`](#GetEncryptedObject) | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`ListBucketPolicies`](#ListBucketPolicies)                   | [`TraceOn`](#TraceOn)                                 |
-| [`RemoveBucket`](#RemoveBucket)                   | [`StatObject`](#StatObject)                         | [`PutEncryptedObject`](#PutEncryptedObject) |                                               | [`SetBucketNotification`](#SetBucketNotification)             | [`TraceOff`](#TraceOff)                               |
-| [`ListObjects`](#ListObjects)                     | [`RemoveObject`](#RemoveObject)                     | [`NewSSEInfo`](#NewSSEInfo)               |                                               | [`GetBucketNotification`](#GetBucketNotification)             | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
-| [`ListObjectsV2`](#ListObjectsV2)                 | [`RemoveObjects`](#RemoveObjects)                   | [`FPutEncryptedObject`](#FPutEncryptedObject)    |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification) |                                                       |
+| [`MakeBucket`](#MakeBucket)                       | [`GetObject`](#GetObject)                           |[`GetEncryptedObject`](#GetEncryptedObject)   | [`PresignedGetObject`](#PresignedGetObject)   | [`SetBucketPolicy`](#SetBucketPolicy)                         | [`SetAppInfo`](#SetAppInfo)                           |
+| [`ListBuckets`](#ListBuckets)                     | [`PutObject`](#PutObject)                           |  [`PutEncryptedObject`](#PutEncryptedObject) | [`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)                         | [`SetCustomTransport`](#SetCustomTransport)           |
+| [`BucketExists`](#BucketExists)                   | [`CopyObject`](#CopyObject)                         | [`FPutEncryptedObject`](#FPutEncryptedObject)   | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`ListBucketPolicies`](#ListBucketPolicies)                   | [`TraceOn`](#TraceOn)                                 |
+| [`RemoveBucket`](#RemoveBucket)                   | [`StatObject`](#StatObject)                         |                                        |                                               | [`SetBucketNotification`](#SetBucketNotification)             | [`TraceOff`](#TraceOff)                               |
+| [`ListObjects`](#ListObjects)                     | [`RemoveObject`](#RemoveObject)                     |                                           |                                               | [`GetBucketNotification`](#GetBucketNotification)             | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
+| [`ListObjectsV2`](#ListObjectsV2)                 | [`RemoveObjects`](#RemoveObjects)                   |   |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification) |                                                       |
 | [`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                             |                                               | [`ListenBucketNotification`](#ListenBucketNotification)       |                                                       |
 |                                                   | [`FPutObject`](#FPutObject)                         |                                             |                                               |                                                               |                                                       |
 |                                                   | [`FGetObject`](#FGetObject)                         |                                             |                                               |                                                               |                                                       |
@@ -513,7 +513,7 @@ if err != nil {
 ```
 
 <a name="FGetEncryptedObject"></a>
-### FGetEncryptedObject(bucketName, objectName, filePath string, key encrypt.Key) error
+### FGetEncryptedObject(bucketName, objectName, filePath, password string) error
     Identical to FGetObject operation, but decrypts an request
 
 __Parameters__
@@ -524,17 +524,14 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket |
 |`objectName` | _string_  |Name of the object  |
 |`filePath` | _string_  |Path to download object to |
-|`key` | _encrypt.Key_ | The decryption key for decrypting the object |
+|`password` | _string_ | The password |
 
 
 __Example__
 
 
 ```go
-// Generate a master symmetric key
-key := minio.DeriveKey("my-password", []byte("my-salt"))
-
-err = minioClient.FGetEncryptedObject("mybucket", "photo.jpg", "/tmp/photo.jpg", key)
+err = minioClient.FGetEncryptedObject("mybucket", "photo.jpg", "/tmp/photo.jpg", "my-password")
 if err != nil {
     log.Fatalln(err)
 }
@@ -986,68 +983,10 @@ if err != nil {
 
 ## 4. Encrypted object operations
 
-<a name="NewSymmetricKey"></a>
-### NewSymmetricKey(key []byte) *encrypt.SymmetricKey
-
-__Parameters__
-
-|Param   |Type   |Description   |
-|:---|:---| :---|
-|`key`  | _string_  |Name of the bucket  |
-
-
-__Return Value__
-
-|Param   |Type   |Description   |
-|:---|:---| :---|
-|`symmetricKey`  | _*encrypt.SymmetricKey_ | represents a symmetric key structure which can be used to encrypt and decrypt data |
-
-```go
-symKey := encrypt.NewSymmetricKey([]byte("my-secret-key-00"))
-```
-
-
-<a name="NewAsymmetricKey"></a>
-### NewAsymmetricKey(privateKey []byte, publicKey[]byte) (*encrypt.AsymmetricKey, error)
-
-__Parameters__
-
-|Param   |Type   |Description   |
-|:---|:---| :---|
-|`privateKey` | _[]byte_ | Private key data  |
-|`publicKey`  | _[]byte_ | Public key data  |
-
-
-__Return Value__
-
-|Param   |Type   |Description   |
-|:---|:---| :---|
-|`asymmetricKey`  | _*encrypt.AsymmetricKey_ | represents an asymmetric key structure which can be used to encrypt and decrypt data |
-|`err`  | _error_ |  encountered errors |
-
-
-```go
-privateKey, err := ioutil.ReadFile("private.key")
-if err != nil {
-    log.Fatal(err)
-}
-
-publicKey, err := ioutil.ReadFile("public.key")
-if err != nil {
-    log.Fatal(err)
-}
-
-// Initialize the asymmetric key
-asymmetricKey, err := encrypt.NewAsymmetricKey(privateKey, publicKey)
-if err != nil {
-    log.Fatal(err)
-}
-```
-
 <a name="GetEncryptedObject"></a>
-### GetEncryptedObject(bucketName, objectName string, key encrypt.Key) (io.ReadCloser, error)
+### GetEncryptedObject(bucketName, objectName, password string) (io.ReadCloser, error)
 
-Returns the decrypted stream of the object data based of the given encryption materials. Most of the common errors occur when reading the stream.
+Returns the decrypted object. Most of the common errors occur when reading the stream.
 
 __Parameters__
 
@@ -1055,7 +994,7 @@ __Parameters__
 |:---|:---| :---|
 |`bucketName`  | _string_  | Name of the bucket  |
 |`objectName` | _string_  | Name of the object  |
-|`key` | _encrypt.Key_ | The decryption key  |
+|`password` | _string_ | The password  |
 
 
 __Return Value__
@@ -1070,10 +1009,7 @@ __Example__
 
 
 ```go
-// Generate a master symmetric key
-key := encrypt.DeriveKey("password", []byte("my-salt"))
-
-object, err := minioClient.GetEncryptedObject("mybucket", "photo.jpg", key)
+object, err := minioClient.GetEncryptedObject("mybucket", "photo.jpg", "my-password")
 if err != nil {
     fmt.Println(err)
     return
@@ -1094,7 +1030,7 @@ if _, err = io.Copy(localFile, object); err != nil {
 
 <a name="PutEncryptedObject"></a>
 
-### PutEncryptedObject(bucketName, objectName string, reader io.Reader, encryptMaterials encrypt.Materials) (n int, err error)
+### PutEncryptedObject(bucketName, objectName string, reader io.Reader, password string) (n int, err error)
 Encrypt and upload an object.
 
 __Parameters__
@@ -1104,7 +1040,7 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object   |
 |`reader` | _io.Reader_  |Any Go type that implements io.Reader |
-|`key` | _encrypt.Key_  | The encryption key |
+|`password` | _string_  | The password |
 
 __Example__
 
@@ -1117,18 +1053,15 @@ if err != nil {
 }
 defer file.Close()
 
-// Generate key from password
-key := encrypt.DeriveKey("my-password", []byte("my-salt"))
-
 // Upload the encrypted form of the file
-n, err := minioClient.PutEncryptedObject("mybucket", "myobject", file, key)
+n, err := minioClient.PutEncryptedObject("mybucket", "myobject", file, "my-password")
 if err != nil {
     fmt.Println(err)
     return
 }
 ```
 <a name="FPutEncryptedObject"></a>
-### FPutEncryptedObject(bucketName, objectName, filePath, key encrypt.Key) (n int, err error)
+### FPutEncryptedObject(bucketName, objectName, filePath, password string) (n int, err error)
 
 Encrypt and upload an object from a file.
 
@@ -1140,17 +1073,13 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object |
 |`filePath` | _string_  |Path to file to be uploaded |
-|`key` | _encrypt.Key_  | The key to encrypt the object |
+|`password` | _string_  | The password |
 
 __Example__
 
 
 ```go
-
-// Generate key
-key := encrypt.DeriveKey("my-password", []byte(salt))
-
-n, err := minioClient.FPutEncryptedObject("mybucket", "myobject.csv", "/tmp/otherobject.csv", key)
+n, err := minioClient.FPutEncryptedObject("mybucket", "myobject.csv", "/tmp/otherobject.csv", "my-password")
 if err != nil {
     fmt.Println(err)
     return

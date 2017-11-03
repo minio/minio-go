@@ -32,6 +32,18 @@ import (
 // and HMAC-SHA256 as encryption key derivation function.
 type dareHmacSha256 [32]byte
 
+// NewDareHmacSha256 returns a new Cipher which implements the
+// encryption algorithm DARE-HMAC-SHA256. The provided key must be
+// 32 bytes long.
+func NewDareHmacSha256(key []byte) (Cipher, error) {
+	if len(key) != 32 {
+		return nil, errors.New("secret key must be 256 bit long")
+	}
+	d := dareHmacSha256{}
+	copy(d[:], key)
+	return d, nil
+}
+
 func (d dareHmacSha256) Seal(header map[string]string, r io.Reader) (io.ReadCloser, error) {
 	iv := make([]byte, 32)
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
@@ -44,7 +56,7 @@ func (d dareHmacSha256) Seal(header map[string]string, r io.Reader) (io.ReadClos
 		return nil, err
 	}
 	header[cseIV] = base64.StdEncoding.EncodeToString(iv)
-	header[cseAlgorithm] = DareHmacSha256
+	header[cseAlgorithm] = "DARE-HMAC-SHA256"
 
 	if closer, ok := r.(io.Closer); ok {
 		type readCloser struct {
@@ -57,7 +69,7 @@ func (d dareHmacSha256) Seal(header map[string]string, r io.Reader) (io.ReadClos
 }
 
 func (d dareHmacSha256) Open(header map[string]string, r io.Reader) (io.ReadCloser, error) {
-	if header[cseAlgorithm] != DareHmacSha256 {
+	if header[cseAlgorithm] != "DARE-HMAC-SHA256" {
 		return nil, errors.New("unexpected encryption algorithm")
 	}
 	iv, err := base64.StdEncoding.DecodeString(header[cseIV])

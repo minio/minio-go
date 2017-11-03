@@ -24,19 +24,29 @@ import (
 )
 
 // PutEncryptedObject - Encrypt and store object.
-func (c Client) PutEncryptedObject(bucketName, objectName string, reader io.Reader, key encrypt.Key) (n int64, err error) {
-	cipher, err := encrypt.NewCipher(encrypt.DareHmacSha256, key)
+func (c Client) PutEncryptedObject(bucketName, objectName string, reader io.Reader, password string) (n int64, err error) {
+	key, err := encrypt.SCrypt2017.DeriveKey([]byte(password), []byte(bucketName+objectName), 32)
 	if err != nil {
 		return 0, err
 	}
-	return c.PutObjectWithContext(context.Background(), bucketName, objectName, reader, -1, PutObjectOptions{Cipher: cipher})
+	return c.PutObjectWithContext(context.Background(), bucketName, objectName, reader, -1, PutObjectOptions{
+		ServerSideEncryption: &encrypt.ServerSide{
+			Key:       key,
+			Algorithm: "AES256",
+		},
+	})
 }
 
 // FPutEncryptedObject - Encrypt and store an object with contents from file at filePath.
-func (c Client) FPutEncryptedObject(bucketName, objectName, filePath string, key encrypt.Key) (n int64, err error) {
-	cipher, err := encrypt.NewCipher(encrypt.DareHmacSha256, key)
+func (c Client) FPutEncryptedObject(bucketName, objectName, filePath, password string) (n int64, err error) {
+	key, err := encrypt.SCrypt2017.DeriveKey([]byte(password), []byte(bucketName+objectName), 32)
 	if err != nil {
 		return 0, err
 	}
-	return c.FPutObjectWithContext(context.Background(), bucketName, objectName, filePath, PutObjectOptions{Cipher: cipher})
+	return c.FPutObjectWithContext(context.Background(), bucketName, objectName, filePath, PutObjectOptions{
+		ServerSideEncryption: &encrypt.ServerSide{
+			Key:       key,
+			Algorithm: "AES256",
+		},
+	})
 }

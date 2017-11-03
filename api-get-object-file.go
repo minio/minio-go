@@ -38,12 +38,17 @@ func (c Client) FGetObject(bucketName, objectName, filePath string, opts GetObje
 }
 
 // FGetEncryptedObject - Decrypt and store an object at filePath.
-func (c Client) FGetEncryptedObject(bucketName, objectName, filePath string, key encrypt.Key) error {
-	cipher, err := encrypt.NewCipher(encrypt.DareHmacSha256, key)
+func (c Client) FGetEncryptedObject(bucketName, objectName, filePath, password string) error {
+	key, err := encrypt.SCrypt2017.DeriveKey([]byte(password), []byte(bucketName+objectName), 32)
 	if err != nil {
 		return err
 	}
-	return c.FGetObject(bucketName, objectName, filePath, GetObjectOptions{Cipher: cipher})
+	return c.FGetObject(bucketName, objectName, filePath, GetObjectOptions{
+		ServerSideEncryption: &encrypt.ServerSide{
+			Key:       key,
+			Algorithm: "AES256",
+		},
+	})
 }
 
 // fGetObjectWithContext - fgetObject wrapper function with context

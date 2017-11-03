@@ -19,6 +19,7 @@ package minio
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -32,14 +33,15 @@ import (
 
 // PutObjectOptions represents options specified by user for PutObject call
 type PutObjectOptions struct {
-	UserMetadata       map[string]string
-	Progress           io.Reader
-	ContentType        string
-	ContentEncoding    string
-	ContentDisposition string
-	CacheControl       string
-	Cipher             encrypt.Cipher
-	NumThreads         uint
+	UserMetadata         map[string]string
+	Progress             io.Reader
+	ContentType          string
+	ContentEncoding      string
+	ContentDisposition   string
+	CacheControl         string
+	Cipher               encrypt.Cipher
+	ServerSideEncryption *encrypt.ServerSide
+	NumThreads           uint
 }
 
 // getNumThreads - gets the number of threads to be used in the multipart
@@ -71,6 +73,11 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 	}
 	if opts.CacheControl != "" {
 		header["Cache-Control"] = []string{opts.CacheControl}
+	}
+	if opts.ServerSideEncryption != nil {
+		for k, v := range opts.ServerSideEncryption.Header() {
+			header[k] = v
+		}
 	}
 	for k, v := range opts.UserMetadata {
 		if !strings.HasPrefix(strings.ToLower(k), "x-amz-meta-") && !isStandardHeader(k) {
@@ -118,6 +125,10 @@ func (c Client) PutObject(bucketName, objectName string, reader io.Reader, objec
 }
 
 func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName string, reader io.Reader, size int64, opts PutObjectOptions) (n int64, err error) {
+	if opts.ServerSideEncryption != nil && !c.secure { // don't send SSE key over insecure connection
+		return 0, errors.New("server-side-encryption request require TLS connection")
+	}
+
 	// Check for largest object size allowed.
 	if size > int64(maxMultipartPutObjectSize) {
 		return 0, ErrEntityTooLarge(size, maxMultipartPutObjectSize, bucketName, objectName)
@@ -127,19 +138,6 @@ func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName stri
 	if s3utils.IsGoogleEndpoint(c.endpointURL) {
 		// Do not compute MD5 for Google Cloud Storage.
 		return c.putObjectNoChecksum(ctx, bucketName, objectName, reader, size, opts)
-	}
-
-	if opts.Cipher != nil {
-		if opts.UserMetadata == nil {
-			opts.UserMetadata = make(map[string]string)
-		}
-		reader, err = opts.Cipher.Seal(opts.UserMetadata, reader)
-		if err != nil {
-			return 0, err
-		}
-		if size > 0 {
-			size = opts.Cipher.Overhead(size)
-		}
 	}
 
 	if c.overrideSignerType.IsV2() {
