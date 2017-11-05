@@ -151,7 +151,7 @@ func (c Client) ListenBucketNotification(bucketName, prefix, suffix string, even
 		// Check ARN partition to verify if listening bucket is supported
 		if s3utils.IsAmazonEndpoint(c.endpointURL) || s3utils.IsGoogleEndpoint(c.endpointURL) {
 			notificationInfoCh <- NotificationInfo{
-				Err: ErrAPINotSupported("Listening bucket notification is specific only to `minio` partitions"),
+				Err: ErrAPINotSupported("Listening for bucket notification is specific only to `minio` server endpoints"),
 			}
 			return
 		}
@@ -177,7 +177,10 @@ func (c Client) ListenBucketNotification(bucketName, prefix, suffix string, even
 				contentSHA256Hex: emptySHA256Hex,
 			})
 			if err != nil {
-				continue
+				notificationInfoCh <- NotificationInfo{
+					Err: err,
+				}
+				return
 			}
 
 			// Validate http response, upon error return quickly.
