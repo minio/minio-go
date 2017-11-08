@@ -53,7 +53,7 @@ func (c Client) presignURL(method string, bucketName string, objectName string, 
 	// Instantiate a new request.
 	// Since expires is set newRequest will presign the request.
 	var req *http.Request
-	if req, err = c.newRequest(method, reqMetadata); err != nil {
+	if req, err = c.newRequest(&c.endpointURL, method, reqMetadata); err != nil {
 		return nil, err
 	}
 	return req.URL, nil
@@ -113,12 +113,12 @@ func (c Client) PresignedPostPolicy(p *PostPolicy) (u *url.URL, formData map[str
 
 	bucketName := p.formData["bucket"]
 	// Fetch the bucket location.
-	location, err := c.getBucketLocation(bucketName)
+	location, err := c.getBucketLocation(c.endpointURL.Host, bucketName)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	u, err = c.makeTargetURL(bucketName, "", location, nil)
+	u, err = c.makeTargetURL(&c.endpointURL, bucketName, "", location, nil)
 	if err != nil {
 		return nil, nil, err
 	}

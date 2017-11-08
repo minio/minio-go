@@ -224,6 +224,9 @@ func privateNew(endpoint string, creds *credentials.Credentials, secure bool, re
 	// Instantiate http client and bucket location cache.
 	clnt.httpClient = &http.Client{
 		Transport: defaultMinioTransport,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 	}
 
 	// Sets custom region, if region is empty bucket location cache is used automatically.
@@ -425,33 +428,20 @@ func (c Client) dumpHTTP(req *http.Request, resp *http.Response) error {
 func (c Client) do(req *http.Request) (*http.Response, error) {
 	var resp *http.Response
 	var err error
-	// Do the request in a loop in case of 307 http is met since golang still doesn't
-	// handle properly this situation (https://github.com/golang/go/issues/7912)
-	for {
-		resp, err = c.httpClient.Do(req)
-		if err != nil {
-			// Handle this specifically for now until future Golang
-			// versions fix this issue properly.
-			urlErr, ok := err.(*url.Error)
-			if ok && strings.Contains(urlErr.Err.Error(), "EOF") {
-				return nil, &url.Error{
-					Op:  urlErr.Op,
-					URL: urlErr.URL,
-					Err: errors.New("Connection closed by foreign host " + urlErr.URL + ". Retry again."),
-				}
+
+	resp, err = c.httpClient.Do(req)
+	if err != nil {
+		// Handle this specifically for now until future Golang
+		// versions fix this issue properly.
+		urlErr, ok := err.(*url.Error)
+		if ok && strings.Contains(urlErr.Err.Error(), "EOF") {
+			return nil, &url.Error{
+				Op:  urlErr.Op,
+				URL: urlErr.URL,
+				Err: errors.New("Connection closed by foreign host " + urlErr.URL + ". Retry again."),
 			}
-			return nil, err
 		}
-		// Redo the request with the new redirect url if http 307 is returned, quit the loop otherwise
-		if resp != nil && resp.StatusCode == http.StatusTemporaryRedirect {
-			newURL, err := url.Parse(resp.Header.Get("Location"))
-			if err != nil {
-				break
-			}
-			req.URL = newURL
-		} else {
-			break
-		}
+		return resp, err
 	}
 
 	// Response cannot be non-nil, report if its the case.
@@ -484,6 +474,7 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 	var isRetryable bool     // Indicates if request can be retried.
 	var bodySeeker io.Seeker // Extracted seeker from io.Reader.
 	var reqRetry = MaxRetry  // Indicates how many times we can retry the request
+	var endpoint *url.URL
 
 	if metadata.contentBody != nil {
 		// Check if body is seekable then it is retryable.
@@ -512,6 +503,9 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 	// Indicate to our routine to exit cleanly upon return.
 	defer close(doneCh)
 
+	// Start out connecting to the endpointURL.  But in the case of redirect, this will be updated.
+	endpoint = &c.endpointURL
+
 	// Blank indentifier is kept here on purpose since 'range' without
 	// blank identifiers is only supported since go1.4
 	// https://golang.org/doc/go1.4#forrange.
@@ -530,7 +524,7 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 
 		// Instantiate a new request.
 		var req *http.Request
-		req, err = c.newRequest(method, metadata)
+		req, err = c.newRequest(endpoint, method, metadata)
 		if err != nil {
 			errResponse := ToErrorResponse(err)
 			if isS3CodeRetryable(errResponse.Code) {
@@ -538,11 +532,22 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 			}
 			return nil, err
 		}
+
 		// Add context to request
 		req = req.WithContext(ctx)
 
 		// Initiate the request.
 		res, err = c.do(req)
+
+		// Check for redirect
+		if res != nil && res.StatusCode == http.StatusTemporaryRedirect {
+			endpoint, err = url.Parse(res.Header.Get("Location"))
+			if err != nil {
+				return nil, fmt.Errorf("redirect but problem with redirect location: %s", err.Error())
+			}
+			continue
+		}
+
 		if err != nil {
 			// For supported network errors verify.
 			if isNetErrorRetryable(err) {
@@ -613,7 +618,7 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 }
 
 // newRequest - instantiate a new HTTP request for a given method.
-func (c Client) newRequest(method string, metadata requestMetadata) (req *http.Request, err error) {
+func (c Client) newRequest(endpoint *url.URL, method string, metadata requestMetadata) (req *http.Request, err error) {
 	// If no method is supplied default to 'POST'.
 	if method == "" {
 		method = "POST"
@@ -623,7 +628,7 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 	if location == "" {
 		if metadata.bucketName != "" {
 			// Gather location only if bucketName is present.
-			location, err = c.getBucketLocation(metadata.bucketName)
+			location, err = c.getBucketLocation(endpoint.Host, metadata.bucketName)
 			if err != nil {
 				if ToErrorResponse(err).Code != "AccessDenied" {
 					return nil, err
@@ -639,7 +644,7 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 	}
 
 	// Construct a new target URL.
-	targetURL, err := c.makeTargetURL(metadata.bucketName, metadata.objectName, location, metadata.queryValues)
+	targetURL, err := c.makeTargetURL(endpoint, metadata.bucketName, metadata.objectName, location, metadata.queryValues)
 	if err != nil {
 		return nil, err
 	}
@@ -759,10 +764,12 @@ func (c Client) setUserAgent(req *http.Request) {
 }
 
 // makeTargetURL make a new target url.
-func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, queryValues url.Values) (*url.URL, error) {
-	host := c.endpointURL.Host
+func (c Client) makeTargetURL(endpoint *url.URL, bucketName, objectName, bucketLocation string, queryValues url.Values) (*url.URL, error) {
+
+	host := endpoint.Host
+
 	// For Amazon S3 endpoint, try to fetch location based endpoint.
-	if s3utils.IsAmazonEndpoint(c.endpointURL) {
+	if s3utils.IsAmazonEndpoint(*endpoint) {
 		if c.s3AccelerateEndpoint != "" && bucketName != "" {
 			// http://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html
 			// Disable transfer acceleration for non-compliant bucket names.
@@ -775,7 +782,7 @@ func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, que
 			host = c.s3AccelerateEndpoint
 		} else {
 			// Do not change the host if the endpoint URL is a FIPS S3 endpoint.
-			if !s3utils.IsAmazonFIPSGovCloudEndpoint(c.endpointURL) {
+			if !s3utils.IsAmazonFIPSGovCloudEndpoint(*endpoint) {
 				// Fetch new host based on the bucket location.
 				host = getS3Endpoint(bucketLocation)
 			}
@@ -799,7 +806,7 @@ func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, que
 	// endpoint URL.
 	if bucketName != "" {
 		// Save if target url will have buckets which suppport virtual host.
-		isVirtualHostStyle := s3utils.IsVirtualHostSupported(c.endpointURL, bucketName)
+		isVirtualHostStyle := s3utils.IsVirtualHostSupported(*endpoint, bucketName)
 
 		// If endpoint supports virtual host style use that always.
 		// Currently only S3 and Google Cloud Storage would support

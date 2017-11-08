@@ -18,6 +18,7 @@
 package minio
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"path"
@@ -75,12 +76,12 @@ func (c Client) GetBucketLocation(bucketName string) (string, error) {
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return "", err
 	}
-	return c.getBucketLocation(bucketName)
+	return c.getBucketLocation(c.endpointURL.Host, bucketName)
 }
 
 // getBucketLocation - Get location for the bucketName from location map cache, if not
 // fetch freshly by making a new request.
-func (c Client) getBucketLocation(bucketName string) (string, error) {
+func (c Client) getBucketLocation(host, bucketName string) (string, error) {
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return "", err
 	}
@@ -94,18 +95,38 @@ func (c Client) getBucketLocation(bucketName string) (string, error) {
 		return location, nil
 	}
 
-	// Initialize a new request.
-	req, err := c.getBucketLocationRequest(bucketName)
-	if err != nil {
-		return "", err
+	// Since this is called outside of executeMethod, we need to handle redirects (and re-signing) here.
+	var resp *http.Response
+	for {
+		// Initialize a new request.
+		req, err := c.getBucketLocationRequest(host, bucketName)
+		if err != nil {
+			return "", err
+		}
+
+		// Initiate the request.
+		resp, err = c.do(req)
+		if resp != nil {
+			defer closeResponse(resp)
+
+			if resp.StatusCode == http.StatusTemporaryRedirect {
+				newURL, err := url.Parse(resp.Header.Get("Location"))
+				if err != nil {
+					return "", fmt.Errorf("redirect but problem with redirect location: %s", err.Error())
+				}
+
+				host = newURL.Host
+				continue
+			}
+		}
+
+		if err != nil {
+			return "", err
+		}
+
+		break
 	}
 
-	// Initiate the request.
-	resp, err := c.do(req)
-	defer closeResponse(resp)
-	if err != nil {
-		return "", err
-	}
 	location, err := processBucketLocationResponse(resp, bucketName)
 	if err != nil {
 		return "", err
@@ -155,13 +176,15 @@ func processBucketLocationResponse(resp *http.Response, bucketName string) (buck
 }
 
 // getBucketLocationRequest - Wrapper creates a new getBucketLocation request.
-func (c Client) getBucketLocationRequest(bucketName string) (*http.Request, error) {
+func (c Client) getBucketLocationRequest(host, bucketName string) (*http.Request, error) {
 	// Set location query.
 	urlValues := make(url.Values)
 	urlValues.Set("location", "")
 
 	// Set get bucket location always as path style.
-	targetURL := c.endpointURL
+	var targetURL url.URL
+	targetURL.Scheme = c.endpointURL.Scheme
+	targetURL.Host = host
 	targetURL.Path = path.Join(bucketName, "") + "/"
 	targetURL.RawQuery = urlValues.Encode()
 
