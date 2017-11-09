@@ -10,8 +10,14 @@ env:
 
 go:
 - 1.7.4
-- 1.8
-- 1.9
+- 1.8.x
+- 1.9.x
+- tip
+
+matrix:
+  fast_finish: true
+  allow_failures:
+  - go: tip
 
 script:
 - diff -au <(gofmt -d .) <(printf "")
