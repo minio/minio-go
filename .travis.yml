@@ -19,6 +19,12 @@ matrix:
   allow_failures:
   - go: tip
 
+addons:
+  apt:
+    packages:
+      - devscripts
+
 script:
 - diff -au <(gofmt -d .) <(printf "")
+- diff -au <(licensecheck --check '.go$' --recursive --lines 0 * | grep -v -w 'Apache (v2.0)') <(printf "")
 - make
