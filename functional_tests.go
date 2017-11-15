@@ -6495,6 +6495,8 @@ func main() {
 	log.SetFormatter(&mintFormatter)
 	// log Info or above -- success cases are Info level, failures are Fatal level
 	log.SetLevel(log.InfoLevel)
+
+	tls := mustParseBool(os.Getenv(enableHTTPS))
 	// execute tests
 	if !isQuickMode() {
 		testMakeBucketErrorV2()
@@ -6508,7 +6510,6 @@ func main() {
 		testFunctionalV2()
 		testComposeObjectErrorCasesV2()
 		testCompose10KSourcesV2()
-		testEncryptedCopyObjectV2()
 		testUserMetadataCopyingV2()
 		testPutObject0ByteV2()
 		testPutObjectNoLengthV2()
@@ -6538,7 +6539,6 @@ func main() {
 		testComposeObjectErrorCases()
 		testCompose10KSources()
 		testUserMetadataCopying()
-		testEncryptedCopyObject()
 		testBucketNotification()
 		testFunctional()
 		testGetObjectObjectModified()
@@ -6547,6 +6547,12 @@ func main() {
 		testFPutObjectWithContext()
 		testFGetObjectWithContext()
 		testPutObjectWithContext()
+
+		// SSE-C tests will only work over TLS connection.
+		if tls {
+			testEncryptedCopyObjectV2()
+			testEncryptedCopyObject()
+		}
 	} else {
 		testFunctional()
 		testFunctionalV2()
