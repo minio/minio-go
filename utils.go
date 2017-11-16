@@ -278,3 +278,14 @@ func isSSEHeader(headerKey string) bool {
 	}
 	return false
 }
+
+// isAmzHeader returns true if header is a x-amz-meta-* or x-amz-acl header.
+func isAmzHeader(headerKey string) bool {
+	key := strings.ToLower(headerKey)
+
+	if strings.HasPrefix(key, "x-amz-meta-") || key == "x-amz-acl" {
+		return true
+	}
+
+	return false
+}
