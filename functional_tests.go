@@ -1805,7 +1805,7 @@ func testPutObjectWithContext() {
 		logError(function, args, startTime, "", "MakeBucket call failed", err)
 		return
 	}
-	bufSize := 1<<20 + 32*1024
+	bufSize := thirtyThreeKiB
 	var reader = getDataReader("datafile-33-kB", bufSize)
 	defer reader.Close()
 	objectName := fmt.Sprintf("test-file-%v", rand.Uint32())
@@ -3816,7 +3816,7 @@ func testPutObjectUploadSeekedObject() {
 		data, _ = ioutil.ReadFile(fileName)
 	} else {
 		// Generate 100kB data
-		data = bytes.Repeat([]byte("1"), 120000)
+		data = bytes.Repeat([]byte("1"), 100*1024)
 	}
 	var length = len(data)
 	if _, err = tempfile.Write(data); err != nil {
@@ -3839,7 +3839,7 @@ func testPutObjectUploadSeekedObject() {
 		return
 	}
 	if n != int64(length-offset) {
-		logError(function, args, startTime, "", "Invalid length returned, expected "+string(int64(length-offset))+" got "+string(n), err)
+		logError(function, args, startTime, "", fmt.Sprintf("Invalid length returned, expected %d got %d", int64(length-offset), n), err)
 		return
 	}
 	tempfile.Close()
@@ -3847,8 +3847,6 @@ func testPutObjectUploadSeekedObject() {
 		logError(function, args, startTime, "", "File remove failed", err)
 		return
 	}
-
-	length = int(n)
 
 	obj, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
@@ -3862,17 +3860,17 @@ func testPutObjectUploadSeekedObject() {
 		return
 	}
 	if n != int64(offset) {
-		logError(function, args, startTime, "", "Invalid offset returned, expected "+string(int64(offset))+" got "+string(n), err)
+		logError(function, args, startTime, "", fmt.Sprintf("Invalid offset returned, expected %d got %d", int64(offset), n), err)
 		return
 	}
 
-	n, err = c.PutObject(bucketName, objectName+"getobject", obj, int64(length), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err = c.PutObject(bucketName, objectName+"getobject", obj, int64(length-offset), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
-		logError(function, args, startTime, "", "GetObject failed", err)
+		logError(function, args, startTime, "", "PutObject failed", err)
 		return
 	}
 	if n != int64(length-offset) {
-		logError(function, args, startTime, "", "Invalid offset returned, expected "+string(int64(length-offset))+" got "+string(n), err)
+		logError(function, args, startTime, "", fmt.Sprintf("Invalid offset returned, expected %d got %d", int64(length-offset), n), err)
 		return
 	}
 
@@ -6057,7 +6055,7 @@ func testGetObjectWithContext() {
 	}
 
 	// Generate data more than 32K.
-	bufSize := 1<<20 + 32*1024
+	bufSize := thirtyThreeKiB
 	var reader = getDataReader("datafile-33-kB", bufSize)
 	defer reader.Close()
 	// Save the data
@@ -6245,7 +6243,7 @@ func testPutObjectWithContextV2() {
 		return
 	}
 	defer c.RemoveBucket(bucketName)
-	bufSize := 1<<20 + 32*1024
+	bufSize := thirtyThreeKiB
 	var reader = getDataReader("datafile-33-kB", bufSize)
 	defer reader.Close()
 
@@ -6327,7 +6325,7 @@ func testGetObjectWithContextV2() {
 	}
 
 	// Generate data more than 32K.
-	bufSize := 1<<20 + 32*1024
+	bufSize := thirtyThreeKiB
 	var reader = getDataReader("datafile-33-kB", bufSize)
 	defer reader.Close()
 	// Save the data
