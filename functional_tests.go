@@ -33,6 +33,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -44,12 +45,6 @@ import (
 
 	"github.com/minio/minio-go/pkg/encrypt"
 	"github.com/minio/minio-go/pkg/policy"
-)
-
-const (
-	sixtyFiveMiB   = 65 * humanize.MiByte // 65MiB
-	thirtyThreeKiB = 33 * humanize.KiByte // 33KiB
-	oneMiB         = 1 * humanize.MiByte  // 1MiB
 )
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyz01234569"
@@ -188,19 +183,13 @@ func init() {
 	}
 }
 
-func getDataDir() (dir string) {
-	dir = os.Getenv("MINT_DATA_DIR")
-	if dir == "" {
-		dir = "/mint/data"
-	}
-	return
-}
+var mintDataDir = os.Getenv("MINT_DATA_DIR")
 
-func getFilePath(filename string) (filepath string) {
-	if getDataDir() != "" {
-		filepath = getDataDir() + "/" + filename
+func getMintDataDirFilePath(filename string) (fp string) {
+	if mintDataDir == "" {
+		return
 	}
-	return
+	return filepath.Join(mintDataDir, filename)
 }
 
 type sizedReader struct {
@@ -223,14 +212,17 @@ func (r *randomReader) Read(b []byte) (int, error) {
 }
 
 // read data from file if it exists or optionally create a buffer of particular size
-func getDataReader(fileName string, size int) io.ReadCloser {
-	if _, err := os.Stat(getFilePath(fileName)); os.IsNotExist(err) {
+func getDataReader(fileName string) io.ReadCloser {
+	if mintDataDir == "" {
+		size := dataFileMap[fileName]
 		return &sizedReader{
-			Reader: io.LimitReader(&randomReader{seed: []byte("a")}, int64(size)),
-			size:   size,
+			Reader: io.LimitReader(&randomReader{
+				seed: []byte("a"),
+			}, int64(size)),
+			size: size,
 		}
 	}
-	reader, _ := os.Open(getFilePath(fileName))
+	reader, _ := os.Open(getMintDataDirFilePath(fileName))
 	return reader
 }
 
@@ -250,6 +242,19 @@ func randString(n int, src rand.Source, prefix string) string {
 		remain--
 	}
 	return prefix + string(b[0:30-len(prefix)])
+}
+
+var dataFileMap = map[string]int{
+	"datafile-1-b":     1,
+	"datafile-10-kB":   10 * humanize.KiByte,
+	"datafile-33-kB":   33 * humanize.KiByte,
+	"datafile-100-kB":  100 * humanize.KiByte,
+	"datafile-1.03-MB": 1056 * humanize.KiByte,
+	"datafile-1-MB":    1 * humanize.MiByte,
+	"datafile-5-MB":    5 * humanize.MiByte,
+	"datafile-6-MB":    6 * humanize.MiByte,
+	"datafile-11-MB":   11 * humanize.MiByte,
+	"datafile-65-MB":   65 * humanize.MiByte,
 }
 
 func isQuickMode() bool {
@@ -507,9 +512,8 @@ func testPutObjectReadAt() {
 		return
 	}
 
-	// Generate data using 4 parts so that all 3 'workers' are utilized and a part is leftover.
-	// Use different data for each part for multipart tests to ensure part order at the end.
-	var reader = getDataReader("datafile-65-MB", sixtyFiveMiB)
+	bufSize := dataFileMap["datafile-65-MB"]
+	var reader = getDataReader("datafile-65-MB")
 	defer reader.Close()
 
 	// Save the data
@@ -520,14 +524,14 @@ func testPutObjectReadAt() {
 	objectContentType := "binary/octet-stream"
 	args["objectContentType"] = objectContentType
 
-	n, err := c.PutObject(bucketName, objectName, reader, int64(sixtyFiveMiB), minio.PutObjectOptions{ContentType: objectContentType})
+	n, err := c.PutObject(bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: objectContentType})
 	if err != nil {
 		logError(function, args, startTime, "", "PutObject failed", err)
 		return
 	}
 
-	if n != int64(sixtyFiveMiB) {
-		logError(function, args, startTime, "", "Number of bytes returned by PutObject does not match, expected "+string(sixtyFiveMiB)+" got "+string(n), err)
+	if n != int64(bufSize) {
+		logError(function, args, startTime, "", "Number of bytes returned by PutObject does not match, expected "+string(bufSize)+" got "+string(n), err)
 		return
 	}
 
@@ -543,8 +547,8 @@ func testPutObjectReadAt() {
 		logError(function, args, startTime, "", "Stat Object failed", err)
 		return
 	}
-	if st.Size != int64(sixtyFiveMiB) {
-		logError(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(sixtyFiveMiB)+" got "+string(st.Size), err)
+	if st.Size != int64(bufSize) {
+		logError(function, args, startTime, "", fmt.Sprintf("Number of bytes in stat does not match, expected %d got %d", bufSize, st.Size), err)
 		return
 	}
 	if st.ContentType != objectContentType {
@@ -617,9 +621,8 @@ func testPutObjectWithMetadata() {
 		return
 	}
 
-	// Generate data using 2 parts
-	// Use different data in each part for multipart tests to ensure part order at the end.
-	var reader = getDataReader("datafile-65-MB", sixtyFiveMiB)
+	bufSize := dataFileMap["datafile-65-MB"]
+	var reader = getDataReader("datafile-65-MB")
 	defer reader.Close()
 
 	// Save the data
@@ -633,15 +636,15 @@ func testPutObjectWithMetadata() {
 		"Content-Type": {customContentType},
 	}
 
-	n, err := c.PutObject(bucketName, objectName, reader, int64(sixtyFiveMiB), minio.PutObjectOptions{
+	n, err := c.PutObject(bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{
 		ContentType: customContentType})
 	if err != nil {
 		logError(function, args, startTime, "", "PutObject failed", err)
 		return
 	}
 
-	if n != int64(sixtyFiveMiB) {
-		logError(function, args, startTime, "", "Number of bytes returned by PutObject does not match, expected "+string(sixtyFiveMiB)+" got "+string(n), err)
+	if n != int64(bufSize) {
+		logError(function, args, startTime, "", "Number of bytes returned by PutObject does not match, expected "+string(bufSize)+" got "+string(n), err)
 		return
 	}
 
@@ -657,8 +660,8 @@ func testPutObjectWithMetadata() {
 		logError(function, args, startTime, "", "Stat failed", err)
 		return
 	}
-	if st.Size != int64(sixtyFiveMiB) {
-		logError(function, args, startTime, "", "Number of bytes returned by PutObject does not match GetObject, expected "+string(sixtyFiveMiB)+" got "+string(st.Size), err)
+	if st.Size != int64(bufSize) {
+		logError(function, args, startTime, "", "Number of bytes returned by PutObject does not match GetObject, expected "+string(bufSize)+" got "+string(st.Size), err)
 		return
 	}
 	if st.ContentType != customContentType {
@@ -797,13 +800,14 @@ func testListPartiallyUploaded() {
 		return
 	}
 
-	r := bytes.NewReader(bytes.Repeat([]byte("0"), sixtyFiveMiB*2))
+	bufSize := dataFileMap["datafile-65-MB"]
+	r := bytes.NewReader(bytes.Repeat([]byte("0"), bufSize*2))
 
 	reader, writer := io.Pipe()
 	go func() {
 		i := 0
 		for i < 25 {
-			_, cerr := io.CopyN(writer, r, (sixtyFiveMiB*2)/25)
+			_, cerr := io.CopyN(writer, r, (int64(bufSize)*2)/25)
 			if cerr != nil {
 				logError(function, args, startTime, "", "Copy failed", err)
 				return
@@ -817,7 +821,7 @@ func testListPartiallyUploaded() {
 	objectName := bucketName + "-resumable"
 	args["objectName"] = objectName
 
-	_, err = c.PutObject(bucketName, objectName, reader, int64(sixtyFiveMiB*2), minio.PutObjectOptions{ContentType: "application/octet-stream"})
+	_, err = c.PutObject(bucketName, objectName, reader, int64(bufSize*2), minio.PutObjectOptions{ContentType: "application/octet-stream"})
 	if err == nil {
 		logError(function, args, startTime, "", "PutObject should fail", err)
 		return
@@ -892,7 +896,8 @@ func testGetObjectSeekEnd() {
 	}
 
 	// Generate 33K of data.
-	var reader = getDataReader("datafile-33-kB", thirtyThreeKiB)
+	bufSize := dataFileMap["datafile-33-kB"]
+	var reader = getDataReader("datafile-33-kB")
 	defer reader.Close()
 
 	// Save the data
@@ -911,8 +916,8 @@ func testGetObjectSeekEnd() {
 		return
 	}
 
-	if n != int64(thirtyThreeKiB) {
-		logError(function, args, startTime, "", "Number of bytes read does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(n), err)
+	if n != int64(bufSize) {
+		logError(function, args, startTime, "", "Number of bytes read does not match, expected "+string(int64(bufSize))+" got "+string(n), err)
 		return
 	}
 
@@ -929,8 +934,8 @@ func testGetObjectSeekEnd() {
 		return
 	}
 
-	if st.Size != int64(thirtyThreeKiB) {
-		logError(function, args, startTime, "", "Number of bytes read does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(st.Size), err)
+	if st.Size != int64(bufSize) {
+		logError(function, args, startTime, "", "Number of bytes read does not match, expected "+string(int64(bufSize))+" got "+string(st.Size), err)
 		return
 	}
 
@@ -1025,21 +1030,22 @@ func testGetObjectClosedTwice() {
 	}
 
 	// Generate 33K of data.
-	var reader = getDataReader("datafile-33-kB", thirtyThreeKiB)
+	bufSize := dataFileMap["datafile-33-kB"]
+	var reader = getDataReader("datafile-33-kB")
 	defer reader.Close()
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	args["objectName"] = objectName
 
-	n, err := c.PutObject(bucketName, objectName, reader, int64(thirtyThreeKiB), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err := c.PutObject(bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		logError(function, args, startTime, "", "PutObject failed", err)
 		return
 	}
 
-	if n != int64(thirtyThreeKiB) {
-		logError(function, args, startTime, "", "PutObject response doesn't match sent bytes, expected "+string(int64(thirtyThreeKiB))+" got "+string(n), err)
+	if n != int64(bufSize) {
+		logError(function, args, startTime, "", "PutObject response doesn't match sent bytes, expected "+string(int64(bufSize))+" got "+string(n), err)
 		return
 	}
 
@@ -1055,8 +1061,8 @@ func testGetObjectClosedTwice() {
 		logError(function, args, startTime, "", "Stat failed", err)
 		return
 	}
-	if st.Size != int64(thirtyThreeKiB) {
-		logError(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(st.Size), err)
+	if st.Size != int64(bufSize) {
+		logError(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(bufSize))+" got "+string(st.Size), err)
 		return
 	}
 	if err := r.Close(); err != nil {
@@ -1291,29 +1297,27 @@ func testFPutObjectMultipart() {
 	}
 
 	// Upload 4 parts to utilize all 3 'workers' in multipart and still have a part to upload.
-	var fileName = getFilePath("datafile-65-MB")
-	if os.Getenv("MINT_DATA_DIR") == "" {
+	var fileName = getMintDataDirFilePath("datafile-65-MB")
+	if fileName == "" {
 		// Make a temp file with minPartSize bytes of data.
 		file, err := ioutil.TempFile(os.TempDir(), "FPutObjectTest")
 		if err != nil {
 			logError(function, args, startTime, "", "TempFile creation failed", err)
 			return
 		}
-		// Upload 4 parts to utilize all 3 'workers' in multipart and still have a part to upload.
-		_, err = io.Copy(file, getDataReader("non-existent", sixtyFiveMiB))
-		if err != nil {
+		// Upload 2 parts to utilize all 3 'workers' in multipart and still have a part to upload.
+		if _, err = io.Copy(file, getDataReader("datafile-65-MB")); err != nil {
 			logError(function, args, startTime, "", "Copy failed", err)
 			return
 		}
-		err = file.Close()
-		if err != nil {
+		if err = file.Close(); err != nil {
 			logError(function, args, startTime, "", "File Close failed", err)
 			return
 		}
 		fileName = file.Name()
 		args["fileName"] = fileName
 	}
-	totalSize := sixtyFiveMiB * 1
+	totalSize := dataFileMap["datafile-65-MB"]
 	// Set base object name
 	objectName := bucketName + "FPutObject" + "-standard"
 	args["objectName"] = objectName
@@ -1406,8 +1410,8 @@ func testFPutObject() {
 
 	// Upload 3 parts worth of data to use all 3 of multiparts 'workers' and have an extra part.
 	// Use different data in part for multipart tests to check parts are uploaded in correct order.
-	var fName = getFilePath("datafile-65-MB")
-	if os.Getenv("MINT_DATA_DIR") == "" {
+	var fName = getMintDataDirFilePath("datafile-65-MB")
+	if fName == "" {
 		// Make a temp file with minPartSize bytes of data.
 		file, err := ioutil.TempFile(os.TempDir(), "FPutObjectTest")
 		if err != nil {
@@ -1415,21 +1419,20 @@ func testFPutObject() {
 			return
 		}
 
-		// Upload 4 parts to utilize all 3 'workers' in multipart and still have a part to upload.
-		var buffer = bytes.Repeat([]byte(string('a')), sixtyFiveMiB)
-		if _, err = file.Write(buffer); err != nil {
-			logError(function, args, startTime, "", "File write failed", err)
+		// Upload 3 parts to utilize all 3 'workers' in multipart and still have a part to upload.
+		if _, err = io.Copy(file, getDataReader("datafile-65-MB")); err != nil {
+			logError(function, args, startTime, "", "File copy failed", err)
 			return
 		}
 		// Close the file pro-actively for windows.
-		err = file.Close()
-		if err != nil {
+		if err = file.Close(); err != nil {
 			logError(function, args, startTime, "", "File close failed", err)
 			return
 		}
+		defer os.Remove(file.Name())
 		fName = file.Name()
 	}
-	var totalSize = sixtyFiveMiB * 1
+	totalSize := dataFileMap["datafile-65-MB"]
 
 	// Set base object name
 	objectName := bucketName + "FPutObject"
@@ -1525,11 +1528,11 @@ func testFPutObject() {
 		return
 	}
 
-	err = os.Remove(fName + ".gtar")
-	if err != nil {
+	if err = os.Remove(fName + ".gtar"); err != nil {
 		logError(function, args, startTime, "", "File remove failed", err)
 		return
 	}
+
 	successLogger(function, args, startTime).Info()
 }
 
@@ -1578,8 +1581,8 @@ func testFPutObjectWithContext() {
 
 	// Upload 1 parts worth of data to use multipart upload.
 	// Use different data in part for multipart tests to check parts are uploaded in correct order.
-	var fName = getFilePath("datafile-1-MB")
-	if os.Getenv("MINT_DATA_DIR") == "" {
+	var fName = getMintDataDirFilePath("datafile-1-MB")
+	if fName == "" {
 		// Make a temp file with 1 MiB bytes of data.
 		file, err := ioutil.TempFile(os.TempDir(), "FPutObjectWithContextTest")
 		if err != nil {
@@ -1588,20 +1591,19 @@ func testFPutObjectWithContext() {
 		}
 
 		// Upload 1 parts to trigger multipart upload
-		var buffer = bytes.Repeat([]byte(string('a')), 1024*1024*1)
-		if _, err = file.Write(buffer); err != nil {
-			logError(function, args, startTime, "", "File buffer write failed", err)
+		if _, err = io.Copy(file, getDataReader("datafile-1-MB")); err != nil {
+			logError(function, args, startTime, "", "File copy failed", err)
 			return
 		}
 		// Close the file pro-actively for windows.
-		err = file.Close()
-		if err != nil {
+		if err = file.Close(); err != nil {
 			logError(function, args, startTime, "", "File close failed", err)
 			return
 		}
+		defer os.Remove(file.Name())
 		fName = file.Name()
 	}
-	var totalSize = 1024 * 1024 * 1
+	totalSize := dataFileMap["datafile-1-MB"]
 
 	// Set base object name
 	objectName := bucketName + "FPutObjectWithContext"
@@ -1641,11 +1643,6 @@ func testFPutObjectWithContext() {
 		return
 	}
 
-	err = os.Remove(fName)
-	if err != nil {
-		logError(function, args, startTime, "", "Remove file failed", err)
-		return
-	}
 	successLogger(function, args, startTime).Info()
 
 }
@@ -1694,8 +1691,8 @@ func testFPutObjectWithContextV2() {
 
 	// Upload 1 parts worth of data to use multipart upload.
 	// Use different data in part for multipart tests to check parts are uploaded in correct order.
-	var fName = getFilePath("datafile-1-MB")
-	if os.Getenv("MINT_DATA_DIR") == "" {
+	var fName = getMintDataDirFilePath("datafile-1-MB")
+	if fName == "" {
 		// Make a temp file with 1 MiB bytes of data.
 		file, err := ioutil.TempFile(os.TempDir(), "FPutObjectWithContextTest")
 		if err != nil {
@@ -1704,20 +1701,20 @@ func testFPutObjectWithContextV2() {
 		}
 
 		// Upload 1 parts to trigger multipart upload
-		var buffer = bytes.Repeat([]byte(string('a')), 1024*1024*1)
-		if _, err = file.Write(buffer); err != nil {
-			logError(function, args, startTime, "", "Write buffer to file failed", err)
+		if _, err = io.Copy(file, getDataReader("datafile-1-MB")); err != nil {
+			logError(function, args, startTime, "", "File copy failed", err)
 			return
 		}
+
 		// Close the file pro-actively for windows.
-		err = file.Close()
-		if err != nil {
+		if err = file.Close(); err != nil {
 			logError(function, args, startTime, "", "File close failed", err)
 			return
 		}
+		defer os.Remove(file.Name())
 		fName = file.Name()
 	}
-	var totalSize = 1024 * 1024 * 1
+	totalSize := dataFileMap["datafile-1-MB"]
 
 	// Set base object name
 	objectName := bucketName + "FPutObjectWithContext"
@@ -1758,11 +1755,6 @@ func testFPutObjectWithContextV2() {
 		return
 	}
 
-	err = os.Remove(fName)
-	if err != nil {
-		logError(function, args, startTime, "", "Remove file failed", err)
-		return
-	}
 	successLogger(function, args, startTime).Info()
 
 }
@@ -1805,8 +1797,8 @@ func testPutObjectWithContext() {
 		logError(function, args, startTime, "", "MakeBucket call failed", err)
 		return
 	}
-	bufSize := thirtyThreeKiB
-	var reader = getDataReader("datafile-33-kB", bufSize)
+	bufSize := dataFileMap["datafile-33-kB"]
+	var reader = getDataReader("datafile-33-kB")
 	defer reader.Close()
 	objectName := fmt.Sprintf("test-file-%v", rand.Uint32())
 	args["objectName"] = objectName
@@ -1826,7 +1818,7 @@ func testPutObjectWithContext() {
 	args["ctx"] = ctx
 
 	defer cancel()
-	reader = getDataReader("datafile-33-kB", bufSize)
+	reader = getDataReader("datafile-33-kB")
 	defer reader.Close()
 	_, err = c.PutObjectWithContext(ctx, bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
@@ -1887,7 +1879,8 @@ func testGetObjectReadSeekFunctional() {
 	}
 
 	// Generate 33K of data.
-	var reader = getDataReader("datafile-33-kB", thirtyThreeKiB)
+	bufSize := dataFileMap["datafile-33-kB"]
+	var reader = getDataReader("datafile-33-kB")
 	defer reader.Close()
 
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -1906,8 +1899,8 @@ func testGetObjectReadSeekFunctional() {
 		return
 	}
 
-	if n != int64(thirtyThreeKiB) {
-		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+", got "+string(n), err)
+	if n != int64(bufSize) {
+		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+", got "+string(n), err)
 		return
 	}
 
@@ -1932,8 +1925,8 @@ func testGetObjectReadSeekFunctional() {
 		return
 	}
 
-	if st.Size != int64(thirtyThreeKiB) {
-		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+", got "+string(st.Size), err)
+	if st.Size != int64(bufSize) {
+		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+", got "+string(st.Size), err)
 		return
 	}
 
@@ -1944,7 +1937,7 @@ func testGetObjectReadSeekFunctional() {
 			return
 		}
 		buffer := bytes.NewBuffer([]byte{})
-		if _, err := io.CopyN(buffer, r, int64(thirtyThreeKiB)); err != nil {
+		if _, err := io.CopyN(buffer, r, int64(bufSize)); err != nil {
 			if err != io.EOF {
 				logError(function, args, startTime, "", "CopyN failed", err)
 				return
@@ -1971,23 +1964,23 @@ func testGetObjectReadSeekFunctional() {
 		// Start from offset 0, fetch data and compare
 		{0, 0, 0, nil, true, 0, 0},
 		// Start from offset 2048, fetch data and compare
-		{2048, 0, 2048, nil, true, 2048, thirtyThreeKiB},
+		{2048, 0, 2048, nil, true, 2048, bufSize},
 		// Start from offset larger than possible
-		{int64(thirtyThreeKiB) + 1024, 0, 0, seekErr, false, 0, 0},
+		{int64(bufSize) + 1024, 0, 0, seekErr, false, 0, 0},
 		// Move to offset 0 without comparing
 		{0, 0, 0, nil, false, 0, 0},
 		// Move one step forward and compare
-		{1, 1, 1, nil, true, 1, thirtyThreeKiB},
+		{1, 1, 1, nil, true, 1, bufSize},
 		// Move larger than possible
-		{int64(thirtyThreeKiB), 1, 0, seekErr, false, 0, 0},
+		{int64(bufSize), 1, 0, seekErr, false, 0, 0},
 		// Provide negative offset with CUR_SEEK
 		{int64(-1), 1, 0, seekErr, false, 0, 0},
 		// Test with whence SEEK_END and with positive offset
-		{1024, 2, int64(thirtyThreeKiB) - 1024, io.EOF, true, 0, 0},
+		{1024, 2, int64(bufSize) - 1024, io.EOF, true, 0, 0},
 		// Test with whence SEEK_END and with negative offset
-		{-1024, 2, int64(thirtyThreeKiB) - 1024, nil, true, thirtyThreeKiB - 1024, thirtyThreeKiB},
+		{-1024, 2, int64(bufSize) - 1024, nil, true, bufSize - 1024, bufSize},
 		// Test with whence SEEK_END and with large negative offset
-		{-int64(thirtyThreeKiB) * 2, 2, 0, seekErr, true, 0, 0},
+		{-int64(bufSize) * 2, 2, 0, seekErr, true, 0, 0},
 	}
 
 	for i, testCase := range testCases {
@@ -2063,7 +2056,8 @@ func testGetObjectReadAtFunctional() {
 	}
 
 	// Generate 33K of data.
-	var reader = getDataReader("datafile-33-kB", thirtyThreeKiB)
+	bufSize := dataFileMap["datafile-33-kB"]
+	var reader = getDataReader("datafile-33-kB")
 	defer reader.Close()
 
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -2082,8 +2076,8 @@ func testGetObjectReadAtFunctional() {
 		return
 	}
 
-	if n != int64(thirtyThreeKiB) {
-		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+", got "+string(n), err)
+	if n != int64(bufSize) {
+		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+", got "+string(n), err)
 		return
 	}
 
@@ -2123,8 +2117,8 @@ func testGetObjectReadAtFunctional() {
 		return
 	}
 
-	if st.Size != int64(thirtyThreeKiB) {
-		logError(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(thirtyThreeKiB))+", got "+string(st.Size), err)
+	if st.Size != int64(bufSize) {
+		logError(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(bufSize))+", got "+string(st.Size), err)
 		return
 	}
 
@@ -2246,7 +2240,8 @@ func testPresignedPostPolicy() {
 	}
 
 	// Generate 33K of data.
-	var reader = getDataReader("datafile-33-kB", thirtyThreeKiB)
+	bufSize := dataFileMap["datafile-33-kB"]
+	var reader = getDataReader("datafile-33-kB")
 	defer reader.Close()
 
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -2266,8 +2261,8 @@ func testPresignedPostPolicy() {
 		return
 	}
 
-	if n != int64(thirtyThreeKiB) {
-		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(n), err)
+	if n != int64(bufSize) {
+		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+" got "+string(n), err)
 		return
 	}
 
@@ -2323,21 +2318,19 @@ func testPresignedPostPolicy() {
 	}
 
 	// Get a 33KB file to upload and test if set post policy works
-	var filePath = getFilePath("datafile-33-KB")
-	if os.Getenv("MINT_DATA_DIR") == "" {
+	var filePath = getMintDataDirFilePath("datafile-33-kB")
+	if filePath == "" {
 		// Make a temp file with 33 KB data.
 		file, err := ioutil.TempFile(os.TempDir(), "PresignedPostPolicyTest")
 		if err != nil {
 			logError(function, args, startTime, "", "TempFile creation failed", err)
 			return
 		}
-		_, err = io.Copy(file, getDataReader("non-existent", thirtyThreeKiB))
-		if err != nil {
+		if _, err = io.Copy(file, getDataReader("datafile-33-kB")); err != nil {
 			logError(function, args, startTime, "", "Copy failed", err)
 			return
 		}
-		err = file.Close()
-		if err != nil {
+		if err = file.Close(); err != nil {
 			logError(function, args, startTime, "", "File Close failed", err)
 			return
 		}
@@ -2366,9 +2359,13 @@ func testPresignedPostPolicy() {
 
 	// make post request with correct form data
 	res, err := http.Post(presignedPostPolicyURL.String(), writer.FormDataContentType(), bytes.NewReader(formBuf.Bytes()))
-	defer res.Body.Close()
 	if err != nil {
 		logError(function, args, startTime, "", "Http request failed", err)
+		return
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusNoContent {
+		logError(function, args, startTime, "", "Http request failed", errors.New(res.Status))
 		return
 	}
 
@@ -2449,18 +2446,19 @@ func testCopyObject() {
 	}
 
 	// Generate 33K of data.
-	var reader = getDataReader("datafile-33-kB", thirtyThreeKiB)
+	bufSize := dataFileMap["datafile-33-kB"]
+	var reader = getDataReader("datafile-33-kB")
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-	n, err := c.PutObject(bucketName, objectName, reader, int64(thirtyThreeKiB), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err := c.PutObject(bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		logError(function, args, startTime, "", "PutObject failed", err)
 		return
 	}
 
-	if n != int64(thirtyThreeKiB) {
-		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+", got "+string(n), err)
+	if n != int64(bufSize) {
+		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+", got "+string(n), err)
 		return
 	}
 
@@ -3803,32 +3801,40 @@ func testPutObjectUploadSeekedObject() {
 	}
 	defer c.RemoveBucket(bucketName)
 
-	tempfile, err := ioutil.TempFile("", "minio-go-upload-test-")
-	args["fileToUpload"] = tempfile
+	var tempfile *os.File
 
-	if err != nil {
-		logError(function, args, startTime, "", "TempFile create failed", err)
-		return
-	}
-
-	var data []byte
-	if fileName := getFilePath("datafile-100-kB"); fileName != "" {
-		data, _ = ioutil.ReadFile(fileName)
+	if fileName := getMintDataDirFilePath("datafile-100-kB"); fileName != "" {
+		tempfile, err = os.Open(fileName)
+		if err != nil {
+			logError(function, args, startTime, "", "File open failed", err)
+			return
+		}
+		args["fileToUpload"] = fileName
 	} else {
-		// Generate 100kB data
-		data = bytes.Repeat([]byte("1"), 100*1024)
-	}
-	var length = len(data)
-	if _, err = tempfile.Write(data); err != nil {
-		logError(function, args, startTime, "", "TempFile write failed", err)
-		return
-	}
+		tempfile, err = ioutil.TempFile("", "minio-go-upload-test-")
+		if err != nil {
+			logError(function, args, startTime, "", "TempFile create failed", err)
+			return
+		}
+		args["fileToUpload"] = tempfile.Name()
 
+		// Generate 100kB data
+		if _, err = io.Copy(tempfile, getDataReader("datafile-100-kB")); err != nil {
+			logError(function, args, startTime, "", "File copy failed", err)
+			return
+		}
+
+		defer os.Remove(tempfile.Name())
+
+		// Seek back to the beginning of the file.
+		tempfile.Seek(0, 0)
+	}
+	var length = 100 * humanize.KiByte
 	objectName := fmt.Sprintf("test-file-%v", rand.Uint32())
 	args["objectName"] = objectName
 
 	offset := length / 2
-	if _, err := tempfile.Seek(int64(offset), 0); err != nil {
+	if _, err = tempfile.Seek(int64(offset), 0); err != nil {
 		logError(function, args, startTime, "", "TempFile seek failed", err)
 		return
 	}
@@ -3843,10 +3849,6 @@ func testPutObjectUploadSeekedObject() {
 		return
 	}
 	tempfile.Close()
-	if err = os.Remove(tempfile.Name()); err != nil {
-		logError(function, args, startTime, "", "File remove failed", err)
-		return
-	}
 
 	obj, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
@@ -3989,21 +3991,22 @@ func testGetObjectClosedTwiceV2() {
 	}
 
 	// Generate 33K of data.
-	var reader = getDataReader("datafile-33-kB", thirtyThreeKiB)
+	bufSize := dataFileMap["datafile-33-kB"]
+	var reader = getDataReader("datafile-33-kB")
 	defer reader.Close()
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	args["objectName"] = objectName
 
-	n, err := c.PutObject(bucketName, objectName, reader, int64(thirtyThreeKiB), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err := c.PutObject(bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		logError(function, args, startTime, "", "PutObject failed", err)
 		return
 	}
 
-	if n != int64(thirtyThreeKiB) {
-		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(thirtyThreeKiB)+" got "+string(n), err)
+	if n != int64(bufSize) {
+		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(bufSize)+" got "+string(n), err)
 		return
 	}
 
@@ -4020,8 +4023,8 @@ func testGetObjectClosedTwiceV2() {
 		return
 	}
 
-	if st.Size != int64(thirtyThreeKiB) {
-		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(thirtyThreeKiB)+" got "+string(st.Size), err)
+	if st.Size != int64(bufSize) {
+		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(bufSize)+" got "+string(st.Size), err)
 		return
 	}
 	if err := r.Close(); err != nil {
@@ -4407,7 +4410,8 @@ func testGetObjectReadSeekFunctionalV2() {
 	}
 
 	// Generate 33K of data.
-	var reader = getDataReader("datafile-33-kB", thirtyThreeKiB)
+	bufSize := dataFileMap["datafile-33-kB"]
+	var reader = getDataReader("datafile-33-kB")
 	defer reader.Close()
 
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -4420,14 +4424,14 @@ func testGetObjectReadSeekFunctionalV2() {
 	}
 
 	// Save the data.
-	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(thirtyThreeKiB), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		logError(function, args, startTime, "", "PutObject failed", err)
 		return
 	}
 
-	if n != int64(thirtyThreeKiB) {
-		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(n), err)
+	if n != int64(bufSize) {
+		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+" got "+string(n), err)
 		return
 	}
 
@@ -4444,8 +4448,8 @@ func testGetObjectReadSeekFunctionalV2() {
 		return
 	}
 
-	if st.Size != int64(thirtyThreeKiB) {
-		logError(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(st.Size), err)
+	if st.Size != int64(bufSize) {
+		logError(function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(bufSize))+" got "+string(st.Size), err)
 		return
 	}
 
@@ -4571,7 +4575,8 @@ func testGetObjectReadAtFunctionalV2() {
 	}
 
 	// Generate 33K of data.
-	var reader = getDataReader("datafile-33-kB", thirtyThreeKiB)
+	bufSize := dataFileMap["datafile-33-kB"]
+	var reader = getDataReader("datafile-33-kB")
 	defer reader.Close()
 
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -4584,14 +4589,14 @@ func testGetObjectReadAtFunctionalV2() {
 	}
 
 	// Save the data
-	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(thirtyThreeKiB), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		logError(function, args, startTime, "", "PutObject failed", err)
 		return
 	}
 
-	if n != int64(thirtyThreeKiB) {
-		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(thirtyThreeKiB)+" got "+string(n), err)
+	if n != int64(bufSize) {
+		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(bufSize)+" got "+string(n), err)
 		return
 	}
 
@@ -4608,8 +4613,8 @@ func testGetObjectReadAtFunctionalV2() {
 		return
 	}
 
-	if st.Size != int64(thirtyThreeKiB) {
-		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(thirtyThreeKiB)+" got "+string(st.Size), err)
+	if st.Size != int64(bufSize) {
+		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(bufSize)+" got "+string(st.Size), err)
 		return
 	}
 
@@ -4747,19 +4752,20 @@ func testCopyObjectV2() {
 	}
 
 	// Generate 33K of data.
-	var reader = getDataReader("datafile-33-kB", thirtyThreeKiB)
+	bufSize := dataFileMap["datafile-33-kB"]
+	var reader = getDataReader("datafile-33-kB")
 	defer reader.Close()
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-	n, err := c.PutObject(bucketName, objectName, reader, int64(thirtyThreeKiB), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	n, err := c.PutObject(bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		logError(function, args, startTime, "", "PutObject failed", err)
 		return
 	}
 
-	if n != int64(thirtyThreeKiB) {
-		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(thirtyThreeKiB))+" got "+string(n), err)
+	if n != int64(bufSize) {
+		logError(function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+" got "+string(n), err)
 		return
 	}
 
@@ -5457,9 +5463,8 @@ func testPutObjectNoLengthV2() {
 	objectName := bucketName + "unique"
 	args["objectName"] = objectName
 
-	// Generate data using 4 parts so that all 3 'workers' are utilized and a part is leftover.
-	// Use different data for each part for multipart tests to ensure part order at the end.
-	var reader = getDataReader("datafile-65-MB", sixtyFiveMiB)
+	bufSize := dataFileMap["datafile-65-MB"]
+	var reader = getDataReader("datafile-65-MB")
 	defer reader.Close()
 
 	// Upload an object.
@@ -5469,8 +5474,8 @@ func testPutObjectNoLengthV2() {
 		logError(function, args, startTime, "", "PutObjectWithSize failed", err)
 		return
 	}
-	if n != int64(sixtyFiveMiB) {
-		logError(function, args, startTime, "", "Expected upload object size "+string(sixtyFiveMiB)+" got "+string(n), err)
+	if n != int64(bufSize) {
+		logError(function, args, startTime, "", "Expected upload object size "+string(bufSize)+" got "+string(n), err)
 		return
 	}
 
@@ -5957,6 +5962,7 @@ func testFunctionalV2() {
 		logError(function, args, startTime, "", "PresignedPutObject failed", err)
 		return
 	}
+
 	// Generate data more than 32K
 	buf = bytes.Repeat([]byte("1"), rand.Intn(1<<10)+32*1024)
 
@@ -6054,9 +6060,8 @@ func testGetObjectWithContext() {
 		return
 	}
 
-	// Generate data more than 32K.
-	bufSize := thirtyThreeKiB
-	var reader = getDataReader("datafile-33-kB", bufSize)
+	bufSize := dataFileMap["datafile-33-kB"]
+	var reader = getDataReader("datafile-33-kB")
 	defer reader.Close()
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -6156,14 +6161,14 @@ func testFGetObjectWithContext() {
 		return
 	}
 
-	// Generate data more than 32K.
-	var reader = getDataReader("datafile-1-MiB", oneMiB)
+	bufSize := dataFileMap["datafile-1-MB"]
+	var reader = getDataReader("datafile-1-MB")
 	defer reader.Close()
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	args["objectName"] = objectName
 
-	_, err = c.PutObject(bucketName, objectName, reader, int64(oneMiB), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	_, err = c.PutObject(bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		logError(function, args, startTime, "", "PutObject failed", err)
 		return
@@ -6243,8 +6248,8 @@ func testPutObjectWithContextV2() {
 		return
 	}
 	defer c.RemoveBucket(bucketName)
-	bufSize := thirtyThreeKiB
-	var reader = getDataReader("datafile-33-kB", bufSize)
+	bufSize := dataFileMap["datatfile-33-kB"]
+	var reader = getDataReader("datafile-33-kB")
 	defer reader.Close()
 
 	objectName := fmt.Sprintf("test-file-%v", rand.Uint32())
@@ -6264,7 +6269,7 @@ func testPutObjectWithContextV2() {
 	args["ctx"] = ctx
 
 	defer cancel()
-	reader = getDataReader("datafile-33-kB", bufSize)
+	reader = getDataReader("datafile-33-kB")
 	defer reader.Close()
 	_, err = c.PutObjectWithContext(ctx, bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
@@ -6324,9 +6329,8 @@ func testGetObjectWithContextV2() {
 		return
 	}
 
-	// Generate data more than 32K.
-	bufSize := thirtyThreeKiB
-	var reader = getDataReader("datafile-33-kB", bufSize)
+	bufSize := dataFileMap["datafile-33-kB"]
+	var reader = getDataReader("datafile-33-kB")
 	defer reader.Close()
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -6424,15 +6428,14 @@ func testFGetObjectWithContextV2() {
 		return
 	}
 
-	// Generate data more than 32K.
-
-	var reader = getDataReader("datafile-1-MiB", oneMiB)
+	bufSize := dataFileMap["datatfile-1-MB"]
+	var reader = getDataReader("datafile-1-MB")
 	defer reader.Close()
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	args["objectName"] = objectName
 
-	_, err = c.PutObject(bucketName, objectName, reader, int64(oneMiB), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	_, err = c.PutObject(bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		logError(function, args, startTime, "", "PutObject call failed", err)
 		return
