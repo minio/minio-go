@@ -283,9 +283,5 @@ func isSSEHeader(headerKey string) bool {
 func isAmzHeader(headerKey string) bool {
 	key := strings.ToLower(headerKey)
 
-	if strings.HasPrefix(key, "x-amz-meta-") || key == "x-amz-acl" {
-		return true
-	}
-
-	return false
+	return strings.HasPrefix(key, "x-amz-meta-") || key == "x-amz-acl"
 }
