@@ -19,5 +19,5 @@ package minio
 
 // CopyObject - copy a source object into a new object
 func (c Client) CopyObject(dst DestinationInfo, src SourceInfo) error {
-	return c.ComposeObject(dst, []SourceInfo{src})
+	return c.ComposeObject(dst, src)
 }

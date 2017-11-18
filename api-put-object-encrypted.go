@@ -22,23 +22,34 @@ import (
 	"io"
 
 	"github.com/minio/minio-go/pkg/encrypt"
+	"golang.org/x/crypto/scrypt"
 )
 
-// PutEncryptedObject - Encrypt and store object.
-func (c Client) PutEncryptedObject(bucketName, objectName string, reader io.Reader, encryptMaterials encrypt.Materials) (n int64, err error) {
-
-	if encryptMaterials == nil {
-		return 0, ErrInvalidArgument("Unable to recognize empty encryption properties")
+// PutEncryptedObject creates a server-side encrypted object at the given bucketName/objectName.
+// The object is encrypted with a key derived from the given password using server-side encryption.
+func (c Client) PutEncryptedObject(bucketName, objectName string, reader io.Reader, size int64, password string) (n int64, err error) {
+	key, err := scrypt.Key([]byte(password), []byte(bucketName+objectName), 32768, 8, 1, 32) // recommended scrypt parameter for 2017
+	if err != nil {
+		return 0, err // TODO(aead): may panic - this error can only occur if scrypt parameters are invalid
 	}
-
-	if err := encryptMaterials.SetupEncryptMode(reader); err != nil {
-		return 0, err
+	sse, err := encrypt.NewServerSide(key)
+	if err != nil {
+		return 0, err // TODO(aead): may panic - this error can only occur if derivied key != 256 bits
 	}
-
-	return c.PutObjectWithContext(context.Background(), bucketName, objectName, reader, -1, PutObjectOptions{EncryptMaterials: encryptMaterials})
+	return c.PutObjectWithContext(context.Background(), bucketName, objectName, reader, size, PutObjectOptions{ServerSideEncryption: sse})
 }
 
-// FPutEncryptedObject - Encrypt and store an object with contents from file at filePath.
-func (c Client) FPutEncryptedObject(bucketName, objectName, filePath string, encryptMaterials encrypt.Materials) (n int64, err error) {
-	return c.FPutObjectWithContext(context.Background(), bucketName, objectName, filePath, PutObjectOptions{EncryptMaterials: encryptMaterials})
+// FPutEncryptedObject creates a server-side encrypted object from the given filePath at the given
+// bucketName/objectName. The object is encrypted with a key derived from the given password using
+// server-side encryption.
+func (c Client) FPutEncryptedObject(bucketName, objectName, filePath, password string) (n int64, err error) {
+	key, err := scrypt.Key([]byte(password), []byte(bucketName+objectName), 32768, 8, 1, 32) // recommended scrypt parameter for 2017
+	if err != nil {
+		return 0, err // TODO(aead): may panic - this error can only occur if scrypt parameters are invalid
+	}
+	sse, err := encrypt.NewServerSide(key)
+	if err != nil {
+		return 0, err // TODO(aead): may panic - this error can only occur if derivied key != 256 bits
+	}
+	return c.FPutObjectWithContext(context.Background(), bucketName, objectName, filePath, PutObjectOptions{ServerSideEncryption: sse})
 }

@@ -56,7 +56,7 @@ func main() {
 | [`ListBuckets`](#ListBuckets)                     | [`PutObject`](#PutObject)                           | [`NewAsymmetricKey`](#NewAsymmetricKey)     | [`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)                         | [`SetCustomTransport`](#SetCustomTransport)           |
 | [`BucketExists`](#BucketExists)                   | [`CopyObject`](#CopyObject)                         | [`GetEncryptedObject`](#GetEncryptedObject) | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`ListBucketPolicies`](#ListBucketPolicies)                   | [`TraceOn`](#TraceOn)                                 |
 | [`RemoveBucket`](#RemoveBucket)                   | [`StatObject`](#StatObject)                         | [`PutEncryptedObject`](#PutEncryptedObject) |                                               | [`SetBucketNotification`](#SetBucketNotification)             | [`TraceOff`](#TraceOff)                               |
-| [`ListObjects`](#ListObjects)                     | [`RemoveObject`](#RemoveObject)                     | [`NewSSEInfo`](#NewSSEInfo)               |                                               | [`GetBucketNotification`](#GetBucketNotification)             | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
+| [`ListObjects`](#ListObjects)                     | [`RemoveObject`](#RemoveObject)                     | [`FGetEncryptedObject`](#FGetEncryptedObject)               |                                               | [`GetBucketNotification`](#GetBucketNotification)             | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
 | [`ListObjectsV2`](#ListObjectsV2)                 | [`RemoveObjects`](#RemoveObjects)                   | [`FPutEncryptedObject`](#FPutEncryptedObject)    |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification) |                                                       |
 | [`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                             |                                               | [`ListenBucketNotification`](#ListenBucketNotification)       |                                                       |
 |                                                   | [`FPutObject`](#FPutObject)                         |                                             |                                               |                                                               |                                                       |
@@ -514,8 +514,8 @@ if err != nil {
 ```
 
 <a name="FGetEncryptedObject"></a>
-### FGetEncryptedObject(bucketName, objectName, filePath string, materials encrypt.Materials) error
-Identical to FGetObject operation, but decrypts an encrypted request
+### FGetEncryptedObject(bucketName, objectName, filePath, password string) error
+Identical to FGetObject operation, but decrypts an SSE-C encrypted object.
 
 __Parameters__
 
@@ -525,24 +525,14 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket |
 |`objectName` | _string_  |Name of the object  |
 |`filePath` | _string_  |Path to download object to |
-|`materials` | _encrypt.Materials_ | Interface provided by `encrypt` package to encrypt a stream of data (For more information see https://godoc.org/github.com/minio/minio-go) |
+|`password` | _string_ | The password used to derive decryption key |
 
 
 __Example__
 
 
 ```go
-// Generate a master symmetric key
-key := encrypt.NewSymmetricKey([]byte("my-secret-key-00"))
-
-// Build the CBC encryption material
-cbcMaterials, err := encrypt.NewCBCSecureMaterials(key)
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-err = minioClient.FGetEncryptedObject("mybucket", "myobject", "/tmp/myobject", cbcMaterials)
+err = minioClient.FGetEncryptedObject("mybucket", "myobject", "/tmp/myobject", "my-password")
 if err != nil {
     fmt.Println(err)
     return
@@ -574,8 +564,9 @@ __minio.PutObjectOptions__
 | `opts.ContentEncoding` | _string_ | Content encoding of object, e.g "gzip" |
 | `opts.ContentDisposition` | _string_ | Content disposition of object, "inline" |
 | `opts.CacheControl` | _string_ | Used to specify directives for caching mechanisms in both requests and responses e.g "max-age=600"|
-| `opts.EncryptMaterials` | _encrypt.Materials_ | Interface provided by `encrypt` package to encrypt a stream of data (For more information see https://godoc.org/github.com/minio/minio-go) |
-| `opts.StorageClass` | _string_ | Specify storage class for the object. Supported values for Minio server are `REDUCED_REDUNDANCY` and `STANDARD` |
+| `opts.ServerSideEncryption` | _*encrypt.ServerSide_ | SSE-C key used to generate server-side encryption requests. (For more information see https://godoc.org/github.com/minio/minio-go/pkg/encrypt) |
+| `opts.EncryptMaterials` | _encrypt.Materials_ | Interface provided by `encrypt` package to encrypt a stream of data (For more information see https://godoc.org/github.com/minio/minio-go/pkg/encrypt) |
+
 
 __Example__
 
@@ -1102,7 +1093,8 @@ if err != nil {
 }
 fmt.Println("Successfully initialized Symmetric key CBC materials", cbcMaterials)
 
-object, err := minioClient.GetEncryptedObject("mybucket", "myobject", cbcMaterials)
+opts := minio.GetObjectOptions{Materials: cbcMaterials}
+object, err := minioClient.GetObject("mybucket", "myobject", opts)
 if err != nil {
     fmt.Println(err)
     return
@@ -1157,7 +1149,8 @@ if err != nil {
 }
 fmt.Println("Successfully initialized Asymmetric key CBC materials", cbcMaterials)
 
-object, err := minioClient.GetEncryptedObject("mybucket", "myobject", cbcMaterials)
+opts := minio.GetObjectOptions{Materials: cbcMaterials}
+object, err := minioClient.GetEncryptedObject("mybucket", "myobject", opts)
 if err != nil {
     fmt.Println(err)
     return
@@ -1166,9 +1159,9 @@ defer object.Close()
 ```
 
 <a name="GetEncryptedObject"></a>
-### GetEncryptedObject(bucketName, objectName string, encryptMaterials encrypt.Materials) (io.ReadCloser, error)
+### GetEncryptedObject(bucketName, objectName, password string) (io.ReadCloser, error)
 
-Returns the decrypted stream of the object data based of the given encryption materials. Most of the common errors occur when reading the stream.
+Returns the object data of a server-side encrypted object.
 
 __Parameters__
 
@@ -1176,7 +1169,7 @@ __Parameters__
 |:---|:---| :---|
 |`bucketName`  | _string_  | Name of the bucket  |
 |`objectName` | _string_  | Name of the object  |
-|`encryptMaterials` | _encrypt.Materials_ | Interface provided by `encrypt` package to encrypt a stream of data (For more information see https://godoc.org/github.com/minio/minio-go) |
+|`password` | _string_ | The password used to derive the decryption key |
 
 
 __Return Value__
@@ -1191,17 +1184,7 @@ __Example__
 
 
 ```go
-// Generate a master symmetric key
-key := encrypt.NewSymmetricKey([]byte("my-secret-key-00"))
-
-// Build the CBC encryption material
-cbcMaterials, err := encrypt.NewCBCSecureMaterials(key)
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-object, err := minioClient.GetEncryptedObject("mybucket", "myobject", cbcMaterials)
+object, err := minioClient.GetEncryptedObject("mybucket", "myobject", "my-password")
 if err != nil {
     fmt.Println(err)
     return
@@ -1224,7 +1207,7 @@ if _, err = io.Copy(localFile, object); err != nil {
 <a name="PutEncryptedObject"></a>
 
 ### PutEncryptedObject(bucketName, objectName string, reader io.Reader, encryptMaterials encrypt.Materials) (n int, err error)
-Encrypt and upload an object.
+Uploads an object and encrypts the object with server-side encryption.
 
 __Parameters__
 
@@ -1233,39 +1216,12 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object   |
 |`reader` | _io.Reader_  |Any Go type that implements io.Reader |
-|`encryptMaterials` | _encrypt.Materials_  | Interface provided by `encrypt` package to encrypt a stream of data (For more information see https://godoc.org/github.com/minio/minio-go) |
+|`size` | _int64_  | The number of bytes readable from reader |
+|`password`| _string_ | The password used to derive the encryption key |
 
 __Example__
 
 ```go
-// Load a private key
-privateKey, err := ioutil.ReadFile("private.key")
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-// Load a public key
-publicKey, err := ioutil.ReadFile("public.key")
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-// Build an asymmetric key
-key, err := encrypt.NewAsymmetricKey(privateKey, publicKey)
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-// Build the CBC encryption module
-cbcMaterials, err := encrypt.NewCBCSecureMaterials(key)
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
 // Open a file to upload
 file, err := os.Open("my-testfile")
 if err != nil {
@@ -1274,8 +1230,14 @@ if err != nil {
 }
 defer file.Close()
 
-// Upload the encrypted form of the file
-n, err := minioClient.PutEncryptedObject("mybucket", "myobject", file, cbcMaterials)
+stat, err := file.Stat()
+if err != nil {
+    fmt.Println(err)
+    return
+}
+
+// Upload the file as object and encrypt it with SSE-C
+n, err := minioClient.PutEncryptedObject("mybucket", "myobject", file, stat.Size(), "my-password")
 if err != nil {
     fmt.Println(err)
     return
@@ -1284,8 +1246,8 @@ fmt.Println("Successfully uploaded encrypted bytes: ", n)
 ```
 
 <a name="FPutEncryptedObject"></a>
-### FPutEncryptedObject(bucketName, objectName, filePath, encryptMaterials encrypt.Materials) (n int, err error)
-Encrypt and upload an object from a file.
+### FPutEncryptedObject(bucketName, objectName, filePath, password) (n int, err error)
+Uploads an object from a file and encrypts the object with server-side encryption.
 
 __Parameters__
 
@@ -1295,60 +1257,19 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object |
 |`filePath` | _string_  |Path to file to be uploaded |
-|`encryptMaterials` | _encrypt.Materials_  | Interface provided by `encrypt` package to encrypt a stream of data (For more information see https://godoc.org/github.com/minio/minio-go)The module that encrypts data |
+|`password` | _string_  | The password used to derive the encryption key |
 
 __Example__
 
 
 ```go
-// Load a private key
-privateKey, err := ioutil.ReadFile("private.key")
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-// Load a public key
-publicKey, err := ioutil.ReadFile("public.key")
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-// Build an asymmetric key
-key, err := encrypt.NewAsymmetricKey(privateKey, publicKey)
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-// Build the CBC encryption module
-cbcMaterials, err := encrypt.NewCBCSecureMaterials(key)
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-n, err := minioClient.FPutEncryptedObject("mybucket", "myobject.csv", "/tmp/otherobject.csv", cbcMaterials)
+n, err := minioClient.FPutEncryptedObject("mybucket", "myobject.csv", "/tmp/otherobject.csv", "my-password")
 if err != nil {
     fmt.Println(err)
     return
 }
 fmt.Println("Successfully uploaded encrypted bytes: ", n)
 ```
-
-<a name="NewSSEInfo"></a>
-
-### NewSSEInfo(key []byte, algo string) SSEInfo
-Create a key object for use as encryption or decryption parameter in operations involving server-side-encryption with customer provided key (SSE-C).
-
-__Parameters__
-
-| Param  | Type     | Description                                                                                          |
-| :---   | :---     | :---                                                                                                 |
-| `key`  | _[]byte_ | Byte-slice of the raw, un-encoded binary key                                                         |
-| `algo` | _string_ | Algorithm to use in encryption or decryption with the given key. Can be empty (defaults to `AES256`) |
-
 
 ## 5. Presigned operations
 

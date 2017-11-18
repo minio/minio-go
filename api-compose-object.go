@@ -19,7 +19,6 @@ package minio
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -27,50 +26,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/minio/minio-go/pkg/encrypt"
 	"github.com/minio/minio-go/pkg/s3utils"
 )
-
-// SSEInfo - represents Server-Side-Encryption parameters specified by
-// a user.
-type SSEInfo struct {
-	key  []byte
-	algo string
-}
-
-// NewSSEInfo - specifies (binary or un-encoded) encryption key and
-// algorithm name. If algo is empty, it defaults to "AES256". Ref:
-// https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html
-func NewSSEInfo(key []byte, algo string) SSEInfo {
-	if algo == "" {
-		algo = "AES256"
-	}
-	return SSEInfo{key, algo}
-}
-
-// internal method that computes SSE-C headers
-func (s *SSEInfo) getSSEHeaders(isCopySource bool) map[string]string {
-	if s == nil {
-		return nil
-	}
-
-	cs := ""
-	if isCopySource {
-		cs = "copy-source-"
-	}
-	return map[string]string{
-		"x-amz-" + cs + "server-side-encryption-customer-algorithm": s.algo,
-		"x-amz-" + cs + "server-side-encryption-customer-key":       base64.StdEncoding.EncodeToString(s.key),
-		"x-amz-" + cs + "server-side-encryption-customer-key-MD5":   sumMD5Base64(s.key),
-	}
-}
-
-// GetSSEHeaders - computes and returns headers for SSE-C as key-value
-// pairs. They can be set as metadata in PutObject* requests (for
-// encryption) or be set as request headers in `Core.GetObject` (for
-// decryption).
-func (s *SSEInfo) GetSSEHeaders() map[string]string {
-	return s.getSSEHeaders(false)
-}
 
 // DestinationInfo - type with information about the object to be
 // created via server-side copy requests, using the Compose API.
@@ -78,7 +36,7 @@ type DestinationInfo struct {
 	bucket, object string
 
 	// key for encrypting destination
-	encryption *SSEInfo
+	encryption *encrypt.ServerSide
 
 	// if no user-metadata is provided, it is copied from source
 	// (when there is only once source object in the compose
@@ -89,7 +47,7 @@ type DestinationInfo struct {
 // NewDestinationInfo - creates a compose-object/copy-source
 // destination info object.
 //
-// `encSSEC` is the key info for server-side-encryption with customer
+// `sse` is the key info for server-side-encryption with customer
 // provided key. If it is nil, no encryption is performed.
 //
 // `userMeta` is the user-metadata key-value pairs to be set on the
@@ -97,9 +55,7 @@ type DestinationInfo struct {
 // if needed. If nil is passed, and if only a single source (of any
 // size) is provided in the ComposeObject call, then metadata from the
 // source is copied to the destination.
-func NewDestinationInfo(bucket, object string, encryptSSEC *SSEInfo,
-	userMeta map[string]string) (d DestinationInfo, err error) {
-
+func NewDestinationInfo(bucket, object string, sse *encrypt.ServerSide, userMeta map[string]string) (d DestinationInfo, err error) {
 	// Input validation.
 	if err = s3utils.CheckValidBucketName(bucket); err != nil {
 		return d, err
@@ -125,7 +81,7 @@ func NewDestinationInfo(bucket, object string, encryptSSEC *SSEInfo,
 	return DestinationInfo{
 		bucket:       bucket,
 		object:       object,
-		encryption:   encryptSSEC,
+		encryption:   sse,
 		userMetadata: m,
 	}, nil
 }
@@ -157,7 +113,7 @@ type SourceInfo struct {
 
 	start, end int64
 
-	decryptKey *SSEInfo
+	decryptKey *encrypt.ServerSide
 	// Headers to send with the upload-part-copy request involving
 	// this source object.
 	Headers http.Header
@@ -169,12 +125,12 @@ type SourceInfo struct {
 // `decryptSSEC` is the decryption key using server-side-encryption
 // with customer provided key. It may be nil if the source is not
 // encrypted.
-func NewSourceInfo(bucket, object string, decryptSSEC *SSEInfo) SourceInfo {
+func NewSourceInfo(bucket, object string, sse *encrypt.ServerSide) SourceInfo {
 	r := SourceInfo{
 		bucket:     bucket,
 		object:     object,
 		start:      -1, // range is unspecified by default
-		decryptKey: decryptSSEC,
+		decryptKey: sse,
 		Headers:    make(http.Header),
 	}
 
@@ -182,8 +138,10 @@ func NewSourceInfo(bucket, object string, decryptSSEC *SSEInfo) SourceInfo {
 	r.Headers.Set("x-amz-copy-source", s3utils.EncodePath(bucket+"/"+object))
 
 	// Assemble decryption headers for upload-part-copy request
-	for k, v := range decryptSSEC.getSSEHeaders(true) {
-		r.Headers.Set(k, v)
+	if sse != nil {
+		for k, v := range sse.CopySourceHeaders() {
+			r.Headers[k] = v
+		}
 	}
 
 	return r
@@ -246,8 +204,12 @@ func (s *SourceInfo) getProps(c Client) (size int64, etag string, userMeta map[s
 	// headers are added to the stat request if given.
 	var objInfo ObjectInfo
 	opts := StatObjectOptions{}
-	for k, v := range s.decryptKey.getSSEHeaders(false) {
-		opts.Set(k, v)
+
+	if s.decryptKey != nil {
+		sseHeaders := s.decryptKey.Headers()
+		for k := range sseHeaders {
+			opts.Set(k, sseHeaders.Get(k))
+		}
 	}
 	objInfo, err = c.statObject(context.Background(), s.bucket, s.object, opts)
 	if err != nil {
@@ -404,7 +366,7 @@ func (c Client) uploadPartCopy(ctx context.Context, bucket, object, uploadID str
 // existing objects. It takes a list of source objects (with optional
 // offsets) and concatenates them into a new object using only
 // server-side copying operations.
-func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
+func (c Client) ComposeObject(dst DestinationInfo, srcs ...SourceInfo) error {
 	if len(srcs) < 1 || len(srcs) > maxPartsCount {
 		return ErrInvalidArgument("There must be as least one and up to 10000 source objects.")
 	}
@@ -480,8 +442,10 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 	if totalParts == 1 && srcs[0].start == -1 && totalSize <= maxPartSize {
 		h := srcs[0].Headers
 		// Add destination encryption headers
-		for k, v := range dst.encryption.getSSEHeaders(false) {
-			h.Set(k, v)
+		if dst.encryption != nil {
+			for k, v := range dst.encryption.Headers() {
+				h[k] = v
+			}
 		}
 
 		// If no user metadata is specified (and so, the
@@ -538,8 +502,10 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 	for i, src := range srcs {
 		h := src.Headers
 		// Add destination encryption headers
-		for k, v := range dst.encryption.getSSEHeaders(false) {
-			h.Set(k, v)
+		if dst.encryption != nil {
+			for k, v := range dst.encryption.Headers() {
+				h[k] = v
+			}
 		}
 
 		// calculate start/end indices of parts after
