@@ -141,5 +141,5 @@ func (c Core) GetObject(bucketName, objectName string, opts GetObjectOptions) (i
 // StatObject is a lower level API implemented to support special
 // conditions matching etag, modtime on a request.
 func (c Core) StatObject(bucketName, objectName string, opts StatObjectOptions) (ObjectInfo, error) {
-	return c.statObject(bucketName, objectName, opts)
+	return c.statObject(context.Background(), bucketName, objectName, opts)
 }

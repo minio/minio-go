@@ -249,7 +249,7 @@ func (s *SourceInfo) getProps(c Client) (size int64, etag string, userMeta map[s
 	for k, v := range s.decryptKey.getSSEHeaders(false) {
 		opts.Set(k, v)
 	}
-	objInfo, err = c.statObject(s.bucket, s.object, opts)
+	objInfo, err = c.statObject(context.Background(), s.bucket, s.object, opts)
 	if err != nil {
 		err = ErrInvalidArgument(fmt.Sprintf("Could not stat object - %s/%s: %v", s.bucket, s.object, err))
 	} else {
