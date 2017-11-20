@@ -60,6 +60,15 @@ func (c Core) CopyObject(sourceBucket, sourceObject, destBucket, destObject stri
 	return c.copyObjectDo(context.Background(), sourceBucket, sourceObject, destBucket, destObject, metadata)
 }
 
+// CopyObjectPart - creates a part in a multipart upload by copying (a
+// part of) an existing object.
+func (c Core) CopyObjectPart(srcBucket, srcObject, destBucket, destObject string, uploadID string,
+	partID int, startOffset, length int64, metadata map[string]string) (p CompletePart, err error) {
+
+	return c.copyObjectPartDo(context.Background(), srcBucket, srcObject, destBucket, destObject, uploadID,
+		partID, startOffset, length, metadata)
+}
+
 // PutObject - Upload object. Uploads using single PUT call.
 func (c Core) PutObject(bucket, object string, data io.Reader, size int64, md5Base64, sha256Hex string, metadata map[string]string) (ObjectInfo, error) {
 	opts := PutObjectOptions{}
