@@ -51,3 +51,36 @@ func TestPutObjectOptionsValidate(t *testing.T) {
 		}
 	}
 }
+
+// test that metadata is properly converted to headers
+func TestPutObjectOptionsHeaderMetadata(t *testing.T) {
+
+	// test that invalid header keys are not included
+	testCases := []struct {
+		metakey    string
+		shouldPass bool
+	}{
+		{"It has spaces", false},
+		{"It:has@illegal=characters", false},
+		{"It-Is-Fine", true},
+		{"Numbers-098987987-Should-Work", true},
+		{"Crazy-!#$%&'*+-.^_`|~-Should-193832-Be-Fine", true},
+	}
+
+	// construct the meta map from test cases
+	meta := make(map[string]string)
+	for _, testCase := range testCases {
+		meta[testCase.metakey] = "somevalue"
+	}
+
+	opt := PutObjectOptions{UserMetadata: meta}
+	header := opt.Header()
+
+	// iterate through test cases, ensure header is correct
+	for _, testCase := range testCases {
+		_, ok := header["X-Amz-Meta-"+testCase.metakey]
+		if ok != testCase.shouldPass {
+			t.Errorf("Test case %s should be in headers %t, but was %t", testCase.metakey, testCase.shouldPass, ok)
+		}
+	}
+}
