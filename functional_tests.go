@@ -1147,7 +1147,7 @@ func testRemoveMultipleObjects() {
 	r := bytes.NewReader(bytes.Repeat([]byte("a"), 8))
 
 	// Multi remove of 1100 objects
-	nrObjects := 1100
+	nrObjects := 200
 
 	objectsCh := make(chan string)
 
