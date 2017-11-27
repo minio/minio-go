@@ -1,6 +1,6 @@
-# 适用于Amazon S3兼容云存储的Minio Go SDK [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io) [![Sourcegraph](https://sourcegraph.com/github.com/minio/minio-go/-/badge.svg)](https://sourcegraph.com/github.com/minio/minio-go?badge)
+# 适用于与Amazon S3兼容云存储的Minio Go SDK [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io) [![Sourcegraph](https://sourcegraph.com/github.com/minio/minio-go/-/badge.svg)](https://sourcegraph.com/github.com/minio/minio-go?badge)
 
-Minio Go Client SDK提供简单的API来访问任何Amazon S3兼容的对象存储服务。
+Minio Go Client SDK提供了简单的API来访问任何与Amazon S3兼容的对象存储服务。
 
 **支持的云存储:** 
 
@@ -24,7 +24,7 @@ go get -u github.com/minio/minio-go
 ```
 
 ## 初始化Minio Client
-Minio client需要以下4个参数来连接Amazon S3兼容的对象存储。
+Minio client需要以下4个参数来连接与Amazon S3兼容的对象存储。
 
 | 参数  | 描述| 
 | :---         |     :---     |

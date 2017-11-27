@@ -72,7 +72,7 @@ func main() {
 <a name="Minio"></a>
 
 ### New(endpoint, accessKeyID, secretAccessKey string, ssl bool) (*Client, error)
-初使化一个新的client对象
+初使化一个新的client对象。
 
 __参数__
 
@@ -84,7 +84,7 @@ __参数__
 |`ssl`   | _bool_  |true代表使用HTTPS |
 
 ### NewWithRegion(endpoint, accessKeyID, secretAccessKey string, ssl bool, region string) (*Client, error)
-初使化minio client,带有region配置。和New()不同的是，NewWithRegion避免了bucket-location操作，所以会快那么一丢丢。如果你的应用使用的是单region的话可以用这个方法。
+初使化minio client,带有region配置。和New()不同的是，NewWithRegion避免了bucket-location操作，所以会快那么一丢丢。如果你的应用只使用一个region的话可以用这个方法。
 
 __参数__
 
@@ -918,7 +918,7 @@ fmt.Println("Successfully uploaded bytes: ", n)
 
 <a name="FPutObjectWithContext"></a>
 ### FPutObjectWithContext(ctx context.Context, bucketName, objectName, filePath, opts PutObjectOptions) (length int64, err error)
-Identical to FPutObject operation, but allows request cancellation.
+和FPutObject操作是一样的，不过允许取消请求。
 
 __参数__
 
@@ -1224,7 +1224,7 @@ if _, err = io.Copy(localFile, object); err != nil {
 <a name="PutEncryptedObject"></a>
 
 ### PutEncryptedObject(bucketName, objectName string, reader io.Reader, encryptMaterials encrypt.Materials) (n int, err error)
-加密并上传对象
+加密并上传对象。
 
 __参数__
 
