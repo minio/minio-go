@@ -106,7 +106,7 @@ func (c Client) StatEncryptedObject(bucketName, objectName, password string) (Ob
 	if err := s3utils.CheckValidObjectName(objectName); err != nil {
 		return ObjectInfo{}, err
 	}
-	key, err := scrypt.Key([]byte(password), []byte(bucketName+objectName), 32768, 8, 1, 32) // recommended scrypt parameter for 2017
+	key, err := scrypt.Key([]byte(password), []byte(kdfMagicConstant+bucketName+objectName), 32768, 8, 1, 32) // recommended scrypt parameter for 2017
 	if err != nil {
 		panic("failed to derive key using fixed scrypt parameters")
 	}
