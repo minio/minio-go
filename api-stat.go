@@ -108,14 +108,14 @@ func (c Client) StatEncryptedObject(bucketName, objectName, password string) (Ob
 	}
 	key, err := scrypt.Key([]byte(password), []byte(bucketName+objectName), 32768, 8, 1, 32) // recommended scrypt parameter for 2017
 	if err != nil {
-		return ObjectInfo{}, err // TODO(aead): may panic - this error can only occur if scrypt parameters are invalid
+		panic("failed to derive key using fixed scrypt parameters")
 	}
 	sse, err := encrypt.NewServerSide(key)
 	if err != nil {
-		return ObjectInfo{}, err // TODO(aead): may panic - this error can only occur if derivied key != 256 bits
+		return ObjectInfo{}, err
 	}
 	opts := GetObjectOptions{ServerSideEncryption: sse}
-	return c.statObject(bucketName, objectName, StatObjectOptions{opts})
+	return c.statObject(context.Background(), bucketName, objectName, StatObjectOptions{opts})
 }
 
 // Lower level API for statObject supporting pre-conditions and range headers.

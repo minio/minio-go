@@ -2620,7 +2620,7 @@ func testCopyObject() {
 	successLogger(testName, function, args, startTime).Info()
 }
 
-// TestEncryptionPutGet tests client side encryption
+// TestEncryptionPutGet tests server side encryption
 func testEncryptionPutGet() {
 	// initialize logging params
 	startTime := time.Now()
@@ -2731,7 +2731,7 @@ func testEncryptionPutGet() {
 	successLogger(testName, function, args, startTime).Info()
 }
 
-// TestEncryptionFPut tests client side encryption
+// TestEncryptionFPut tests server side encryption
 func testEncryptionFPut() {
 	// initialize logging params
 	startTime := time.Now()
@@ -2814,7 +2814,7 @@ func testEncryptionFPut() {
 
 		// Put encrypted data
 		if _, err = c.FPutEncryptedObject(bucketName, objectName, fileName, testCase.password); err != nil {
-			logError(function, args, startTime, "", "FPutEncryptedObject failed", err)
+			logError(testName, function, args, startTime, "", "FPutEncryptedObject failed", err)
 			return
 		}
 
@@ -2853,6 +2853,109 @@ func testEncryptionFPut() {
 		return
 	}
 
+	successLogger(testName, function, args, startTime).Info()
+}
+
+// TestEncryptionFGet tests server side encryption
+func testEncryptionFGet() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "FGetEncryptedObject(bucketName, objectName, filePath, password)"
+	args := map[string]interface{}{
+		"bucketName": "",
+		"objectName": "",
+		"filePath":   "",
+		"password":   "",
+	}
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object
+	c, err := minio.NewV4(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Minio client object creation failed", err)
+		return
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+	defer func() {
+		if err = cleanupBucket(bucketName, c); err != nil {
+			logError(testName, function, args, startTime, "", "Cleanup failed", err)
+			return
+		}
+	}()
+
+	testCases := []struct {
+		password string
+		buf      []byte
+	}{
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 0)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 1)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 15)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 16)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 17)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 31)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 32)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 33)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 1024)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 1024*2)},
+		{password: "my-password", buf: bytes.Repeat([]byte("F"), 1024*1024)},
+	}
+
+	for _, testCase := range testCases {
+		// Generate a random object name
+		objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+		args["objectName"] = objectName
+		args["password"] = testCase.password
+
+		if _, err = c.PutEncryptedObject(bucketName, objectName, bytes.NewReader(testCase.buf), int64(len(testCase.buf)), testCase.password); err != nil {
+			logError(testName, function, args, startTime, "", "failed to create encrypted object", err)
+			return
+		}
+
+		// Generate a random file name and get encrypted object
+		fileName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+		if err = c.FGetEncryptedObject(bucketName, objectName, fileName, testCase.password); err != nil {
+			logError(testName, function, args, startTime, "", "FGetEncryptedObject failed", err)
+			return
+		}
+		defer func() {
+			if err = os.Remove(fileName); err != nil {
+				logError(testName, function, args, startTime, "", "File remove failed", err)
+			}
+		}()
+
+		fileContent, err := ioutil.ReadFile(fileName)
+		if err != nil {
+			logError(testName, function, args, startTime, "", "Failed to read file", err)
+			return
+		}
+		if !bytes.Equal(fileContent, testCase.buf) {
+			logError(testName, function, args, startTime, "", "Decrypted object does not match uploaded object", err)
+			return
+		}
+	}
 	successLogger(testName, function, args, startTime).Info()
 }
 
@@ -4852,7 +4955,7 @@ func testComposeObjectErrorCasesWrapper(c *minio.Client) {
 	// to stop having 10,001 null headers logged
 	args["sourceList"] = "source array of 10,001 elements"
 	if err := c.ComposeObject(dst, srcSlice...); err == nil {
-		logError(function, args, startTime, "", "Expected error in ComposeObject", err)
+		logError(testName, function, args, startTime, "", "Expected error in ComposeObject", err)
 		return
 	} else if err.Error() != "There must be as least one and up to 10000 source objects." {
 		logError(testName, function, args, startTime, "", "Got unexpected error", err)
@@ -4879,7 +4982,7 @@ func testComposeObjectErrorCasesWrapper(c *minio.Client) {
 	}
 	// 3. ComposeObject call should fail.
 	if err := c.ComposeObject(dst, badSrc); err == nil {
-		logError(function, args, startTime, "", "ComposeObject expected to fail", err)
+		logError(testName, function, args, startTime, "", "ComposeObject expected to fail", err)
 		return
 	} else if !strings.Contains(err.Error(), "has invalid segment-to-copy") {
 		logError(testName, function, args, startTime, "", "Got invalid error", err)
@@ -5031,12 +5134,12 @@ func testEncryptedCopyObjectWrapper(c *minio.Client) {
 
 	key1, err := encrypt.NewServerSide([]byte("32byteslongsecretkeymustbegiven1"))
 	if err != nil {
-		logError(function, args, startTime, "", "NewServerSide failed", err)
+		logError(testName, function, args, startTime, "", "NewServerSide failed", err)
 		return
 	}
 	key2, err := encrypt.NewServerSide([]byte("32byteslongsecretkeymustbegiven2"))
 	if err != nil {
-		logError(function, args, startTime, "", "NewServerSide failed", err)
+		logError(testName, function, args, startTime, "", "NewServerSide failed", err)
 		return
 	}
 
@@ -5283,14 +5386,10 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 		return
 	}
 
-<<<<<<< 06dcf064d9e3b1dfd21b9a01a822da7665a9c971
-=======
-	err = c.ComposeObject(dst3, srcs...)
->>>>>>> add SSE-C support
 	function = "ComposeObject(destination, sources)"
 	args["source"] = srcs
 	args["destination"] = dst3
-	err = c.ComposeObject(dst3, srcs)
+	err = c.ComposeObject(dst3, srcs...)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "ComposeObject failed", err)
 		return
@@ -6765,7 +6864,7 @@ func main() {
 
 	tls := mustParseBool(os.Getenv(enableHTTPS))
 	// execute tests
-	if false && !isQuickMode() {
+	if !isQuickMode() {
 		testMakeBucketErrorV2()
 		testGetObjectClosedTwiceV2()
 		testRemovePartiallyUploadedV2()
@@ -6820,8 +6919,9 @@ func main() {
 		if tls {
 			testEncryptionPutGet()
 			testEncryptionFPut()
-			testEncryptedCopyObjectV2()
-			testEncryptedCopyObject()
+			testEncryptionFGet()
+			//testEncryptedCopyObjectV2() TODO(aead): enable when SSE-C copy support is supported
+			//testEncryptedCopyObject() TODO(aead): enable when SSE-C copy support is supported
 		}
 	} else {
 		testFunctional()

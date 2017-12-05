@@ -30,11 +30,11 @@ import (
 func (c Client) PutEncryptedObject(bucketName, objectName string, reader io.Reader, size int64, password string) (n int64, err error) {
 	key, err := scrypt.Key([]byte(password), []byte(bucketName+objectName), 32768, 8, 1, 32) // recommended scrypt parameter for 2017
 	if err != nil {
-		return 0, err // TODO(aead): may panic - this error can only occur if scrypt parameters are invalid
+		panic("failed to derive key using fixed scrypt parameters")
 	}
 	sse, err := encrypt.NewServerSide(key)
 	if err != nil {
-		return 0, err // TODO(aead): may panic - this error can only occur if derivied key != 256 bits
+		return 0, err
 	}
 	return c.PutObjectWithContext(context.Background(), bucketName, objectName, reader, size, PutObjectOptions{ServerSideEncryption: sse})
 }
@@ -45,11 +45,11 @@ func (c Client) PutEncryptedObject(bucketName, objectName string, reader io.Read
 func (c Client) FPutEncryptedObject(bucketName, objectName, filePath, password string) (n int64, err error) {
 	key, err := scrypt.Key([]byte(password), []byte(bucketName+objectName), 32768, 8, 1, 32) // recommended scrypt parameter for 2017
 	if err != nil {
-		return 0, err // TODO(aead): may panic - this error can only occur if scrypt parameters are invalid
+		panic("failed to derive key using fixed scrypt parameters")
 	}
 	sse, err := encrypt.NewServerSide(key)
 	if err != nil {
-		return 0, err // TODO(aead): may panic - this error can only occur if derivied key != 256 bits
+		return 0, err
 	}
 	return c.FPutObjectWithContext(context.Background(), bucketName, objectName, filePath, PutObjectOptions{ServerSideEncryption: sse})
 }

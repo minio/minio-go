@@ -30,11 +30,11 @@ import (
 func (c Client) GetEncryptedObject(bucketName, objectName, password string) (io.ReadCloser, error) {
 	key, err := scrypt.Key([]byte(password), []byte(bucketName+objectName), 32768, 8, 1, 32) // recommended scrypt parameter for 2017
 	if err != nil {
-		return nil, err // TODO(aead): may panic - this error can only occur if scrypt parameters are invalid
+		panic("failed to derive key using fixed scrypt parameters")
 	}
 	sse, err := encrypt.NewServerSide(key)
 	if err != nil {
-		return nil, err // TODO(aead): may panic - this error can only occur if derivied key != 256 bits
+		return nil, err
 	}
 	return c.GetObject(bucketName, objectName, GetObjectOptions{ServerSideEncryption: sse})
 }
@@ -46,11 +46,11 @@ func (c Client) GetEncryptedObject(bucketName, objectName, password string) (io.
 func (c Client) FGetEncryptedObject(bucketName, objectName, filePath, password string) error {
 	key, err := scrypt.Key([]byte(password), []byte(bucketName+objectName), 32768, 8, 1, 32) // recommended scrypt parameter for 2017
 	if err != nil {
-		return err // TODO(aead): may panic - this error can only occur if scrypt parameters are invalid
+		panic("failed to derive key using fixed scrypt parameters")
 	}
 	sse, err := encrypt.NewServerSide(key)
 	if err != nil {
-		return err // TODO(aead): may panic - this error can only occur if derivied key != 256 bits
+		return err
 	}
 	return c.FGetObject(bucketName, objectName, filePath, GetObjectOptions{ServerSideEncryption: sse})
 }
