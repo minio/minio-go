@@ -21,18 +21,14 @@ import (
 	"io"
 
 	"github.com/minio/minio-go/pkg/encrypt"
-	"golang.org/x/crypto/scrypt"
 )
 
 // GetEncryptedObject tries to get an server-side-encrypted object.
 // It returns an error if the key - derived from the provided password - does not
 // match the encryption key of the object. GetEncryptedObject requires a TLS connection.
 func (c Client) GetEncryptedObject(bucketName, objectName, password string) (io.ReadCloser, error) {
-	key, err := scrypt.Key([]byte(password), []byte(kdfMagicConstant+bucketName+objectName), 32768, 8, 1, 32) // recommended scrypt parameter for 2017
-	if err != nil {
-		panic("failed to derive key using fixed scrypt parameters")
-	}
-	sse, err := encrypt.NewServerSide(key)
+	salt := []byte(kdfMagicConstant + bucketName + objectName)
+	sse, err := encrypt.NewServerSide(defaultPBKDF([]byte(password), salt, 32))
 	if err != nil {
 		return nil, err
 	}
@@ -44,11 +40,8 @@ func (c Client) GetEncryptedObject(bucketName, objectName, password string) (io.
 // It returns an error if the key - derived from the provided password - does not
 // match the encryption key of the object. GetEncryptedObject requires a TLS connection.
 func (c Client) FGetEncryptedObject(bucketName, objectName, filePath, password string) error {
-	key, err := scrypt.Key([]byte(password), []byte(kdfMagicConstant+bucketName+objectName), 32768, 8, 1, 32) // recommended scrypt parameter for 2017
-	if err != nil {
-		panic("failed to derive key using fixed scrypt parameters")
-	}
-	sse, err := encrypt.NewServerSide(key)
+	salt := []byte(kdfMagicConstant + bucketName + objectName)
+	sse, err := encrypt.NewServerSide(defaultPBKDF([]byte(password), salt, 32))
 	if err != nil {
 		return err
 	}

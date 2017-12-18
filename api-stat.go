@@ -27,7 +27,6 @@ import (
 
 	"github.com/minio/minio-go/pkg/encrypt"
 	"github.com/minio/minio-go/pkg/s3utils"
-	"golang.org/x/crypto/scrypt"
 )
 
 // BucketExists verify if bucket exists and you have permission to access it.
@@ -106,11 +105,8 @@ func (c Client) StatEncryptedObject(bucketName, objectName, password string) (Ob
 	if err := s3utils.CheckValidObjectName(objectName); err != nil {
 		return ObjectInfo{}, err
 	}
-	key, err := scrypt.Key([]byte(password), []byte(kdfMagicConstant+bucketName+objectName), 32768, 8, 1, 32) // recommended scrypt parameter for 2017
-	if err != nil {
-		panic("failed to derive key using fixed scrypt parameters")
-	}
-	sse, err := encrypt.NewServerSide(key)
+	salt := []byte(kdfMagicConstant + bucketName + objectName)
+	sse, err := encrypt.NewServerSide(defaultPBKDF([]byte(password), salt, 32))
 	if err != nil {
 		return ObjectInfo{}, err
 	}

@@ -22,21 +22,22 @@ import (
 	"io"
 
 	"github.com/minio/minio-go/pkg/encrypt"
-	"golang.org/x/crypto/scrypt"
+	"golang.org/x/crypto/argon2"
 )
 
 // A magic value used to prevent that client side encryption and server side encryption
-// derive the same key if Scrypt(password, bucket+object) is used.
+// derive the same key if Argon2i(password, bucket+object) is used.
 const kdfMagicConstant = "SSE-C"
+
+func defaultPBKDF(password, salt []byte, keyLen int) []byte {
+	return argon2.Key(password, salt, 5, 32*1024, 4, uint32(keyLen)) // medium secure Argon2i security parameters
+}
 
 // PutEncryptedObject creates a server-side encrypted object at the given bucketName/objectName.
 // The object is encrypted with a key derived from the given password using server-side encryption.
 func (c Client) PutEncryptedObject(bucketName, objectName string, reader io.Reader, size int64, password string) (n int64, err error) {
-	key, err := scrypt.Key([]byte(password), []byte(kdfMagicConstant+bucketName+objectName), 32768, 8, 1, 32) // recommended scrypt parameter for 2017
-	if err != nil {
-		panic("failed to derive key using fixed scrypt parameters")
-	}
-	sse, err := encrypt.NewServerSide(key)
+	salt := []byte(kdfMagicConstant + bucketName + objectName)
+	sse, err := encrypt.NewServerSide(defaultPBKDF([]byte(password), salt, 32))
 	if err != nil {
 		return 0, err
 	}
@@ -47,11 +48,8 @@ func (c Client) PutEncryptedObject(bucketName, objectName string, reader io.Read
 // bucketName/objectName. The object is encrypted with a key derived from the given password using
 // server-side encryption.
 func (c Client) FPutEncryptedObject(bucketName, objectName, filePath, password string) (n int64, err error) {
-	key, err := scrypt.Key([]byte(password), []byte(kdfMagicConstant+bucketName+objectName), 32768, 8, 1, 32) // recommended scrypt parameter for 2017
-	if err != nil {
-		panic("failed to derive key using fixed scrypt parameters")
-	}
-	sse, err := encrypt.NewServerSide(key)
+	salt := []byte(kdfMagicConstant + bucketName + objectName)
+	sse, err := encrypt.NewServerSide(defaultPBKDF([]byte(password), salt, 32))
 	if err != nil {
 		return 0, err
 	}

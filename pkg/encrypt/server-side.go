@@ -39,6 +39,13 @@ const (
 	sseAlgorithmAES256 = "AES256"
 )
 
+// PBKDF specifies a password-based key derivation function.
+// It takes a password, a salt and a key length in bytes
+// and produces a high entropy key of the given length.
+// A PBKDF should be used to derive a cryptographic key
+// e.g. a AES-256 key from a password.
+type PBKDF func(password, salt []byte, keyLen int) []byte
+
 // ServerSide represents the encryption key for SSE-C requests.
 type ServerSide [32]byte
 
