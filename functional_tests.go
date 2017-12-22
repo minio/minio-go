@@ -1642,7 +1642,7 @@ func testFPutObjectWithContext() {
 	// Set base object name
 	objectName := bucketName + "FPutObjectWithContext"
 	args["objectName"] = objectName
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	args["ctx"] = ctx
 	defer cancel()
 
@@ -1755,7 +1755,7 @@ func testFPutObjectWithContextV2() {
 	objectName := bucketName + "FPutObjectWithContext"
 	args["objectName"] = objectName
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	args["ctx"] = ctx
 	defer cancel()
 
@@ -1839,7 +1839,7 @@ func testPutObjectWithContext() {
 	objectName := fmt.Sprintf("test-file-%v", rand.Uint32())
 	args["objectName"] = objectName
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	args["ctx"] = ctx
 	args["opts"] = minio.PutObjectOptions{ContentType: "binary/octet-stream"}
 	defer cancel()
@@ -6218,7 +6218,7 @@ func testGetObjectWithContext() {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	args["ctx"] = ctx
 	defer cancel()
 
@@ -6324,7 +6324,7 @@ func testFGetObjectWithContext() {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	args["ctx"] = ctx
 	defer cancel()
 
@@ -6496,7 +6496,7 @@ func testGetObjectWithContextV2() {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	args["ctx"] = ctx
 	defer cancel()
 
@@ -6601,7 +6601,7 @@ func testFGetObjectWithContextV2() {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	args["ctx"] = ctx
 	defer cancel()
 
