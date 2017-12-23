@@ -23,12 +23,15 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"runtime/debug"
 	"sort"
 
 	"github.com/minio/minio-go/pkg/encrypt"
 	"github.com/minio/minio-go/pkg/s3utils"
 )
+
+var isValidHeader = regexp.MustCompile("^[a-zA-Z0-9!#$%&'*+-.^_`|~]+$").MatchString
 
 // PutObjectOptions represents options specified by user for PutObject call
 type PutObjectOptions struct {
@@ -78,7 +81,7 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 		header[amzHeaderMatDesc] = []string{opts.EncryptMaterials.GetDesc()}
 	}
 	for k, v := range opts.UserMetadata {
-		if !isAmzHeader(k) && !isStandardHeader(k) && !isSSEHeader(k) {
+		if !isAmzHeader(k) && !isStandardHeader(k) && !isSSEHeader(k) && isValidHeader(k) {
 			header["X-Amz-Meta-"+k] = []string{v}
 		} else {
 			header[k] = []string{v}
