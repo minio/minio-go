@@ -1642,7 +1642,7 @@ func testFPutObjectWithContext() {
 	// Set base object name
 	objectName := bucketName + "FPutObjectWithContext"
 	args["objectName"] = objectName
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	args["ctx"] = ctx
 	defer cancel()
 
@@ -1755,7 +1755,7 @@ func testFPutObjectWithContextV2() {
 	objectName := bucketName + "FPutObjectWithContext"
 	args["objectName"] = objectName
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	args["ctx"] = ctx
 	defer cancel()
 
@@ -1839,14 +1839,14 @@ func testPutObjectWithContext() {
 	objectName := fmt.Sprintf("test-file-%v", rand.Uint32())
 	args["objectName"] = objectName
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	args["ctx"] = ctx
 	args["opts"] = minio.PutObjectOptions{ContentType: "binary/octet-stream"}
 	defer cancel()
 
 	_, err = c.PutObjectWithContext(ctx, bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err == nil {
-		logError(testName, function, args, startTime, "", "PutObjectWithContext should fail with short timeout", err)
+		logError(testName, function, args, startTime, "", "PutObjectWithContext should fail on short timeout", err)
 		return
 	}
 
@@ -6218,7 +6218,7 @@ func testGetObjectWithContext() {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	args["ctx"] = ctx
 	defer cancel()
 
@@ -6228,7 +6228,7 @@ func testGetObjectWithContext() {
 		return
 	}
 	if _, err = r.Stat(); err == nil {
-		logError(testName, function, args, startTime, "", "GetObjectWithContext should fail due to cancellation on short timeout", err)
+		logError(testName, function, args, startTime, "", "GetObjectWithContext should fail on short timeout", err)
 		return
 	}
 
@@ -6324,7 +6324,7 @@ func testFGetObjectWithContext() {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	args["ctx"] = ctx
 	defer cancel()
 
@@ -6333,7 +6333,7 @@ func testFGetObjectWithContext() {
 	// Read the data back
 	err = c.FGetObjectWithContext(ctx, bucketName, objectName, fileName+"-f", minio.GetObjectOptions{})
 	if err == nil {
-		logError(testName, function, args, startTime, "", "FGetObjectWithContext with short timeout failed", err)
+		logError(testName, function, args, startTime, "", "FGetObjectWithContext should fail on short timeout", err)
 		return
 	}
 	ctx, cancel = context.WithTimeout(context.Background(), 1*time.Hour)
@@ -6496,7 +6496,7 @@ func testGetObjectWithContextV2() {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	args["ctx"] = ctx
 	defer cancel()
 
@@ -6601,7 +6601,7 @@ func testFGetObjectWithContextV2() {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	args["ctx"] = ctx
 	defer cancel()
 
@@ -6611,7 +6611,7 @@ func testFGetObjectWithContextV2() {
 	// Read the data back
 	err = c.FGetObjectWithContext(ctx, bucketName, objectName, fileName+"-f", minio.GetObjectOptions{})
 	if err == nil {
-		logError(testName, function, args, startTime, "", "FGetObjectWithContext call should fail on short timeout", err)
+		logError(testName, function, args, startTime, "", "FGetObjectWithContext should fail on short timeout", err)
 		return
 	}
 	ctx, cancel = context.WithTimeout(context.Background(), 1*time.Hour)
