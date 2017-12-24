@@ -5483,6 +5483,221 @@ func testUserMetadataCopyingV2() {
 	testUserMetadataCopyingWrapper(c)
 }
 
+func testStorageClassMetadataPutObject() {
+	// initialize logging params
+	startTime := time.Now()
+	function := "testStorageClassMetadataPutObject()"
+	args := map[string]interface{}{}
+	testName := getFuncName()
+
+	// Instantiate new minio client object
+	c, err := minio.NewV4(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Minio v4 client object creation failed", err)
+		return
+	}
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+	// Make a new bucket in 'us-east-1' (source bucket).
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	fetchMeta := func(object string) (h http.Header) {
+		objInfo, err := c.StatObject(bucketName, object, minio.StatObjectOptions{})
+		if err != nil {
+			logError(testName, function, args, startTime, "", "Stat failed", err)
+			return
+		}
+		h = make(http.Header)
+		for k, vs := range objInfo.Metadata {
+			if strings.HasPrefix(strings.ToLower(k), "x-amz-storage-class") {
+				for _, v := range vs {
+					h.Add(k, v)
+				}
+			}
+		}
+		return h
+	}
+
+	metadata := make(http.Header)
+	metadata.Set("x-amz-storage-class", "REDUCED_REDUNDANCY")
+
+	const srcSize = 1024 * 1024
+	buf := bytes.Repeat([]byte("abcde"), srcSize) // gives a buffer of 1MiB
+
+	_, err = c.PutObject(bucketName, "srcObjectRRSClass",
+		bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{StorageClass: "REDUCED_REDUNDANCY"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject failed", err)
+		return
+	}
+	if !reflect.DeepEqual(metadata, fetchMeta("srcObjectRRSClass")) {
+		logError(testName, function, args, startTime, "", "Metadata match failed", err)
+		return
+	}
+
+	metadata = make(http.Header)
+	metadata.Set("x-amz-storage-class", "STANDARD")
+
+	_, err = c.PutObject(bucketName, "srcObjectSSClass",
+		bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{StorageClass: "STANDARD"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject failed", err)
+		return
+	}
+	if !reflect.DeepEqual(metadata, fetchMeta("srcObjectSSClass")) {
+		logError(testName, function, args, startTime, "", "Metadata match failed", err)
+		return
+	}
+
+	successLogger(testName, function, args, startTime).Info()
+}
+
+func testStorageClassInvalidMetadataPutObject() {
+	// initialize logging params
+	startTime := time.Now()
+	function := "testStorageClassInvalidMetadataPutObject()"
+	args := map[string]interface{}{}
+	testName := getFuncName()
+
+	// Instantiate new minio client object
+	c, err := minio.NewV4(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Minio v4 client object creation failed", err)
+		return
+	}
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+	// Make a new bucket in 'us-east-1' (source bucket).
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	const srcSize = 1024 * 1024
+	buf := bytes.Repeat([]byte("abcde"), srcSize) // gives a buffer of 1MiB
+
+	_, err = c.PutObject(bucketName, "srcObjectRRSClass",
+		bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{StorageClass: "INVALID_STORAGE_CLASS"})
+	if err == nil {
+		logError(testName, function, args, startTime, "", "PutObject with invalid storage class passed, was expected to fail", err)
+		return
+	}
+
+	successLogger(testName, function, args, startTime).Info()
+}
+
+func testStorageClassMetadataCopyObject() {
+	// initialize logging params
+	startTime := time.Now()
+	function := "testStorageClassMetadataCopyObject()"
+	args := map[string]interface{}{}
+	testName := getFuncName()
+
+	// Instantiate new minio client object
+	c, err := minio.NewV4(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Minio v4 client object creation failed", err)
+		return
+	}
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+	// Make a new bucket in 'us-east-1' (source bucket).
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	fetchMeta := func(object string) (h http.Header) {
+		objInfo, err := c.StatObject(bucketName, object, minio.StatObjectOptions{})
+		if err != nil {
+			logError(testName, function, args, startTime, "", "Stat failed", err)
+			return
+		}
+		h = make(http.Header)
+		for k, vs := range objInfo.Metadata {
+			if strings.HasPrefix(strings.ToLower(k), "x-amz-storage-class") {
+				for _, v := range vs {
+					h.Add(k, v)
+				}
+			}
+		}
+		return h
+	}
+
+	metadata := make(http.Header)
+	metadata.Set("x-amz-storage-class", "REDUCED_REDUNDANCY")
+
+	const srcSize = 1024 * 1024
+	buf := bytes.Repeat([]byte("abcde"), srcSize)
+
+	// Put an object with RRS Storage class
+	_, err = c.PutObject(bucketName, "srcObjectRRSClass",
+		bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{StorageClass: "REDUCED_REDUNDANCY"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject failed", err)
+		return
+	}
+
+	// Make server side copy of object uploaded in previous step
+	src := minio.NewSourceInfo(bucketName, "srcObjectRRSClass", nil)
+	dst, err := minio.NewDestinationInfo(bucketName, "srcObjectRRSClassCopy", nil, nil)
+	c.CopyObject(dst, src)
+
+	// Fetch the meta data of copied object
+	if !reflect.DeepEqual(metadata, fetchMeta("srcObjectRRSClassCopy")) {
+		logError(testName, function, args, startTime, "", "Metadata match failed", err)
+		return
+	}
+
+	metadata = make(http.Header)
+	metadata.Set("x-amz-storage-class", "STANDARD")
+
+	// Put an object with Standard Storage class
+	_, err = c.PutObject(bucketName, "srcObjectSSClass",
+		bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{StorageClass: "STANDARD"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject failed", err)
+		return
+	}
+
+	// Make server side copy of object uploaded in previous step
+	src = minio.NewSourceInfo(bucketName, "srcObjectSSClass", nil)
+	dst, err = minio.NewDestinationInfo(bucketName, "srcObjectSSClassCopy", nil, nil)
+	c.CopyObject(dst, src)
+
+	// Fetch the meta data of copied object
+	if !reflect.DeepEqual(metadata, fetchMeta("srcObjectSSClassCopy")) {
+		logError(testName, function, args, startTime, "", "Metadata match failed", err)
+		return
+	}
+
+	successLogger(testName, function, args, startTime).Info()
+}
+
 // Test put object with size -1 byte object.
 func testPutObjectNoLengthV2() {
 	// initialize logging params
@@ -6708,6 +6923,9 @@ func main() {
 		testFPutObjectWithContext()
 		testFGetObjectWithContext()
 		testPutObjectWithContext()
+		testStorageClassMetadataPutObject()
+		testStorageClassInvalidMetadataPutObject()
+		testStorageClassMetadataCopyObject()
 
 		// SSE-C tests will only work over TLS connection.
 		if tls {
