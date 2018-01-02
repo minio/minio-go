@@ -177,31 +177,6 @@ func (r *lockedRandSource) Seed(seed int64) {
 	r.lk.Unlock()
 }
 
-// getRegionFromURL - parse region from URL if present.
-func getRegionFromURL(u url.URL) (region string) {
-	region = ""
-	if s3utils.IsGoogleEndpoint(u) {
-		return
-	} else if s3utils.IsAmazonChinaEndpoint(u) {
-		// For china specifically we need to set everything to
-		// cn-north-1 for now, there is no easier way until AWS S3
-		// provides a cleaner compatible API across "us-east-1" and
-		// China region.
-		return "cn-north-1"
-	} else if s3utils.IsAmazonGovCloudEndpoint(u) {
-		// For us-gov specifically we need to set everything to
-		// us-gov-west-1 for now, there is no easier way until AWS S3
-		// provides a cleaner compatible API across "us-east-1" and
-		// Gov cloud region.
-		return "us-gov-west-1"
-	}
-	parts := s3utils.AmazonS3Host.FindStringSubmatch(u.Host)
-	if len(parts) > 1 {
-		region = parts[1]
-	}
-	return region
-}
-
 func privateNew(endpoint string, creds *credentials.Credentials, secure bool, region string) (*Client, error) {
 	// construct endpoint.
 	endpointURL, err := getEndpointURL(endpoint, secure)
@@ -228,7 +203,7 @@ func privateNew(endpoint string, creds *credentials.Credentials, secure bool, re
 
 	// Sets custom region, if region is empty bucket location cache is used automatically.
 	if region == "" {
-		region = getRegionFromURL(clnt.endpointURL)
+		region = s3utils.GetRegionFromURL(clnt.endpointURL)
 	}
 	clnt.region = region
 
@@ -823,10 +798,5 @@ func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, que
 		urlStr = urlStr + "?" + s3utils.QueryEncode(queryValues)
 	}
 
-	u, err := url.Parse(urlStr)
-	if err != nil {
-		return nil, err
-	}
-
-	return u, nil
+	return url.Parse(urlStr)
 }
