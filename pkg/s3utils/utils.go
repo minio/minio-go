@@ -65,22 +65,6 @@ func IsValidIP(ip string) bool {
 	return net.ParseIP(ip) != nil
 }
 
-// IsVirtualHostSupported - verifies if bucketName can be part of
-// virtual host. Currently only Amazon S3 and Google Cloud Storage
-// would support this.
-func IsVirtualHostSupported(endpointURL url.URL, bucketName string) bool {
-	if endpointURL == sentinelURL {
-		return false
-	}
-	// bucketName can be valid but '.' in the hostname will fail SSL
-	// certificate validation. So do not use host-style for such buckets.
-	if endpointURL.Scheme == "https" && strings.Contains(bucketName, ".") {
-		return false
-	}
-	// Return true for all other cases
-	return IsAmazonEndpoint(endpointURL) || IsGoogleEndpoint(endpointURL)
-}
-
 // AmazonS3Host - regular expression used to determine if an arg is s3 host.
 var AmazonS3Host = regexp.MustCompile("^s3[.-]?(.*?)\\.amazonaws\\.com$")
 

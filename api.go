@@ -81,6 +81,9 @@ type Client struct {
 
 	// Random seed.
 	random *rand.Rand
+
+	// whether server supports virtual hosted style urls
+	isVirtual bool
 }
 
 // Global constants.
@@ -238,6 +241,8 @@ func privateNew(endpoint string, creds *credentials.Credentials, secure bool, re
 	// Introduce a new locked random seed.
 	clnt.random = rand.New(&lockedRandSource{src: rand.NewSource(time.Now().UTC().UnixNano())})
 
+	// auto probe if server supports virtual hosted style urls
+	clnt.probeVirtualHostStyle()
 	// Return.
 	return clnt, nil
 }
@@ -799,12 +804,11 @@ func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, que
 	// endpoint URL.
 	if bucketName != "" {
 		// Save if target url will have buckets which suppport virtual host.
-		isVirtualHostStyle := s3utils.IsVirtualHostSupported(c.endpointURL, bucketName)
-
+		isVirtual := c.isVirtualHostStyle(bucketName)
 		// If endpoint supports virtual host style use that always.
 		// Currently only S3 and Google Cloud Storage would support
 		// virtual host style.
-		if isVirtualHostStyle {
+		if isVirtual {
 			urlStr = scheme + "://" + bucketName + "." + host + "/"
 			if objectName != "" {
 				urlStr = urlStr + s3utils.EncodePath(objectName)
@@ -829,4 +833,113 @@ func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, que
 	}
 
 	return u, nil
+}
+
+// isVirtualHostStyle - returns true if server supports
+// virtual hosted-style urls
+func (c *Client) isVirtualHostStyle(bucketName string) bool {
+	if c.endpointURL == sentinelURL {
+		return false
+	}
+	// bucketName can be valid but '.' in the hostname will fail SSL
+	// certificate validation. So do not use host-style for such buckets.
+	if c.endpointURL.Scheme == "https" && strings.Contains(bucketName, ".") {
+		return false
+	}
+	return c.isVirtual
+}
+
+// probeVirtualHostStyle - sets the isVirtualHostStyle bool
+// to true if server can accept virtual hosted style urls.
+// Send a HEAD bucket request for a random bucket name
+// with request url in virtual hosted style format,
+// and see if server responds with NotFound status.
+func (c *Client) probeVirtualHostStyle() {
+	// set default to false
+	c.isVirtual = false
+
+	host := c.endpointURL.Host
+	scheme := c.endpointURL.Scheme
+	method := "HEAD"
+	// Strip port 80 and 443 so we won't send these ports in Host header.
+	if h, p, err := net.SplitHostPort(host); err == nil {
+		if scheme == "http" && p == "80" || scheme == "https" && p == "443" {
+			host = h
+		}
+	}
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "auto-probe")
+
+	// Construct HEAD bucket request with virtual style
+	urlStr := scheme + "://" + bucketName + "." + host + "/"
+
+	u, err := url.Parse(urlStr)
+	if err != nil {
+		return
+	}
+	// Initialize a new HTTP request for the method.
+	req, err := http.NewRequest(method, u.String(), nil)
+	if err != nil {
+		return
+	}
+
+	// Get credentials from the configured credentials provider.
+	value, err := c.credsProvider.Get()
+	if err != nil {
+		return
+	}
+
+	var (
+		signerType      = value.SignerType
+		accessKeyID     = value.AccessKeyID
+		secretAccessKey = value.SecretAccessKey
+		sessionToken    = value.SessionToken
+	)
+
+	// Custom signer set then override the behavior.
+	if c.overrideSignerType != credentials.SignatureDefault {
+		signerType = c.overrideSignerType
+	}
+
+	// If signerType returned by credentials helper is anonymous,
+	// then do not sign regardless of signerType override.
+	if value.SignerType == credentials.SignatureAnonymous {
+		signerType = credentials.SignatureAnonymous
+	}
+	// Set 'User-Agent' header for the request.
+	c.setUserAgent(req)
+
+	metadata := requestMetadata{
+		bucketName:       bucketName,
+		contentSHA256Hex: emptySHA256Hex,
+	}
+	// Set all headers.
+	for k, v := range metadata.customHeader {
+		req.Header.Set(k, v[0])
+	}
+
+	req.Body = nil
+	// Set incoming content-length.
+	req.ContentLength = metadata.contentLength
+	switch {
+	case signerType.IsV2():
+		// Add signature version '2' authorization header.
+		req = s3signer.SignV2(*req, accessKeyID, secretAccessKey)
+	default:
+		// Set sha256 sum for signature calculation only with signature version '4'.
+		shaHeader := unsignedPayload
+		if metadata.contentSHA256Hex != "" {
+			shaHeader = metadata.contentSHA256Hex
+		}
+		req.Header.Set("X-Amz-Content-Sha256", shaHeader)
+		// Add signature version '4' authorization header.
+		req = s3signer.SignV4(*req, accessKeyID, secretAccessKey, sessionToken, "us-east-1")
+	}
+	// Initiate the request.
+	r, _ := c.do(req)
+	if r != nil && (r.StatusCode == http.StatusNotFound) {
+		// Bucket doesn't exist, means server supports virtual hosted style urls.
+		c.isVirtual = true
+	}
+	return
 }

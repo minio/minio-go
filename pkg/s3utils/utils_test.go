@@ -76,34 +76,6 @@ func TestIsValidIP(t *testing.T) {
 
 }
 
-// Tests validate virtual host validator.
-func TestIsVirtualHostSupported(t *testing.T) {
-	testCases := []struct {
-		url    string
-		bucket string
-		// Expeceted result.
-		result bool
-	}{
-		{"https://s3.amazonaws.com", "my-bucket", true},
-		{"https://s3.cn-north-1.amazonaws.com.cn", "my-bucket", true},
-		{"https://s3.amazonaws.com", "my-bucket.", false},
-		{"https://amazons3.amazonaws.com", "my-bucket.", false},
-		{"https://storage.googleapis.com/", "my-bucket", true},
-		{"https://mystorage.googleapis.com/", "my-bucket", false},
-	}
-
-	for i, testCase := range testCases {
-		u, err := url.Parse(testCase.url)
-		if err != nil {
-			t.Errorf("Test %d: Expected to pass, but failed with: <ERROR> %s", i+1, err)
-		}
-		result := IsVirtualHostSupported(*u, testCase.bucket)
-		if testCase.result != result {
-			t.Errorf("Test %d: Expected isVirtualHostSupported to be '%v' for input url \"%s\" and bucket \"%s\", but found it to be '%v' instead", i+1, testCase.result, testCase.url, testCase.bucket, result)
-		}
-	}
-}
-
 // Tests validate Amazon endpoint validator.
 func TestIsAmazonEndpoint(t *testing.T) {
 	testCases := []struct {

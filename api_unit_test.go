@@ -217,10 +217,6 @@ func TestMakeTargetURL(t *testing.T) {
 		{"localhost", true, "", "", "", nil, url.URL{Host: "localhost", Scheme: "https", Path: "/"}, nil},
 		// Test 3
 		{"localhost:9000", true, "mybucket", "", "", nil, url.URL{Host: "localhost:9000", Scheme: "https", Path: "/mybucket/"}, nil},
-		// Test 4, testing against google storage API
-		{"storage.googleapis.com", true, "mybucket", "", "", nil, url.URL{Host: "mybucket.storage.googleapis.com", Scheme: "https", Path: "/"}, nil},
-		// Test 5, testing against AWS S3 API
-		{"s3.amazonaws.com", true, "mybucket", "myobject", "", nil, url.URL{Host: "mybucket.s3.amazonaws.com", Scheme: "https", Path: "/myobject"}, nil},
 		// Test 6
 		{"localhost:9000", false, "mybucket", "myobject", "", nil, url.URL{Host: "localhost:9000", Scheme: "http", Path: "/mybucket/myobject"}, nil},
 		// Test 7, testing with query
