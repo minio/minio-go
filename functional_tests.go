@@ -5531,6 +5531,8 @@ func testStorageClassMetadataPutObject() {
 	metadata := make(http.Header)
 	metadata.Set("x-amz-storage-class", "REDUCED_REDUNDANCY")
 
+	emptyMetadata := make(http.Header)
+
 	const srcSize = 1024 * 1024
 	buf := bytes.Repeat([]byte("abcde"), srcSize) // gives a buffer of 1MiB
 
@@ -5540,7 +5542,12 @@ func testStorageClassMetadataPutObject() {
 		logError(testName, function, args, startTime, "", "PutObject failed", err)
 		return
 	}
-	if !reflect.DeepEqual(metadata, fetchMeta("srcObjectRRSClass")) {
+
+	// Get the returned metadata
+	returnedMeta := fetchMeta("srcObjectRRSClass")
+
+	// The response metada should either be equal to metadata (with REDUCED_REDUNDANCY) or emptyMetadata (in case of gateways)
+	if !reflect.DeepEqual(metadata, returnedMeta) && !reflect.DeepEqual(emptyMetadata, returnedMeta) {
 		logError(testName, function, args, startTime, "", "Metadata match failed", err)
 		return
 	}
@@ -5554,8 +5561,8 @@ func testStorageClassMetadataPutObject() {
 		logError(testName, function, args, startTime, "", "PutObject failed", err)
 		return
 	}
-	if !reflect.DeepEqual(metadata, fetchMeta("srcObjectSSClass")) {
-		logError(testName, function, args, startTime, "", "Metadata match failed", err)
+	if reflect.DeepEqual(metadata, fetchMeta("srcObjectSSClass")) {
+		logError(testName, function, args, startTime, "", "Metadata verification failed, STANDARD storage class should not be a part of response metadata", err)
 		return
 	}
 
@@ -5651,6 +5658,8 @@ func testStorageClassMetadataCopyObject() {
 	metadata := make(http.Header)
 	metadata.Set("x-amz-storage-class", "REDUCED_REDUNDANCY")
 
+	emptyMetadata := make(http.Header)
+
 	const srcSize = 1024 * 1024
 	buf := bytes.Repeat([]byte("abcde"), srcSize)
 
@@ -5667,8 +5676,11 @@ func testStorageClassMetadataCopyObject() {
 	dst, err := minio.NewDestinationInfo(bucketName, "srcObjectRRSClassCopy", nil, nil)
 	c.CopyObject(dst, src)
 
-	// Fetch the meta data of copied object
-	if !reflect.DeepEqual(metadata, fetchMeta("srcObjectRRSClassCopy")) {
+	// Get the returned metadata
+	returnedMeta := fetchMeta("srcObjectRRSClassCopy")
+
+	// The response metada should either be equal to metadata (with REDUCED_REDUNDANCY) or emptyMetadata (in case of gateways)
+	if !reflect.DeepEqual(metadata, returnedMeta) && !reflect.DeepEqual(emptyMetadata, returnedMeta) {
 		logError(testName, function, args, startTime, "", "Metadata match failed", err)
 		return
 	}
@@ -5690,8 +5702,8 @@ func testStorageClassMetadataCopyObject() {
 	c.CopyObject(dst, src)
 
 	// Fetch the meta data of copied object
-	if !reflect.DeepEqual(metadata, fetchMeta("srcObjectSSClassCopy")) {
-		logError(testName, function, args, startTime, "", "Metadata match failed", err)
+	if reflect.DeepEqual(metadata, fetchMeta("srcObjectSSClassCopy")) {
+		logError(testName, function, args, startTime, "", "Metadata verification failed, STANDARD storage class should not be a part of response metadata", err)
 		return
 	}
 
