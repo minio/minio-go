@@ -28,6 +28,7 @@ import (
 
 	"github.com/minio/minio-go/pkg/encrypt"
 	"github.com/minio/minio-go/pkg/s3utils"
+	"golang.org/x/net/lex/httplex"
 )
 
 // PutObjectOptions represents options specified by user for PutObject call
@@ -94,9 +95,12 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 // validate() checks if the UserMetadata map has standard headers or client side
 // encryption headers and raises an error if so.
 func (opts PutObjectOptions) validate() (err error) {
-	for k := range opts.UserMetadata {
-		if isStandardHeader(k) || isCSEHeader(k) || isStorageClassHeader(k) {
-			return ErrInvalidArgument(k + " unsupported request parameter for user defined metadata from minio-go")
+	for k, v := range opts.UserMetadata {
+		if !httplex.ValidHeaderFieldName(k) || isStandardHeader(k) || isCSEHeader(k) || isStorageClassHeader(k) {
+			return ErrInvalidArgument(k + " unsupported user defined metadata name")
+		}
+		if !httplex.ValidHeaderFieldValue(v) {
+			return ErrInvalidArgument(v + " unsupported user defined metadata value")
 		}
 	}
 	return nil
