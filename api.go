@@ -557,16 +557,17 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 		// code dictates invalid region, we can retry the request
 		// with the new region.
 		//
-		// Additionally we should only retry if bucketLocation and custom
-		// region is empty.
-		if metadata.bucketLocation == "" && c.region == "" {
+		// we should only retry if custom region is empty.
+		if c.region == "" {
 			if errResponse.Code == "AuthorizationHeaderMalformed" || errResponse.Code == "InvalidRegion" {
+				// Gather Cached location only if bucketName is present.
 				if metadata.bucketName != "" && errResponse.Region != "" {
-					// Gather Cached location only if bucketName is present.
-					if _, cachedLocationError := c.bucketLocCache.Get(metadata.bucketName); cachedLocationError != false {
-						c.bucketLocCache.Set(metadata.bucketName, errResponse.Region)
-						continue // Retry.
-					}
+					// As the region is not known, accept the region expected by server as
+					// correct region and set it in region cache.
+					c.bucketLocCache.Set(metadata.bucketName, errResponse.Region)
+					// Update metadata before retrying
+					metadata.bucketLocation = errResponse.Region
+					continue // Retry.
 				}
 			}
 		}
