@@ -268,8 +268,8 @@ var dataFileMap = map[string]int{
 	"datafile-65-MB":   65 * humanize.MiByte,
 }
 
-func isQuickMode() bool {
-	return os.Getenv("MODE") == "quick"
+func isFullMode() bool {
+	return os.Getenv("MINT_MODE") == "full"
 }
 
 func getFuncName() string {
@@ -605,8 +605,8 @@ func testPutObjectWithMetadata() {
 		"opts":       "minio.PutObjectOptions{UserMetadata: metadata, Progress: progress}",
 	}
 
-	if isQuickMode() {
-		ignoredLog(testName, function, args, startTime, "Skipping functional tests for short runs").Info()
+	if !isFullMode() {
+		ignoredLog(testName, function, args, startTime, "Skipping functional tests for short/quick runs").Info()
 		return
 	}
 
@@ -6886,7 +6886,7 @@ func main() {
 
 	tls := mustParseBool(os.Getenv(enableHTTPS))
 	// execute tests
-	if !isQuickMode() {
+	if isFullMode() {
 		testMakeBucketErrorV2()
 		testGetObjectClosedTwiceV2()
 		testRemovePartiallyUploadedV2()
