@@ -1539,7 +1539,7 @@ func testFPutObject() {
 		return
 	}
 	if rOctet.ContentType != "application/octet-stream" {
-		logError(testName, function, args, startTime, "", "ContentType does not match, expected application/octet-stream, got "+rStandard.ContentType, err)
+		logError(testName, function, args, startTime, "", "ContentType does not match, expected application/octet-stream, got "+rOctet.ContentType, err)
 		return
 	}
 
@@ -1551,7 +1551,7 @@ func testFPutObject() {
 		return
 	}
 	if rGTar.ContentType != "application/x-gtar" {
-		logError(testName, function, args, startTime, "", "ContentType does not match, expected application/x-gtar, got "+rStandard.ContentType, err)
+		logError(testName, function, args, startTime, "", "ContentType does not match, expected application/x-gtar, got "+rGTar.ContentType, err)
 		return
 	}
 
