@@ -137,7 +137,7 @@ func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName stri
 	}
 
 	// NOTE: Streaming signature is not supported by GCS.
-	if s3utils.IsGoogleEndpoint(c.endpointURL) {
+	if s3utils.IsGoogleEndpoint(*c.endpointURL) {
 		// Do not compute MD5 for Google Cloud Storage.
 		return c.putObjectNoChecksum(ctx, bucketName, objectName, reader, size, opts)
 	}
