@@ -21,14 +21,13 @@ package main
 
 import (
 	"log"
-	"os"
 
 	"github.com/minio/minio-go"
 )
 
 func main() {
-	// Note: YOUR-ACCESSKEYID, YOUR-SECRETACCESSKEY, my-password, my-testfile, my-bucketname and
-	// my-objectname are dummy values, please replace them with original values.
+	// Note: YOUR-ACCESSKEYID, YOUR-SECRETACCESSKEY, my-password, my-bucketname and my-objectname
+	// are dummy values, please replace them with original values.
 
 	// Requests are always secure (HTTPS).
 
@@ -39,24 +38,10 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	// Open a local file that we will upload
-	file, err := os.Open("my-testfile")
+	// Get the information about the SSE-C encrypted object.
+	stat, err := s3Client.StatEncryptedObject("my-bucketname", "my-objectname", "my-password")
 	if err != nil {
 		log.Fatalln(err)
 	}
-	defer file.Close()
-
-	// Get file size
-	stat, err := file.Stat()
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	// Upload file content to the server and store it as server-side encrypted object.
-	n, err := s3Client.PutEncryptedObject("my-bucketname", "my-objectname", file, stat.Size(), "my-password")
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	log.Println("Uploaded", "my-objectname", " of size: ", n, "Successfully.")
+	log.Println(stat)
 }

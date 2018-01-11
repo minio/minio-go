@@ -25,15 +25,13 @@ import (
 	"os"
 
 	"github.com/minio/minio-go"
-	"github.com/minio/minio-go/pkg/encrypt"
 )
 
 func main() {
-	// Note: YOUR-ACCESSKEYID, YOUR-SECRETACCESSKEY, my-bucketname, my-objectname and
+	// Note: YOUR-ACCESSKEYID, YOUR-SECRETACCESSKEY, my-password, my-bucketname, my-objectname and
 	// my-testfile are dummy values, please replace them with original values.
 
-	// Requests are always secure (HTTPS) by default. Set secure=false to enable insecure (HTTP) access.
-	// This boolean value is the last argument for New().
+	// Requests are always secure (HTTPS).
 
 	// New returns an Amazon S3 compatible client object. API compatibility (v2 or v4) is automatically
 	// determined based on the Endpoint value.
@@ -42,35 +40,8 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	//// Build an asymmetric key from private and public files
-	//
-	// privateKey, err := ioutil.ReadFile("private.key")
-	// if err != nil {
-	//	t.Fatal(err)
-	// }
-	//
-	// publicKey, err := ioutil.ReadFile("public.key")
-	// if err != nil {
-	//	t.Fatal(err)
-	// }
-	//
-	// asymmetricKey, err := NewAsymmetricKey(privateKey, publicKey)
-	// if err != nil {
-	//	t.Fatal(err)
-	// }
-	////
-
-	// Build a symmetric key
-	symmetricKey := encrypt.NewSymmetricKey([]byte("my-secret-key-00"))
-
-	// Build encryption materials which will encrypt uploaded data
-	cbcMaterials, err := encrypt.NewCBCSecureMaterials(symmetricKey)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	// Get a deciphered data from the server, deciphering is assured by cbcMaterials
-	reader, err := s3Client.GetEncryptedObject("my-bucketname", "my-objectname", cbcMaterials)
+	// Get an object encrypted with server-side encryption.
+	reader, err := s3Client.GetEncryptedObject("my-bucketname", "my-objectname", "my-password")
 	if err != nil {
 		log.Fatalln(err)
 	}

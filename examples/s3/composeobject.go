@@ -20,6 +20,7 @@
 package main
 
 import (
+	"github.com/minio/minio-go/pkg/encrypt"
 	"log"
 
 	minio "github.com/minio/minio-go"
@@ -44,32 +45,38 @@ func main() {
 
 	// Prepare source decryption key (here we assume same key to
 	// decrypt all source objects.)
-	decKey := minio.NewSSEInfo([]byte{1, 2, 3}, "")
+	decKey, err := encrypt.NewServerSide(make([]byte, 32))
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	// Source objects to concatenate. We also specify decryption
 	// key for each
-	src1 := minio.NewSourceInfo("bucket1", "object1", &decKey)
+	src1 := minio.NewSourceInfo("bucket1", "object1", decKey)
 	src1.SetMatchETagCond("31624deb84149d2f8ef9c385918b653a")
 
-	src2 := minio.NewSourceInfo("bucket2", "object2", &decKey)
+	src2 := minio.NewSourceInfo("bucket2", "object2", decKey)
 	src2.SetMatchETagCond("f8ef9c385918b653a31624deb84149d2")
 
-	src3 := minio.NewSourceInfo("bucket3", "object3", &decKey)
+	src3 := minio.NewSourceInfo("bucket3", "object3", decKey)
 	src3.SetMatchETagCond("5918b653a31624deb84149d2f8ef9c38")
 
 	// Create slice of sources.
 	srcs := []minio.SourceInfo{src1, src2, src3}
 
 	// Prepare destination encryption key
-	encKey := minio.NewSSEInfo([]byte{8, 9, 0}, "")
-
-	// Create destination info
-	dst, err := minio.NewDestinationInfo("bucket", "object", &encKey, nil)
+	encKey, err := encrypt.NewServerSide(make([]byte, 32))
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	err = s3Client.ComposeObject(dst, srcs)
+	// Create destination info
+	dst, err := minio.NewDestinationInfo("bucket", "object", encKey, nil)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	err = s3Client.ComposeObject(dst, srcs...)
 	if err != nil {
 		log.Fatalln(err)
 	}

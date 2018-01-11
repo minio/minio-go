@@ -22,23 +22,36 @@ import (
 	"io"
 
 	"github.com/minio/minio-go/pkg/encrypt"
+	"golang.org/x/crypto/argon2"
 )
 
-// PutEncryptedObject - Encrypt and store object.
-func (c Client) PutEncryptedObject(bucketName, objectName string, reader io.Reader, encryptMaterials encrypt.Materials) (n int64, err error) {
+// A magic value used to prevent that client side encryption and server side encryption
+// derive the same key if Argon2i(password, bucket+object) is used.
+const kdfMagicConstant = "SSE-C"
 
-	if encryptMaterials == nil {
-		return 0, ErrInvalidArgument("Unable to recognize empty encryption properties")
-	}
-
-	if err := encryptMaterials.SetupEncryptMode(reader); err != nil {
-		return 0, err
-	}
-
-	return c.PutObjectWithContext(context.Background(), bucketName, objectName, reader, -1, PutObjectOptions{EncryptMaterials: encryptMaterials})
+func defaultPBKDF(password, salt []byte, keyLen int) []byte {
+	return argon2.Key(password, salt, 5, 32*1024, 4, uint32(keyLen)) // medium secure Argon2i security parameters
 }
 
-// FPutEncryptedObject - Encrypt and store an object with contents from file at filePath.
-func (c Client) FPutEncryptedObject(bucketName, objectName, filePath string, encryptMaterials encrypt.Materials) (n int64, err error) {
-	return c.FPutObjectWithContext(context.Background(), bucketName, objectName, filePath, PutObjectOptions{EncryptMaterials: encryptMaterials})
+// PutEncryptedObject creates a server-side encrypted object at the given bucketName/objectName.
+// The object is encrypted with a key derived from the given password using server-side encryption.
+func (c Client) PutEncryptedObject(bucketName, objectName string, reader io.Reader, size int64, password string) (n int64, err error) {
+	salt := []byte(kdfMagicConstant + bucketName + objectName)
+	sse, err := encrypt.NewServerSide(defaultPBKDF([]byte(password), salt, 32))
+	if err != nil {
+		return 0, err
+	}
+	return c.PutObjectWithContext(context.Background(), bucketName, objectName, reader, size, PutObjectOptions{ServerSideEncryption: sse})
+}
+
+// FPutEncryptedObject creates a server-side encrypted object from the given filePath at the given
+// bucketName/objectName. The object is encrypted with a key derived from the given password using
+// server-side encryption.
+func (c Client) FPutEncryptedObject(bucketName, objectName, filePath, password string) (n int64, err error) {
+	salt := []byte(kdfMagicConstant + bucketName + objectName)
+	sse, err := encrypt.NewServerSide(defaultPBKDF([]byte(password), salt, 32))
+	if err != nil {
+		return 0, err
+	}
+	return c.FPutObjectWithContext(context.Background(), bucketName, objectName, filePath, PutObjectOptions{ServerSideEncryption: sse})
 }

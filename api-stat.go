@@ -19,11 +19,13 @@ package minio
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/minio/minio-go/pkg/encrypt"
 	"github.com/minio/minio-go/pkg/s3utils"
 )
 
@@ -93,6 +95,25 @@ func (c Client) StatObject(bucketName, objectName string, opts StatObjectOptions
 	return c.statObject(context.Background(), bucketName, objectName, opts)
 }
 
+// StatEncryptedObject verifies if the encrypted object exists and you have permission
+// and right key to access it.
+func (c Client) StatEncryptedObject(bucketName, objectName, password string) (ObjectInfo, error) {
+	// Input validation.
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		return ObjectInfo{}, err
+	}
+	if err := s3utils.CheckValidObjectName(objectName); err != nil {
+		return ObjectInfo{}, err
+	}
+	salt := []byte(kdfMagicConstant + bucketName + objectName)
+	sse, err := encrypt.NewServerSide(defaultPBKDF([]byte(password), salt, 32))
+	if err != nil {
+		return ObjectInfo{}, err
+	}
+	opts := GetObjectOptions{ServerSideEncryption: sse}
+	return c.statObject(context.Background(), bucketName, objectName, StatObjectOptions{opts})
+}
+
 // Lower level API for statObject supporting pre-conditions and range headers.
 func (c Client) statObject(ctx context.Context, bucketName, objectName string, opts StatObjectOptions) (ObjectInfo, error) {
 	// Input validation.
@@ -101,6 +122,9 @@ func (c Client) statObject(ctx context.Context, bucketName, objectName string, o
 	}
 	if err := s3utils.CheckValidObjectName(objectName); err != nil {
 		return ObjectInfo{}, err
+	}
+	if opts.ServerSideEncryption != nil && !c.secure {
+		return ObjectInfo{}, errors.New("server side encryption requests require a TLS connection")
 	}
 
 	// Execute HEAD on objectName.

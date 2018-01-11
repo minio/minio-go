@@ -2,7 +2,7 @@
 
 /*
  * Minio Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2015-2017 Minio, Inc.
+ * Copyright 2017 Minio, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,15 +20,13 @@
 package main
 
 import (
-	"log"
-	"os"
-
 	"github.com/minio/minio-go"
+	"log"
 )
 
 func main() {
-	// Note: YOUR-ACCESSKEYID, YOUR-SECRETACCESSKEY, my-password, my-testfile, my-bucketname and
-	// my-objectname are dummy values, please replace them with original values.
+	// Note: YOUR-ACCESSKEYID, YOUR-SECRETACCESSKEY, my-password, my-file, my-bucket and
+	// my-object are dummy values, please replace them with original values.
 
 	// Requests are always secure (HTTPS).
 
@@ -39,24 +37,13 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	// Open a local file that we will upload
-	file, err := os.Open("my-testfile")
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer file.Close()
+	filePath, password := "my-file", "my-password"
 
-	// Get file size
-	stat, err := file.Stat()
+	// Encrypt file content and upload to the server
+	n, err := s3Client.FPutEncryptedObject("my-bucket", "my-object", filePath, password)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	// Upload file content to the server and store it as server-side encrypted object.
-	n, err := s3Client.PutEncryptedObject("my-bucketname", "my-objectname", file, stat.Size(), "my-password")
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	log.Println("Uploaded", "my-objectname", " of size: ", n, "Successfully.")
+	log.Println("Uploaded", "my-object", " of size: ", n, "Successfully.")
 }

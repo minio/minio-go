@@ -20,6 +20,7 @@ package minio
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -32,15 +33,16 @@ import (
 
 // PutObjectOptions represents options specified by user for PutObject call
 type PutObjectOptions struct {
-	UserMetadata       map[string]string
-	Progress           io.Reader
-	ContentType        string
-	ContentEncoding    string
-	ContentDisposition string
-	CacheControl       string
-	EncryptMaterials   encrypt.Materials
-	NumThreads         uint
-	StorageClass       string
+	UserMetadata         map[string]string
+	Progress             io.Reader
+	ContentType          string
+	ContentEncoding      string
+	ContentDisposition   string
+	CacheControl         string
+	EncryptMaterials     encrypt.Materials
+	ServerSideEncryption *encrypt.ServerSide
+	StorageClass         string
+	NumThreads           uint
 }
 
 // getNumThreads - gets the number of threads to be used in the multipart
@@ -80,6 +82,11 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 	}
 	if opts.StorageClass != "" {
 		header[amzStorageClass] = []string{opts.StorageClass}
+	}
+	if opts.ServerSideEncryption != nil {
+		for k, v := range opts.ServerSideEncryption.Headers() {
+			header[k] = v
+		}
 	}
 	for k, v := range opts.UserMetadata {
 		if !isAmzHeader(k) && !isStandardHeader(k) && !isSSEHeader(k) && !isStorageClassHeader(k) {
@@ -127,6 +134,10 @@ func (c Client) PutObject(bucketName, objectName string, reader io.Reader, objec
 }
 
 func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName string, reader io.Reader, size int64, opts PutObjectOptions) (n int64, err error) {
+	if opts.ServerSideEncryption != nil && !c.secure {
+		return 0, errors.New("server side encryption requests require a TLS connection")
+	}
+
 	// Check for largest object size allowed.
 	if size > int64(maxMultipartPutObjectSize) {
 		return 0, ErrEntityTooLarge(size, maxMultipartPutObjectSize, bucketName, objectName)
@@ -144,11 +155,11 @@ func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName stri
 		}
 		return c.putObjectMultipart(ctx, bucketName, objectName, reader, size, opts)
 	}
-	if size < 0 {
+	if size < 0 && opts.ServerSideEncryption == nil { // TODO(aead): minio server does not implement SSE-C multipart PUT, yet
 		return c.putObjectMultipartStreamNoLength(ctx, bucketName, objectName, reader, opts)
 	}
 
-	if size < minPartSize {
+	if size < minPartSize || opts.ServerSideEncryption != nil { // TODO(aead): minio server only implements SSE-C single PUT
 		return c.putObjectNoChecksum(ctx, bucketName, objectName, reader, size, opts)
 	}
 	// For all sizes greater than 64MiB do multipart.
