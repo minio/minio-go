@@ -1,6 +1,6 @@
 /*
  * Minio Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2015-2017 Minio, Inc.
+ * Copyright 2015-2018 Minio, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -287,7 +287,7 @@ func privateNew(endpoint string, creds *credentials.Credentials, secure bool, re
 
 	// Instantiate http client and bucket location cache.
 	clnt.httpClient = &http.Client{
-		Transport:     defaultMinioTransport,
+		Transport:     DefaultTransport,
 		CheckRedirect: clnt.redirectHeaders,
 	}
 
@@ -337,7 +337,7 @@ func (c *Client) SetCustomTransport(customHTTPTransport http.RoundTripper) {
 	//           TLSClientConfig:    &tls.Config{RootCAs: pool},
 	//           DisableCompression: true,
 	//   }
-	//   api.SetTransport(tr)
+	//   api.SetCustomTransport(tr)
 	//
 	if c.httpClient != nil {
 		c.httpClient.Transport = customHTTPTransport
