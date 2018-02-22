@@ -5147,6 +5147,115 @@ func testCompose10KSourcesV2() {
 	testComposeMultipleSources(c)
 }
 
+func testEncryptedEmptyObject() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "PutObject(bucketName, objectName, reader, objectSize, opts)"
+	args := map[string]interface{}{}
+
+	// Instantiate new minio client object
+	c, err := minio.NewV4(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Minio v4 client object creation failed", err)
+		return
+	}
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+	// Make a new bucket in 'us-east-1' (source bucket).
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	sseInfo := minio.NewSSEInfo([]byte("32byteslongsecretkeymustbeagiven"), "AES256")
+
+	// 1. create an sse-c encrypted object to copy by uploading
+	const srcSize = 0
+	var buf []byte // Empty buffer
+	metadata := make(map[string]string)
+	for k, v := range sseInfo.GetSSEHeaders() {
+		metadata[k] = v
+	}
+
+	args["objectName"] = "object"
+	_, err = c.PutObject(bucketName, "object", bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{UserMetadata: metadata, Progress: nil})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject call failed", err)
+		return
+	}
+
+	// 2. Test CopyObject for an empty object
+	dstInfo, err := minio.NewDestinationInfo(bucketName, "new-object", &sseInfo, nil)
+	if err != nil {
+		args["objectName"] = "new-object"
+		function = "NewDestinationInfo(bucketName, objectName, encryptSSEC, userMetadata)"
+		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
+		return
+	}
+	srcInfo := minio.NewSourceInfo(bucketName, "object", &sseInfo)
+	if err = c.CopyObject(dstInfo, srcInfo); err != nil {
+		function = "CopyObject(dstInfo, srcInfo)"
+		logError(testName, function, map[string]interface{}{}, startTime, "", "CopyObject failed", err)
+		return
+	}
+
+	// 3. Test Key rotation
+	rsseInfo := minio.NewSSEInfo([]byte("32byteslongsecretkeymustgenerate"), "AES256")
+	dstInfo, err = minio.NewDestinationInfo(bucketName, "new-object", &rsseInfo, nil)
+	if err != nil {
+		args["objectName"] = "new-object"
+		function = "NewDestinationInfo(bucketName, objectName, encryptSSEC, userMetadata)"
+		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
+		return
+	}
+
+	srcInfo = minio.NewSourceInfo(bucketName, "new-object", &sseInfo)
+	if err = c.CopyObject(dstInfo, srcInfo); err != nil {
+		function = "CopyObject(dstInfo, srcInfo)"
+		logError(testName, function, map[string]interface{}{}, startTime, "", "CopyObject with key rotation failed", err)
+		return
+	}
+
+	// 4. Download the object.
+	opts := minio.GetObjectOptions{}
+	for k, v := range rsseInfo.GetSSEHeaders() {
+		opts.Set(k, v)
+	}
+	reader, err := c.GetObject(bucketName, "new-object", opts)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "GetObject failed", err)
+		return
+	}
+	defer reader.Close()
+
+	decBytes, err := ioutil.ReadAll(reader)
+	if err != nil {
+		logError(testName, function, map[string]interface{}{}, startTime, "", "ReadAll failed", err)
+		return
+	}
+	if !bytes.Equal(decBytes, buf) {
+		logError(testName, function, map[string]interface{}{}, startTime, "", "Downloaded object doesn't match the empty encrypted object", err)
+		return
+	}
+	// Delete all objects and buckets
+	delete(args, "objectName")
+	if err = cleanupBucket(bucketName, c); err != nil {
+		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		return
+	}
+
+	successLogger(testName, function, args, startTime).Info()
+}
+
 func testEncryptedCopyObjectWrapper(c *minio.Client) {
 	// initialize logging params
 	startTime := time.Now()
@@ -6943,6 +7052,7 @@ func main() {
 		if tls {
 			testEncryptedCopyObjectV2()
 			testEncryptedCopyObject()
+			testEncryptedEmptyObject()
 		}
 	} else {
 		testFunctional()
