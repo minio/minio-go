@@ -1668,7 +1668,7 @@ func TestListBucketPolicies(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		policyRules := GetPolicies(testCase.statements, testCase.bucketName)
+		policyRules := GetPolicies(testCase.statements, testCase.bucketName, "")
 		if !reflect.DeepEqual(testCase.expectedResult, policyRules) {
 			t.Fatalf("%+v:\n expected: %+v, got: %+v", testCase, testCase.expectedResult, policyRules)
 		}
