@@ -312,6 +312,7 @@ func TestIsStandardHeader(t *testing.T) {
 		{"content-type", true},
 		{"cache-control", true},
 		{"content-disposition", true},
+		{"content-language", true},
 		{"random-header", false},
 	}
 
