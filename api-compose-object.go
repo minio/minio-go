@@ -527,6 +527,12 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 	for k, v := range metaMap {
 		metaHeaders[k] = v
 	}
+
+	// Add destination encryption headers
+	for k, v := range dst.encryption.getSSEHeaders(false) {
+		metaHeaders[k] = v
+	}
+
 	uploadID, err := c.newUploadID(ctx, dst.bucket, dst.object, PutObjectOptions{UserMetadata: metaHeaders})
 	if err != nil {
 		return err
