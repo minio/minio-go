@@ -60,7 +60,7 @@ func main() {
 	//	t.Fatal(err)
 	// }
 	//
-	// asymmetricKey, err := NewAsymmetricKey(privateKey, publicKey)
+	// asymmetricKey, err := encrypt.NewAsymmetricKey(privateKey, publicKey)
 	// if err != nil {
 	//	t.Fatal(err)
 	// }
