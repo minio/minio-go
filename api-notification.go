@@ -213,6 +213,10 @@ func (c Client) ListenBucketNotification(bucketName, prefix, suffix string, even
 						return
 					}
 				}
+				select {
+				case <-doneCh:
+					return
+				}
 			}
 			// Look for any underlying errors.
 			if err = bio.Err(); err != nil {
