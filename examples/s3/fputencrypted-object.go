@@ -47,17 +47,17 @@ func main() {
 	//
 	// privateKey, err := ioutil.ReadFile("private.key")
 	// if err != nil {
-	//	t.Fatal(err)
+	//	log.Fatalln(err)
 	// }
 	//
 	// publicKey, err := ioutil.ReadFile("public.key")
 	// if err != nil {
-	//	t.Fatal(err)
+	//	log.Fatalln(err)
 	// }
 	//
 	// asymmetricKey, err := encrypt.NewAsymmetricKey(privateKey, publicKey)
 	// if err != nil {
-	//	t.Fatal(err)
+	//	log.Fatalln(err)
 	// }
 	////
 
