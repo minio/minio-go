@@ -207,11 +207,14 @@ func (c Client) ListenBucketNotification(bucketName, prefix, suffix string, even
 				}
 				// Send notifications on channel only if there are events received.
 				if len(notificationInfo.Records) > 0 {
-					select {
-					case notificationInfoCh <- notificationInfo:
-					case <-doneCh:
-						return
-					}
+					notificationInfoCh <- notificationInfo
+				}
+				// Otherwise check for done signal or continue
+				select {
+				case <-doneCh:
+					return
+				default:
+					continue
 				}
 			}
 			// Look for any underlying errors.
