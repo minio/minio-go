@@ -1175,11 +1175,11 @@ func testRemoveObjectsWithContext() {
 		}
 	}
 	// Set context with longer timeout.
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Hour)
+	ctx, cancel = context.WithTimeout(context.Background(), 1*time.Hour)
 	args["ctx"] = ctx
 	defer cancel()
 	// Perform RemoveObjectsWithContext with the longer timeout. Expect the removals to succeed.
-	errorCh := c.RemoveObjectsWithContext(ctx, bucketName, objectsCh)
+	errorCh = c.RemoveObjectsWithContext(ctx, bucketName, objectsCh)
 	select {
 	case r, more := <-errorCh:
 		if more || r.Err != nil {
