@@ -68,6 +68,7 @@ func main() {
 |   | [`GetObjectWithContext`](#GetObjectWithContext)  | |   |   |
 |   | [`FPutObjectWithContext`](#FPutObjectWithContext)  | |   |   |
 |   | [`FGetObjectWithContext`](#FGetObjectWithContext)  | |   |   |
+|   | [`RemoveObjectsWithContext`](#RemoveObjectsWithContext)  | |   |   |
 ## 1. Constructor
 <a name="Minio"></a>
 
@@ -1058,6 +1059,47 @@ go func() {
 }()
 
 for rErr := range minioClient.RemoveObjects("mybucket", objectsCh) {
+    fmt.Println("Error detected during deletion: ", rErr)
+}
+```
+
+<a name="RemoveObjectsWithContext"></a>
+### RemoveObjectsWithContext(ctx context.Context, bucketName string, objectsCh chan string) (errorCh <-chan RemoveObjectError)
+*Identical to RemoveObjects operation, but accepts a context for request cancellation.*
+
+Parameters
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  |Request context  |
+|`bucketName`  | _string_  |Name of the bucket  |
+|`objectsCh` |  _chan string_  | Channel of objects to be removed  | 
+
+
+__Return Values__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`errorCh` | _<-chan minio.RemoveObjectError_  | Receive-only channel of errors observed during deletion.  |
+
+```go
+objectsCh := make(chan string)
+ctx, cancel := context.WithTimeout(context.Background(), 100 * time.Second)
+defer cancel()
+
+// Send object names that are needed to be removed to objectsCh
+go func() {
+	defer close(objectsCh)
+	// List all objects from a bucket-name with a matching prefix.
+	for object := range minioClient.ListObjects("my-bucketname", "my-prefixname", true, nil) {
+		if object.Err != nil {
+			log.Fatalln(object.Err)
+		}
+		objectsCh <- object.Key
+	}
+}()
+
+for rErr := range minioClient.RemoveObjects(ctx, "my-bucketname", objectsCh) {
     fmt.Println("Error detected during deletion: ", rErr)
 }
 ```
