@@ -1101,6 +1101,101 @@ func testGetObjectClosedTwice() {
 	successLogger(testName, function, args, startTime).Info()
 }
 
+// Test RemoveObjectsWithContext request context cancels after timeout
+func testRemoveObjectsWithContext() {
+	// Initialize logging params.
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "RemoveObjectsWithContext(ctx, bucketName, objectsCh)"
+	args := map[string]interface{}{
+		"bucketName": "",
+	}
+
+	// Seed random based on current tie.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client.
+	c, err := minio.New(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Minio client object creation failed", err)
+		return
+	}
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+	// Enable tracing, write to stdout.
+	// c.TraceOn(os.Stderr)
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+	}
+
+	// Generate put data.
+	r := bytes.NewReader(bytes.Repeat([]byte("a"), 8))
+
+	// Multi remove of 20 objects.
+	nrObjects := 20
+	objectsCh := make(chan string)
+	go func() {
+		defer close(objectsCh)
+		for i := 0; i < nrObjects; i++ {
+			objectName := "sample" + strconv.Itoa(i) + ".txt"
+			_, err = c.PutObject(bucketName, objectName, r, 8, minio.PutObjectOptions{ContentType: "application/octet-stream"})
+			if err != nil {
+				logError(testName, function, args, startTime, "", "PutObject failed", err)
+				continue
+			}
+			objectsCh <- objectName
+		}
+	}()
+	// Set context to cancel in 1 nanosecond.
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
+	args["ctx"] = ctx
+	defer cancel()
+
+	// Call RemoveObjectsWithContext API with short timeout.
+	errorCh := c.RemoveObjectsWithContext(ctx, bucketName, objectsCh)
+	// Check for error.
+	select {
+	case r := <-errorCh:
+		if r.Err == nil {
+			logError(testName, function, args, startTime, "", "RemoveObjectsWithContext should fail on short timeout", err)
+			return
+		}
+	}
+	// Set context with longer timeout.
+	ctx, cancel = context.WithTimeout(context.Background(), 1*time.Hour)
+	args["ctx"] = ctx
+	defer cancel()
+	// Perform RemoveObjectsWithContext with the longer timeout. Expect the removals to succeed.
+	errorCh = c.RemoveObjectsWithContext(ctx, bucketName, objectsCh)
+	select {
+	case r, more := <-errorCh:
+		if more || r.Err != nil {
+			logError(testName, function, args, startTime, "", "Unexpected error", r.Err)
+			return
+		}
+	}
+
+	// Delete all objects and buckets.
+	if err = cleanupBucket(bucketName, c); err != nil {
+		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		return
+	}
+	successLogger(testName, function, args, startTime).Info()
+}
+
 // Test removing multiple objects with Remove API
 func testRemoveMultipleObjects() {
 	// initialize logging params
