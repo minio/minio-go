@@ -127,6 +127,9 @@ func (c Client) getObjectWithContext(ctx context.Context, bucketName, objectName
 					} else {
 						// First request is a Stat or Seek call.
 						// Only need to run a StatObject until an actual Read or ReadAt request comes through.
+
+						// Remove range header if already set, for stat Operations to get original file size.
+						delete(opts.headers, "Range")
 						objectInfo, err = c.statObject(ctx, bucketName, objectName, StatObjectOptions{opts})
 						if err != nil {
 							resCh <- getResponse{
@@ -142,6 +145,8 @@ func (c Client) getObjectWithContext(ctx context.Context, bucketName, objectName
 						}
 					}
 				} else if req.settingObjectInfo { // Request is just to get objectInfo.
+					// Remove range header if already set, for stat Operations to get original file size.
+					delete(opts.headers, "Range")
 					if etag != "" {
 						opts.SetMatchETag(etag)
 					}
@@ -381,13 +386,11 @@ func (o *Object) Stat() (ObjectInfo, error) {
 
 	// This is the first request.
 	if !o.isStarted || !o.objectInfoSet {
-		statReq := getRequest{
+		// Send the request and get the response.
+		_, err := o.doGetRequest(getRequest{
 			isFirstReq:        !o.isStarted,
 			settingObjectInfo: !o.objectInfoSet,
-		}
-
-		// Send the request and get the response.
-		_, err := o.doGetRequest(statReq)
+		})
 		if err != nil {
 			o.prevErr = err
 			return ObjectInfo{}, err
@@ -493,7 +496,7 @@ func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 
 	// Negative offset is valid for whence of '2'.
 	if offset < 0 && whence != 2 {
-		return 0, ErrInvalidArgument(fmt.Sprintf("Negative position not allowed for %d.", whence))
+		return 0, ErrInvalidArgument(fmt.Sprintf("Negative position not allowed for %d", whence))
 	}
 
 	// This is the first request. So before anything else
