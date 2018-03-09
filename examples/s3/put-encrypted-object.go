@@ -56,7 +56,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	bucketname := "my-bucektname"              // Specify a bucket name - the bucket must already exist
+	bucketname := "my-bucketname"              // Specify a bucket name - the bucket must already exist
 	objectName := "my-objectname"              // Specify a object name
 	password := "correct horse battery staple" // Specify your password. DO NOT USE THIS ONE - USE YOUR OWN.
 
