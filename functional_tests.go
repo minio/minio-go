@@ -5755,12 +5755,7 @@ func testEncryptedCopyObjectWrapper(c *minio.Client) {
 	}
 
 	// Get copied decrypted object and check if content is equal
-<<<<<<< d8f4c4b3bfb1db3522019867f6bbe7cdc5009816
-	opts = minio.GetObjectOptions{}
-	reader, err = c.GetObject(bucketName, "srcObject", opts)
-=======
 	reader, _, err = coreClient.GetObject(bucketName, "srcObject", minio.GetObjectOptions{})
->>>>>>> refactor encryption API
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject failed", err)
 		return

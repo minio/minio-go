@@ -325,6 +325,31 @@ func TestIsStandardHeader(t *testing.T) {
 
 }
 
+// Tests if header is server encryption header
+func TestIsSSEHeader(t *testing.T) {
+	testCases := []struct {
+		// Input.
+		header string
+		// Expected result.
+		expectedValue bool
+	}{
+		{"x-amz-server-side-encryption", true},
+		{"x-amz-server-side-encryption-aws-kms-key-id", true},
+		{"x-amz-server-side-encryption-context", true},
+		{"x-amz-server-side-encryption-customer-algorithm", true},
+		{"x-amz-server-side-encryption-customer-key", true},
+		{"x-amz-server-side-encryption-customer-key-MD5", true},
+		{"random-header", false},
+	}
+
+	for i, testCase := range testCases {
+		actual := isSSEHeader(testCase.header)
+		if actual != testCase.expectedValue {
+			t.Errorf("Test %d: Expected to pass, but failed", i+1)
+		}
+	}
+}
+
 // Tests if header is x-amz-meta or x-amz-acl
 func TestIsAmzHeader(t *testing.T) {
 	testCases := []struct {
