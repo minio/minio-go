@@ -27,15 +27,15 @@ import (
 )
 
 const (
-	// sse is the AWS SSE header used for SSE-S3 and SSE-KMS.
-	sse = "X-Amz-Server-Side-Encryption"
+	// sseGenericHeader is the AWS SSE header used for SSE-S3 and SSE-KMS.
+	sseGenericHeader = "X-Amz-Server-Side-Encryption"
 
 	// sseCustomerAlgorithm is the AWS SSE-C algorithm HTTP header key.
-	sseCustomerAlgorithm = sse + "-Customer-Algorithm"
+	sseCustomerAlgorithm = sseGenericHeader + "-Customer-Algorithm"
 	// sseCustomerKey is the AWS SSE-C encryption key HTTP header key.
-	sseCustomerKey = sse + "-Customer-Key"
+	sseCustomerKey = sseGenericHeader + "-Customer-Key"
 	// sseCustomerKeyMD5 is the AWS SSE-C encryption key MD5 HTTP header key.
-	sseCustomerKeyMD5 = sse + "-Customer-Key-MD5"
+	sseCustomerKeyMD5 = sseGenericHeader + "-Customer-Key-MD5"
 
 	// sseCopyCustomerAlgorithm is the AWS SSE-C algorithm HTTP header key for CopyObject API.
 	sseCopyCustomerAlgorithm = "X-Amz-Copy-Source-Server-Side-Encryption-Customer-Algorithm"
@@ -143,4 +143,4 @@ type s3 struct{}
 
 func (s s3) Type() Type { return S3 }
 
-func (s s3) Marshal(h http.Header) { h.Set(sse, "AES256") }
+func (s s3) Marshal(h http.Header) { h.Set(sseGenericHeader, "AES256") }
