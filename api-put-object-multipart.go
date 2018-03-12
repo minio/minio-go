@@ -139,7 +139,7 @@ func (c Client) putObjectMultipartNoStream(ctx context.Context, bucketName, obje
 		// Proceed to upload the part.
 		var objPart ObjectPart
 		objPart, err = c.uploadPart(ctx, bucketName, objectName, uploadID, rd, partNumber,
-			md5Base64, sha256Hex, int64(length), opts.ServerSide)
+			md5Base64, sha256Hex, int64(length), opts.ServerSideEncryption)
 		if err != nil {
 			return totalUploadedSize, err
 		}

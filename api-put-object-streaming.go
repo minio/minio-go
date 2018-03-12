@@ -167,7 +167,7 @@ func (c Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketNa
 				var objPart ObjectPart
 				objPart, err = c.uploadPart(ctx, bucketName, objectName, uploadID,
 					sectionReader, uploadReq.PartNum,
-					"", "", partSize, opts.ServerSide)
+					"", "", partSize, opts.ServerSideEncryption)
 				if err != nil {
 					uploadedPartsCh <- uploadedPartRes{
 						Size:  0,
@@ -280,7 +280,7 @@ func (c Client) putObjectMultipartStreamNoChecksum(ctx context.Context, bucketNa
 		var objPart ObjectPart
 		objPart, err = c.uploadPart(ctx, bucketName, objectName, uploadID,
 			io.LimitReader(hookReader, partSize),
-			partNumber, "", "", partSize, opts.ServerSide)
+			partNumber, "", "", partSize, opts.ServerSideEncryption)
 		if err != nil {
 			return totalUploadedSize, err
 		}

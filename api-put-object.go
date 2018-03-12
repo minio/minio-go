@@ -33,16 +33,16 @@ import (
 
 // PutObjectOptions represents options specified by user for PutObject call
 type PutObjectOptions struct {
-	UserMetadata       map[string]string
-	Progress           io.Reader
-	ContentType        string
-	ContentEncoding    string
-	ContentDisposition string
-	ContentLanguage    string
-	CacheControl       string
-	ServerSide         encrypt.ServerSide
-	NumThreads         uint
-	StorageClass       string
+	UserMetadata         map[string]string
+	Progress             io.Reader
+	ContentType          string
+	ContentEncoding      string
+	ContentDisposition   string
+	ContentLanguage      string
+	CacheControl         string
+	ServerSideEncryption encrypt.ServerSide
+	NumThreads           uint
+	StorageClass         string
 }
 
 // getNumThreads - gets the number of threads to be used in the multipart
@@ -78,8 +78,8 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 	if opts.CacheControl != "" {
 		header["Cache-Control"] = []string{opts.CacheControl}
 	}
-	if opts.ServerSide != nil {
-		opts.ServerSide.Marshal(header)
+	if opts.ServerSideEncryption != nil {
+		opts.ServerSideEncryption.Marshal(header)
 	}
 	if opts.StorageClass != "" {
 		header[amzStorageClass] = []string{opts.StorageClass}
@@ -218,7 +218,7 @@ func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName
 		// Proceed to upload the part.
 		var objPart ObjectPart
 		objPart, err = c.uploadPart(ctx, bucketName, objectName, uploadID, rd, partNumber,
-			"", "", int64(length), opts.ServerSide)
+			"", "", int64(length), opts.ServerSideEncryption)
 		if err != nil {
 			return totalUploadedSize, err
 		}

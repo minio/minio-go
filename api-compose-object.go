@@ -197,7 +197,7 @@ func (s *SourceInfo) getProps(c Client) (size int64, etag string, userMeta map[s
 	// Get object info - need size and etag here. Also, decryption
 	// headers are added to the stat request if given.
 	var objInfo ObjectInfo
-	opts := StatObjectOptions{GetObjectOptions{ServerSide: s.encryption}}
+	opts := StatObjectOptions{GetObjectOptions{ServerSideEncryption: s.encryption}}
 	objInfo, err = c.statObject(context.Background(), s.bucket, s.object, opts)
 	if err != nil {
 		err = ErrInvalidArgument(fmt.Sprintf("Could not stat object - %s/%s: %v", s.bucket, s.object, err))
@@ -477,7 +477,7 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 		metaHeaders[k] = v
 	}
 
-	uploadID, err := c.newUploadID(ctx, dst.bucket, dst.object, PutObjectOptions{ServerSide: dst.encryption, UserMetadata: metaHeaders})
+	uploadID, err := c.newUploadID(ctx, dst.bucket, dst.object, PutObjectOptions{ServerSideEncryption: dst.encryption, UserMetadata: metaHeaders})
 	if err != nil {
 		return err
 	}

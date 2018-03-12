@@ -50,7 +50,7 @@ func main() {
 	encryption := encrypt.DefaultPBKDF([]byte(password), []byte(bucketname+objectName))
 
 	// Get the encrypted object
-	reader, err := s3Client.GetObject(bucketname, objectName, minio.GetObjectOptions{ServerSide: encryption})
+	reader, err := s3Client.GetObject(bucketname, objectName, minio.GetObjectOptions{ServerSideEncryption: encryption})
 	if err != nil {
 		log.Fatalln(err)
 	}

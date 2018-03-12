@@ -392,7 +392,7 @@ __minio.GetObjectOptions__
 
 |Field | Type | Description |
 |:---|:---|:---|
-| `opts.ServerSide` | _encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go) |
+| `opts.ServerSideEncryption` | _encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go) |
 
 __Return Value__
 
@@ -551,7 +551,7 @@ __minio.PutObjectOptions__
 | `opts.ContentDisposition` | _string_ | Content disposition of object, "inline" |
 | `opts.ContentLanguage` | _string_ | Content language of object, e.g "French" |
 | `opts.CacheControl` | _string_ | Used to specify directives for caching mechanisms in both requests and responses e.g "max-age=600"|
-| `opts.ServerSide` | _encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go) |
+| `opts.ServerSideEncryption` | _encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go) |
 | `opts.StorageClass` | _string_ | Specify storage class for the object. Supported values for Minio server are `REDUCED_REDUNDANCY` and `STANDARD` |
 
 __Example__

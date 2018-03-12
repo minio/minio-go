@@ -2815,8 +2815,8 @@ func testEncryptedGetObjectReadSeekFunctional() {
 
 	// Save the data
 	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{
-		ContentType: "binary/octet-stream",
-		ServerSide:  encrypt.DefaultPBKDF([]byte("correct horse battery staple"), []byte(bucketName+objectName)),
+		ContentType:          "binary/octet-stream",
+		ServerSideEncryption: encrypt.DefaultPBKDF([]byte("correct horse battery staple"), []byte(bucketName+objectName)),
 	})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject failed", err)
@@ -2830,7 +2830,7 @@ func testEncryptedGetObjectReadSeekFunctional() {
 
 	// Read the data back
 	r, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{
-		ServerSide: encrypt.DefaultPBKDF([]byte("correct horse battery staple"), []byte(bucketName+objectName)),
+		ServerSideEncryption: encrypt.DefaultPBKDF([]byte("correct horse battery staple"), []byte(bucketName+objectName)),
 	})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject failed", err)
@@ -2995,8 +2995,8 @@ func testEncryptedGetObjectReadAtFunctional() {
 
 	// Save the data
 	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{
-		ContentType: "binary/octet-stream",
-		ServerSide:  encrypt.DefaultPBKDF([]byte("correct horse battery staple"), []byte(bucketName+objectName)),
+		ContentType:          "binary/octet-stream",
+		ServerSideEncryption: encrypt.DefaultPBKDF([]byte("correct horse battery staple"), []byte(bucketName+objectName)),
 	})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject failed", err)
@@ -3010,7 +3010,7 @@ func testEncryptedGetObjectReadAtFunctional() {
 
 	// read the data back
 	r, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{
-		ServerSide: encrypt.DefaultPBKDF([]byte("correct horse battery staple"), []byte(bucketName+objectName)),
+		ServerSideEncryption: encrypt.DefaultPBKDF([]byte("correct horse battery staple"), []byte(bucketName+objectName)),
 	})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject failed", err)
@@ -3200,14 +3200,14 @@ func testEncryptionPutGet() {
 		args["sse"] = sse
 
 		// Put encrypted data
-		_, err = c.PutObject(bucketName, objectName, bytes.NewReader(testCase.buf), int64(len(testCase.buf)), minio.PutObjectOptions{ServerSide: sse})
+		_, err = c.PutObject(bucketName, objectName, bytes.NewReader(testCase.buf), int64(len(testCase.buf)), minio.PutObjectOptions{ServerSideEncryption: sse})
 		if err != nil {
 			logError(testName, function, args, startTime, "", "PutEncryptedObject failed", err)
 			return
 		}
 
 		// Read the data back
-		r, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{ServerSide: sse})
+		r, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{ServerSideEncryption: sse})
 		if err != nil {
 			logError(testName, function, args, startTime, "", "GetEncryptedObject failed", err)
 			return
@@ -3331,13 +3331,13 @@ func testEncryptionFPut() {
 		}
 		file.Close()
 		// Put encrypted data
-		if _, err = c.FPutObject(bucketName, objectName, fileName, minio.PutObjectOptions{ServerSide: sse}); err != nil {
+		if _, err = c.FPutObject(bucketName, objectName, fileName, minio.PutObjectOptions{ServerSideEncryption: sse}); err != nil {
 			logError(testName, function, args, startTime, "", "FPutEncryptedObject failed", err)
 			return
 		}
 
 		// Read the data back
-		r, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{ServerSide: sse})
+		r, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{ServerSideEncryption: sse})
 		if err != nil {
 			logError(testName, function, args, startTime, "", "GetEncryptedObject failed", err)
 			return
@@ -5575,7 +5575,7 @@ func testEncryptedEmptyObject() {
 	const srcSize = 0
 	var buf []byte // Empty buffer
 	args["objectName"] = "object"
-	_, err = c.PutObject(bucketName, "object", bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{ServerSide: sse})
+	_, err = c.PutObject(bucketName, "object", bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{ServerSideEncryption: sse})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 		return
@@ -5614,7 +5614,7 @@ func testEncryptedEmptyObject() {
 	}
 
 	// 4. Download the object.
-	reader, err := c.GetObject(bucketName, "new-object", minio.GetObjectOptions{ServerSide: newSSE})
+	reader, err := c.GetObject(bucketName, "new-object", minio.GetObjectOptions{ServerSideEncryption: newSSE})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject failed", err)
 		return
@@ -5663,7 +5663,7 @@ func testEncryptedCopyObjectWrapper(c *minio.Client) {
 	const srcSize = 1024 * 1024
 	buf := bytes.Repeat([]byte("abcde"), srcSize) // gives a buffer of 5MiB
 	_, err = c.PutObject(bucketName, "srcObject", bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{
-		ServerSide: sseSrc,
+		ServerSideEncryption: sseSrc,
 	})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
@@ -5688,7 +5688,7 @@ func testEncryptedCopyObjectWrapper(c *minio.Client) {
 
 	// 3. get copied object and check if content is equal
 	coreClient := minio.Core{c}
-	reader, _, err := coreClient.GetObject(bucketName, "dstObject", minio.GetObjectOptions{ServerSide: sseDst})
+	reader, _, err := coreClient.GetObject(bucketName, "dstObject", minio.GetObjectOptions{ServerSideEncryption: sseDst})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject failed", err)
 		return
@@ -5721,7 +5721,7 @@ func testEncryptedCopyObjectWrapper(c *minio.Client) {
 	}
 
 	// Get copied object and check if content is equal
-	reader, _, err = coreClient.GetObject(bucketName, "srcObject", minio.GetObjectOptions{ServerSide: newSSE})
+	reader, _, err = coreClient.GetObject(bucketName, "srcObject", minio.GetObjectOptions{ServerSideEncryption: newSSE})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject failed", err)
 		return
