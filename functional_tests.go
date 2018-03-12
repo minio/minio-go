@@ -2685,6 +2685,10 @@ func testCopyObject() {
 		return
 	}
 
+	// Close all the get readers before proceeding with CopyObject operations.
+	r.Close()
+	readerCopy.Close()
+
 	// CopyObject again but with wrong conditions
 	src = minio.NewSourceInfo(bucketName, objectName, nil)
 	err = src.SetUnmodifiedSinceCond(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
@@ -2702,6 +2706,37 @@ func testCopyObject() {
 	err = c.CopyObject(dst, src)
 	if err == nil {
 		logError(testName, function, args, startTime, "", "CopyObject did not fail for invalid conditions", err)
+		return
+	}
+
+	// Perform the Copy which should update only metadata.
+	src = minio.NewSourceInfo(bucketName, objectName, nil)
+	dst, err = minio.NewDestinationInfo(bucketName, objectName, nil, map[string]string{
+		"Copy": "should be same",
+	})
+	args["dst"] = dst
+	args["src"] = src
+	if err != nil {
+		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
+		return
+	}
+
+	err = c.CopyObject(dst, src)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "CopyObject shouldn't fail", err)
+		return
+	}
+
+	stOpts := minio.StatObjectOptions{}
+	stOpts.SetMatchETag(objInfo.ETag)
+	objInfo, err = c.StatObject(bucketName, objectName, stOpts)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "CopyObject ETag should match and not fail", err)
+		return
+	}
+
+	if objInfo.Metadata.Get("x-amz-meta-copy") != "should be same" {
+		logError(testName, function, args, startTime, "", "CopyObject modified metadata should match", err)
 		return
 	}
 
@@ -2807,6 +2842,7 @@ func testEncryptedGetObjectReadSeekFunctional() {
 		logError(testName, function, args, startTime, "", "GetObject failed", err)
 		return
 	}
+	defer r.Close()
 
 	st, err := r.Stat()
 	if err != nil {
@@ -2905,6 +2941,7 @@ func testEncryptedGetObjectReadSeekFunctional() {
 			cmpData(r, testCase.start, testCase.end)
 		}
 	}
+
 	successLogger(testName, function, args, startTime).Info()
 }
 
@@ -2990,6 +3027,8 @@ func testEncryptedGetObjectReadAtFunctional() {
 		logError(testName, function, args, startTime, "", "PutObject failed", err)
 		return
 	}
+	defer r.Close()
+
 	offset := int64(2048)
 
 	// read directly
@@ -3928,6 +3967,7 @@ func testFunctional() {
 		logError(testName, function, args, startTime, "", "GetObject bytes mismatch", err)
 		return
 	}
+	newReader.Close()
 
 	function = "FGetObject(bucketName, objectName, fileName)"
 	functionAll += ", " + function
@@ -4398,6 +4438,7 @@ func testPutObjectUploadSeekedObject() {
 		logError(testName, function, args, startTime, "", "GetObject failed", err)
 		return
 	}
+	defer obj.Close()
 
 	n, err = obj.Seek(int64(offset), 0)
 	if err != nil {
@@ -4986,6 +5027,7 @@ func testGetObjectReadSeekFunctionalV2() {
 		logError(testName, function, args, startTime, "", "GetObject failed", err)
 		return
 	}
+	defer r.Close()
 
 	st, err := r.Stat()
 	if err != nil {
@@ -5149,6 +5191,7 @@ func testGetObjectReadAtFunctionalV2() {
 		logError(testName, function, args, startTime, "", "GetObject failed", err)
 		return
 	}
+	defer r.Close()
 
 	st, err := r.Stat()
 	if err != nil {
@@ -5321,6 +5364,7 @@ func testCopyObjectV2() {
 		logError(testName, function, args, startTime, "", "Stat failed", err)
 		return
 	}
+	r.Close()
 
 	// Copy Source
 	src := minio.NewSourceInfo(bucketName, objectName, nil)
@@ -5402,6 +5446,10 @@ func testCopyObjectV2() {
 		logError(testName, function, args, startTime, "", "Number of bytes does not match, expected "+string(objInfoCopy.Size)+" got "+string(objInfo.Size), err)
 		return
 	}
+
+	// Close all the readers.
+	r.Close()
+	readerCopy.Close()
 
 	// CopyObject again but with wrong conditions
 	src = minio.NewSourceInfo(bucketName, objectName, nil)
@@ -5793,13 +5841,11 @@ func testEncryptedCopyObjectWrapper(c *minio.Client) {
 	for k, v := range key2.GetSSEHeaders() {
 		opts.Set(k, v)
 	}
-	coreClient := minio.Core{c}
-	reader, _, err := coreClient.GetObject(bucketName, "dstObject", opts)
+	reader, err := c.GetObject(bucketName, "dstObject", opts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject failed", err)
 		return
 	}
-	defer reader.Close()
 
 	decBytes, err := ioutil.ReadAll(reader)
 	if err != nil {
@@ -5810,6 +5856,7 @@ func testEncryptedCopyObjectWrapper(c *minio.Client) {
 		logError(testName, function, args, startTime, "", "Downloaded object mismatched for encrypted object", err)
 		return
 	}
+	reader.Close()
 
 	// Test key rotation for source object in-place.
 	dst, err = minio.NewDestinationInfo(bucketName, "srcObject", &key2, nil)
@@ -5830,12 +5877,11 @@ func testEncryptedCopyObjectWrapper(c *minio.Client) {
 	for k, v := range key2.GetSSEHeaders() {
 		opts.Set(k, v)
 	}
-	reader, _, err = coreClient.GetObject(bucketName, "srcObject", opts)
+	reader, err = c.GetObject(bucketName, "srcObject", opts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject failed", err)
 		return
 	}
-	defer reader.Close()
 
 	decBytes, err = ioutil.ReadAll(reader)
 	if err != nil {
@@ -5846,6 +5892,7 @@ func testEncryptedCopyObjectWrapper(c *minio.Client) {
 		logError(testName, function, args, startTime, "", "Downloaded object mismatched for encrypted object", err)
 		return
 	}
+	reader.Close()
 
 	// Test in-place decryption.
 	dst, err = minio.NewDestinationInfo(bucketName, "srcObject", nil, nil)
@@ -5865,7 +5912,7 @@ func testEncryptedCopyObjectWrapper(c *minio.Client) {
 
 	// Get copied decrypted object and check if content is equal
 	opts = minio.GetObjectOptions{}
-	reader, _, err = coreClient.GetObject(bucketName, "srcObject", opts)
+	reader, err = c.GetObject(bucketName, "srcObject", opts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject failed", err)
 		return
@@ -5935,6 +5982,7 @@ func testEncryptedCopyObjectV2() {
 		return
 	}
 
+	// c.TraceOn(os.Stderr)
 	testEncryptedCopyObjectWrapper(c)
 }
 
@@ -6863,6 +6911,7 @@ func testFunctionalV2() {
 		logError(testName, function, args, startTime, "", "ReadAll failed", err)
 		return
 	}
+	newReader.Close()
 
 	if !bytes.Equal(newReadBytes, buf) {
 		logError(testName, function, args, startTime, "", "Bytes mismatch", err)
@@ -7031,6 +7080,7 @@ func testFunctionalV2() {
 		logError(testName, function, args, startTime, "", "ReadAll failed", err)
 		return
 	}
+	newReader.Close()
 
 	if !bytes.Equal(newReadBytes, buf) {
 		logError(testName, function, args, startTime, "", "Bytes mismatch", err)
@@ -7119,10 +7169,12 @@ func testGetObjectWithContext() {
 		logError(testName, function, args, startTime, "", "GetObjectWithContext failed unexpectedly", err)
 		return
 	}
+
 	if _, err = r.Stat(); err == nil {
 		logError(testName, function, args, startTime, "", "GetObjectWithContext should fail on short timeout", err)
 		return
 	}
+	r.Close()
 
 	ctx, cancel = context.WithTimeout(context.Background(), 1*time.Hour)
 	args["ctx"] = ctx
@@ -7401,6 +7453,7 @@ func testGetObjectWithContextV2() {
 		logError(testName, function, args, startTime, "", "GetObjectWithContext should fail on short timeout", err)
 		return
 	}
+	r.Close()
 
 	ctx, cancel = context.WithTimeout(context.Background(), 1*time.Hour)
 	defer cancel()
