@@ -86,9 +86,9 @@ type ServerSide interface {
 	Marshal(h http.Header)
 }
 
-// NewS3 returns a server-side-encryption using S3 storage encryption.
+// NewSSE returns a server-side-encryption using S3 storage encryption.
 // Using SSE-S3 the server will encrypt the object with server-managed keys.
-func NewS3() ServerSide { return s3{} }
+func NewSSE() ServerSide { return s3{} }
 
 // NewSSEC returns a new server-side-encryption using SSE-C and the provided key.
 // The key must be 32 bytes long.
