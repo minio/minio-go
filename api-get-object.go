@@ -27,19 +27,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/minio/minio-go/pkg/encrypt"
 	"github.com/minio/minio-go/pkg/s3utils"
 )
-
-// GetEncryptedObject deciphers and streams data stored in the server after applying a specified encryption materials,
-// returned stream should be closed by the caller.
-func (c Client) GetEncryptedObject(bucketName, objectName string, encryptMaterials encrypt.Materials) (io.ReadCloser, error) {
-	if encryptMaterials == nil {
-		return nil, ErrInvalidArgument("Unable to recognize empty encryption properties")
-	}
-
-	return c.GetObject(bucketName, objectName, GetObjectOptions{Materials: encryptMaterials})
-}
 
 // GetObject - returns an seekable, readable object.
 func (c Client) GetObject(bucketName, objectName string, opts GetObjectOptions) (*Object, error) {
@@ -665,15 +654,6 @@ func (c Client) getObject(ctx context.Context, bucketName, objectName string, op
 		Metadata: extractObjMetadata(resp.Header),
 	}
 
-	reader := resp.Body
-	if opts.Materials != nil {
-		err = opts.Materials.SetupDecryptMode(reader, objectStat.Metadata.Get(amzHeaderIV), objectStat.Metadata.Get(amzHeaderKey))
-		if err != nil {
-			return nil, ObjectInfo{}, err
-		}
-		reader = opts.Materials
-	}
-
 	// do not close body here, caller will close
-	return reader, objectStat, nil
+	return resp.Body, objectStat, nil
 }
