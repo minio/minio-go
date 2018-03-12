@@ -135,7 +135,7 @@ func NewSourceInfo(bucket, object string, sse encrypt.ServerSide) SourceInfo {
 
 	// Assemble decryption headers for upload-part-copy request
 	if r.encryption != nil {
-		encrypt.ServerSideCopy(r.encryption).Marshal(r.Headers)
+		encrypt.SSECopy(r.encryption).Marshal(r.Headers)
 	}
 
 	return r

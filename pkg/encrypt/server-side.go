@@ -101,13 +101,13 @@ func NewSSEC(key []byte) (ServerSide, error) {
 	return sse, nil
 }
 
-// ServerSideCopy transforms a SSE-C encryption into a SSE-C copy
+// SSECopy transforms a SSE-C encryption into a SSE-C copy
 // encryption. This is required for SSE-C key rotation or a SSE-C
 // copy where the source and the destination should be encrypted.
 //
-// If the provided sse is no SSE-C encryption ServerSideCopy returns
+// If the provided sse is no SSE-C encryption SSECopy returns
 // sse unmodified.
-func ServerSideCopy(sse ServerSide) ServerSide {
+func SSECopy(sse ServerSide) ServerSide {
 	if sse == nil || sse.Type() != SSEC {
 		return sse
 	}
