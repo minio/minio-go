@@ -706,6 +706,84 @@ func testPutObjectWithMetadata() {
 	successLogger(testName, function, args, startTime).Info()
 }
 
+func testPutObjectWithContentLanguage() {
+	// initialize logging params
+	objectName := "test-object"
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "PutObject(bucketName, objectName, reader, size, opts)"
+	args := map[string]interface{}{
+		"bucketName": "",
+		"objectName": objectName,
+		"size":       -1,
+		"opts":       "",
+	}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.NewV4(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Minio client object creation failed", err)
+		return
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	data := bytes.Repeat([]byte("a"), int(0))
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(data), int64(0), minio.PutObjectOptions{
+		ContentLanguage: "en-US",
+	})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject failed", err)
+		return
+	}
+
+	if n != 0 {
+		logError(testName, function, args, startTime, "", "Expected upload object '0' doesn't match with PutObject return value", err)
+		return
+	}
+
+	objInfo, err := c.StatObject(bucketName, objectName, minio.StatObjectOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "StatObject failed", err)
+		return
+	}
+
+	if objInfo.Metadata.Get("Content-Language") != "en-US" {
+		logError(testName, function, args, startTime, "", "Expected content-language 'en-US' doesn't match with StatObject return value", err)
+		return
+	}
+
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		return
+	}
+
+	successLogger(testName, function, args, startTime).Info()
+}
+
 // Test put object with streaming signature.
 func testPutObjectStreaming() {
 	// initialize logging params
@@ -7497,6 +7575,7 @@ func main() {
 		testStorageClassMetadataPutObject()
 		testStorageClassInvalidMetadataPutObject()
 		testStorageClassMetadataCopyObject()
+		testPutObjectWithContentLanguage()
 
 		// SSE-C tests will only work over TLS connection.
 		if tls {
