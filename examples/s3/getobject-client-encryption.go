@@ -20,8 +20,6 @@
 package main
 
 import (
-	"errors"
-	"io"
 	"log"
 	"os"
 	"path"
@@ -30,28 +28,6 @@ import (
 	"github.com/minio/sio"
 	"golang.org/x/crypto/argon2"
 )
-
-const (
-	// SSE DARE package block size.
-	sseDAREPackageBlockSize = 64 * 1024 // 64KiB bytes
-
-	// SSE DARE package meta padding bytes.
-	sseDAREPackageMetaSize = 32 // 32 bytes
-)
-
-func decryptedSize(encryptedSize int64) (int64, error) {
-	if encryptedSize == 0 {
-		return encryptedSize, nil
-	}
-	size := (encryptedSize / (sseDAREPackageBlockSize + sseDAREPackageMetaSize)) * sseDAREPackageBlockSize
-	if mod := encryptedSize % (sseDAREPackageBlockSize + sseDAREPackageMetaSize); mod > 0 {
-		if mod < sseDAREPackageMetaSize+1 {
-			return -1, errors.New("object is tampered")
-		}
-		size += mod - sseDAREPackageMetaSize
-	}
-	return size, nil
-}
 
 func main() {
 	// Note: YOUR-ACCESSKEYID, YOUR-SECRETACCESSKEY, my-testfile, my-bucketname and
@@ -72,16 +48,6 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	objSt, err := obj.Stat()
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	size, err := decryptedSize(objSt.Size)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
 	localFile, err := os.Create("my-testfile")
 	if err != nil {
 		log.Fatalln(err)
@@ -90,17 +56,11 @@ func main() {
 
 	password := []byte("myfavoritepassword")                    // Change as per your needs.
 	salt := []byte(path.Join("my-bucketname", "my-objectname")) // Change as per your needs.
-	decrypted, err := sio.DecryptReader(obj, sio.Config{
-		// generate a 256 bit long key.
-		Key: argon2.IDKey(password, salt, 1, 64*1024, 4, 32),
+	_, err = sio.Decrypt(localFile, obj, sio.Config{
+		Key: argon2.IDKey(password, salt, 1, 64*1024, 4, 32), // generate a 256 bit long key.
 	})
 	if err != nil {
 		log.Fatalln(err)
 	}
-
-	if _, err := io.CopyN(localFile, decrypted, size); err != nil {
-		log.Fatalln(err)
-	}
-
 	log.Println("Successfully decrypted 'my-objectname' to local file 'my-testfile'")
 }

@@ -29,25 +29,6 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-const (
-	// SSE DARE package block size.
-	sseDAREPackageBlockSize = 64 * 1024 // 64KiB bytes
-
-	// SSE DARE package meta padding bytes.
-	sseDAREPackageMetaSize = 32 // 32 bytes
-)
-
-// EncryptedSize returns the size of the object after encryption.
-// An encrypted object is always larger than a plain object
-// except for zero size objects.
-func getEncryptedSize(size int64) int64 {
-	ssize := (size / sseDAREPackageBlockSize) * (sseDAREPackageBlockSize + sseDAREPackageMetaSize)
-	if mod := size % (sseDAREPackageBlockSize); mod > 0 {
-		ssize += mod + sseDAREPackageMetaSize
-	}
-	return ssize
-}
-
 func main() {
 	// Note: YOUR-ACCESSKEYID, YOUR-SECRETACCESSKEY, my-testfile, my-bucketname and
 	// my-objectname are dummy values, please replace them with original values.
@@ -82,7 +63,11 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	_, err = s3Client.PutObject("my-bucketname", "my-objectname", encrypted, getEncryptedSize(objectStat.Size()), minio.PutObjectOptions{})
+	encSize, err := sio.EncryptedSize(uint64(objectStat.Size()))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	_, err = s3Client.PutObject("my-bucketname", "my-objectname", encrypted, int64(encSize), minio.PutObjectOptions{})
 	if err != nil {
 		log.Fatalln(err)
 	}
