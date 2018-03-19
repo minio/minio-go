@@ -44,6 +44,12 @@ func main() {
 	// Send object names that are needed to be removed to objectsCh
 	go func() {
 		defer close(objectsCh)
+
+		doneCh := make(chan struct{})
+
+		// Indicate to our routine to exit cleanly upon return.
+		defer close(doneCh)
+
 		// List all objects from a bucket-name with a matching prefix.
 		for object := range s3Client.ListObjects("my-bucketname", "my-prefixname", true, doneCh) {
 			if object.Err != nil {
