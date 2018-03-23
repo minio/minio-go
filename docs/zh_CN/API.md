@@ -54,11 +54,11 @@ func main() {
 | :---                                              | :---                                                | :---                                        | :---                                          | :---                                                          | :---                                                  |
 | [`MakeBucket`](#MakeBucket)                       | [`GetObject`](#GetObject)                           | [`NewSymmetricKey`](#NewSymmetricKey)       | [`PresignedGetObject`](#PresignedGetObject)   | [`SetBucketPolicy`](#SetBucketPolicy)                         | [`SetAppInfo`](#SetAppInfo)                           |
 | [`ListBuckets`](#ListBuckets)                     | [`PutObject`](#PutObject)                           | [`NewAsymmetricKey`](#NewAsymmetricKey)     | [`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)                         | [`SetCustomTransport`](#SetCustomTransport)           |
-| [`BucketExists`](#BucketExists)                   | [`CopyObject`](#CopyObject)                         | [`GetEncryptedObject`](#GetEncryptedObject) | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`ListBucketPolicies`](#ListBucketPolicies)                   | [`TraceOn`](#TraceOn)                                 |
-| [`RemoveBucket`](#RemoveBucket)                   | [`StatObject`](#StatObject)                         | [`PutEncryptedObject`](#PutEncryptedObject) |                                               | [`SetBucketNotification`](#SetBucketNotification)             | [`TraceOff`](#TraceOff)                               |
-| [`ListObjects`](#ListObjects)                     | [`RemoveObject`](#RemoveObject)                     | [`NewSSEInfo`](#NewSSEInfo)               |                                               | [`GetBucketNotification`](#GetBucketNotification)             | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
-| [`ListObjectsV2`](#ListObjectsV2)                 | [`RemoveObjects`](#RemoveObjects)                   | [`FPutEncryptedObject`](#FPutEncryptedObject)    |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification) |                                                       |
-| [`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                             |                                               | [`ListenBucketNotification`](#ListenBucketNotification)       |                                                       |
+| [`BucketExists`](#BucketExists)                   | [`CopyObject`](#CopyObject)                         | [`GetEncryptedObject`](#GetEncryptedObject) | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`SetBucketNotification`](#SetBucketNotification)                     | [`TraceOn`](#TraceOn)                                 |
+| [`RemoveBucket`](#RemoveBucket)                   | [`StatObject`](#StatObject)                         | [`PutEncryptedObject`](#PutEncryptedObject) |                                               | [`GetBucketNotification`](#GetBucketNotification)           | [`TraceOff`](#TraceOff)                               |
+| [`ListObjects`](#ListObjects)                     | [`RemoveObject`](#RemoveObject)                     | [`NewSSEInfo`](#NewSSEInfo)               |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification)             | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
+| [`ListObjectsV2`](#ListObjectsV2)                 | [`RemoveObjects`](#RemoveObjects)                   | [`FPutEncryptedObject`](#FPutEncryptedObject)    |                                               | [`ListenBucketNotification`](#ListenBucketNotification) |                                                       |
+| [`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                             |                                               |        |                                                       |
 |                                                   | [`FPutObject`](#FPutObject)                         |                                             |                                               |                                                               |                                                       |
 |                                                   | [`FGetObject`](#FGetObject)                         |                                             |                                               |                                                               |                                                       |
 |                                                   | [`ComposeObject`](#ComposeObject)                   |                                             |                                               |                                                               |                                                       |
@@ -1558,40 +1558,6 @@ if err != nil {
     return
 }
 fmt.Println("Access permissions for mybucket is", bucketPolicy)
-```
-
-<a name="ListBucketPolicies"></a>
-### ListBucketPolicies(bucketName, objectPrefix string) (map[string]BucketPolicy, error)
-获取指定的存储桶和前缀的访问策略。
-
-__参数__
-
-
-|参数   |类型   |描述   |
-|:---|:---| :---|
-|`bucketName`  | _string_  |存储桶名称  |
-|`objectPrefix` | _string_  |该存储桶下的对象前缀  |
-
-__返回值__
-
-
-|参数   |类型   |描述   |
-|:---|:---| :---|
-|`bucketPolicies`  | _map[string]minio.BucketPolicy_ |对象以及它们的权限的Map  |
-|`err` | _error_  |标准Error  |
-
-__示例__
-
-
-```go
-bucketPolicies, err := minioClient.ListBucketPolicies("mybucket", "")
-if err != nil {
-    fmt.Println(err)
-    return
-}
-for resource, permission := range bucketPolicies {
-    fmt.Println(resource, " => ", permission)
-}
 ```
 
 <a name="GetBucketNotification"></a>
