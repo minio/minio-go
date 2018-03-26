@@ -855,103 +855,6 @@ func testPutObjectStreaming() {
 	successLogger(testName, function, args, startTime).Info()
 }
 
-// Test listing partially uploaded objects.
-func testListPartiallyUploaded() {
-	// initialize logging params
-	startTime := time.Now()
-	testName := getFuncName()
-	function := "ListIncompleteUploads(bucketName, objectName, isRecursive, doneCh)"
-	args := map[string]interface{}{
-		"bucketName":  "",
-		"objectName":  "",
-		"isRecursive": "",
-	}
-
-	// Seed random based on current time.
-	rand.Seed(time.Now().Unix())
-
-	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
-	if err != nil {
-		logError(testName, function, args, startTime, "", "Minio client object creation failed", err)
-		return
-	}
-
-	// Set user agent.
-	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
-
-	// Enable tracing, write to stdout.
-	// c.TraceOn(os.Stderr)
-
-	// Generate a new random bucket name.
-	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
-	args["bucketName"] = bucketName
-
-	// Make a new bucket.
-	err = c.MakeBucket(bucketName, "us-east-1")
-	if err != nil {
-		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
-		return
-	}
-
-	bufSize := dataFileMap["datafile-65-MB"]
-	r := bytes.NewReader(bytes.Repeat([]byte("0"), bufSize*2))
-
-	reader, writer := io.Pipe()
-	go func() {
-		i := 0
-		for i < 25 {
-			_, cerr := io.CopyN(writer, r, (int64(bufSize)*2)/25)
-			if cerr != nil {
-				logError(testName, function, args, startTime, "", "Copy failed", err)
-				return
-			}
-			i++
-			r.Seek(0, 0)
-		}
-		writer.CloseWithError(errors.New("proactively closed to be verified later"))
-	}()
-
-	objectName := bucketName + "-resumable"
-	args["objectName"] = objectName
-
-	_, err = c.PutObject(bucketName, objectName, reader, int64(bufSize*2), minio.PutObjectOptions{ContentType: "application/octet-stream"})
-	if err == nil {
-		logError(testName, function, args, startTime, "", "PutObject should fail", err)
-		return
-	}
-	if !strings.Contains(err.Error(), "proactively closed to be verified later") {
-		logError(testName, function, args, startTime, "", "String not found in PutObject output", err)
-		return
-	}
-
-	doneCh := make(chan struct{})
-	defer close(doneCh)
-	isRecursive := true
-	args["isRecursive"] = isRecursive
-
-	multiPartObjectCh := c.ListIncompleteUploads(bucketName, objectName, isRecursive, doneCh)
-	for multiPartObject := range multiPartObjectCh {
-		if multiPartObject.Err != nil {
-			logError(testName, function, args, startTime, "", "Multipart object error", multiPartObject.Err)
-			return
-		}
-	}
-
-	// Delete all objects and buckets
-	if err = cleanupBucket(bucketName, c); err != nil {
-		logError(testName, function, args, startTime, "", "Cleanup failed", err)
-		return
-	}
-
-	successLogger(testName, function, args, startTime).Info()
-}
-
 // Test get object seeker from the end, using whence set to '2'.
 func testGetObjectSeekEnd() {
 	// initialize logging params
@@ -1349,89 +1252,6 @@ func testRemoveMultipleObjects() {
 		}
 	}
 
-	// Delete all objects and buckets
-	if err = cleanupBucket(bucketName, c); err != nil {
-		logError(testName, function, args, startTime, "", "Cleanup failed", err)
-		return
-	}
-
-	successLogger(testName, function, args, startTime).Info()
-}
-
-// Tests removing partially uploaded objects.
-func testRemovePartiallyUploaded() {
-	// initialize logging params
-	startTime := time.Now()
-	testName := getFuncName()
-	function := "RemoveIncompleteUpload(bucketName, objectName)"
-	args := map[string]interface{}{}
-
-	// Seed random based on current time.
-	rand.Seed(time.Now().Unix())
-
-	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
-	if err != nil {
-		logError(testName, function, args, startTime, "", "Minio client object creation failed", err)
-		return
-	}
-
-	// Set user agent.
-	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
-
-	// Enable tracing, write to stdout.
-	// c.TraceOn(os.Stderr)
-
-	// Generate a new random bucket name.
-	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
-	args["bucketName"] = bucketName
-
-	// Make a new bucket.
-	err = c.MakeBucket(bucketName, "us-east-1")
-	if err != nil {
-		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
-		return
-	}
-
-	r := bytes.NewReader(bytes.Repeat([]byte("a"), 128*1024))
-
-	reader, writer := io.Pipe()
-	go func() {
-		i := 0
-		for i < 25 {
-			_, cerr := io.CopyN(writer, r, 128*1024)
-			if cerr != nil {
-				logError(testName, function, args, startTime, "", "Copy failed", err)
-				return
-			}
-			i++
-			r.Seek(0, 0)
-		}
-		writer.CloseWithError(errors.New("proactively closed to be verified later"))
-	}()
-
-	objectName := bucketName + "-resumable"
-	args["objectName"] = objectName
-
-	_, err = c.PutObject(bucketName, objectName, reader, 128*1024, minio.PutObjectOptions{ContentType: "application/octet-stream"})
-	if err == nil {
-		logError(testName, function, args, startTime, "", "PutObject should fail", err)
-		return
-	}
-	if !strings.Contains(err.Error(), "proactively closed to be verified later") {
-		logError(testName, function, args, startTime, "", "String not found", err)
-		return
-	}
-	err = c.RemoveIncompleteUpload(bucketName, objectName)
-	if err != nil {
-		logError(testName, function, args, startTime, "", "RemoveIncompleteUpload failed", err)
-		return
-	}
 	// Delete all objects and buckets
 	if err = cleanupBucket(bucketName, c); err != nil {
 		logError(testName, function, args, startTime, "", "Cleanup failed", err)
@@ -4574,89 +4394,6 @@ func testGetObjectClosedTwiceV2() {
 	successLogger(testName, function, args, startTime).Info()
 }
 
-// Tests removing partially uploaded objects.
-func testRemovePartiallyUploadedV2() {
-	// initialize logging params
-	startTime := time.Now()
-	testName := getFuncName()
-	function := "RemoveIncompleteUpload(bucketName, objectName)"
-	args := map[string]interface{}{}
-
-	// Seed random based on current time.
-	rand.Seed(time.Now().Unix())
-
-	// Instantiate new minio client object.
-	c, err := minio.NewV2(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
-	if err != nil {
-		logError(testName, function, args, startTime, "", "Minio v2 client object creation failed", err)
-		return
-	}
-
-	// Set user agent.
-	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
-
-	// Enable tracing, write to stdout.
-	// c.TraceOn(os.Stderr)
-
-	// Generate a new random bucket name.
-	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
-	args["bucketName"] = bucketName
-
-	// make a new bucket.
-	err = c.MakeBucket(bucketName, "us-east-1")
-	if err != nil {
-		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
-		return
-	}
-
-	r := bytes.NewReader(bytes.Repeat([]byte("a"), 128*1024))
-
-	reader, writer := io.Pipe()
-	go func() {
-		i := 0
-		for i < 25 {
-			_, cerr := io.CopyN(writer, r, 128*1024)
-			if cerr != nil {
-				logError(testName, function, args, startTime, "", "Copy failed", cerr)
-				return
-			}
-			i++
-			r.Seek(0, 0)
-		}
-		writer.CloseWithError(errors.New("proactively closed to be verified later"))
-	}()
-
-	objectName := bucketName + "-resumable"
-	args["objectName"] = objectName
-
-	_, err = c.PutObject(bucketName, objectName, reader, -1, minio.PutObjectOptions{ContentType: "application/octet-stream"})
-	if err == nil {
-		logError(testName, function, args, startTime, "", "PutObject should fail", err)
-		return
-	}
-	if err.Error() != "proactively closed to be verified later" {
-		logError(testName, function, args, startTime, "", "Unexpected error, expected : proactively closed to be verified later", err)
-		return
-	}
-	err = c.RemoveIncompleteUpload(bucketName, objectName)
-	if err != nil {
-		logError(testName, function, args, startTime, "", "RemoveIncompleteUpload failed", err)
-		return
-	}
-	// Delete all objects and buckets
-	if err = cleanupBucket(bucketName, c); err != nil {
-		logError(testName, function, args, startTime, "", "Cleanup failed", err)
-		return
-	}
-
-	successLogger(testName, function, args, startTime).Info()
-}
-
 // Tests FPutObject hidden contentType setting
 func testFPutObjectV2() {
 	// initialize logging params
@@ -7528,7 +7265,6 @@ func main() {
 	if isFullMode() {
 		testMakeBucketErrorV2()
 		testGetObjectClosedTwiceV2()
-		testRemovePartiallyUploadedV2()
 		testFPutObjectV2()
 		testMakeBucketRegionsV2()
 		testGetObjectReadSeekFunctionalV2()
@@ -7550,11 +7286,9 @@ func main() {
 		testPutObjectWithMetadata()
 		testPutObjectReadAt()
 		testPutObjectStreaming()
-		testListPartiallyUploaded()
 		testGetObjectSeekEnd()
 		testGetObjectClosedTwice()
 		testRemoveMultipleObjects()
-		testRemovePartiallyUploaded()
 		testFPutObjectMultipart()
 		testFPutObject()
 		testGetObjectReadSeekFunctional()
