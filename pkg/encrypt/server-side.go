@@ -20,6 +20,7 @@ package encrypt
 import (
 	"crypto/md5"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -95,12 +96,16 @@ type ServerSide interface {
 // Using SSE-S3 the server will encrypt the object with server-managed keys.
 func NewSSE() ServerSide { return s3{} }
 
-// NewSSEKMS returns a new server-side-encryption using SSE-KMS and the provided Key Id.
-func NewSSEKMS(keyID string) ServerSide { return kms{key: keyID, context: nil} }
-
-// NewSSEKMSWithContext returns a new server-side-encryption using SSE-KMS and the provided Key Id and context.
-func NewSSEKMSWithContext(keyID string, context *string) ServerSide {
-	return kms{key: keyID, context: context}
+// NewSSEKMS returns a new server-side-encryption using SSE-KMS and the provided Key Id and context.
+func NewSSEKMS(keyID string, context interface{}) (ServerSide, error) {
+	if context == nil {
+		return kms{key: keyID, hasContext: false}, nil
+	}
+	serializedContext, err := json.Marshal(context)
+	if err != nil {
+		return nil, err
+	}
+	return kms{key: keyID, context: serializedContext, hasContext: true}, nil
 }
 
 // NewSSEC returns a new server-side-encryption using SSE-C and the provided key.
@@ -159,8 +164,9 @@ func (s s3) Type() Type { return S3 }
 func (s s3) Marshal(h http.Header) { h.Set(sseGenericHeader, "AES256") }
 
 type kms struct {
-	key     string
-	context *string
+	key        string
+	context    []byte
+	hasContext bool
 }
 
 func (s kms) Type() Type { return KMS }
@@ -168,7 +174,7 @@ func (s kms) Type() Type { return KMS }
 func (s kms) Marshal(h http.Header) {
 	h.Set(sseGenericHeader, "aws:kms")
 	h.Set(sseKmsKeyID, s.key)
-	if s.context != nil {
-		h.Set(sseEncryptionContext, *s.context)
+	if s.hasContext {
+		h.Set(sseEncryptionContext, base64.StdEncoding.EncodeToString(s.context))
 	}
 }
