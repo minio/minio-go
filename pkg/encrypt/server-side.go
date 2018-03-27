@@ -30,6 +30,11 @@ const (
 	// sseGenericHeader is the AWS SSE header used for SSE-S3 and SSE-KMS.
 	sseGenericHeader = "X-Amz-Server-Side-Encryption"
 
+	// sseKmsKeyID is the AWS SSE-KMS key id.
+	sseKmsKeyID = sseGenericHeader + "-Aws-Kms-Key-Id"
+	// sseEncryptionContext is the AWS SSE-KMS Encryption Context data.
+	sseEncryptionContext = sseGenericHeader + "-Encryption-Context"
+
 	// sseCustomerAlgorithm is the AWS SSE-C algorithm HTTP header key.
 	sseCustomerAlgorithm = sseGenericHeader + "-Customer-Algorithm"
 	// sseCustomerKey is the AWS SSE-C encryption key HTTP header key.
@@ -90,6 +95,14 @@ type ServerSide interface {
 // Using SSE-S3 the server will encrypt the object with server-managed keys.
 func NewSSE() ServerSide { return s3{} }
 
+// NewSSEKMS returns a new server-side-encryption using SSE-KMS and the provided Key Id.
+func NewSSEKMS(keyID string) ServerSide { return kms{key: keyID, context: nil} }
+
+// NewSSEKMSWithContext returns a new server-side-encryption using SSE-KMS and the provided Key Id and context.
+func NewSSEKMSWithContext(keyID string, context *string) ServerSide {
+	return kms{key: keyID, context: context}
+}
+
 // NewSSEC returns a new server-side-encryption using SSE-C and the provided key.
 // The key must be 32 bytes long.
 func NewSSEC(key []byte) (ServerSide, error) {
@@ -144,3 +157,18 @@ type s3 struct{}
 func (s s3) Type() Type { return S3 }
 
 func (s s3) Marshal(h http.Header) { h.Set(sseGenericHeader, "AES256") }
+
+type kms struct {
+	key     string
+	context *string
+}
+
+func (s kms) Type() Type { return KMS }
+
+func (s kms) Marshal(h http.Header) {
+	h.Set(sseGenericHeader, "aws:kms")
+	h.Set(sseKmsKeyID, s.key)
+	if s.context != nil {
+		h.Set(sseEncryptionContext, *s.context)
+	}
+}
