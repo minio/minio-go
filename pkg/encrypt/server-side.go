@@ -101,6 +101,21 @@ func NewSSEC(key []byte) (ServerSide, error) {
 	return sse, nil
 }
 
+// SSE transforms a SSE-C copy encryption into a SSE-C encryption.
+// It is the inverse of SSECopy(...).
+//
+// If the provided sse is no SSE-C copy encryption SSE returns
+// sse unmodified.
+func SSE(sse ServerSide) ServerSide {
+	if sse == nil || sse.Type() != SSEC {
+		return sse
+	}
+	if sse, ok := sse.(ssecCopy); ok {
+		return ssec(sse)
+	}
+	return sse
+}
+
 // SSECopy transforms a SSE-C encryption into a SSE-C copy
 // encryption. This is required for SSE-C key rotation or a SSE-C
 // copy where the source and the destination should be encrypted.
