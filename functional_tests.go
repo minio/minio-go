@@ -7241,6 +7241,120 @@ func testFGetObjectWithContextV2() {
 
 }
 
+// Test list object v1 and V2 storage class fields
+func testListObjects() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "ListObjects(bucketName, objectPrefix, recursive, doneCh)"
+	args := map[string]interface{}{
+		"bucketName":   "",
+		"objectPrefix": "",
+		"recursive":    "true",
+	}
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.New(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Minio client v4 object creation failed", err)
+		return
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	bufSize := dataFileMap["datafile-33-kB"]
+	var reader = getDataReader("datafile-33-kB")
+	defer reader.Close()
+
+	// Save the data
+	objectName1 := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+
+	_, err = c.PutObject(bucketName, objectName1, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream", StorageClass: "STANDARD"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject1 call failed", err)
+		return
+	}
+
+	bufSize1 := dataFileMap["datafile-33-kB"]
+	var reader1 = getDataReader("datafile-33-kB")
+	defer reader1.Close()
+	objectName2 := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+
+	_, err = c.PutObject(bucketName, objectName2, reader1, int64(bufSize1), minio.PutObjectOptions{ContentType: "binary/octet-stream", StorageClass: "REDUCED_REDUNDANCY"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject2 call failed", err)
+		return
+	}
+
+	// Create a done channel to control 'ListObjects' go routine.
+	doneCh := make(chan struct{})
+	// Exit cleanly upon return.
+	defer close(doneCh)
+
+	// check for storage-class from ListObjects result
+	for objInfo := range c.ListObjects(bucketName, "", true, doneCh) {
+		if objInfo.Err != nil {
+			logError(testName, function, args, startTime, "", "ListObjects failed unexpectedly", err)
+			return
+		}
+		if objInfo.Key == objectName1 && objInfo.StorageClass != "STANDARD" {
+			logError(testName, function, args, startTime, "", "ListObjects doesn't return expected storage class", err)
+			return
+		}
+		if objInfo.Key == objectName2 && objInfo.StorageClass != "REDUCED_REDUNDANCY" {
+			logError(testName, function, args, startTime, "", "ListObjects doesn't return expected storage class", err)
+			return
+		}
+	}
+
+	// check for storage-class from ListObjectsV2 result
+	for objInfo := range c.ListObjectsV2(bucketName, "", true, doneCh) {
+		if objInfo.Err != nil {
+			logError(testName, function, args, startTime, "", "ListObjectsV2 failed unexpectedly", err)
+			return
+		}
+		if objInfo.Key == objectName1 && objInfo.StorageClass != "STANDARD" {
+			logError(testName, function, args, startTime, "", "ListObjectsV2 doesn't return expected storage class", err)
+			return
+		}
+		if objInfo.Key == objectName2 && objInfo.StorageClass != "REDUCED_REDUNDANCY" {
+			logError(testName, function, args, startTime, "", "ListObjectsV2 doesn't return expected storage class", err)
+			return
+		}
+	}
+
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		return
+	}
+
+	successLogger(testName, function, args, startTime).Info()
+
+}
+
 // Convert string to bool and always return false if any error
 func mustParseBool(str string) bool {
 	b, err := strconv.ParseBool(str)
@@ -7310,6 +7424,7 @@ func main() {
 		testStorageClassInvalidMetadataPutObject()
 		testStorageClassMetadataCopyObject()
 		testPutObjectWithContentLanguage()
+		testListObjects()
 
 		// SSE-C tests will only work over TLS connection.
 		if tls {
