@@ -5652,7 +5652,7 @@ func testDecryptedCopyObject() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	c, err := minio.NewV2(
+	c, err := minio.New(
 		os.Getenv(serverEndpoint),
 		os.Getenv(accessKey),
 		os.Getenv(secretKey),
