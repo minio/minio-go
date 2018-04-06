@@ -5644,6 +5644,60 @@ func testEncryptedCopyObjectV2() {
 	testEncryptedCopyObjectWrapper(c)
 }
 
+func testDecryptedCopyObject() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "CopyObject(destination, source)"
+	args := map[string]interface{}{}
+
+	// Instantiate new minio client object
+	c, err := minio.New(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Minio v2 client object creation failed", err)
+		return
+	}
+
+	bucketName, objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-"), "object"
+	if err = c.MakeBucket(bucketName, "us-east-1"); err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	encryption := encrypt.DefaultPBKDF([]byte("correct horse battery staple"), []byte(bucketName+objectName))
+	_, err = c.PutObject(bucketName, objectName, bytes.NewReader(bytes.Repeat([]byte("a"), 1024*1024)), 1024*1024, minio.PutObjectOptions{
+		ServerSideEncryption: encryption,
+	})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject call failed", err)
+		return
+	}
+
+	src := minio.NewSourceInfo(bucketName, objectName, encrypt.SSECopy(encryption))
+	args["source"] = src
+	dst, err := minio.NewDestinationInfo(bucketName, "decrypted-"+objectName, nil, nil)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
+		return
+	}
+	args["destination"] = dst
+
+	if err = c.CopyObject(dst, src); err != nil {
+		logError(testName, function, args, startTime, "", "CopyObject failed", err)
+		return
+	}
+	if _, err = c.GetObject(bucketName, "decrypted-"+objectName, minio.GetObjectOptions{}); err != nil {
+		logError(testName, function, args, startTime, "", "GetObject failed", err)
+		return
+	}
+	successLogger(testName, function, args, startTime).Info()
+}
+
 func testUserMetadataCopying() {
 	// initialize logging params
 	startTime := time.Now()
@@ -7320,6 +7374,7 @@ func main() {
 			testEncryptedCopyObjectV2()
 			testEncryptedCopyObject()
 			testEncryptedEmptyObject()
+			testDecryptedCopyObject()
 		}
 	} else {
 		testFunctional()
