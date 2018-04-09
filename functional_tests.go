@@ -44,7 +44,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/minio/minio-go/pkg/encrypt"
-	"github.com/minio/minio-go/pkg/policy"
 )
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyz01234569"
@@ -3456,117 +3455,123 @@ func testFunctional() {
 	}
 
 	// Asserting the default bucket policy.
-	function = "GetBucketPolicy(bucketName, objectPrefix)"
+	function = "GetBucketPolicy(bucketName)"
 	functionAll += ", " + function
 	args = map[string]interface{}{
-		"bucketName":   bucketName,
-		"objectPrefix": "",
+		"bucketName": bucketName,
 	}
-	policyAccess, err := c.GetBucketPolicy(bucketName, "")
-
+	nilPolicy, err := c.GetBucketPolicy(bucketName)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetBucketPolicy failed", err)
 		return
 	}
-	if policyAccess != "none" {
-		logError(testName, function, args, startTime, "", "policy should be set to none", err)
+	if nilPolicy != "" {
+		logError(testName, function, args, startTime, "", "policy should be set to nil", err)
 		return
 	}
 
 	// Set the bucket policy to 'public readonly'.
-	function = "SetBucketPolicy(bucketName, objectPrefix, bucketPolicy)"
+	function = "SetBucketPolicy(bucketName, readOnlyPolicy)"
 	functionAll += ", " + function
+
+	readOnlyPolicy := `{"Version":"2012-10-17","Statement":[{"Action":["s3:ListBucket"],"Effect":"Allow","Principal":{"AWS":["*"]},"Resource":["arn:aws:s3:::` + bucketName + `"],"Sid":""}]}`
+
 	args = map[string]interface{}{
 		"bucketName":   bucketName,
-		"objectPrefix": "",
-		"bucketPolicy": policy.BucketPolicyReadOnly,
+		"bucketPolicy": readOnlyPolicy,
 	}
-	err = c.SetBucketPolicy(bucketName, "", policy.BucketPolicyReadOnly)
+
+	err = c.SetBucketPolicy(bucketName, readOnlyPolicy)
 
 	if err != nil {
 		logError(testName, function, args, startTime, "", "SetBucketPolicy failed", err)
 		return
 	}
 	// should return policy `readonly`.
-	function = "GetBucketPolicy(bucketName, objectPrefix)"
+	function = "GetBucketPolicy(bucketName)"
 	functionAll += ", " + function
 	args = map[string]interface{}{
-		"bucketName":   bucketName,
-		"objectPrefix": "",
+		"bucketName": bucketName,
 	}
-	policyAccess, err = c.GetBucketPolicy(bucketName, "")
+	readOnlyPolicyRet, err := c.GetBucketPolicy(bucketName)
 
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetBucketPolicy failed", err)
 		return
 	}
-	if policyAccess != "readonly" {
+
+	if strings.Compare(readOnlyPolicyRet, readOnlyPolicy) != 0 {
 		logError(testName, function, args, startTime, "", "policy should be set to readonly", err)
 		return
 	}
 
 	// Make the bucket 'public writeonly'.
-	function = "SetBucketPolicy(bucketName, objectPrefix, bucketPolicy)"
+	function = "SetBucketPolicy(bucketName, writeOnlyPolicy)"
 	functionAll += ", " + function
+
+	writeOnlyPolicy := `{"Version":"2012-10-17","Statement":[{"Action":["s3:ListBucketMultipartUploads"],"Effect":"Allow","Principal":{"AWS":["*"]},"Resource":["arn:aws:s3:::` + bucketName + `"],"Sid":""}]}`
+
 	args = map[string]interface{}{
 		"bucketName":   bucketName,
-		"objectPrefix": "",
-		"bucketPolicy": policy.BucketPolicyWriteOnly,
+		"bucketPolicy": writeOnlyPolicy,
 	}
-	err = c.SetBucketPolicy(bucketName, "", policy.BucketPolicyWriteOnly)
+	err = c.SetBucketPolicy(bucketName, writeOnlyPolicy)
 
 	if err != nil {
 		logError(testName, function, args, startTime, "", "SetBucketPolicy failed", err)
 		return
 	}
 	// should return policy `writeonly`.
-	function = "GetBucketPolicy(bucketName, objectPrefix)"
+	function = "GetBucketPolicy(bucketName)"
 	functionAll += ", " + function
 	args = map[string]interface{}{
-		"bucketName":   bucketName,
-		"objectPrefix": "",
+		"bucketName": bucketName,
 	}
-	policyAccess, err = c.GetBucketPolicy(bucketName, "")
 
+	writeOnlyPolicyRet, err := c.GetBucketPolicy(bucketName)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetBucketPolicy failed", err)
 		return
 	}
-	if policyAccess != "writeonly" {
+
+	if strings.Compare(writeOnlyPolicyRet, writeOnlyPolicy) != 0 {
 		logError(testName, function, args, startTime, "", "policy should be set to writeonly", err)
 		return
 	}
+
 	// Make the bucket 'public read/write'.
-	function = "SetBucketPolicy(bucketName, objectPrefix, bucketPolicy)"
+	function = "SetBucketPolicy(bucketName, readWritePolicy)"
 	functionAll += ", " + function
+
+	readWritePolicy := `{"Version":"2012-10-17","Statement":[{"Action":["s3:ListBucket","s3:ListBucketMultipartUploads"],"Effect":"Allow","Principal":{"AWS":["*"]},"Resource":["arn:aws:s3:::` + bucketName + `"],"Sid":""}]}`
+
 	args = map[string]interface{}{
 		"bucketName":   bucketName,
-		"objectPrefix": "",
-		"bucketPolicy": policy.BucketPolicyReadWrite,
+		"bucketPolicy": readWritePolicy,
 	}
-	err = c.SetBucketPolicy(bucketName, "", policy.BucketPolicyReadWrite)
+	err = c.SetBucketPolicy(bucketName, readWritePolicy)
 
 	if err != nil {
 		logError(testName, function, args, startTime, "", "SetBucketPolicy failed", err)
 		return
 	}
 	// should return policy `readwrite`.
-	function = "GetBucketPolicy(bucketName, objectPrefix)"
+	function = "GetBucketPolicy(bucketName)"
 	functionAll += ", " + function
 	args = map[string]interface{}{
-		"bucketName":   bucketName,
-		"objectPrefix": "",
+		"bucketName": bucketName,
 	}
-	policyAccess, err = c.GetBucketPolicy(bucketName, "")
-
+	readWritePolicyRet, err := c.GetBucketPolicy(bucketName)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetBucketPolicy failed", err)
 		return
 	}
-	if policyAccess != "readwrite" {
+
+	if strings.Compare(readWritePolicyRet, readWritePolicy) != 0 {
 		logError(testName, function, args, startTime, "", "policy should be set to readwrite", err)
 		return
 	}
+
 	// List all buckets.
 	function = "ListBuckets()"
 	functionAll += ", " + function
@@ -6489,14 +6494,17 @@ func testFunctionalV2() {
 	}
 
 	// Make the bucket 'public read/write'.
-	function = "SetBucketPolicy(bucketName, objectPrefix, bucketPolicy)"
+	function = "SetBucketPolicy(bucketName, bucketPolicy)"
 	functionAll += ", " + function
+
+	readWritePolicy := `{"Version": "2012-10-17","Statement": [{"Action": ["s3:ListBucketMultipartUploads,s3:ListBucket"],"Effect": "Allow","Principal": {"AWS": ["*"]},"Resource": ["arn:aws:s3:::` + bucketName + `/*"],"Sid": ""}]}`
+
 	args = map[string]interface{}{
 		"bucketName":   bucketName,
-		"objectPrefix": "",
-		"bucketPolicy": policy.BucketPolicyReadWrite,
+		"bucketPolicy": readWritePolicy,
 	}
-	err = c.SetBucketPolicy(bucketName, "", policy.BucketPolicyReadWrite)
+	err = c.SetBucketPolicy(bucketName, readWritePolicy)
+
 	if err != nil {
 		logError(testName, function, args, startTime, "", "SetBucketPolicy failed", err)
 		return

@@ -22,7 +22,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"reflect"
 	"testing"
 	"time"
 
@@ -360,8 +359,8 @@ func TestGetBucketPolicy(t *testing.T) {
 			t.Error("Error:", err, bucketName)
 		}
 	}
-	if !reflect.DeepEqual(bucketPolicy, emptyBucketAccessPolicy) {
-		t.Errorf("Bucket policy expected %#v, got %#v", emptyBucketAccessPolicy, bucketPolicy)
+	if bucketPolicy != "" {
+		t.Errorf("Bucket policy expected %#v, got %#v", "", bucketPolicy)
 	}
 
 	err = c.RemoveBucket(bucketName)

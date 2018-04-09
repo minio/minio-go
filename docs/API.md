@@ -54,11 +54,11 @@ func main() {
 | :---                                              | :---                                                | :---                                        | :---                                          | :---                                                          | :---                                                  |
 | [`MakeBucket`](#MakeBucket)                       | [`GetObject`](#GetObject)              |   [`GetObject`](#GetObject)     | [`PresignedGetObject`](#PresignedGetObject)   | [`SetBucketPolicy`](#SetBucketPolicy)                         | [`SetAppInfo`](#SetAppInfo)                           |
 | [`ListBuckets`](#ListBuckets)                     | [`PutObject`](#PutObject)                           | [`PutObject`](#PutObject)    | [`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)                         | [`SetCustomTransport`](#SetCustomTransport)           |
-| [`BucketExists`](#BucketExists)                   | [`CopyObject`](#CopyObject)                         | [`CopyObject`](#CopyObject) | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`ListBucketPolicies`](#ListBucketPolicies)                   | [`TraceOn`](#TraceOn)                                 |
-| [`RemoveBucket`](#RemoveBucket)                   | [`StatObject`](#StatObject)                         | [`StatObject`](#StatObject) |                                               | [`SetBucketNotification`](#SetBucketNotification)             | [`TraceOff`](#TraceOff)                               |
-| [`ListObjects`](#ListObjects)                     | [`RemoveObject`](#RemoveObject)                     |                |                                               | [`GetBucketNotification`](#GetBucketNotification)             | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
-| [`ListObjectsV2`](#ListObjectsV2)                 | [`RemoveObjects`](#RemoveObjects)                   |    |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification) |                                                       |
-| [`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                             |                                               | [`ListenBucketNotification`](#ListenBucketNotification)       |                                                       |
+| [`BucketExists`](#BucketExists)                   | [`CopyObject`](#CopyObject)                         | [`CopyObject`](#CopyObject) | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`SetBucketNotification`](#SetBucketNotification)                  | [`TraceOn`](#TraceOn)                                 |
+| [`RemoveBucket`](#RemoveBucket)                   | [`StatObject`](#StatObject)                         | [`StatObject`](#StatObject) |                                               | [`GetBucketNotification`](#GetBucketNotification)              | [`TraceOff`](#TraceOff)                               |
+| [`ListObjects`](#ListObjects)                     | [`RemoveObject`](#RemoveObject)                     |                |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification)            | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
+| [`ListObjectsV2`](#ListObjectsV2)                 | [`RemoveObjects`](#RemoveObjects)                   |    |                                               | [`ListenBucketNotification`](#ListenBucketNotification)   |                                                       |
+| [`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                             |                                               |      |                                                       |
 |                                                   | [`FPutObject`](#FPutObject)                         |    [`FPutObject`](#FPutObject)                                         |                                               |                                                               |                                                       |
 |                                                   | [`FGetObject`](#FGetObject)                         |    [`FGetObject`](#FGetObject)                                         |                                               |                                                               |                                                       |
 |                                                   | [`ComposeObject`](#ComposeObject)                   |    [`ComposeObject`](#ComposeObject)                                         |                                               |                                                               |                                                       |
@@ -1227,40 +1227,28 @@ fmt.Printf("%s\n", url)
 ## 6. Bucket policy/notification operations
 
 <a name="SetBucketPolicy"></a>
-### SetBucketPolicy(bucketname, objectPrefix string, policy policy.BucketPolicy) error
+### SetBucketPolicy(bucketname, policy string) error
 Set access permissions on bucket or an object prefix.
 
-Importing `github.com/minio/minio-go/pkg/policy` package is needed.
-
 __Parameters__
-
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
 |`bucketName` | _string_  |Name of the bucket|
-|`objectPrefix` | _string_  |Name of the object prefix|
-|`policy` | _policy.BucketPolicy_  |Policy can be one of the following, |
-| |  | _policy.BucketPolicyNone_ |
-| |  | _policy.BucketPolicyReadOnly_ |
-| |  | _policy.BucketPolicyReadWrite_ |
-| |  | _policy.BucketPolicyWriteOnly_ |
-
+|`policy` | _string_  |Policy to be set |
 
 __Return Values__
-
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
 |`err` | _error_  |Standard Error   |
 
-
 __Example__
 
-
 ```go
-// Sets 'mybucket' with a sub-directory 'myprefix' to be anonymously accessible for
-// both read and write operations.
-err = minioClient.SetBucketPolicy("mybucket", "myprefix", policy.BucketPolicyReadWrite)
+policy := `{"Version": "2012-10-17","Statement": [{"Action": ["s3:GetObject"],"Effect": "Allow","Principal": {"AWS": ["*"]},"Resource": ["arn:aws:s3:::my-bucketname/*"],"Sid": ""}]}`
+
+err = minioClient.SetBucketPolicy("my-bucketname", policy)
 if err != nil {
     fmt.Println(err)
     return
@@ -1268,10 +1256,8 @@ if err != nil {
 ```
 
 <a name="GetBucketPolicy"></a>
-### GetBucketPolicy(bucketName, objectPrefix string) (policy.BucketPolicy, error)
+### GetBucketPolicy(bucketName) (policy string, error)
 Get access permissions on a bucket or a prefix.
-
-Importing `github.com/minio/minio-go/pkg/policy` package is needed.
 
 __Parameters__
 
@@ -1279,59 +1265,21 @@ __Parameters__
 |Param   |Type   |Description   |
 |:---|:---| :---|
 |`bucketName`  | _string_  |Name of the bucket   |
-|`objectPrefix` | _string_  |Prefix matching objects under the bucket  |
 
 __Return Values__
 
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`bucketPolicy`  | _policy.BucketPolicy_ |string that contains: `none`, `readonly`, `readwrite`, or `writeonly`   |
+|`policy`  | _string_ |Policy returned from the server |
 |`err` | _error_  |Standard Error  |
 
 __Example__
 
-
 ```go
-bucketPolicy, err := minioClient.GetBucketPolicy("mybucket", "")
+policy, err := minioClient.GetBucketPolicy("my-bucketname")
 if err != nil {
-    fmt.Println(err)
-    return
-}
-fmt.Println("Access permissions for mybucket is", bucketPolicy)
-```
-
-<a name="ListBucketPolicies"></a>
-### ListBucketPolicies(bucketName, objectPrefix string) (map[string]BucketPolicy, error)
-Get access permissions rules associated to the specified bucket and prefix.
-
-__Parameters__
-
-
-|Param   |Type   |Description   |
-|:---|:---| :---|
-|`bucketName`  | _string_  |Name of the bucket  |
-|`objectPrefix` | _string_  |Prefix matching objects under the bucket  |
-
-__Return Values__
-
-
-|Param   |Type   |Description   |
-|:---|:---| :---|
-|`bucketPolicies`  | _map[string]minio.BucketPolicy_ |Map of object resource paths and their permissions  |
-|`err` | _error_  |Standard Error  |
-
-__Example__
-
-
-```go
-bucketPolicies, err := minioClient.ListBucketPolicies("mybucket", "")
-if err != nil {
-    fmt.Println(err)
-    return
-}
-for resource, permission := range bucketPolicies {
-    fmt.Println(resource, " => ", permission)
+    log.Fatalln(err)
 }
 ```
 
