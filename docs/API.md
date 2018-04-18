@@ -553,6 +553,7 @@ __minio.PutObjectOptions__
 | `opts.CacheControl` | _string_ | Used to specify directives for caching mechanisms in both requests and responses e.g "max-age=600"|
 | `opts.ServerSideEncryption` | _encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go) |
 | `opts.StorageClass` | _string_ | Specify storage class for the object. Supported values for Minio server are `REDUCED_REDUNDANCY` and `STANDARD` |
+| `opts.WebsiteRedirectLocation` | _string_ | Specify a redirect for the object, to another object in the same bucket or to a external URL. |
 
 __Example__
 

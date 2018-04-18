@@ -61,3 +61,6 @@ const (
 
 // Storage class header constant.
 const amzStorageClass = "X-Amz-Storage-Class"
+
+// Website redirect location header constant
+const amzWebsiteRedirectLocation = "X-Amz-Website-Redirect-Location"
