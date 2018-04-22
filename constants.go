@@ -27,10 +27,6 @@ const absMinPartSize = 1024 * 1024 * 5
 // putObject behaves internally as multipart.
 const minPartSize = 1024 * 1024 * 64
 
-// copyPartSize - default (and maximum) part size to copy in a
-// copy-object request (5GiB)
-const copyPartSize = 1024 * 1024 * 1024 * 5
-
 // maxPartsCount - maximum number of parts for a single multipart session.
 const maxPartsCount = 10000
 

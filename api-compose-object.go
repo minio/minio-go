@@ -1,6 +1,6 @@
 /*
  * Minio Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2017 Minio, Inc.
+ * Copyright 2017, 2018 Minio, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -490,10 +490,12 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 	return nil
 }
 
-// partsRequired is ceiling(size / copyPartSize)
+// partsRequired is maximum parts possible with
+// max part size of ceiling(maxMultipartPutObjectSize / (maxPartsCount - 1))
 func partsRequired(size int64) int64 {
-	r := size / copyPartSize
-	if size%copyPartSize > 0 {
+	maxPartSize := maxMultipartPutObjectSize / (maxPartsCount - 1)
+	r := size / int64(maxPartSize)
+	if size%int64(maxPartSize) > 0 {
 		r++
 	}
 	return r
