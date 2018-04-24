@@ -20,6 +20,8 @@ package minio
 import (
 	"context"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -343,11 +345,12 @@ func (c Client) uploadPartCopy(ctx context.Context, bucket, object, uploadID str
 	return p, nil
 }
 
-// ComposeObject - creates an object using server-side copying of
+// ComposeObjectWithProgress - creates an object using server-side copying of
 // existing objects. It takes a list of source objects (with optional
 // offsets) and concatenates them into a new object using only
-// server-side copying operations.
-func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
+// server-side copying operations. Optionally takes progress reader hook
+// for applications to look at current progress.
+func (c Client) ComposeObjectWithProgress(dst DestinationInfo, srcs []SourceInfo, progress io.Reader) error {
 	if len(srcs) < 1 || len(srcs) > maxPartsCount {
 		return ErrInvalidArgument("There must be as least one and up to 10000 source objects.")
 	}
@@ -421,7 +424,7 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 	// involved, it is being copied wholly and at most 5GiB in
 	// size, emptyfiles are also supported).
 	if (totalParts == 1 && srcs[0].start == -1 && totalSize <= maxPartSize) || (totalSize == 0) {
-		return c.CopyObject(dst, srcs[0])
+		return c.CopyObjectWithProgress(dst, srcs[0], progress)
 	}
 
 	// Now, handle multipart-copy cases.
@@ -476,6 +479,9 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 			if err != nil {
 				return err
 			}
+			if progress != nil {
+				io.CopyN(ioutil.Discard, progress, start+end-1)
+			}
 			objParts = append(objParts, complPart)
 			partIndex++
 		}
@@ -488,6 +494,14 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 		return err
 	}
 	return nil
+}
+
+// ComposeObject - creates an object using server-side copying of
+// existing objects. It takes a list of source objects (with optional
+// offsets) and concatenates them into a new object using only
+// server-side copying operations.
+func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
+	return c.ComposeObjectWithProgress(dst, srcs, nil)
 }
 
 // partsRequired is maximum parts possible with
