@@ -504,10 +504,12 @@ func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
 	return c.ComposeObjectWithProgress(dst, srcs, nil)
 }
 
-// partsRequired is ceiling(size / copyPartSize)
+// partsRequired is maximum parts possible with
+// max part size of ceiling(maxMultipartPutObjectSize / (maxPartsCount - 1))
 func partsRequired(size int64) int64 {
-	r := size / copyPartSize
-	if size%copyPartSize > 0 {
+	maxPartSize := maxMultipartPutObjectSize / (maxPartsCount - 1)
+	r := size / int64(maxPartSize)
+	if size%int64(maxPartSize) > 0 {
 		r++
 	}
 	return r
