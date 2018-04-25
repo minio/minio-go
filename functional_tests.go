@@ -3500,11 +3500,6 @@ func testFunctional() {
 		return
 	}
 
-	if strings.Compare(readOnlyPolicyRet, readOnlyPolicy) != 0 {
-		logError(testName, function, args, startTime, "", "policy should be set to readonly", err)
-		return
-	}
-
 	// Make the bucket 'public writeonly'.
 	function = "SetBucketPolicy(bucketName, writeOnlyPolicy)"
 	functionAll += ", " + function
@@ -3534,11 +3529,6 @@ func testFunctional() {
 		return
 	}
 
-	if strings.Compare(writeOnlyPolicyRet, writeOnlyPolicy) != 0 {
-		logError(testName, function, args, startTime, "", "policy should be set to writeonly", err)
-		return
-	}
-
 	// Make the bucket 'public read/write'.
 	function = "SetBucketPolicy(bucketName, readWritePolicy)"
 	functionAll += ", " + function
@@ -3564,11 +3554,6 @@ func testFunctional() {
 	readWritePolicyRet, err := c.GetBucketPolicy(bucketName)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetBucketPolicy failed", err)
-		return
-	}
-
-	if strings.Compare(readWritePolicyRet, readWritePolicy) != 0 {
-		logError(testName, function, args, startTime, "", "policy should be set to readwrite", err)
 		return
 	}
 
