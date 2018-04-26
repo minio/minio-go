@@ -5990,7 +5990,11 @@ func testStorageClassMetadataPutObject() {
 		logError(testName, function, args, startTime, "", "Metadata verification failed, STANDARD storage class should not be a part of response metadata", err)
 		return
 	}
-
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		return
+	}
 	successLogger(testName, function, args, startTime).Info()
 }
 
@@ -6031,7 +6035,11 @@ func testStorageClassInvalidMetadataPutObject() {
 		logError(testName, function, args, startTime, "", "PutObject with invalid storage class passed, was expected to fail", err)
 		return
 	}
-
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		return
+	}
 	successLogger(testName, function, args, startTime).Info()
 }
 
@@ -6131,7 +6139,11 @@ func testStorageClassMetadataCopyObject() {
 		logError(testName, function, args, startTime, "", "Metadata verification failed, STANDARD storage class should not be a part of response metadata", err)
 		return
 	}
-
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		return
+	}
 	successLogger(testName, function, args, startTime).Info()
 }
 
