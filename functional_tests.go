@@ -3474,15 +3474,13 @@ func testFunctional() {
 	function = "SetBucketPolicy(bucketName, readOnlyPolicy)"
 	functionAll += ", " + function
 
-	readOnlyPolicy := `{"Version":"2012-10-17","Statement":[{"Action":["s3:ListBucket"],"Effect":"Allow","Principal":{"AWS":["*"]},"Resource":["arn:aws:s3:::` + bucketName + `"],"Sid":""}]}`
-
+	readOnlyPolicy := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:ListBucket"],"Resource":["arn:aws:s3:::` + bucketName + `"]}]}`
 	args = map[string]interface{}{
 		"bucketName":   bucketName,
 		"bucketPolicy": readOnlyPolicy,
 	}
 
 	err = c.SetBucketPolicy(bucketName, readOnlyPolicy)
-
 	if err != nil {
 		logError(testName, function, args, startTime, "", "SetBucketPolicy failed", err)
 		return
@@ -3493,8 +3491,7 @@ func testFunctional() {
 	args = map[string]interface{}{
 		"bucketName": bucketName,
 	}
-	readOnlyPolicyRet, err := c.GetBucketPolicy(bucketName)
-
+	_, err = c.GetBucketPolicy(bucketName)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetBucketPolicy failed", err)
 		return
@@ -3504,8 +3501,7 @@ func testFunctional() {
 	function = "SetBucketPolicy(bucketName, writeOnlyPolicy)"
 	functionAll += ", " + function
 
-	writeOnlyPolicy := `{"Version":"2012-10-17","Statement":[{"Action":["s3:ListBucketMultipartUploads"],"Effect":"Allow","Principal":{"AWS":["*"]},"Resource":["arn:aws:s3:::` + bucketName + `"],"Sid":""}]}`
-
+	writeOnlyPolicy := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:ListBucketMultipartUploads"],"Resource":["arn:aws:s3:::` + bucketName + `"]}]}`
 	args = map[string]interface{}{
 		"bucketName":   bucketName,
 		"bucketPolicy": writeOnlyPolicy,
@@ -3523,7 +3519,7 @@ func testFunctional() {
 		"bucketName": bucketName,
 	}
 
-	writeOnlyPolicyRet, err := c.GetBucketPolicy(bucketName)
+	_, err = c.GetBucketPolicy(bucketName)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetBucketPolicy failed", err)
 		return
@@ -3533,7 +3529,7 @@ func testFunctional() {
 	function = "SetBucketPolicy(bucketName, readWritePolicy)"
 	functionAll += ", " + function
 
-	readWritePolicy := `{"Version":"2012-10-17","Statement":[{"Action":["s3:ListBucket","s3:ListBucketMultipartUploads"],"Effect":"Allow","Principal":{"AWS":["*"]},"Resource":["arn:aws:s3:::` + bucketName + `"],"Sid":""}]}`
+	readWritePolicy := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:ListBucket","s3:ListBucketMultipartUploads"],"Resource":["arn:aws:s3:::` + bucketName + `"]}]}`
 
 	args = map[string]interface{}{
 		"bucketName":   bucketName,
@@ -3551,7 +3547,7 @@ func testFunctional() {
 	args = map[string]interface{}{
 		"bucketName": bucketName,
 	}
-	readWritePolicyRet, err := c.GetBucketPolicy(bucketName)
+	_, err = c.GetBucketPolicy(bucketName)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetBucketPolicy failed", err)
 		return
@@ -5980,7 +5976,11 @@ func testStorageClassMetadataPutObject() {
 		logError(testName, function, args, startTime, "", "Metadata verification failed, STANDARD storage class should not be a part of response metadata", err)
 		return
 	}
-
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		return
+	}
 	successLogger(testName, function, args, startTime).Info()
 }
 
@@ -6021,7 +6021,11 @@ func testStorageClassInvalidMetadataPutObject() {
 		logError(testName, function, args, startTime, "", "PutObject with invalid storage class passed, was expected to fail", err)
 		return
 	}
-
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		return
+	}
 	successLogger(testName, function, args, startTime).Info()
 }
 
@@ -6121,7 +6125,11 @@ func testStorageClassMetadataCopyObject() {
 		logError(testName, function, args, startTime, "", "Metadata verification failed, STANDARD storage class should not be a part of response metadata", err)
 		return
 	}
-
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		return
+	}
 	successLogger(testName, function, args, startTime).Info()
 }
 
@@ -6482,7 +6490,7 @@ func testFunctionalV2() {
 	function = "SetBucketPolicy(bucketName, bucketPolicy)"
 	functionAll += ", " + function
 
-	readWritePolicy := `{"Version": "2012-10-17","Statement": [{"Action": ["s3:ListBucketMultipartUploads,s3:ListBucket"],"Effect": "Allow","Principal": {"AWS": ["*"]},"Resource": ["arn:aws:s3:::` + bucketName + `/*"],"Sid": ""}]}`
+	readWritePolicy := `{"Version": "2012-10-17","Statement": [{"Action": ["s3:ListBucketMultipartUploads", "s3:ListBucket"],"Effect": "Allow","Principal": {"AWS": ["*"]},"Resource": ["arn:aws:s3:::` + bucketName + `"],"Sid": ""}]}`
 
 	args = map[string]interface{}{
 		"bucketName":   bucketName,
@@ -6543,9 +6551,9 @@ func testFunctionalV2() {
 		return
 	}
 
-	objectName_noLength := objectName + "-nolength"
-	args["objectName"] = objectName_noLength
-	n, err = c.PutObject(bucketName, objectName_noLength, bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	objectNameNoLength := objectName + "-nolength"
+	args["objectName"] = objectNameNoLength
+	n, err = c.PutObject(bucketName, objectNameNoLength, bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject failed", err)
 		return
