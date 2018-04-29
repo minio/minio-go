@@ -3491,13 +3491,9 @@ func testFunctional() {
 	args = map[string]interface{}{
 		"bucketName": bucketName,
 	}
-	readOnlyPolicyRet, err := c.GetBucketPolicy(bucketName)
+	_, err = c.GetBucketPolicy(bucketName)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetBucketPolicy failed", err)
-		return
-	}
-	if readOnlyPolicyRet == "" {
-		logError(testName, function, args, startTime, "", "policy should be set", err)
 		return
 	}
 
@@ -3523,14 +3519,9 @@ func testFunctional() {
 		"bucketName": bucketName,
 	}
 
-	writeOnlyPolicyRet, err := c.GetBucketPolicy(bucketName)
+	_, err = c.GetBucketPolicy(bucketName)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetBucketPolicy failed", err)
-		return
-	}
-
-	if writeOnlyPolicyRet == "" {
-		logError(testName, function, args, startTime, "", "policy should be set", err)
 		return
 	}
 
@@ -3556,14 +3547,9 @@ func testFunctional() {
 	args = map[string]interface{}{
 		"bucketName": bucketName,
 	}
-	readWritePolicyRet, err := c.GetBucketPolicy(bucketName)
+	_, err = c.GetBucketPolicy(bucketName)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetBucketPolicy failed", err)
-		return
-	}
-
-	if readWritePolicyRet == "" {
-		logError(testName, function, args, startTime, "", "policy should be set", err)
 		return
 	}
 
