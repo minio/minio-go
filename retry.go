@@ -40,7 +40,7 @@ const DefaultRetryUnit = time.Second
 
 // DefaultRetryCap - Each retry attempt never waits no longer than
 // this maximum time duration.
-const DefaultRetryCap = time.Second * 30
+var DefaultRetryCap = time.Second * 30
 
 // newRetryTimer creates a timer with exponentially increasing
 // delays until the maximum retry attempts are reached.

@@ -41,7 +41,12 @@ import (
 	"github.com/minio/minio-go/pkg/credentials"
 	"github.com/minio/minio-go/pkg/s3signer"
 	"github.com/minio/minio-go/pkg/s3utils"
+	"github.com/paulbellamy/ratecounter"
+	"github.com/sirupsen/logrus"
 )
+
+//RequestRateLoggingTh - request rate logging threshold
+var RequestRateLoggingTh = int64(100)
 
 // Client implements Amazon S3 compatible methods.
 type Client struct {
@@ -85,6 +90,9 @@ type Client struct {
 	// lookup indicates type of url lookup supported by server. If not specified,
 	// default to Auto.
 	lookup BucketLookupType
+
+	log     logrus.FieldLogger
+	counter *ratecounter.RateCounter
 }
 
 // Options for New method
@@ -93,6 +101,7 @@ type Options struct {
 	Secure       bool
 	Region       string
 	BucketLookup BucketLookupType
+	Log          logrus.FieldLogger
 	// Add future fields here
 }
 
@@ -180,7 +189,12 @@ func NewWithRegion(endpoint, accessKeyID, secretAccessKey string, secure bool, r
 
 // NewWithOptions - instantiate minio client with options
 func NewWithOptions(endpoint string, opts *Options) (*Client, error) {
-	return privateNew(endpoint, opts.Creds, opts.Secure, opts.Region, opts.BucketLookup)
+	clnt, err := privateNew(endpoint, opts.Creds, opts.Secure, opts.Region, opts.BucketLookup)
+	if err != nil {
+		return nil, err
+	}
+	clnt.log = opts.Log
+	return clnt, nil
 }
 
 // lockedRandSource provides protected rand source, implements rand.Source interface.
@@ -306,6 +320,9 @@ func privateNew(endpoint string, creds *credentials.Credentials, secure bool, re
 	// Sets bucket lookup style, whether server accepts DNS or Path lookup. Default is Auto - determined
 	// by the SDK. When Auto is specified, DNS lookup is used for Amazon/Google cloud endpoints and Path for all other endpoints.
 	clnt.lookup = lookup
+
+	//recording events-per-1second
+	clnt.counter = ratecounter.NewRateCounter(1 * time.Second)
 	// Return.
 	return clnt, nil
 }
@@ -492,6 +509,10 @@ func (c Client) dumpHTTP(req *http.Request, resp *http.Response) error {
 
 // do - execute http request.
 func (c Client) do(req *http.Request) (*http.Response, error) {
+	c.counter.Incr(1)
+	if c.counter.Rate() > RequestRateLoggingTh {
+		c.log.Warnf("minio requests-per-second execceded %d", RequestRateLoggingTh)
+	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		// Handle this specifically for now until future Golang versions fix this issue properly.
