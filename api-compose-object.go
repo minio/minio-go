@@ -311,7 +311,7 @@ func (c Client) copyObjectPartDo(ctx context.Context, srcBucket, srcObject, dest
 // upload via an upload-part-copy request
 // https://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadUploadPartCopy.html
 func (c Client) uploadPartCopy(ctx context.Context, bucket, object, uploadID string, partNumber int,
-	headers http.Header) (p CompletePart, err error) {
+	headers http.Header) (p ObjectPart, err error) {
 
 	// Build query parameters
 	urlValues := make(url.Values)
@@ -341,7 +341,8 @@ func (c Client) uploadPartCopy(ctx context.Context, bucket, object, uploadID str
 	if err != nil {
 		return p, err
 	}
-	p.PartNumber, p.ETag = partNumber, cpObjRes.ETag
+	p.ETag = cpObjRes.ETag
+	p.PartNumber = partNumber
 	return p, nil
 }
 
@@ -356,10 +357,12 @@ func (c Client) ComposeObjectWithProgress(dst DestinationInfo, srcs []SourceInfo
 	}
 	ctx := context.Background()
 	srcSizes := make([]int64, len(srcs))
-	var totalSize, size, totalParts int64
-	var srcUserMeta map[string]string
-	var etag string
-	var err error
+	var (
+		totalSize, size, totalParts int64
+		srcUserMeta                 map[string]string
+		etag                        string
+		err                         error
+	)
 	for i, src := range srcs {
 		size, etag, srcUserMeta, err = src.getProps(c)
 		if err != nil {
@@ -444,13 +447,40 @@ func (c Client) ComposeObjectWithProgress(dst DestinationInfo, srcs []SourceInfo
 		metaHeaders[k] = v
 	}
 
-	uploadID, err := c.newUploadID(ctx, dst.bucket, dst.object, PutObjectOptions{ServerSideEncryption: dst.encryption, UserMetadata: metaHeaders})
+	uploadID, err := c.newUploadID(ctx, dst.bucket, dst.object, PutObjectOptions{
+		ServerSideEncryption: dst.encryption,
+		UserMetadata:         metaHeaders,
+	})
 	if err != nil {
 		return err
 	}
 
+	uploadPartCopy := func(start, end int64, partIndex int, h http.Header, w chan<- uploadedPartRes, progress io.Reader) {
+		// Add (or reset) source range header for upload part copy request.
+		h.Set("x-amz-copy-source-range", fmt.Sprintf("bytes=%d-%d", start, end))
+		// Make upload-part-copy request
+		complPart, err := c.uploadPartCopy(ctx, dst.bucket,
+			dst.object, uploadID, partIndex, h)
+		if err != nil {
+			w <- uploadedPartRes{
+				Error: err,
+			}
+			return
+		}
+		if progress != nil {
+			io.CopyN(ioutil.Discard, progress, start+end-1)
+		}
+		w <- uploadedPartRes{
+			PartNum: partIndex,
+			Size:    start + end - 1,
+			Part:    &complPart,
+		}
+	}
+
+	// Complete multipart upload.
+	var complMultipartUpload completeMultipartUpload
+
 	// 2. Perform copy part uploads
-	objParts := []CompletePart{}
 	partIndex := 1
 	for i, src := range srcs {
 		h := src.Headers
@@ -462,38 +492,39 @@ func (c Client) ComposeObjectWithProgress(dst DestinationInfo, srcs []SourceInfo
 			dst.encryption.Marshal(h)
 		}
 
-		// calculate start/end indices of parts after
-		// splitting.
+		// calculate start/end indices of parts after splitting.
 		startIdx, endIdx := calculateEvenSplits(srcSizes[i], src)
+		workerChs := make([]chan uploadedPartRes, totalWorkers)
+		for w := range workerChs {
+			// create buffered channel to let finished go-routines die early
+			workerChs[w] = make(chan uploadedPartRes, 1)
+		}
 		for j, start := range startIdx {
 			end := endIdx[j]
-
-			// Add (or reset) source range header for
-			// upload part copy request.
-			h.Set("x-amz-copy-source-range",
-				fmt.Sprintf("bytes=%d-%d", start, end))
-
-			// make upload-part-copy request
-			complPart, err := c.uploadPartCopy(ctx, dst.bucket,
-				dst.object, uploadID, partIndex, h)
-			if err != nil {
-				return err
+			for w := range workerChs {
+				go uploadPartCopy(start, end, partIndex, cloneHeader(h), workerChs[w], progress)
 			}
-			if progress != nil {
-				io.CopyN(ioutil.Discard, progress, start+end-1)
+			for w := range workerChs {
+				p := <-workerChs[w]
+				if p.Error != nil {
+					return p.Error
+				}
+				if p.Part == nil {
+					return ErrInvalidArgument(fmt.Sprintf("Missing part number %d", p.PartNum))
+				}
+				// Store the parts to be completed in order.
+				complMultipartUpload.Parts = append(complMultipartUpload.Parts, CompletePart{
+					ETag:       p.Part.ETag,
+					PartNumber: p.Part.PartNumber,
+				})
+				partIndex++
 			}
-			objParts = append(objParts, complPart)
-			partIndex++
 		}
 	}
 
 	// 3. Make final complete-multipart request.
-	_, err = c.completeMultipartUpload(ctx, dst.bucket, dst.object, uploadID,
-		completeMultipartUpload{Parts: objParts})
-	if err != nil {
-		return err
-	}
-	return nil
+	_, err = c.completeMultipartUpload(ctx, dst.bucket, dst.object, uploadID, complMultipartUpload)
+	return err
 }
 
 // ComposeObject - creates an object using server-side copying of
