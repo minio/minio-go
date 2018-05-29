@@ -69,6 +69,20 @@ func NewIAM(endpoint string) *Credentials {
 	return New(p)
 }
 
+// NewIAMProvider returns a point to a new IAM object
+// that satisfies the Provider interface.
+func NewIAMProvider(endpoint string) *IAM {
+	if endpoint == "" {
+		endpoint = defaultIAMRoleEndpoint
+	}
+	return &IAM{
+		Client: &http.Client{
+			Transport: http.DefaultTransport,
+		},
+		endpoint: endpoint,
+	}
+}
+
 // Retrieve retrieves credentials from the EC2 service.
 // Error will be returned if the request fails, or unable to extract
 // the desired
