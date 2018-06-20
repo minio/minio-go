@@ -2623,8 +2623,14 @@ func testCopyObject() {
 		return
 	}
 
+	oi, err := c.StatObject(bucketName, objectName, minio.StatObjectOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "StatObject failed", err)
+		return
+	}
+
 	stOpts := minio.StatObjectOptions{}
-	stOpts.SetMatchETag(objInfo.ETag)
+	stOpts.SetMatchETag(oi.ETag)
 	objInfo, err = c.StatObject(bucketName, objectName, stOpts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "CopyObject ETag should match and not fail", err)
@@ -7375,12 +7381,12 @@ func testListObjects() {
 			return
 		}
 		if objInfo.Key == objectName1 && objInfo.StorageClass != "STANDARD" {
-			logError(testName, function, args, startTime, "", "ListObjects doesn't return expected storage class", err)
-			return
+			// Ignored as Gateways (Azure/GCS etc) wont return storage class
+			ignoredLog(testName, function, args, startTime, "ListObjects doesn't return expected storage class").Info()
 		}
 		if objInfo.Key == objectName2 && objInfo.StorageClass != "REDUCED_REDUNDANCY" {
-			logError(testName, function, args, startTime, "", "ListObjects doesn't return expected storage class", err)
-			return
+			// Ignored as Gateways (Azure/GCS etc) wont return storage class
+			ignoredLog(testName, function, args, startTime, "ListObjects doesn't return expected storage class").Info()
 		}
 	}
 
@@ -7391,12 +7397,12 @@ func testListObjects() {
 			return
 		}
 		if objInfo.Key == objectName1 && objInfo.StorageClass != "STANDARD" {
-			logError(testName, function, args, startTime, "", "ListObjectsV2 doesn't return expected storage class", err)
-			return
+			// Ignored as Gateways (Azure/GCS etc) wont return storage class
+			ignoredLog(testName, function, args, startTime, "ListObjectsV2 doesn't return expected storage class").Info()
 		}
 		if objInfo.Key == objectName2 && objInfo.StorageClass != "REDUCED_REDUNDANCY" {
-			logError(testName, function, args, startTime, "", "ListObjectsV2 doesn't return expected storage class", err)
-			return
+			// Ignored as Gateways (Azure/GCS etc) wont return storage class
+			ignoredLog(testName, function, args, startTime, "ListObjectsV2 doesn't return expected storage class").Info()
 		}
 	}
 
