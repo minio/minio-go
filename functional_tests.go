@@ -751,7 +751,7 @@ func testPutObjectWithContentLanguage() {
 
 	data := bytes.Repeat([]byte("a"), int(0))
 	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(data), int64(0), minio.PutObjectOptions{
-		ContentLanguage: "en-US",
+		ContentLanguage: "en",
 	})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject failed", err)
@@ -769,8 +769,8 @@ func testPutObjectWithContentLanguage() {
 		return
 	}
 
-	if objInfo.Metadata.Get("Content-Language") != "en-US" {
-		logError(testName, function, args, startTime, "", "Expected content-language 'en-US' doesn't match with StatObject return value", err)
+	if objInfo.Metadata.Get("Content-Language") != "en" {
+		logError(testName, function, args, startTime, "", "Expected content-language 'en' doesn't match with StatObject return value", err)
 		return
 	}
 
