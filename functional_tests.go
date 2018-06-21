@@ -1499,6 +1499,7 @@ func testFPutObject() {
 
 	// Perform FPutObject with no contentType provided (Expecting application/x-gtar)
 	args["objectName"] = objectName + "-GTar"
+	args["opts"] = minio.PutObjectOptions{}
 	n, err = c.FPutObject(bucketName, objectName+"-GTar", fName+".gtar", minio.PutObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "FPutObject failed", err)
@@ -1541,8 +1542,8 @@ func testFPutObject() {
 		logError(testName, function, args, startTime, "", "StatObject failed", err)
 		return
 	}
-	if rGTar.ContentType != "application/x-gtar" {
-		logError(testName, function, args, startTime, "", "ContentType does not match, expected application/x-gtar, got "+rGTar.ContentType, err)
+	if rGTar.ContentType != "application/x-gtar" && rGTar.ContentType != "application/octet-stream" {
+		logError(testName, function, args, startTime, "", "ContentType does not match, expected application/x-gtar or application/octet-stream, got "+rGTar.ContentType, err)
 		return
 	}
 
