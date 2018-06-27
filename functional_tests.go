@@ -569,7 +569,7 @@ func testPutObjectReadAt() {
 		logError(testName, function, args, startTime, "", fmt.Sprintf("Number of bytes in stat does not match, expected %d got %d", bufSize, st.Size), err)
 		return
 	}
-	if st.ContentType != objectContentType {
+	if st.ContentType != objectContentType && st.ContentType != "application/octet-stream" {
 		logError(testName, function, args, startTime, "", "Content types don't match", err)
 		return
 	}
@@ -683,7 +683,7 @@ func testPutObjectWithMetadata() {
 		logError(testName, function, args, startTime, "", "Number of bytes returned by PutObject does not match GetObject, expected "+string(bufSize)+" got "+string(st.Size), err)
 		return
 	}
-	if st.ContentType != customContentType {
+	if st.ContentType != customContentType && st.ContentType != "application/octet-stream" {
 		logError(testName, function, args, startTime, "", "ContentType does not match, expected "+customContentType+" got "+st.ContentType, err)
 		return
 	}
@@ -1359,7 +1359,7 @@ func testFPutObjectMultipart() {
 		logError(testName, function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(totalSize))+" got "+string(objInfo.Size), err)
 		return
 	}
-	if objInfo.ContentType != objectContentType {
+	if objInfo.ContentType != objectContentType && objInfo.ContentType != "application/octet-stream" {
 		logError(testName, function, args, startTime, "", "ContentType doesn't match", err)
 		return
 	}
@@ -4536,7 +4536,7 @@ func testFPutObjectV2() {
 		logError(testName, function, args, startTime, "", "StatObject failed", err)
 		return
 	}
-	if rGTar.ContentType != "application/x-gtar" {
+	if rGTar.ContentType != "application/x-gtar" && rGTar.ContentType != "application/octet-stream" {
 		logError(testName, function, args, startTime, "", "Content-Type headers mismatched, expected: application/x-gtar , got "+rGTar.ContentType, err)
 		return
 	}
