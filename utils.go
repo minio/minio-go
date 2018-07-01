@@ -32,7 +32,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/minio/minio-go/pkg/s3utils"
+	"github.com/wilyarti/minio-go/pkg/s3utils"
 )
 
 // xmlDecoder provide decoded value in xml.

@@ -10,7 +10,7 @@ package main
 import (
     "fmt"
 
-    "github.com/minio/minio-go"
+    "github.com/wilyarti/minio-go"
 )
 
 func main() {
@@ -34,7 +34,7 @@ package main
 import (
     "fmt"
 
-    "github.com/minio/minio-go"
+    "github.com/wilyarti/minio-go"
 )
 
 func main() {
@@ -379,7 +379,7 @@ __minio.GetObjectOptions__
 
 |参数 | 类型 | 描述 |
 |:---|:---|:---|
-| `opts.Materials` | _encrypt.Materials_ | `encrypt`包提供的对流加密的接口，(更多信息，请看https://godoc.org/github.com/minio/minio-go) |
+| `opts.Materials` | _encrypt.Materials_ | `encrypt`包提供的对流加密的接口，(更多信息，请看https://godoc.org/github.com/wilyarti/minio-go) |
 
 __返回值__
 
@@ -524,7 +524,7 @@ __参数__
 |`bucketName`  | _string_  |存储桶名称 |
 |`objectName` | _string_  |对象的名称  |
 |`filePath` | _string_  |下载后保存的路径|
-|`materials` | _encrypt.Materials_ | `encrypt`包提供的对流加密的接口，(更多信息，请看https://godoc.org/github.com/minio/minio-go) |
+|`materials` | _encrypt.Materials_ | `encrypt`包提供的对流加密的接口，(更多信息，请看https://godoc.org/github.com/wilyarti/minio-go) |
 
 
 __示例__
@@ -573,7 +573,7 @@ __minio.PutObjectOptions__
 | `opts.ContentEncoding` | _string_ | 对象的Content encoding，例如"gzip" |
 | `opts.ContentDisposition` | _string_ | 对象的Content disposition, "inline" |
 | `opts.CacheControl` | _string_ | 指定针对请求和响应的缓存机制，例如"max-age=600"|
-| `opts.EncryptMaterials` | _encrypt.Materials_ | `encrypt`包提供的对流加密的接口，(更多信息，请看https://godoc.org/github.com/minio/minio-go) |
+| `opts.EncryptMaterials` | _encrypt.Materials_ | `encrypt`包提供的对流加密的接口，(更多信息，请看https://godoc.org/github.com/wilyarti/minio-go) |
 
 
 __示例__
@@ -1176,7 +1176,7 @@ __参数__
 |:---|:---| :---|
 |`bucketName`  | _string_  | 存储桶名称  |
 |`objectName` | _string_  | 对象的名称  |
-|`encryptMaterials` | _encrypt.Materials_ | `encrypt`包提供的对流加密的接口，(更多信息，请看https://godoc.org/github.com/minio/minio-go) |
+|`encryptMaterials` | _encrypt.Materials_ | `encrypt`包提供的对流加密的接口，(更多信息，请看https://godoc.org/github.com/wilyarti/minio-go) |
 
 
 __返回值__
@@ -1233,7 +1233,7 @@ __参数__
 |`bucketName`  | _string_  |存储桶名称  |
 |`objectName` | _string_  |对象的名称   |
 |`reader` | _io.Reader_  |任何实现io.Reader的Go类型 |
-|`encryptMaterials` | _encrypt.Materials_  | `encrypt`包提供的对流加密的接口，(更多信息，请看https://godoc.org/github.com/minio/minio-go) |
+|`encryptMaterials` | _encrypt.Materials_  | `encrypt`包提供的对流加密的接口，(更多信息，请看https://godoc.org/github.com/wilyarti/minio-go) |
 
 __示例__
 
@@ -1295,7 +1295,7 @@ __参数__
 |`bucketName`  | _string_  |存储桶名称  |
 |`objectName` | _string_  |对象的名称 |
 |`filePath` | _string_  |要上传的文件的路径 |
-|`encryptMaterials` | _encrypt.Materials_  | `encrypt`包提供的对流加密的接口，(更多信息，请看https://godoc.org/github.com/minio/minio-go) |
+|`encryptMaterials` | _encrypt.Materials_  | `encrypt`包提供的对流加密的接口，(更多信息，请看https://godoc.org/github.com/wilyarti/minio-go) |
 
 __示例__
 
@@ -1489,7 +1489,7 @@ fmt.Printf("%s\n", url)
 ### SetBucketPolicy(bucketname, objectPrefix string, policy policy.BucketPolicy) error
 给存储桶或者对象前缀设置访问权限。
 
-必须引入`github.com/minio/minio-go/pkg/policy`包。
+必须引入`github.com/wilyarti/minio-go/pkg/policy`包。
 
 __参数__
 
@@ -1530,7 +1530,7 @@ if err != nil {
 ### GetBucketPolicy(bucketName, objectPrefix string) (policy.BucketPolicy, error)
 获取存储桶或者对象前缀的访问权限。
 
-必须引入`github.com/minio/minio-go/pkg/policy`包。
+必须引入`github.com/wilyarti/minio-go/pkg/policy`包。
 
 __参数__
 

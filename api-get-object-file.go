@@ -23,7 +23,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/minio/minio-go/pkg/s3utils"
+	"github.com/wilyarti/minio-go/pkg/s3utils"
 )
 
 // FGetObjectWithContext - download contents of an object to a local file.

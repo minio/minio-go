@@ -26,7 +26,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/minio/minio-go/pkg/s3utils"
+	"github.com/wilyarti/minio-go/pkg/s3utils"
 )
 
 /// Bucket operations

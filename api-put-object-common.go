@@ -23,7 +23,7 @@ import (
 	"math"
 	"os"
 
-	"github.com/minio/minio-go/pkg/s3utils"
+	"github.com/wilyarti/minio-go/pkg/s3utils"
 )
 
 // Verify if reader is *minio.Object
@@ -88,6 +88,19 @@ func optimalPartInfo(objectSize int64) (totalPartsCount int, partSize int64, las
 	partSize = int64(partSizeFlt)
 	// Last part size.
 	lastPartSize = objectSize - int64(totalPartsCount-1)*partSize
+	// simple fix to reduce memory use by estimating total file size
+	// this is used for a compressed or encrypted file stream
+	// where the total size is not determined
+	if objectSize < -1 {
+		if objectSize > (1024 * 1024 * 8 * -1) {
+			objectSize = 1024 * 1024 * 8
+		}
+
+		partSizeFlt = math.Abs(float64(objectSize))
+		totalPartsCount = maxPartsCount
+		partSize = int64(partSizeFlt)
+		lastPartSize = partSize
+	}
 	return totalPartsCount, partSize, lastPartSize, nil
 }
 

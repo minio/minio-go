@@ -26,8 +26,8 @@ import (
 	"runtime/debug"
 	"sort"
 
-	"github.com/minio/minio-go/pkg/encrypt"
-	"github.com/minio/minio-go/pkg/s3utils"
+	"github.com/wilyarti/minio-go/pkg/encrypt"
+	"github.com/wilyarti/minio-go/pkg/s3utils"
 	"golang.org/x/net/http/httpguts"
 )
 
@@ -154,7 +154,7 @@ func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName stri
 		return c.putObjectMultipart(ctx, bucketName, objectName, reader, size, opts)
 	}
 	if size < 0 {
-		return c.putObjectMultipartStreamNoLength(ctx, bucketName, objectName, reader, opts)
+		return c.putObjectMultipartStreamNoLength(ctx, bucketName, objectName, reader, size, opts)
 	}
 
 	if size < minPartSize {
@@ -164,7 +164,7 @@ func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName stri
 	return c.putObjectMultipartStream(ctx, bucketName, objectName, reader, size, opts)
 }
 
-func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName, objectName string, reader io.Reader, opts PutObjectOptions) (n int64, err error) {
+func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName, objectName string, reader io.Reader, size int64, opts PutObjectOptions) (n int64, err error) {
 	// Input validation.
 	if err = s3utils.CheckValidBucketName(bucketName); err != nil {
 		return 0, err
@@ -181,7 +181,7 @@ func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName
 	var complMultipartUpload completeMultipartUpload
 
 	// Calculate the optimal parts info for a given size.
-	totalPartsCount, partSize, _, err := optimalPartInfo(-1)
+	totalPartsCount, partSize, _, err := optimalPartInfo(size)
 	if err != nil {
 		return 0, err
 	}
