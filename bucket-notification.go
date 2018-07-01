@@ -20,7 +20,7 @@ package minio
 import (
 	"encoding/xml"
 
-	"github.com/minio/minio-go/pkg/set"
+	"github.com/wilyarti/minio-go/pkg/set"
 )
 
 // NotificationEventType is a S3 notification event associated to the bucket notification configuration

@@ -38,9 +38,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/minio/minio-go/pkg/credentials"
-	"github.com/minio/minio-go/pkg/s3signer"
-	"github.com/minio/minio-go/pkg/s3utils"
+	"github.com/wilyarti/minio-go/pkg/credentials"
+	"github.com/wilyarti/minio-go/pkg/s3signer"
+	"github.com/wilyarti/minio-go/pkg/s3utils"
 )
 
 // Client implements Amazon S3 compatible methods.

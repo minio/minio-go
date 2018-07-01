@@ -33,13 +33,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/minio/minio-go/pkg/encrypt"
-	"github.com/minio/minio-go/pkg/s3utils"
+	"github.com/wilyarti/minio-go/pkg/encrypt"
+	"github.com/wilyarti/minio-go/pkg/s3utils"
 )
 
 func (c Client) putObjectMultipart(ctx context.Context, bucketName, objectName string, reader io.Reader, size int64,
 	opts PutObjectOptions) (n int64, err error) {
-	n, err = c.putObjectMultipartNoStream(ctx, bucketName, objectName, reader, opts)
+	n, err = c.putObjectMultipartNoStream(ctx, bucketName, objectName, reader, size, opts)
 	if err != nil {
 		errResp := ToErrorResponse(err)
 		// Verify if multipart functionality is not available, if not
@@ -56,7 +56,7 @@ func (c Client) putObjectMultipart(ctx context.Context, bucketName, objectName s
 	return n, err
 }
 
-func (c Client) putObjectMultipartNoStream(ctx context.Context, bucketName, objectName string, reader io.Reader, opts PutObjectOptions) (n int64, err error) {
+func (c Client) putObjectMultipartNoStream(ctx context.Context, bucketName, objectName string, reader io.Reader, size int64, opts PutObjectOptions) (n int64, err error) {
 	// Input validation.
 	if err = s3utils.CheckValidBucketName(bucketName); err != nil {
 		return 0, err
@@ -73,7 +73,7 @@ func (c Client) putObjectMultipartNoStream(ctx context.Context, bucketName, obje
 	var complMultipartUpload completeMultipartUpload
 
 	// Calculate the optimal parts info for a given size.
-	totalPartsCount, partSize, _, err := optimalPartInfo(-1)
+	totalPartsCount, partSize, _, err := optimalPartInfo(size)
 	if err != nil {
 		return 0, err
 	}
