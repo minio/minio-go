@@ -76,3 +76,53 @@ func (c Client) getBucketPolicy(bucketName string) (string, error) {
 	policy := string(bucketPolicyBuf)
 	return policy, err
 }
+
+// GetBucketLifecyclePolicy - get bucket lifecycle policy.
+func (c Client) GetBucketLifecyclePolicy(bucketName string) (string, error) {
+	// Input validation.
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		return "", err
+	}
+	bucketPolicy, err := c.getBucketLifecyclePolicy(bucketName)
+	if err != nil {
+		errResponse := ToErrorResponse(err)
+		if errResponse.Code == "NoSuchLifecycleConfiguration" {
+			return "", nil
+		}
+		return "", err
+	}
+	return bucketPolicy, nil
+}
+
+// Request server for current bucket lifecycle policy.
+func (c Client) getBucketLifecyclePolicy(bucketName string) (string, error) {
+	// Get resources properly escaped and lined up before
+	// using them in http request.
+	urlValues := make(url.Values)
+	urlValues.Set("lifecycle", "")
+
+	// Execute GET on bucket to list objects.
+	resp, err := c.executeMethod(context.Background(), "GET", requestMetadata{
+		bucketName:  bucketName,
+		queryValues: urlValues,
+	})
+
+	defer closeResponse(resp)
+	if err != nil {
+		return "", err
+	}
+
+	if resp != nil {
+		if resp.StatusCode != http.StatusOK {
+			return "", httpRespToErrorResponse(resp, bucketName, "")
+		}
+	}
+
+	bucketPolicyBuf, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	policy := string(bucketPolicyBuf)
+	return policy, err
+}

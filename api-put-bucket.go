@@ -178,6 +178,87 @@ func (c Client) removeBucketPolicy(bucketName string) error {
 	return nil
 }
 
+// SetBucketLifecyclePolicy set the lifecyclep policy on an existing bucket.
+func (c Client) SetBucketLifecyclePolicy(bucketName, policy string) error {
+	// Input validation.
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		return err
+	}
+
+	// If policy is empty then delete the bucket policy.
+	if policy == "" {
+		return c.removeBucketLifecyclePolicy(bucketName)
+	}
+
+	// Save the updated policies.
+	return c.putBucketLifecyclePolicy(bucketName, policy)
+}
+
+// Saves a new bucket lifecycle policy.
+func (c Client) putBucketLifecyclePolicy(bucketName, policy string) error {
+	// Input validation.
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		return err
+	}
+
+	// Get resources properly escaped and lined up before
+	// using them in http request.
+	urlValues := make(url.Values)
+	urlValues.Set("lifecycle", "")
+
+	// Content-length is mandatory for put policy request
+	policyReader := strings.NewReader(policy)
+	b, err := ioutil.ReadAll(policyReader)
+	if err != nil {
+		return err
+	}
+
+	reqMetadata := requestMetadata{
+		bucketName:       bucketName,
+		queryValues:      urlValues,
+		contentBody:      policyReader,
+		contentLength:    int64(len(b)),
+		contentMD5Base64: sumMD5Base64(b),
+	}
+
+	// Execute PUT to upload a new bucket lifecycle policy.
+	resp, err := c.executeMethod(context.Background(), "PUT", reqMetadata)
+	defer closeResponse(resp)
+	if err != nil {
+		return err
+	}
+	if resp != nil {
+		if resp.StatusCode != http.StatusOK {
+			return httpRespToErrorResponse(resp, bucketName, "")
+		}
+	}
+	return nil
+}
+
+// Remove all lifecycle policies on a bucket.
+func (c Client) removeBucketLifecyclePolicy(bucketName string) error {
+	// Input validation.
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		return err
+	}
+	// Get resources properly escaped and lined up before
+	// using them in http request.
+	urlValues := make(url.Values)
+	urlValues.Set("lifecycle", "")
+
+	// Execute DELETE on objectName.
+	resp, err := c.executeMethod(context.Background(), "DELETE", requestMetadata{
+		bucketName:       bucketName,
+		queryValues:      urlValues,
+		contentSHA256Hex: emptySHA256Hex,
+	})
+	defer closeResponse(resp)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // SetBucketNotification saves a new bucket notification.
 func (c Client) SetBucketNotification(bucketName string, bucketNotification BucketNotification) error {
 	// Input validation.
