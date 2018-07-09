@@ -20,7 +20,10 @@
 package main
 
 import (
+	"io"
 	"log"
+	"os"
+	"strings"
 
 	"github.com/minio/minio-go"
 )
@@ -41,11 +44,22 @@ func main() {
 
 	// s3Client.TraceOn(os.Stderr)
 
-	// Create policy
-	policy := `{"Version": "2012-10-17","Statement": [{"Action": ["s3:GetObject"],"Effect": "Allow","Principal": {"AWS": ["*"]},"Resource": ["arn:aws:s3:::my-bucketname/*"],"Sid": ""}]}`
-
-	err = s3Client.SetBucketPolicy("my-bucketname", policy)
+	// Get bucket lifecycle policy from S3
+	lifecyclePolicy, err := s3Client.GetBucketLifecyclePolicy("my-bucketname")
 	if err != nil {
+		log.Fatalln(err)
+	}
+
+	// Create lifecycle policy file
+	localLifecyclePolicyFile, err := os.Create("lifecycle-policy.json")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer localLifecyclePolicyFile.Close()
+
+	lifecyclePolicyReader := strings.NewReader(lifecyclePolicy)
+
+	if _, err := io.Copy(localLifecyclePolicyFile, lifecyclePolicyReader); err != nil {
 		log.Fatalln(err)
 	}
 }

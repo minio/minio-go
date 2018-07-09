@@ -41,10 +41,9 @@ func main() {
 
 	// s3Client.TraceOn(os.Stderr)
 
-	// Create policy
-	policy := `{"Version": "2012-10-17","Statement": [{"Action": ["s3:GetObject"],"Effect": "Allow","Principal": {"AWS": ["*"]},"Resource": ["arn:aws:s3:::my-bucketname/*"],"Sid": ""}]}`
-
-	err = s3Client.SetBucketPolicy("my-bucketname", policy)
+	// Create lifecycle policy
+	lifecyclePolicy := `<LifecycleConfiguration><Rule><ID>expire-bucket</ID><Prefix></Prefix><Status>Enabled</Status><Expiration><Days>365</Days></Expiration></Rule></LifecycleConfiguration>`
+	err = s3Client.SetBucketLifecyclePolicy("my-bucketname", lifecyclePolicy)
 	if err != nil {
 		log.Fatalln(err)
 	}

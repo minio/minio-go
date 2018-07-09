@@ -181,6 +181,8 @@ The full API Reference is available here.
 ### Full Examples : Bucket policy Operations
 * [setbucketpolicy.go](https://github.com/minio/minio-go/blob/master/examples/s3/setbucketpolicy.go)
 * [getbucketpolicy.go](https://github.com/minio/minio-go/blob/master/examples/s3/getbucketpolicy.go)
+* [setbucketlifecyclepolicy.go](https://github.com/minio/minio-go/blob/master/examples/s3/setbucketlifecyclepolicy.go)
+* [getbucketlifecyclepolicy.go](https://github.com/minio/minio-go/blob/master/examples/s3/getbucketlifecyclepolicy.go)
 * [listbucketpolicies.go](https://github.com/minio/minio-go/blob/master/examples/s3/listbucketpolicies.go)
  
 ### Full Examples : Bucket notification Operations
