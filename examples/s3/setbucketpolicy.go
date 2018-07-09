@@ -48,4 +48,11 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	// Create lifecycle policy
+	lifecyclePolicy := `<LifecycleConfiguration><Rule><ID>expire-bucket</ID><Prefix></Prefix><Status>Enabled</Status><Expiration><Days>365</Days></Expiration></Rule></LifecycleConfiguration>`
+	err = s3Client.SetBucketLifecyclePolicy("my-bucketname", lifecyclePolicy)
+	if err != nil {
+		log.Fatalln(err)
+	}
 }

@@ -61,4 +61,23 @@ func main() {
 	if _, err := io.Copy(localFile, policyReader); err != nil {
 		log.Fatalln(err)
 	}
+
+	// Get bucket lifecycle policy from S3
+	lifecyclePolicy, err := s3Client.GetBucketLifecyclePolicy("my-bucketname")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	// Create lifecycle policy file
+	localLifecyclePolicyFile, err := os.Create("lifecycle-policy.json")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer localLifecyclePolicyFile.Close()
+
+	lifecyclePolicyReader := strings.NewReader(lifecyclePolicy)
+
+	if _, err := io.Copy(localLifecyclePolicyFile, lifecyclePolicyReader); err != nil {
+		log.Fatalln(err)
+	}
 }
