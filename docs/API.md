@@ -58,8 +58,8 @@ func main() {
 | [`RemoveBucket`](#RemoveBucket)                   | [`StatObject`](#StatObject)                         | [`StatObject`](#StatObject) |                                               | [`GetBucketNotification`](#GetBucketNotification)              | [`TraceOff`](#TraceOff)                               |
 | [`ListObjects`](#ListObjects)                     | [`RemoveObject`](#RemoveObject)                     |                |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification)            | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
 | [`ListObjectsV2`](#ListObjectsV2)                 | [`RemoveObjects`](#RemoveObjects)                   |    |                                               | [`ListenBucketNotification`](#ListenBucketNotification)   |                                                       |
-| [`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                             |                                               | [`SetBucketLifecyclePolicy`](#SetBucketLifecyclePolicy)     |                                                       |
-|                                                   | [`FPutObject`](#FPutObject)                         |    [`FPutObject`](#FPutObject)                                         |                                               | [`GetBucketLifecyclePolicy`](#GetBucketLifecyclePolicy)                                                              |                                                       |
+| [`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                             |                                               | [`SetBucketLifecycle`](#SetBucketLifecycle)     |                                                       |
+|                                                   | [`FPutObject`](#FPutObject)                         |    [`FPutObject`](#FPutObject)                                         |                                               | [`GetBucketLifecycle`](#GetBucketLifecycle)                                                              |                                                       |
 |                                                   | [`FGetObject`](#FGetObject)                         |    [`FGetObject`](#FGetObject)                                         |                                               |                                                               |                                                       |
 |                                                   | [`ComposeObject`](#ComposeObject)                   |    [`ComposeObject`](#ComposeObject)                                         |                                               |                                                               |                                                       |
 |                                                   | [`NewSourceInfo`](#NewSourceInfo)                   |    [`NewSourceInfo`](#NewSourceInfo)                                         |                                               |                                                               |                                                       |
@@ -1445,16 +1445,16 @@ for notificationInfo := range minioClient.ListenBucketNotification("mybucket", "
 }
 ```
 
-<a name="SetBucketLifecyclePolicy"></a>
-### SetBucketLifecyclePolicy(bucketname, policy string) error
-Set lifecycle policy on bucket or an object prefix.
+<a name="SetBucketLifecycle"></a>
+### SetBucketLifecycle(bucketname, lifecycle string) error
+Set lifecycle on bucket or an object prefix.
 
 __Parameters__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
 |`bucketName` | _string_  |Name of the bucket|
-|`policy` | _string_  |Lifecycle policy to be set |
+|`lifecycle` | _string_  |Lifecycle to be set |
 
 __Return Values__
 
@@ -1465,7 +1465,7 @@ __Return Values__
 __Example__
 
 ```go
-policy := `<LifecycleConfiguration>
+lifecycle := `<LifecycleConfiguration>
  <Rule>
    <ID>expire-bucket</ID>
    <Prefix></Prefix>
@@ -1476,16 +1476,16 @@ policy := `<LifecycleConfiguration>
  </Rule>
 </LifecycleConfiguration>`
 
-err = minioClient.SetBucketLifecyclePolicy("my-bucketname", policy)
+err = minioClient.SetBucketLifecycle("my-bucketname", lifecycle)
 if err != nil {
     fmt.Println(err)
     return
 }
 ```
 
-<a name="GetBucketLifecyclePolicy"></a>
-### GetBucketLifecyclePolicy(bucketName) (policy string, error)
-Get lifecycle policy on a bucket or a prefix.
+<a name="GetBucketLifecycle"></a>
+### GetBucketLifecycle(bucketName) (lifecycle string, error)
+Get lifecycle on a bucket or a prefix.
 
 __Parameters__
 
@@ -1499,13 +1499,13 @@ __Return Values__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`policy`  | _string_ |Lifecycle policy returned from the server |
+|`lifecycle`  | _string_ |Lifecycle returned from the server |
 |`err` | _error_  |Standard Error  |
 
 __Example__
 
 ```go
-policy, err := minioClient.GetBucketLifecyclePolicy("my-bucketname")
+lifecycle, err := minioClient.GetBucketLifecycle("my-bucketname")
 if err != nil {
     log.Fatalln(err)
 }

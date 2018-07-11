@@ -77,13 +77,13 @@ func (c Client) getBucketPolicy(bucketName string) (string, error) {
 	return policy, err
 }
 
-// GetBucketLifecyclePolicy - get bucket lifecycle policy.
-func (c Client) GetBucketLifecyclePolicy(bucketName string) (string, error) {
+// GetBucketLifecycle - get bucket lifecycle.
+func (c Client) GetBucketLifecycle(bucketName string) (string, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return "", err
 	}
-	bucketPolicy, err := c.getBucketLifecyclePolicy(bucketName)
+	bucketLifecycle, err := c.getBucketLifecycle(bucketName)
 	if err != nil {
 		errResponse := ToErrorResponse(err)
 		if errResponse.Code == "NoSuchLifecycleConfiguration" {
@@ -91,17 +91,17 @@ func (c Client) GetBucketLifecyclePolicy(bucketName string) (string, error) {
 		}
 		return "", err
 	}
-	return bucketPolicy, nil
+	return bucketLifecycle, nil
 }
 
-// Request server for current bucket lifecycle policy.
-func (c Client) getBucketLifecyclePolicy(bucketName string) (string, error) {
+// Request server for current bucket lifecycle.
+func (c Client) getBucketLifecycle(bucketName string) (string, error) {
 	// Get resources properly escaped and lined up before
 	// using them in http request.
 	urlValues := make(url.Values)
 	urlValues.Set("lifecycle", "")
 
-	// Execute GET on bucket to list objects.
+	// Execute GET on bucket to get lifecycle.
 	resp, err := c.executeMethod(context.Background(), "GET", requestMetadata{
 		bucketName:  bucketName,
 		queryValues: urlValues,
@@ -118,11 +118,11 @@ func (c Client) getBucketLifecyclePolicy(bucketName string) (string, error) {
 		}
 	}
 
-	bucketPolicyBuf, err := ioutil.ReadAll(resp.Body)
+	bucketLifecycleBuf, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
 
-	policy := string(bucketPolicyBuf)
-	return policy, err
+	lifecycle := string(bucketLifecycleBuf)
+	return lifecycle, err
 }

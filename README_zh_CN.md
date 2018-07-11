@@ -196,8 +196,6 @@ mc ls play/mymusic/
 ### 完整示例 : 存储桶策略
 * [setbucketpolicy.go](https://github.com/minio/minio-go/blob/master/examples/s3/setbucketpolicy.go)
 * [getbucketpolicy.go](https://github.com/minio/minio-go/blob/master/examples/s3/getbucketpolicy.go)
-* [setbucketlifecyclepolicy.go](https://github.com/minio/minio-go/blob/master/examples/s3/setbucketlifecyclepolicy.go)
-* [getbucketlifecyclepolicy.go](https://github.com/minio/minio-go/blob/master/examples/s3/getbucketlifecyclepolicy.go)
 * [listbucketpolicies.go](https://github.com/minio/minio-go/blob/master/examples/s3/listbucketpolicies.go)
  
 ### 完整示例 : 存储桶通知
