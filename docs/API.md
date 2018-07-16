@@ -58,8 +58,8 @@ func main() {
 | [`RemoveBucket`](#RemoveBucket)                   | [`StatObject`](#StatObject)                         | [`StatObject`](#StatObject) |                                               | [`GetBucketNotification`](#GetBucketNotification)              | [`TraceOff`](#TraceOff)                               |
 | [`ListObjects`](#ListObjects)                     | [`RemoveObject`](#RemoveObject)                     |                |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification)            | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
 | [`ListObjectsV2`](#ListObjectsV2)                 | [`RemoveObjects`](#RemoveObjects)                   |    |                                               | [`ListenBucketNotification`](#ListenBucketNotification)   |                                                       |
-| [`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                             |                                               |      |                                                       |
-|                                                   | [`FPutObject`](#FPutObject)                         |    [`FPutObject`](#FPutObject)                                         |                                               |                                                               |                                                       |
+| [`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                             |                                               | [`SetBucketLifecycle`](#SetBucketLifecycle)     |                                                       |
+|                                                   | [`FPutObject`](#FPutObject)                         |    [`FPutObject`](#FPutObject)                                         |                                               | [`GetBucketLifecycle`](#GetBucketLifecycle)                                                              |                                                       |
 |                                                   | [`FGetObject`](#FGetObject)                         |    [`FGetObject`](#FGetObject)                                         |                                               |                                                               |                                                       |
 |                                                   | [`ComposeObject`](#ComposeObject)                   |    [`ComposeObject`](#ComposeObject)                                         |                                               |                                                               |                                                       |
 |                                                   | [`NewSourceInfo`](#NewSourceInfo)                   |    [`NewSourceInfo`](#NewSourceInfo)                                         |                                               |                                                               |                                                       |
@@ -1442,6 +1442,72 @@ for notificationInfo := range minioClient.ListenBucketNotification("mybucket", "
         fmt.Println(notificationInfo.Err)
     }
     fmt.Println(notificationInfo)
+}
+```
+
+<a name="SetBucketLifecycle"></a>
+### SetBucketLifecycle(bucketname, lifecycle string) error
+Set lifecycle on bucket or an object prefix.
+
+__Parameters__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName` | _string_  |Name of the bucket|
+|`lifecycle` | _string_  |Lifecycle to be set |
+
+__Return Values__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`err` | _error_  |Standard Error   |
+
+__Example__
+
+```go
+lifecycle := `<LifecycleConfiguration>
+ <Rule>
+   <ID>expire-bucket</ID>
+   <Prefix></Prefix>
+   <Status>Enabled</Status>
+   <Expiration>
+     <Days>365</Days>
+   </Expiration>
+ </Rule>
+</LifecycleConfiguration>`
+
+err = minioClient.SetBucketLifecycle("my-bucketname", lifecycle)
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
+
+<a name="GetBucketLifecycle"></a>
+### GetBucketLifecycle(bucketName) (lifecycle string, error)
+Get lifecycle on a bucket or a prefix.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |Name of the bucket   |
+
+__Return Values__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`lifecycle`  | _string_ |Lifecycle returned from the server |
+|`err` | _error_  |Standard Error  |
+
+__Example__
+
+```go
+lifecycle, err := minioClient.GetBucketLifecycle("my-bucketname")
+if err != nil {
+    log.Fatalln(err)
 }
 ```
 
