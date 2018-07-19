@@ -127,6 +127,7 @@ func TestGetUserMetaHeadersMap(t *testing.T) {
 		"x-amz-acl":           "public-read-write",
 		"content-type":        "application/binary",
 		"X-Amz-Storage-Class": "rrs",
+		"x-amz-grant-write":   "test@exo.ch",
 	}
 
 	destInfo := &DestinationInfo{"bucket", "object", nil, userMetadata}
