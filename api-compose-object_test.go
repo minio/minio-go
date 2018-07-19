@@ -18,6 +18,7 @@ package minio
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -115,6 +116,40 @@ func TestCalculateEvenSplits(t *testing.T) {
 		resStart, resEnd := calculateEvenSplits(testCase.size, testCase.src)
 		if !reflect.DeepEqual(testCase.starts, resStart) || !reflect.DeepEqual(testCase.ends, resEnd) {
 			t.Errorf("Test %d - output did not match with reference results, Expected %d/%d, got %d/%d", i+1, testCase.starts, testCase.ends, resStart, resEnd)
+		}
+	}
+}
+
+func TestGetUserMetaHeadersMap(t *testing.T) {
+
+	userMetadata := map[string]string{
+		"test":                "test",
+		"x-amz-acl":           "public-read-write",
+		"content-type":        "application/binary",
+		"X-Amz-Storage-Class": "rrs",
+		"x-amz-grant-write":   "test@exo.ch",
+	}
+
+	destInfo := &DestinationInfo{"bucket", "object", nil, userMetadata}
+
+	r := destInfo.getUserMetaHeadersMap(true)
+
+	i := 0
+
+	if _, ok := r["x-amz-metadata-directive"]; !ok {
+		t.Errorf("Test %d - metadata directive was expected but is missing", i)
+		i++
+	}
+
+	for k := range r {
+		if strings.HasSuffix(k, "test") && !strings.HasPrefix(k, "x-amz-meta-") {
+			t.Errorf("Test %d - meta %q was expected as an x amz meta", i, k)
+			i++
+		}
+
+		if !strings.HasSuffix(k, "test") && strings.HasPrefix(k, "x-amz-meta-") {
+			t.Errorf("Test %d - an amz/standard/storageClass Header was expected but got an x amz meta data", i)
+			i++
 		}
 	}
 }

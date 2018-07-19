@@ -101,7 +101,11 @@ func (d *DestinationInfo) getUserMetaHeadersMap(withCopyDirectiveHeader bool) ma
 		r["x-amz-metadata-directive"] = "REPLACE"
 	}
 	for k, v := range d.userMetadata {
-		r["x-amz-meta-"+k] = v
+		if isAmzHeader(k) || isStandardHeader(k) || isStorageClassHeader(k) {
+			r[k] = v
+		} else {
+			r["x-amz-meta-"+k] = v
+		}
 	}
 	return r
 }
