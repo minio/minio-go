@@ -58,7 +58,7 @@ func (c Client) GetObjectACLS(bucketName, objectName string) (*ObjectInfo, error
 
 	cannedACL := getCannedACL(res)
 	if cannedACL != "" {
-		objInfo.Metadata.Add("x-amz-acl", cannedACL)
+		objInfo.Metadata.Add("X-Amz-Acl", cannedACL)
 		return &objInfo, nil
 	}
 
@@ -107,15 +107,15 @@ func getAmzGrantACL(aCPolicy *accessControlPolicy) map[string][]string {
 	for _, g := range grants {
 		switch {
 		case g.Permission == "READ":
-			res["x-amz-grant-read"] = append(res["x-amz-grant-read"], "id="+g.Grantee.ID)
+			res["X-Amz-Grant-Read"] = append(res["X-Amz-Grant-Read"], "id="+g.Grantee.ID)
 		case g.Permission == "WRITE":
-			res["x-amz-grant-write"] = append(res["x-amz-grant-write"], "id="+g.Grantee.ID)
+			res["X-Amz-Grant-Write"] = append(res["X-Amz-Grant-Write"], "id="+g.Grantee.ID)
 		case g.Permission == "READ_ACP":
-			res["x-amz-grant-read-acp"] = append(res["x-amz-grant-read-acp"], "id="+g.Grantee.ID)
+			res["X-Amz-Grant-Read-Acp"] = append(res["X-Amz-Grant-Read-Acp"], "id="+g.Grantee.ID)
 		case g.Permission == "WRITE_ACP":
-			res["x-amz-grant-write-acp"] = append(res["x-amz-grant-write-acp"], "id="+g.Grantee.ID)
+			res["X-Amz-Grant-Write-Acp"] = append(res["X-Amz-Grant-Write-Acp"], "id="+g.Grantee.ID)
 		case g.Permission == "FULL_CONTROL":
-			res["x-amz-grant-full-control"] = append(res["x-amz-grant-full-control"], "id="+g.Grantee.ID)
+			res["X-Amz-Grant-Full-Control"] = append(res["X-Amz-Grant-Full-Control"], "id="+g.Grantee.ID)
 		}
 	}
 	return res
