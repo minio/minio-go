@@ -33,8 +33,6 @@ type accessControlPolicy struct {
 			Grantee struct {
 				ID          string `xml:"ID"`
 				DisplayName string `xml:"DisplayName"`
-				XmlnsXsi    string `xml:"_xmlns:xsi"`
-				XsiType     string `xml:"_xsi:type"`
 				URI         string `xml:"URI"`
 			} `xml:"Grantee"`
 			Permission string `xml:"Permission"`
