@@ -223,6 +223,7 @@ var supportedHeaders = []string{
 	"content-disposition",
 	"content-language",
 	"x-amz-website-redirect-location",
+	"expires",
 	// Add more supported headers here.
 }
 
