@@ -68,7 +68,8 @@ func main() {
 |   | [`GetObjectWithContext`](#GetObjectWithContext)  | [`GetObjectWithContext`](#GetObjectWithContext) |   |   |
 |   | [`FPutObjectWithContext`](#FPutObjectWithContext)  | [`FPutObjectWithContext`](#FPutObjectWithContext) |   |   |
 |   | [`FGetObjectWithContext`](#FGetObjectWithContext)  | [`FGetObjectWithContext`](#FGetObjectWithContext) |   |   |
-|   | [`RemoveObjectsWithContext`](#RemoveObjectsWithContext)  | |   |   |
+|   | [`RemoveObjectsWithContext`](#RemoveObjectsWithContext)  | |    |   |
+| | [`SelectObjectContent`](#SelectObjectContent)  |   |
 ## 1. Constructor
 <a name="Minio"></a>
 
@@ -1038,7 +1039,7 @@ Parameters
 |:---|:---| :---|
 |`ctx`  | _context.Context_  |Request context  |
 |`bucketName`  | _string_  |Name of the bucket  |
-|`objectsCh` |  _chan string_  | Channel of objects to be removed  | 
+|`objectsCh` |  _chan string_  | Channel of objects to be removed  |
 
 
 __Return Values__
@@ -1067,6 +1068,59 @@ go func() {
 for rErr := range minioClient.RemoveObjects(ctx, "my-bucketname", objectsCh) {
     fmt.Println("Error detected during deletion: ", rErr)
 }
+```
+<a name="SelectObjectContent"></a>
+### SelectObjectContent(ctx context.Context, bucketName string, objectsName string, expression string, options SelectObjectOptions) *SelectResults
+Parameters
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  |Request context  |
+|`bucketName`  | _string_  |Name of the bucket  |
+|`objectName`  | _string_  |Name of the object |
+|`options` |  _SelectObjectOptions_  |  Query Options |
+
+__Return Values__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`SelectResults` | _SelectResults_  | Is an io.ReadCloser object which can be directly passed to csv.NewReader for processing output.  |
+
+```go
+	// Initialize minio client object.
+	minioClient, err := minio.New(endpoint, accessKeyID, secretAccessKey, useSSL)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	opts := minio.SelectObjectOptions{
+		Expression:     "select count(*) from s3object",
+		ExpressionType: minio.QueryExpressionTypeSQL,
+		InputSerialization: minio.SelectObjectInputSerialization{
+			CompressionType: minio.SelectCompressionNONE,
+			CSV: &minio.CSVInputOptions{
+				FileHeaderInfo:  minio.CSVFileHeaderInfoNone,
+				RecordDelimiter: "\n",
+				FieldDelimiter:  ",",
+			},
+		},
+		OutputSerialization: minio.SelectObjectOutputSerialization{
+			CSV: &minio.CSVOutputOptions{
+				RecordDelimiter: "\n",
+				FieldDelimiter:  ",",
+			},
+		},
+	}
+
+	reader, err := s3Client.SelectObjectContent(context.Background(), "mycsvbucket", "mycsv.csv", opts)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer reader.Close()
+
+	if _, err := io.Copy(os.Stdout, reader); err != nil {
+		log.Fatalln(err)
+	}
 ```
 
 <a name="RemoveIncompleteUpload"></a>
