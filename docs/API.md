@@ -68,7 +68,8 @@ func main() {
 |   | [`GetObjectWithContext`](#GetObjectWithContext)  | [`GetObjectWithContext`](#GetObjectWithContext) |   |   |
 |   | [`FPutObjectWithContext`](#FPutObjectWithContext)  | [`FPutObjectWithContext`](#FPutObjectWithContext) |   |   |
 |   | [`FGetObjectWithContext`](#FGetObjectWithContext)  | [`FGetObjectWithContext`](#FGetObjectWithContext) |   |   |
-|   | [`RemoveObjectsWithContext`](#RemoveObjectsWithContext)  | |   |   |
+|   | [`RemoveObjectsWithContext`](#RemoveObjectsWithContext)  | |    |   |
+| | [`SelectObjectContent`](#SelectObjectContent)  |   |
 ## 1. Constructor
 <a name="Minio"></a>
 
@@ -1038,7 +1039,7 @@ Parameters
 |:---|:---| :---|
 |`ctx`  | _context.Context_  |Request context  |
 |`bucketName`  | _string_  |Name of the bucket  |
-|`objectsCh` |  _chan string_  | Channel of objects to be removed  | 
+|`objectsCh` |  _chan string_  | Channel of objects to be removed  |
 
 
 __Return Values__
@@ -1068,7 +1069,66 @@ for rErr := range minioClient.RemoveObjects(ctx, "my-bucketname", objectsCh) {
     fmt.Println("Error detected during deletion: ", rErr)
 }
 ```
+<a name="SelectObjectContent"></a>
+### SelectObjectContent(ctx context.Context, bucketName string, objectsName string, expression string, options SelectObjectOptions) *Events
+Parameters
 
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  |Request context  |
+|`bucketName`  | _string_  |Name of the bucket  |
+|`objectName`  | _string_  |Name of the object |
+|`expression`  | _string_  |SQL expression|
+|`options` |  _SelectObjectOptions_  |  Query Options  |
+
+
+__Return Values__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`Events` | _*Events_  | EventStream object that wraps the streaming for all Select events.  |
+
+```go
+	// Initialize minio client object.
+	minioClient, err := minio.New(endpoint, accessKeyID, secretAccessKey, useSSL)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	input := minio.SelectObjectInput{
+		RecordDelimiter: "\n",
+		FieldDelimiter:  ",",
+		FileHeaderInfo:  minio.CSVFileHeaderInfoUse,
+	}
+	output := minio.SelectObjectOutput{
+		RecordDelimiter: "\n",
+		FieldDelimiter:  ",",
+	}
+	opts := minio.SelectObjectOptions{
+		Type:   minio.SelectObjectTypeCSV,
+		Input:  input,
+		Output: output,
+	}
+	eventStream , err := minioClient.SelectObjectContent(ctx, "sqlselectapi", "player.csv", "Select * from S3OBJECT WHERE last_name = 'James'", opts)
+	if err != nil {
+		return
+	}
+	for event := range eventStream.Events() {
+		switch e := event.(type) {
+			case *minio.RecordEvent:
+				fmt.Println(e.Payload)
+			case *minio.ProgressEvent:
+				fmt.Println("Progress")
+			case *minio.StatEvent:
+				fmt.Println(string(e.Payload))
+			case *minio.EndEvent:
+				fmt.Println("End")
+				return
+		}
+	}
+	if err := eventStream.Err(); err != nil {
+		fmt.Println(err)
+	}
+```
 <a name="RemoveIncompleteUpload"></a>
 ### RemoveIncompleteUpload(bucketName, objectName string) error
 Removes a partially uploaded object.
