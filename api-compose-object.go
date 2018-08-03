@@ -377,15 +377,6 @@ func (c Client) ComposeObjectWithProgress(dst DestinationInfo, srcs []SourceInfo
 				fmt.Sprintf("Client side encryption is used in source object %s/%s", src.bucket, src.object))
 		}
 
-		// Since we did a HEAD to get size, we use the ETag
-		// value to make sure the object has not changed by
-		// the time we perform the copy. This is done, only if
-		// the user has not set their own ETag match
-		// condition.
-		if src.Headers.Get("x-amz-copy-source-if-match") == "" {
-			src.SetMatchETagCond(etag)
-		}
-
 		// Check if a segment is specified, and if so, is the
 		// segment within object bounds?
 		if src.start != -1 {
@@ -433,7 +424,15 @@ func (c Client) ComposeObjectWithProgress(dst DestinationInfo, srcs []SourceInfo
 
 	// Now, handle multipart-copy cases.
 
-	// 1. Initiate a new multipart upload.
+	// 1. Ensure that the object has not been changed while
+	//    we are copying data.
+	for _, src := range srcs {
+		if src.Headers.Get("x-amz-copy-source-if-match") == "" {
+			src.SetMatchETagCond(etag)
+		}
+	}
+
+	// 2. Initiate a new multipart upload.
 
 	// Set user-metadata on the destination object. If no
 	// user-metadata is specified, and there is only one source,
@@ -453,7 +452,7 @@ func (c Client) ComposeObjectWithProgress(dst DestinationInfo, srcs []SourceInfo
 		return err
 	}
 
-	// 2. Perform copy part uploads
+	// 3. Perform copy part uploads
 	objParts := []CompletePart{}
 	partIndex := 1
 	for i, src := range srcs {
@@ -491,7 +490,7 @@ func (c Client) ComposeObjectWithProgress(dst DestinationInfo, srcs []SourceInfo
 		}
 	}
 
-	// 3. Make final complete-multipart request.
+	// 4. Make final complete-multipart request.
 	_, err = c.completeMultipartUpload(ctx, dst.bucket, dst.object, uploadID,
 		completeMultipartUpload{Parts: objParts})
 	if err != nil {
