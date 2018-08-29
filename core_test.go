@@ -410,7 +410,7 @@ func TestCoreCopyObject(t *testing.T) {
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
 		"Content-Type": "binary/octet-stream",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
@@ -525,7 +525,7 @@ func TestCoreCopyObjectPart(t *testing.T) {
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
 		"Content-Type": "binary/octet-stream",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
@@ -672,12 +672,12 @@ func TestCorePutObject(t *testing.T) {
 	metadata := make(map[string]string)
 	metadata["Content-Type"] = objectContentType
 
-	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "1B2M2Y8AsgTpgAmY7PhCfg==", "", metadata)
+	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "1B2M2Y8AsgTpgAmY7PhCfg==", "", metadata, nil)
 	if err == nil {
 		t.Fatal("Error expected: error, got: nil(success)")
 	}
 
-	objInfo, err = c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", metadata)
+	objInfo, err = c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", metadata, nil)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
@@ -753,7 +753,7 @@ func TestCoreGetObjectMetadata(t *testing.T) {
 	}
 
 	_, err = core.PutObject(bucketName, "my-objectname",
-		bytes.NewReader([]byte("hello")), 5, "", "", metadata)
+		bytes.NewReader([]byte("hello")), 5, "", "", metadata, nil)
 	if err != nil {
 		log.Fatalln(err)
 	}
