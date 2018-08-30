@@ -10,7 +10,7 @@ package main
 import (
     "fmt"
 
-    "github.com/minio/minio-go"
+    "github.com/minio/minio-go/v6"
 )
 
 func main() {
@@ -34,7 +34,7 @@ package main
 import (
     "fmt"
 
-    "github.com/minio/minio-go"
+    "github.com/minio/minio-go/v6"
 )
 
 func main() {
@@ -393,7 +393,7 @@ __minio.GetObjectOptions__
 
 |Field | Type | Description |
 |:---|:---|:---|
-| `opts.ServerSideEncryption` | _encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go) |
+| `opts.ServerSideEncryption` | _encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go/v6) |
 
 __Return Value__
 
@@ -552,7 +552,7 @@ __minio.PutObjectOptions__
 | `opts.ContentDisposition` | _string_ | Content disposition of object, "inline" |
 | `opts.ContentLanguage` | _string_ | Content language of object, e.g "French" |
 | `opts.CacheControl` | _string_ | Used to specify directives for caching mechanisms in both requests and responses e.g "max-age=600"|
-| `opts.ServerSideEncryption` | _encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go) |
+| `opts.ServerSideEncryption` | _encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go/v6) |
 | `opts.StorageClass` | _string_ | Specify storage class for the object. Supported values for MinIO server are `REDUCED_REDUNDANCY` and `STANDARD` |
 | `opts.WebsiteRedirectLocation` | _string_ | Specify a redirect for the object, to another object in the same bucket or to a external URL. |
 
@@ -771,7 +771,7 @@ __Parameters__
 | :---          | :---             | :---                                                             |
 | `bucket`      | _string_         | Name of the source bucket                                        |
 | `object`      | _string_         | Name of the source object                                        |
-| `sse` | _*encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go) |
+| `sse` | _*encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go/v6) |
 
 __Example__
 
@@ -824,7 +824,7 @@ __Parameters__
 | :---          | :---                | :---                                                                                                           |
 | `bucket`      | _string_            | Name of the destination bucket                                                                                 |
 | `object`      | _string_            | Name of the destination object                                                                                 |
-| `sse` | _*encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go) |                                              |
+| `sse` | _*encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go/v6) |                                              |
 | `userMeta`    | _map[string]string_ | User metadata to be set on the destination. If nil, with only one source, user-metadata is copied from source. |
 
 __Example__

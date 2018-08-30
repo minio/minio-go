@@ -1,3 +1,5 @@
+// +build !windows
+
 /*
  * MinIO Go Library for Amazon S3 Compatible Cloud Storage
  * Copyright 2017 MinIO, Inc.
@@ -69,7 +71,7 @@ func initTestServer(expireOn string, failAssume bool) *httptest.Server {
 			fmt.Fprintln(w, "RoleName")
 		} else if r.URL.Path == "/latest/meta-data/iam/security-credentials/RoleName" {
 			if failAssume {
-				fmt.Fprintf(w, credsFailRespTmpl)
+				fmt.Fprint(w, credsFailRespTmpl)
 			} else {
 				fmt.Fprintf(w, credsRespTmpl, expireOn)
 			}

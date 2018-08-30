@@ -35,8 +35,6 @@ const (
 	enableSecurity = "ENABLE_HTTPS"
 )
 
-// Minimum part size
-const MinPartSize = 1024 * 1024 * 64
 const letterBytes = "abcdefghijklmnopqrstuvwxyz01234569"
 const (
 	letterIdxBits = 6                    // 6 bits to represent a letter index

@@ -22,7 +22,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/minio/minio-go/pkg/encrypt"
+	"github.com/minio/minio-go/v6/pkg/encrypt"
 )
 
 // GetObjectOptions are used to specify additional headers or options

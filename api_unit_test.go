@@ -18,23 +18,12 @@
 package minio
 
 import (
-	"net/http"
 	"net/url"
 	"testing"
 
-	"github.com/minio/minio-go/pkg/credentials"
-	"github.com/minio/minio-go/pkg/policy"
+	"github.com/minio/minio-go/v6/pkg/credentials"
+	"github.com/minio/minio-go/v6/pkg/policy"
 )
-
-type customReader struct{}
-
-func (c *customReader) Read(p []byte) (n int, err error) {
-	return 0, nil
-}
-
-func (c *customReader) Size() (n int64) {
-	return 10
-}
 
 // Tests valid hosts for location.
 func TestValidBucketLocation(t *testing.T) {
@@ -65,14 +54,8 @@ func TestErrorResponse(t *testing.T) {
 		t.Fatal("Type conversion failed, we have an empty struct.")
 	}
 
-	// Test http response decoding.
-	var httpResponse *http.Response
-	// Set empty variables
-	httpResponse = nil
-	var bucketName, objectName string
-
 	// Should fail with invalid argument.
-	err = httpRespToErrorResponse(httpResponse, bucketName, objectName)
+	err = httpRespToErrorResponse(nil, "", "")
 	errResp = ToErrorResponse(err)
 	if errResp.Code != "InvalidArgument" {
 		t.Fatal("Empty response input should return invalid argument.")

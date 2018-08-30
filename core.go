@@ -22,7 +22,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/minio/minio-go/pkg/encrypt"
+	"github.com/minio/minio-go/v6/pkg/encrypt"
 )
 
 // Core - Inherits Client and adds new methods to expose the low level S3 APIs.
@@ -84,7 +84,7 @@ func (c Core) PutObject(bucket, object string, data io.Reader, size int64, md5Ba
 			opts.ContentType = v
 		} else if strings.ToLower(k) == "cache-control" {
 			opts.CacheControl = v
-		} else if strings.ToLower(k) == strings.ToLower(amzWebsiteRedirectLocation) {
+		} else if strings.EqualFold(k, amzWebsiteRedirectLocation) {
 			opts.WebsiteRedirectLocation = v
 		} else {
 			m[k] = metadata[k]

@@ -27,8 +27,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/minio/minio-go/pkg/credentials"
-	"github.com/minio/minio-go/pkg/s3signer"
+	"github.com/minio/minio-go/v6/pkg/credentials"
+	"github.com/minio/minio-go/v6/pkg/s3signer"
 )
 
 // Test validates `newBucketLocationCache`.
@@ -67,7 +67,7 @@ func TestBucketLocationCacheOps(t *testing.T) {
 func TestGetBucketLocationRequest(t *testing.T) {
 	// Generates expected http request for getBucketLocation.
 	// Used for asserting with the actual request generated.
-	createExpectedRequest := func(c *Client, bucketName string, req *http.Request) (*http.Request, error) {
+	createExpectedRequest := func(c *Client, bucketName string) (*http.Request, error) {
 		// Set location query.
 		urlValues := make(url.Values)
 		urlValues.Set("location", "")
@@ -78,8 +78,7 @@ func TestGetBucketLocationRequest(t *testing.T) {
 		targetURL.RawQuery = urlValues.Encode()
 
 		// Get a new HTTP request for the method.
-		var err error
-		req, err = http.NewRequest("GET", targetURL.String(), nil)
+		req, err := http.NewRequest("GET", targetURL.String(), nil)
 		if err != nil {
 			return nil, err
 		}
@@ -251,8 +250,7 @@ func TestGetBucketLocationRequest(t *testing.T) {
 
 		// Test passes as expected, but the output values are verified for correctness here.
 		if err == nil && testCase.shouldPass {
-			expectedReq := &http.Request{}
-			expectedReq, err = createExpectedRequest(client, testCase.bucketName, expectedReq)
+			expectedReq, err := createExpectedRequest(client, testCase.bucketName)
 			if err != nil {
 				t.Fatalf("Test %d: Expected request Creation failed", i+1)
 			}

@@ -23,7 +23,7 @@ import (
 	"math"
 	"os"
 
-	"github.com/minio/minio-go/pkg/s3utils"
+	"github.com/minio/minio-go/v6/pkg/s3utils"
 )
 
 // Verify if reader is *minio.Object
@@ -105,7 +105,7 @@ func optimalPartInfo(objectSize int64, configuredPartSize uint64) (totalPartsCou
 		configuredPartSize = minPartSize
 		// Use floats for part size for all calculations to avoid
 		// overflows during float64 to int64 conversions.
-		partSizeFlt = math.Ceil(float64(objectSize / maxPartsCount))
+		partSizeFlt = float64(objectSize / maxPartsCount)
 		partSizeFlt = math.Ceil(partSizeFlt/float64(configuredPartSize)) * float64(configuredPartSize)
 	}
 
