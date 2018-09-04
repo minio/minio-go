@@ -2271,7 +2271,8 @@ func testPresignedPostPolicy() {
 	defer reader.Close()
 
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-	metadataKey := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	// Azure requires the key to not start with a number
+	metadataKey := randString(60, rand.NewSource(time.Now().UnixNano()), "user")
 	metadataValue := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 
 	buf, err := ioutil.ReadAll(reader)
