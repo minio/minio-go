@@ -23,7 +23,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/minio/minio-go/pkg/s3utils"
+	"github.com/minio/minio-go/v6/pkg/s3utils"
 )
 
 // GetBucketLifecycle - get bucket lifecycle.

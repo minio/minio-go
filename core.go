@@ -22,7 +22,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/minio/minio-go/pkg/encrypt"
+	"github.com/minio/minio-go/v6/pkg/encrypt"
 )
 
 // Core - Inherits Client and adds new methods to expose the low level S3 APIs.
