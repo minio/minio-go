@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 )
@@ -39,6 +40,13 @@ const credsFailRespTmpl = `{
   "Code": "ErrorCode",
   "Message": "ErrorMsg",
   "LastUpdated": "2009-11-23T0:00:00Z"
+}`
+
+const credsRespEcsTaskTmpl = `{
+	"AccessKeyId" : "accessKey",
+	"SecretAccessKey" : "secret",
+	"Token" : "token",
+	"Expiration" : "%s"
 }`
 
 func initTestFailServer() *httptest.Server {
@@ -68,6 +76,14 @@ func initTestServer(expireOn string, failAssume bool) *httptest.Server {
 		} else {
 			http.Error(w, "bad request", http.StatusBadRequest)
 		}
+	}))
+
+	return server
+}
+
+func initEcsTaskTestServer(expireOn string) *httptest.Server {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, credsRespEcsTaskTmpl, expireOn)
 	}))
 
 	return server
@@ -193,5 +209,35 @@ func TestIAMIsExpired(t *testing.T) {
 
 	if !p.IsExpired() {
 		t.Error("Expected creds to be expired when curren time has changed")
+	}
+}
+
+func TestEcsTask(t *testing.T) {
+	server := initEcsTaskTestServer("2014-12-16T01:51:37Z")
+	defer server.Close()
+	p := &IAM{
+		Client:   http.DefaultClient,
+		endpoint: server.URL,
+	}
+	os.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "/v2/credentials?id=task_credential_id")
+	creds, err := p.Retrieve()
+	os.Unsetenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI")
+	if err != nil {
+		t.Errorf("Unexpected failure %s", err)
+	}
+	if "accessKey" != creds.AccessKeyID {
+		t.Errorf("Expected \"accessKey\", got %s", creds.AccessKeyID)
+	}
+
+	if "secret" != creds.SecretAccessKey {
+		t.Errorf("Expected \"secret\", got %s", creds.SecretAccessKey)
+	}
+
+	if "token" != creds.SessionToken {
+		t.Errorf("Expected \"token\", got %s", creds.SessionToken)
+	}
+
+	if !p.IsExpired() {
+		t.Error("Expected creds to be expired.")
 	}
 }
