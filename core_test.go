@@ -565,7 +565,7 @@ func TestCoreCopyObjectPart(t *testing.T) {
 	}
 
 	// Complete the multipart upload
-	err = c.CompleteMultipartUpload(destBucketName, destObjectName, uploadID, []CompletePart{fstPart, sndPart, lstPart})
+	_, err = c.CompleteMultipartUpload(destBucketName, destObjectName, uploadID, []CompletePart{fstPart, sndPart, lstPart})
 	if err != nil {
 		t.Fatal("Error:", err, destBucketName, destObjectName)
 	}
