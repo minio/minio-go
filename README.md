@@ -98,9 +98,9 @@ func main() {
 	n, err := minioClient.FPutObject(bucketName, objectName, filePath, minio.PutObjectOptions{ContentType:contentType})
 	if err != nil {
 		log.Fatalln(err)
+	} else {
+		log.Printf("Successfully uploaded %s of size %d\n", objectName, n)
 	}
-
-	log.Printf("Successfully uploaded %s of size %d\n", objectName, n)
 }
 ```
 
