@@ -99,6 +99,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
 	log.Printf("Successfully uploaded %s of size %d\n", objectName, n)
 }
 ```
