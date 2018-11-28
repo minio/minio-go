@@ -56,7 +56,7 @@ func sumMD5Base64(data []byte) string {
 }
 
 // getEndpointURL - construct a new endpoint.
-func getEndpointURL(endpoint string, secure bool) (*url.URL, error) {
+func getEndpointURL(endpoint string, secure bool, validateEndpoint bool) (*url.URL, error) {
 	if strings.Contains(endpoint, ":") {
 		host, _, err := net.SplitHostPort(endpoint)
 		if err != nil {
@@ -86,9 +86,12 @@ func getEndpointURL(endpoint string, secure bool) (*url.URL, error) {
 	}
 
 	// Validate incoming endpoint URL.
-	if err := isValidEndpointURL(*endpointURL); err != nil {
-		return nil, err
+	if true == validateEndpoint {
+		if err := isValidEndpointURL(*endpointURL); err != nil {
+			return nil, err
+		}
 	}
+
 	return endpointURL, nil
 }
 

@@ -97,7 +97,7 @@ func TestGetEndpointURL(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		result, err := getEndpointURL(testCase.endPoint, testCase.secure)
+		result, err := getEndpointURL(testCase.endPoint, testCase.secure, true)
 		if err != nil && testCase.shouldPass {
 			t.Errorf("Test %d: Expected to pass, but failed with: <ERROR> %s", i+1, err.Error())
 		}
