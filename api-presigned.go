@@ -133,9 +133,8 @@ func (c Client) presignURLs(method string, bucketName string, objectNames []stri
 		name := objectName
 		waitgroup.Add(1)
 		go func() {
-			if e = s3utils.CheckValidObjectName(name); e != nil {
-				err = e
-				return 
+			if err = s3utils.CheckValidObjectName(name); err != nil {
+				return
 			}
 			uri, e := c.presignURL(method, bucketName, name, expires, reqParams)
 			if e != nil {
@@ -144,7 +143,7 @@ func (c Client) presignURLs(method string, bucketName string, objectNames []stri
 				uris.Store(name, uri)
 			}
 			waitgroup.Done()
-		}
+		}()
 	}
 	waitgroup.Wait()
 
