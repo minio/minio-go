@@ -97,62 +97,64 @@ func (c Client) PresignedPutObject(bucketName string, objectName string, expires
 // data without credentials. URL can have a maximum expiry of
 // upto 7days or a minimum of 1sec. Additionally you can override
 // a set of response headers using the query parameters.
-func (c Client) PresignedGetObjects(bucketName string, objectName string, expires time.Duration, reqParams url.Values) (map[string][]*url.URL, error) {
-	return c.presignURLs("GET", bucketName, objectName, expires, reqParams)
+func (c Client) PresignedGetObjects(bucketName string, objectNames []string, expires time.Duration, reqParams url.Values) (map[string]*url.URL, error) {
+	return c.presignURLs("GET", bucketName, objectNames, expires, reqParams)
 }
 
 // PresignedHeadObjects - Returns a presigned URL map to access objects
 // metadata without credentials. URL can have a maximum expiry of
 // upto 7days or a minimum of 1sec. Additionally you can override
 // a set of response headers using the query parameters.
-func (c Client) PresignedHeadObjects(bucketName string, objectNames []string, expires time.Duration, reqParams url.Values) (map[string][]*url.URL, error) {
+func (c Client) PresignedHeadObjects(bucketName string, objectNames []string, expires time.Duration, reqParams url.Values) (map[string]*url.URL, error) {
 	return c.presignURLs("HEAD", bucketName, objectNames, expires, reqParams)
 }
 
 // PresignedPutObjects - Returns a presigned URL map to upload  objects
 // without credentials. URL can have a maximum expiry of upto 7days
 // or a minimum of 1sec.
-func (c Client) PresignedPutObjects(bucketName string, objectNames []string, expires time.Duration) (map[string][]*url.URL, error) {
-	return c.presignURLs("PUT",bucketName,objectNames,expires)
+func (c Client) PresignedPutObjects(bucketName string, objectNames []string, expires time.Duration) (map[string]*url.URL, error) {
+	return c.presignURLs("PUT", bucketName, objectNames, expires, nil)
 }
 
 // Presigns - returns a presigned URL map for any http method of your choice
 // along with custom request params. URL can have a maximum expiry of
 // upto 7days or a minimum of 1sec.
-func (c Client) Presigns(method string, bucketName string, objectNames []string, expires time.Duration, reqParams url.Values) (map[string][]*url.URL, error) {
+func (c Client) Presigns(method string, bucketName string, objectNames []string, expires time.Duration, reqParams url.Values) (map[string]*url.URL, error) {
 	return c.presignURLs(method, bucketName, objectNames, expires, reqParams)
 }
 
 // presignURLs - Returns a presigned URL map for an input 'method'.
 // Expires maximum is 7days - ie. 604800 and minimum is 1.
-func (c Client) presignURLs(method string, bucketName string, objectNames []string, expires time.Duration, reqParams url.Values) (urls map[string][]*url.URL, err error) {
+func (c Client) presignURLs(method string, bucketName string, objectNames []string, expires time.Duration, reqParams url.Values) (urls map[string]*url.URL, err error) {
 	var uris sync.Map
-	var err error
 	urls = make(map[string]*url.URL, len(objectNames))
-	ws := sync2.WaitGroupWrapper{}
+	var waitgroup sync.WaitGroup
 	for _, objectName := range objectNames {
 		name := objectName
-		ws.Wrap(func() {
-			if err = s3utils.CheckValidObjectName(objectName); err != nil {
-				return nil, err
+		waitgroup.Add(1)
+		go func() {
+			if e = s3utils.CheckValidObjectName(name); e != nil {
+				err = e
+				return 
 			}
-			uri, e := c.presignURL(method,bucketName, name, expires,reqParams)
+			uri, e := c.presignURL(method, bucketName, name, expires, reqParams)
 			if e != nil {
 				err = e
 			} else {
 				uris.Store(name, uri)
 			}
-		})
+			waitgroup.Done()
+		}
 	}
-	ws.Wait()
-	
+	waitgroup.Wait()
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	uris.Range(func(k, v interface{}) bool {
 		key := k.(string)
-		value := v.(url.URL)
+		value := v.(*url.URL)
 		urls[key] = value
 		return true
 	})
