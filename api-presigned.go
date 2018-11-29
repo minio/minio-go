@@ -97,7 +97,7 @@ func (c Client) PresignedPutObject(bucketName string, objectName string, expires
 // data without credentials. URL can have a maximum expiry of
 // upto 7days or a minimum of 1sec. Additionally you can override
 // a set of response headers using the query parameters.
-func (c Client) PresignedGetObjects(bucketName string, objectName string, expires time.Duration, reqParams url.Values) (u *url.URL, error) {
+func (c Client) PresignedGetObjects(bucketName string, objectName string, expires time.Duration, reqParams url.Values) (map[string][]*url.URL, error) {
 	return c.presignURLs("GET", bucketName, objectName, expires, reqParams)
 }
 
@@ -105,7 +105,7 @@ func (c Client) PresignedGetObjects(bucketName string, objectName string, expire
 // metadata without credentials. URL can have a maximum expiry of
 // upto 7days or a minimum of 1sec. Additionally you can override
 // a set of response headers using the query parameters.
-func (c Client) PresignedHeadObjects(bucketName string, objectNames []string, expires time.Duration, reqParams url.Values) (u *url.URL, error) {
+func (c Client) PresignedHeadObjects(bucketName string, objectNames []string, expires time.Duration, reqParams url.Values) (map[string][]*url.URL, error) {
 	return c.presignURLs("HEAD", bucketName, objectNames, expires, reqParams)
 }
 
