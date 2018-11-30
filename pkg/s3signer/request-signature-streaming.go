@@ -96,6 +96,12 @@ func buildChunkStringToSign(t time.Time, region, previousSig string, chunkData [
 func prepareStreamingRequest(req *http.Request, sessionToken string, dataLen int64, timestamp time.Time) {
 	// Set x-amz-content-sha256 header.
 	req.Header.Set("X-Amz-Content-Sha256", streamingSignAlgorithm)
+	var encoding = req.Header.Get("Content-Encoding")
+	if encoding == "" {
+		req.Header.Set("Content-Encoding", "aws-chunked")
+	} else {
+		req.Header.Set("Content-Encoding", "aws-chunked, "+encoding)
+	}
 	if sessionToken != "" {
 		req.Header.Set("X-Amz-Security-Token", sessionToken)
 	}

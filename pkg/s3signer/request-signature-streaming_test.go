@@ -43,7 +43,7 @@ func TestGetSeedSignature(t *testing.T) {
 	req = StreamingSignV4(req, accessKeyID, secretAccessKeyID, "", "us-east-1", int64(dataLen), reqTime)
 	actualSeedSignature := req.Body.(*StreamingReader).seedSignature
 
-	expectedSeedSignature := "38cab3af09aa15ddf29e26e36236f60fb6bfb6243a20797ae9a8183674526079"
+	expectedSeedSignature := "007480502de61457e955731b0f5d191f7e6f54a8a0f6cc7974a5ebd887965686"
 	if actualSeedSignature != expectedSeedSignature {
 		t.Errorf("Expected %s but received %s", expectedSeedSignature, actualSeedSignature)
 	}
@@ -62,7 +62,7 @@ func TestChunkSignature(t *testing.T) {
 	}
 }
 
-func TestSetStreamingAuthorization(t *testing.T) {
+func TestSetStreamingHeaders(t *testing.T) {
 	location := "us-east-1"
 	secretAccessKeyID := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 	accessKeyID := "AKIAIOSFODNN7EXAMPLE"
@@ -76,11 +76,62 @@ func TestSetStreamingAuthorization(t *testing.T) {
 	reqTime, _ := time.Parse(iso8601DateFormat, "20130524T000000Z")
 	req = StreamingSignV4(req, accessKeyID, secretAccessKeyID, "", location, dataLen, reqTime)
 
-	expectedAuthorization := "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request,SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-decoded-content-length;x-amz-storage-class,Signature=38cab3af09aa15ddf29e26e36236f60fb6bfb6243a20797ae9a8183674526079"
+	expectedAuthorization := "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request,SignedHeaders=content-encoding;host;x-amz-content-sha256;x-amz-date;x-amz-decoded-content-length;x-amz-storage-class,Signature=007480502de61457e955731b0f5d191f7e6f54a8a0f6cc7974a5ebd887965686"
 
 	actualAuthorization := req.Header.Get("Authorization")
 	if actualAuthorization != expectedAuthorization {
 		t.Errorf("Expected %s but received %s", expectedAuthorization, actualAuthorization)
+	}
+
+	expectedSHA256 := "STREAMING-AWS4-HMAC-SHA256-PAYLOAD"
+
+	actualSHA256 := req.Header.Get("x-amz-content-sha256")
+	if actualSHA256 != expectedSHA256 {
+		t.Errorf("Expected %s but received %s", expectedSHA256, actualSHA256)
+	}
+
+	expectedEncoding := "aws-chunked"
+
+	actualEncoding := req.Header.Get("content-encoding")
+	if actualEncoding != expectedEncoding {
+		t.Errorf("Expected %s but received %s", expectedEncoding, actualEncoding)
+	}
+}
+
+func TestSetStreamingHeadersWithContentEncoding(t *testing.T) {
+	location := "us-east-1"
+	secretAccessKeyID := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+	accessKeyID := "AKIAIOSFODNN7EXAMPLE"
+
+	req := NewRequest("PUT", "/examplebucket/chunkObject.txt", nil)
+	req.Header.Set("x-amz-storage-class", "REDUCED_REDUNDANCY")
+	req.Header.Set("Content-Encoding", "gzip")
+	req.Host = ""
+	req.URL.Host = "s3.amazonaws.com"
+
+	dataLen := int64(65 * 1024)
+	reqTime, _ := time.Parse(iso8601DateFormat, "20130524T000000Z")
+	req = StreamingSignV4(req, accessKeyID, secretAccessKeyID, "", location, dataLen, reqTime)
+
+	expectedAuthorization := "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request,SignedHeaders=content-encoding;host;x-amz-content-sha256;x-amz-date;x-amz-decoded-content-length;x-amz-storage-class,Signature=eb1118de76bbefd2ef34567bbd1e19c938a96d5215138513d7f5ea17468bbb76"
+
+	actualAuthorization := req.Header.Get("Authorization")
+	if actualAuthorization != expectedAuthorization {
+		t.Errorf("Expected %s but received %s", expectedAuthorization, actualAuthorization)
+	}
+
+	expectedSHA256 := "STREAMING-AWS4-HMAC-SHA256-PAYLOAD"
+
+	actualSHA256 := req.Header.Get("x-amz-content-sha256")
+	if actualSHA256 != expectedSHA256 {
+		t.Errorf("Expected %s but received %s", expectedSHA256, actualSHA256)
+	}
+
+	expectedEncoding := "aws-chunked, gzip"
+
+	actualEncoding := req.Header.Get("content-encoding")
+	if actualEncoding != expectedEncoding {
+		t.Errorf("Expected %s but received %s", expectedEncoding, actualEncoding)
 	}
 }
 
