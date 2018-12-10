@@ -28,7 +28,7 @@ import (
 )
 
 // presignURL - Returns a presigned URL for an input 'method'.
-// Expires maximum is 7days - ie. 604800 and minimum is 1second.
+// Expires maximum is 7days - ie. 604800 seconds and a minimum of 1 second.
 func (c Client) presignURL(method string, bucketName string, objectName string, expires time.Duration, reqParams url.Values) (u *url.URL, err error) {
 	// Input validation.
 	if method == "" {
