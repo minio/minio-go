@@ -304,6 +304,15 @@ func TestGetObjectContentEncoding(t *testing.T) {
 	if value[0] != "gzip" {
 		t.Fatalf("Unexpected content-encoding found, want gzip, got %v", value)
 	}
+
+	err = c.RemoveObject(bucketName, objectName)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+	err = c.RemoveBucket(bucketName)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
 }
 
 // Tests get bucket policy core API.
@@ -766,5 +775,14 @@ func TestCoreGetObjectMetadata(t *testing.T) {
 
 	if objInfo.Metadata.Get("X-Amz-Meta-Key-1") != "Val-1" {
 		log.Fatalln("Expected metadata to be available but wasn't")
+	}
+
+	err = core.RemoveObject(bucketName, "my-objectname")
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+	err = core.RemoveBucket(bucketName)
+	if err != nil {
+		t.Fatal("Error:", err)
 	}
 }
