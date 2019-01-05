@@ -42,9 +42,9 @@ func TestValidBucketLocation(t *testing.T) {
 		bucketLocation string
 		endpoint       string
 	}{
-		{"us-east-1", "s3.amazonaws.com"},
-		{"unknown", "s3.amazonaws.com"},
-		{"ap-southeast-1", "s3-ap-southeast-1.amazonaws.com"},
+		{"us-east-1", "s3.dualstack.us-east-1.amazonaws.com"},
+		{"unknown", "s3.dualstack.us-east-1.amazonaws.com"},
+		{"ap-southeast-1", "s3.dualstack.ap-southeast-1.amazonaws.com"},
 	}
 	for _, s3Host := range s3Hosts {
 		endpoint := getS3Endpoint(s3Host.bucketLocation)
@@ -176,7 +176,7 @@ func TestMakeTargetURL(t *testing.T) {
 		// Test 4, testing against google storage API
 		{"storage.googleapis.com", true, "mybucket", "", "", nil, url.URL{Host: "mybucket.storage.googleapis.com", Scheme: "https", Path: "/"}, nil},
 		// Test 5, testing against AWS S3 API
-		{"s3.amazonaws.com", true, "mybucket", "myobject", "", nil, url.URL{Host: "mybucket.s3.amazonaws.com", Scheme: "https", Path: "/myobject"}, nil},
+		{"s3.amazonaws.com", true, "mybucket", "myobject", "", nil, url.URL{Host: "mybucket.s3.dualstack.us-east-1.amazonaws.com", Scheme: "https", Path: "/myobject"}, nil},
 		// Test 6
 		{"localhost:9000", false, "mybucket", "myobject", "", nil, url.URL{Host: "localhost:9000", Scheme: "http", Path: "/mybucket/myobject"}, nil},
 		// Test 7, testing with query
