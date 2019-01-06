@@ -28,6 +28,7 @@ var awsS3EndpointMap = map[string]string{
 	"eu-west-2":      "s3.dualstack.eu-west-2.amazonaws.com",
 	"eu-west-3":      "s3.dualstack.eu-west-3.amazonaws.com",
 	"eu-central-1":   "s3.dualstack.eu-central-1.amazonaws.com",
+	"eu-north-1":     "s3.dualstack.eu-north-1.amazonaws.com",
 	"ap-south-1":     "s3.dualstack.ap-south-1.amazonaws.com",
 	"ap-southeast-1": "s3.dualstack.ap-southeast-1.amazonaws.com",
 	"ap-southeast-2": "s3.dualstack.ap-southeast-2.amazonaws.com",
@@ -35,6 +36,7 @@ var awsS3EndpointMap = map[string]string{
 	"ap-northeast-2": "s3.dualstack.ap-northeast-2.amazonaws.com",
 	"sa-east-1":      "s3.dualstack.sa-east-1.amazonaws.com",
 	"us-gov-west-1":  "s3.dualstack.us-gov-west-1.amazonaws.com",
+	"us-gov-east-1":  "s3.dualstack.us-gov-east-1.amazonaws.com",
 	"cn-north-1":     "s3.cn-north-1.amazonaws.com.cn",
 	"cn-northwest-1": "s3.cn-northwest-1.amazonaws.com.cn",
 }
