@@ -653,7 +653,8 @@ func testPutObjectWithMetadata() {
 	customContentType := "custom/contenttype"
 
 	args["metadata"] = map[string][]string{
-		"Content-Type": {customContentType},
+		"Content-Type":         {customContentType},
+		"X-Amz-Meta-CustomKey": {"extra  spaces  in   value"},
 	}
 
 	n, err := c.PutObject(bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{
