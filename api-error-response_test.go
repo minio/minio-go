@@ -77,7 +77,6 @@ func TestHttpRespToErrorResponse(t *testing.T) {
 			RequestID:  resp.Header.Get("x-amz-request-id"),
 			HostID:     resp.Header.Get("x-amz-id-2"),
 			Region:     resp.Header.Get("x-amz-bucket-region"),
-			Headers:    resp.Header,
 		}
 		return errResp
 	}
@@ -290,5 +289,15 @@ func TestErrWithoutMessage(t *testing.T) {
 	}
 	if errResp.Error() != "Error response code InvalidArgument." {
 		t.Errorf("Expected \"Error response code InvalidArgument.\", got %s", errResp)
+	}
+}
+
+// Tests if ErrorResponse is comparable since it is compared
+// inside golang http code (https://github.com/golang/go/issues/29768)
+func TestErrorResponseComparable(t *testing.T) {
+	var e1 interface{} = ErrorResponse{}
+	var e2 interface{} = ErrorResponse{}
+	if e1 != e2 {
+		t.Fatalf("ErrorResponse should be comparable")
 	}
 }
