@@ -1,7 +1,6 @@
 module github.com/minio/minio-go
 
 require (
-	github.com/go-ini/ini v1.41.0 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20181103185306-d547d1d9531e // indirect
 	github.com/jtolds/gls v4.2.1+incompatible // indirect
 	github.com/mitchellh/go-homedir v1.1.0
