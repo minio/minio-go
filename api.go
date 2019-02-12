@@ -585,6 +585,22 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 		req, err = c.newRequest(method, metadata)
 		if err != nil {
 			errResponse := ToErrorResponse(err)
+			if errResponse.Code == "AuthorizationHeaderMalformed" || errResponse.Code == "InvalidRegion" {
+				if errResponse.Region != "" {
+					metadata.bucketLocation = errResponse.Region
+					if metadata.bucketName != "" {
+						// Gather Cached location only if bucketName is present.
+						if _, cachedLocationError := c.bucketLocCache.Get(metadata.bucketName); cachedLocationError != false {
+							c.bucketLocCache.Set(metadata.bucketName, errResponse.Region)
+
+							continue // Retry.
+						}
+					}
+					metadata.bucketLocation = errResponse.Region
+					continue
+				}
+			}
+
 			if isS3CodeRetryable(errResponse.Code) {
 				continue // Retry.
 			}
@@ -639,12 +655,16 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 		// region is empty.
 		if metadata.bucketLocation == "" && c.region == "" {
 			if errResponse.Code == "AuthorizationHeaderMalformed" || errResponse.Code == "InvalidRegion" {
-				if metadata.bucketName != "" && errResponse.Region != "" {
-					// Gather Cached location only if bucketName is present.
-					if _, cachedLocationError := c.bucketLocCache.Get(metadata.bucketName); cachedLocationError != false {
-						c.bucketLocCache.Set(metadata.bucketName, errResponse.Region)
-						continue // Retry.
+				if errResponse.Region != "" {
+					if metadata.bucketName != "" {
+						// Gather Cached location only if bucketName is present.
+						if _, cachedLocationError := c.bucketLocCache.Get(metadata.bucketName); cachedLocationError != false {
+							c.bucketLocCache.Set(metadata.bucketName, errResponse.Region)
+							continue // Retry.
+						}
 					}
+					metadata.bucketLocation = errResponse.Region
+					continue
 				}
 			}
 		}
