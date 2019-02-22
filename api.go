@@ -295,10 +295,15 @@ func privateNew(endpoint string, creds *credentials.Credentials, secure bool, re
 	// Save endpoint URL, user agent for future uses.
 	clnt.endpointURL = endpointURL
 
+	transport, err := DefaultTransport(secure)
+	if err != nil {
+		return nil, err
+	}
+
 	// Instantiate http client and bucket location cache.
 	clnt.httpClient = &http.Client{
 		Jar:           jar,
-		Transport:     DefaultTransport,
+		Transport:     transport,
 		CheckRedirect: clnt.redirectHeaders,
 	}
 
