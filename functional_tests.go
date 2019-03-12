@@ -6627,6 +6627,9 @@ func testSSECEncryptedToSSECCopyObjectPart() {
 	for k, v := range header {
 		metadata[k] = v[0]
 	}
+
+	metadata["x-amz-copy-source-if-match"] = objInfo.ETag
+
 	// First of three parts
 	fstPart, err := c.CopyObjectPart(bucketName, objectName, destBucketName, destObjectName, uploadID, 1, 0, -1, metadata)
 	if err != nil {
@@ -6774,6 +6777,9 @@ func testSSECEncryptedToUnencryptedCopyPart() {
 	for k, v := range header {
 		metadata[k] = v[0]
 	}
+
+	metadata["x-amz-copy-source-if-match"] = objInfo.ETag
+
 	// First of three parts
 	fstPart, err := c.CopyObjectPart(bucketName, objectName, destBucketName, destObjectName, uploadID, 1, 0, -1, metadata)
 	if err != nil {
@@ -6923,6 +6929,9 @@ func testSSECEncryptedToSSES3CopyObjectPart() {
 	for k, v := range header {
 		metadata[k] = v[0]
 	}
+
+	metadata["x-amz-copy-source-if-match"] = objInfo.ETag
+
 	// First of three parts
 	fstPart, err := c.CopyObjectPart(bucketName, objectName, destBucketName, destObjectName, uploadID, 1, 0, -1, metadata)
 	if err != nil {
@@ -7069,6 +7078,9 @@ func testUnencryptedToSSECCopyObjectPart() {
 	for k, v := range header {
 		metadata[k] = v[0]
 	}
+
+	metadata["x-amz-copy-source-if-match"] = objInfo.ETag
+
 	// First of three parts
 	fstPart, err := c.CopyObjectPart(bucketName, objectName, destBucketName, destObjectName, uploadID, 1, 0, -1, metadata)
 	if err != nil {
@@ -7212,6 +7224,9 @@ func testUnencryptedToUnencryptedCopyPart() {
 	for k, v := range header {
 		metadata[k] = v[0]
 	}
+
+	metadata["x-amz-copy-source-if-match"] = objInfo.ETag
+
 	// First of three parts
 	fstPart, err := c.CopyObjectPart(bucketName, objectName, destBucketName, destObjectName, uploadID, 1, 0, -1, metadata)
 	if err != nil {
@@ -7358,6 +7373,9 @@ func testUnencryptedToSSES3CopyObjectPart() {
 	for k, v := range header {
 		metadata[k] = v[0]
 	}
+
+	metadata["x-amz-copy-source-if-match"] = objInfo.ETag
+
 	// First of three parts
 	fstPart, err := c.CopyObjectPart(bucketName, objectName, destBucketName, destObjectName, uploadID, 1, 0, -1, metadata)
 	if err != nil {
@@ -7504,6 +7522,9 @@ func testSSES3EncryptedToSSECCopyObjectPart() {
 	for k, v := range header {
 		metadata[k] = v[0]
 	}
+
+	metadata["x-amz-copy-source-if-match"] = objInfo.ETag
+
 	// First of three parts
 	fstPart, err := c.CopyObjectPart(bucketName, objectName, destBucketName, destObjectName, uploadID, 1, 0, -1, metadata)
 	if err != nil {
@@ -7648,6 +7669,9 @@ func testSSES3EncryptedToUnencryptedCopyPart() {
 	for k, v := range header {
 		metadata[k] = v[0]
 	}
+
+	metadata["x-amz-copy-source-if-match"] = objInfo.ETag
+
 	// First of three parts
 	fstPart, err := c.CopyObjectPart(bucketName, objectName, destBucketName, destObjectName, uploadID, 1, 0, -1, metadata)
 	if err != nil {
@@ -7795,6 +7819,9 @@ func testSSES3EncryptedToSSES3CopyObjectPart() {
 	for k, v := range header {
 		metadata[k] = v[0]
 	}
+
+	metadata["x-amz-copy-source-if-match"] = objInfo.ETag
+
 	// First of three parts
 	fstPart, err := c.CopyObjectPart(bucketName, objectName, destBucketName, destObjectName, uploadID, 1, 0, -1, metadata)
 	if err != nil {
