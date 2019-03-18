@@ -39,6 +39,11 @@ import (
 // For Amazon S3 for more supported regions - http://docs.aws.amazon.com/general/latest/gr/rande.html
 // For Google Cloud Storage for more supported regions - https://cloud.google.com/storage/docs/bucket-locations
 func (c Client) MakeBucket(bucketName string, location string) (err error) {
+	return c.MakeBucketWithContext(context.Background(), bucketName, location)
+}
+
+// MakeBucketWithContext - Identical to MakeBucket call, but accepts context.
+func (c Client) MakeBucketWithContext(ctx context.Context, bucketName string, location string) (err error) {
 	defer func() {
 		// Save the location into cache on a successful makeBucket response.
 		if err == nil {
@@ -82,7 +87,7 @@ func (c Client) MakeBucket(bucketName string, location string) (err error) {
 	}
 
 	// Execute PUT to create a new bucket.
-	resp, err := c.executeMethod(context.Background(), "PUT", reqMetadata)
+	resp, err := c.executeMethod(ctx, "PUT", reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
 		return err

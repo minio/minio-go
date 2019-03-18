@@ -27,15 +27,15 @@ import (
 	"github.com/minio/minio-go/pkg/s3utils"
 )
 
-// BucketExists verify if bucket exists and you have permission to access it.
-func (c Client) BucketExists(bucketName string) (bool, error) {
+// BucketExistsWithContext - Identical to BucketExists call, but accepts context.
+func (c Client) BucketExistsWithContext(ctx context.Context, bucketName string) (bool, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return false, err
 	}
 
 	// Execute HEAD on bucketName.
-	resp, err := c.executeMethod(context.Background(), "HEAD", requestMetadata{
+	resp, err := c.executeMethod(ctx, "HEAD", requestMetadata{
 		bucketName:       bucketName,
 		contentSHA256Hex: emptySHA256Hex,
 	})
@@ -56,6 +56,11 @@ func (c Client) BucketExists(bucketName string) (bool, error) {
 		}
 	}
 	return true, nil
+}
+
+// BucketExists verify if bucket exists and you have permission to access it.
+func (c Client) BucketExists(bucketName string) (bool, error) {
+	return c.BucketExistsWithContext(context.Background(), bucketName)
 }
 
 // List of header keys to be filtered, usually
