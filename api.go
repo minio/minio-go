@@ -73,8 +73,9 @@ type Client struct {
 	bucketLocCache *bucketLocationCache
 
 	// Advanced functionality.
-	isTraceEnabled bool
-	traceOutput    io.Writer
+	isTraceEnabled  bool
+	traceErrorsOnly bool
+	traceOutput     io.Writer
 
 	// S3 specific accelerated endpoint.
 	s3AccelerateEndpoint string
@@ -361,7 +362,7 @@ func (c *Client) SetCustomTransport(customHTTPTransport http.RoundTripper) {
 }
 
 // TraceOn - enable HTTP tracing.
-func (c *Client) TraceOn(outputStream io.Writer) {
+func (c *Client) TraceOn(outputStream io.Writer, errorsOnly bool) {
 	// if outputStream is nil then default to os.Stdout.
 	if outputStream == nil {
 		outputStream = os.Stdout
@@ -371,12 +372,15 @@ func (c *Client) TraceOn(outputStream io.Writer) {
 
 	// Enable tracing.
 	c.isTraceEnabled = true
+	// Error tracing as the user required
+	c.traceErrorsOnly = errorsOnly
 }
 
 // TraceOff - disable HTTP tracing.
 func (c *Client) TraceOff() {
 	// Disable tracing.
 	c.isTraceEnabled = false
+	c.traceErrorsOnly = false
 }
 
 // SetS3TransferAccelerate - turns s3 accelerated endpoint on or off for all your
@@ -516,8 +520,9 @@ func (c Client) do(req *http.Request) (*http.Response, error) {
 		return nil, ErrInvalidArgument(msg)
 	}
 
-	// If trace is enabled, dump http request and response.
-	if c.isTraceEnabled {
+	// If trace is enabled, dump http request and response,
+	// except when the traceErrorsOnly enabled and the response's status code is ok
+	if c.isTraceEnabled && !(c.traceErrorsOnly && resp.StatusCode == http.StatusOK) {
 		err = c.dumpHTTP(req, resp)
 		if err != nil {
 			return nil, err
