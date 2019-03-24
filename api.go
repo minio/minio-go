@@ -374,14 +374,14 @@ func (c *Client) TraceOn(outputStream io.Writer) {
 	c.isTraceEnabled = true
 }
 
-// Same as TraceOn, but only errors will be traced.
+// TraceErrorsOnlyOn - same as TraceOn, but only errors will be traced.
 func (c *Client) TraceErrorsOnlyOn(outputStream io.Writer) {
 	c.TraceOn(outputStream)
 	c.traceErrorsOnly = true
 }
 
-// Turns off the only error tracing and everything will be traced after this call.
-// If all tracing needs to be turned off, call TraceOff()
+// TraceErrorsOnlyOff - Turns off the errors only tracing and everything will be traced after this call.
+// If all tracing needs to be turned off, call TraceOff().
 func (c *Client) TraceErrorsOnlyOff() {
 	c.traceErrorsOnly = false
 }
