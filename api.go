@@ -362,7 +362,7 @@ func (c *Client) SetCustomTransport(customHTTPTransport http.RoundTripper) {
 }
 
 // TraceOn - enable HTTP tracing.
-func (c *Client) TraceOn(outputStream io.Writer, errorsOnly bool) {
+func (c *Client) TraceOn(outputStream io.Writer) {
 	// if outputStream is nil then default to os.Stdout.
 	if outputStream == nil {
 		outputStream = os.Stdout
@@ -372,8 +372,18 @@ func (c *Client) TraceOn(outputStream io.Writer, errorsOnly bool) {
 
 	// Enable tracing.
 	c.isTraceEnabled = true
-	// Error tracing as the user required
-	c.traceErrorsOnly = errorsOnly
+}
+
+// Same as TraceOn, but only errors will be traced.
+func (c *Client) TraceErrorsOnlyOn(outputStream io.Writer) {
+	c.TraceOn(outputStream)
+	c.traceErrorsOnly = true
+}
+
+// Turns off the only error tracing and everything will be traced after this call.
+// If all tracing needs to be turned off, call TraceOff()
+func (c *Client) TraceErrorsOnlyOff() {
+	c.traceErrorsOnly = false
 }
 
 // TraceOff - disable HTTP tracing.
