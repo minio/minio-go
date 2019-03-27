@@ -6551,6 +6551,177 @@ func testDecryptedCopyObject() {
 	successLogger(testName, function, args, startTime).Info()
 }
 
+func testSSECMultipartEncryptedToSSECCopyObjectPart() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "CopyObjectPart(destination, source)"
+	args := map[string]interface{}{}
+
+	// Instantiate new minio client object
+	client, err := minio.NewV4(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Minio v4 client object creation failed", err)
+		return
+	}
+
+	// Instantiate new core client object.
+	c := minio.Core{client}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+	}
+	defer cleanupBucket(bucketName, client)
+	// Make a buffer with 6MB of data
+	buf := bytes.Repeat([]byte("abcdef"), 1024*1024)
+
+	// Save the data
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	password := "correct horse battery staple"
+	srcencryption := encrypt.DefaultPBKDF([]byte(password), []byte(bucketName+objectName))
+
+	// Upload a 6MB object using multipart mechanism
+	uploadID, err := c.NewMultipartUpload(bucketName, objectName, minio.PutObjectOptions{ServerSideEncryption: srcencryption})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "NewMultipartUpload call failed", err)
+	}
+
+	var completeParts []minio.CompletePart
+
+	part, err := c.PutObjectPart(bucketName, objectName, uploadID, 1, bytes.NewReader(buf[:5*1024*1024]), 5*1024*1024, "", "", srcencryption)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObjectPart call failed", err)
+	}
+	completeParts = append(completeParts, minio.CompletePart{PartNumber: part.PartNumber, ETag: part.ETag})
+
+	part, err = c.PutObjectPart(bucketName, objectName, uploadID, 2, bytes.NewReader(buf[5*1024*1024:]), 1024*1024, "", "", srcencryption)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObjectPart call failed", err)
+	}
+	completeParts = append(completeParts, minio.CompletePart{PartNumber: part.PartNumber, ETag: part.ETag})
+
+	// Complete the multipart upload
+	_, err = c.CompleteMultipartUpload(bucketName, objectName, uploadID, completeParts)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "CompleteMultipartUpload call failed", err)
+	}
+
+	// Stat the object and check its length matches
+	objInfo, err := c.StatObject(bucketName, objectName, minio.StatObjectOptions{minio.GetObjectOptions{ServerSideEncryption: srcencryption}})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "StatObject call failed", err)
+	}
+
+	destBucketName := bucketName
+	destObjectName := objectName + "-dest"
+	dstencryption := encrypt.DefaultPBKDF([]byte(password), []byte(destBucketName+destObjectName))
+
+	uploadID, err = c.NewMultipartUpload(destBucketName, destObjectName, minio.PutObjectOptions{ServerSideEncryption: dstencryption})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "NewMultipartUpload call failed", err)
+	}
+
+	// Content of the destination object will be two copies of
+	// `objectName` concatenated, followed by first byte of
+	// `objectName`.
+	metadata := make(map[string]string)
+	header := make(http.Header)
+	encrypt.SSECopy(srcencryption).Marshal(header)
+	dstencryption.Marshal(header)
+	for k, v := range header {
+		metadata[k] = v[0]
+	}
+
+	metadata["x-amz-copy-source-if-match"] = objInfo.ETag
+
+	// First of three parts
+	fstPart, err := c.CopyObjectPart(bucketName, objectName, destBucketName, destObjectName, uploadID, 1, 0, -1, metadata)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "CopyObjectPart call failed", err)
+	}
+
+	// Second of three parts
+	sndPart, err := c.CopyObjectPart(bucketName, objectName, destBucketName, destObjectName, uploadID, 2, 0, -1, metadata)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "CopyObjectPart call failed", err)
+	}
+
+	// Last of three parts
+	lstPart, err := c.CopyObjectPart(bucketName, objectName, destBucketName, destObjectName, uploadID, 3, 0, 1, metadata)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "CopyObjectPart call failed", err)
+	}
+
+	// Complete the multipart upload
+	_, err = c.CompleteMultipartUpload(destBucketName, destObjectName, uploadID, []minio.CompletePart{fstPart, sndPart, lstPart})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "CompleteMultipartUpload call failed", err)
+	}
+
+	// Stat the object and check its length matches
+	objInfo, err = c.StatObject(destBucketName, destObjectName, minio.StatObjectOptions{minio.GetObjectOptions{ServerSideEncryption: dstencryption}})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "StatObject call failed", err)
+	}
+
+	if objInfo.Size != (6*1024*1024)*2+1 {
+		logError(testName, function, args, startTime, "", "Destination object has incorrect size!", err)
+	}
+
+	// Now we read the data back
+	getOpts := minio.GetObjectOptions{ServerSideEncryption: dstencryption}
+	getOpts.SetRange(0, 6*1024*1024-1)
+	r, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "GetObject call failed", err)
+	}
+	getBuf := make([]byte, 6*1024*1024)
+	_, err = io.ReadFull(r, getBuf)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Read buffer failed", err)
+	}
+	if !bytes.Equal(getBuf, buf) {
+		logError(testName, function, args, startTime, "", "Got unexpected data in first 6MB", err)
+	}
+
+	getOpts.SetRange(6*1024*1024, 0)
+	r, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "GetObject call failed", err)
+	}
+	getBuf = make([]byte, 6*1024*1024+1)
+	_, err = io.ReadFull(r, getBuf)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Read buffer failed", err)
+	}
+	if !bytes.Equal(getBuf[:6*1024*1024], buf) {
+		logError(testName, function, args, startTime, "", "Got unexpected data in second 6MB", err)
+	}
+	if getBuf[6*1024*1024] != buf[0] {
+		logError(testName, function, args, startTime, "", "Got unexpected data in last byte of copied object!", err)
+	}
+
+	successLogger(testName, function, args, startTime).Info()
+
+	// Do not need to remove destBucketName its same as bucketName.
+}
+
 // Test Core CopyObjectPart implementation
 func testSSECEncryptedToSSECCopyObjectPart() {
 	// initialize logging params
@@ -9869,6 +10040,7 @@ func main() {
 			testEncryptedEmptyObject()
 			testDecryptedCopyObject()
 			testSSECEncryptedToSSECCopyObjectPart()
+			testSSECMultipartEncryptedToSSECCopyObjectPart()
 			testSSECEncryptedToUnencryptedCopyPart()
 			testUnencryptedToSSECCopyObjectPart()
 			testUnencryptedToUnencryptedCopyPart()
