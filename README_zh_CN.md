@@ -234,8 +234,7 @@ mc ls play/mymusic/
 
 ## 了解更多
 * [完整文档](https://docs.minio.io)
-* [Minio Go Client SDK API文档](https://docs.minio.io/docs/golang-client-api-reference) 
-* [Go 音乐播放器完整示例](https://docs.minio.io/docs/go-music-player-app)
+* [Minio Go Client SDK API文档](https://docs.minio.io/docs/golang-client-api-reference)
 
 ## 贡献
 [贡献指南](https://github.com/minio/minio-go/blob/master/docs/zh_CN/CONTRIBUTING.md)
