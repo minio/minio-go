@@ -1779,8 +1779,3 @@ __参数__
 | 参数  | 类型  | 描述  |
 |---|---|---|
 |`acceleratedEndpoint`  | _string_  | 设置新的S3传输加速endpoint。|
-
-
-## 8. 了解更多
-
-- [用Go语言创建属于你的音乐播放器APP示例](https://docs.minio.io/docs/go-music-player-app)

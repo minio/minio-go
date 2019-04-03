@@ -1623,8 +1623,3 @@ __Parameters__
 | Param  | Type  | Description  |
 |---|---|---|
 |`acceleratedEndpoint`  | _string_  | Set to new S3 transfer acceleration endpoint.|
-
-
-## 8. Explore Further
-
-- [Build your own Go Music Player App example](https://docs.minio.io/docs/go-music-player-app)

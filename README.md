@@ -227,7 +227,6 @@ The full API Reference is available here.
 ## Explore Further
 * [Complete Documentation](https://docs.minio.io)
 * [Minio Go Client SDK API Reference](https://docs.minio.io/docs/golang-client-api-reference)
-* [Go Music Player App Full Application Example](https://docs.minio.io/docs/go-music-player-app)
 
 ## Contribute
 [Contributors Guide](https://github.com/minio/minio-go/blob/master/CONTRIBUTING.md)
