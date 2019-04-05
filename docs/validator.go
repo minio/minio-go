@@ -1,8 +1,8 @@
 // +build ignore
 
 /*
- * Minio Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2015-2017 Minio, Inc.
+ * MinIO Go Library for Amazon S3 Compatible Cloud Storage
+ * Copyright 2015-2017 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -199,7 +199,7 @@ func main() {
 	app.HideVersion = true
 	app.HideHelpCommand = true
 	app.Usage = "Validates code block sections inside API.md"
-	app.Author = "Minio.io"
+	app.Author = "min.io"
 	app.Flags = globalFlags
 	// Help template for validator
 	app.CustomAppHelpTemplate = `NAME:

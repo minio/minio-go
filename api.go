@@ -1,6 +1,6 @@
 /*
- * Minio Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2015-2018 Minio, Inc.
+ * MinIO Go Library for Amazon S3 Compatible Cloud Storage
+ * Copyright 2015-2018 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -108,9 +108,9 @@ const (
 // User Agent should always following the below style.
 // Please open an issue to discuss any new changes here.
 //
-//       Minio (OS; ARCH) LIB/VER APP/VER
+//       MinIO (OS; ARCH) LIB/VER APP/VER
 const (
-	libraryUserAgentPrefix = "Minio (" + runtime.GOOS + "; " + runtime.GOARCH + ") "
+	libraryUserAgentPrefix = "MinIO (" + runtime.GOOS + "; " + runtime.GOARCH + ") "
 	libraryUserAgent       = libraryUserAgentPrefix + libraryName + "/" + libraryVersion
 )
 

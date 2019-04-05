@@ -1,6 +1,6 @@
 /*
- * Minio Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2015-2017 Minio, Inc.
+ * MinIO Go Library for Amazon S3 Compatible Cloud Storage
+ * Copyright 2015-2017 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -188,7 +188,7 @@ func TestMakeTargetURL(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		// Initialize a Minio client
+		// Initialize a MinIO client
 		c, _ := New(testCase.addr, "foo", "bar", testCase.secure)
 		isVirtualHost := c.isVirtualHostStyleRequest(*c.endpointURL, testCase.bucketName)
 		u, err := c.makeTargetURL(testCase.bucketName, testCase.objectName, testCase.bucketLocation, isVirtualHost, testCase.queryValues)
