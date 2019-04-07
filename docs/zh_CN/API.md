@@ -1,8 +1,8 @@
-# Minio Go Client API文档 [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io)
+# MinIO Go Client API文档 [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io)
 
-## 初使化Minio Client对象。
+## 初使化MinIO Client对象。
 
-##  Minio
+##  MinIO
 
 ```go
 package main
@@ -18,7 +18,7 @@ func main() {
         ssl := true
 
         // 初使化minio client对象。
-        minioClient, err := minio.New("play.minio.io:9000", "Q3AM3UQ867SPQQA43P2F", "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG", ssl)
+        minioClient, err := minio.New("play.min.io:9000", "Q3AM3UQ867SPQQA43P2F", "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG", ssl)
         if err != nil {
                 fmt.Println(err)
                 return
@@ -69,7 +69,7 @@ func main() {
 |   | [`FPutObjectWithContext`](#FPutObjectWithContext)  | |   |   |
 |   | [`FGetObjectWithContext`](#FGetObjectWithContext)  | |   |   |
 ## 1. 构造函数
-<a name="Minio"></a>
+<a name="MinIO"></a>
 
 ### New(endpoint, accessKeyID, secretAccessKey string, ssl bool) (*Client, error)
 初使化一个新的client对象。

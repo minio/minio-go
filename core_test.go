@@ -1,6 +1,6 @@
 /*
- * Minio Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2017 Minio, Inc.
+ * MinIO Go Library for Amazon S3 Compatible Cloud Storage
+ * Copyright 2017 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -86,7 +86,7 @@ func TestGetObjectCore(t *testing.T) {
 	// c.TraceOn(os.Stderr)
 
 	// Set user agent.
-	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
@@ -262,7 +262,7 @@ func TestGetObjectContentEncoding(t *testing.T) {
 	// c.TraceOn(os.Stderr)
 
 	// Set user agent.
-	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
@@ -339,7 +339,7 @@ func TestGetBucketPolicy(t *testing.T) {
 	// c.TraceOn(os.Stderr)
 
 	// Set user agent.
-	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
@@ -402,7 +402,7 @@ func TestCoreCopyObject(t *testing.T) {
 	// c.TraceOn(os.Stderr)
 
 	// Set user agent.
-	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
@@ -516,7 +516,7 @@ func TestCoreCopyObjectPart(t *testing.T) {
 	// c.TraceOn(os.Stderr)
 
 	// Set user agent.
-	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
@@ -661,7 +661,7 @@ func TestCorePutObject(t *testing.T) {
 	// c.TraceOn(os.Stderr)
 
 	// Set user agent.
-	c.SetAppInfo("Minio-go-FunctionalTest", "0.1.0")
+	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")

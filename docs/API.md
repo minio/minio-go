@@ -1,8 +1,8 @@
-# Minio Go Client API Reference [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io)
+# MinIO Go Client API Reference [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io)
 
-## Initialize Minio Client object.
+## Initialize MinIO Client object.
 
-##  Minio
+##  MinIO
 
 ```go
 package main
@@ -18,7 +18,7 @@ func main() {
         ssl := true
 
         // Initialize minio client object.
-        minioClient, err := minio.New("play.minio.io:9000", "Q3AM3UQ867SPQQA43P2F", "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG", ssl)
+        minioClient, err := minio.New("play.min.io:9000", "Q3AM3UQ867SPQQA43P2F", "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG", ssl)
         if err != nil {
                 fmt.Println(err)
                 return
@@ -71,7 +71,7 @@ func main() {
 |   | [`RemoveObjectsWithContext`](#RemoveObjectsWithContext)  | |    |   |
 | | [`SelectObjectContent`](#SelectObjectContent)  |   |
 ## 1. Constructor
-<a name="Minio"></a>
+<a name="MinIO"></a>
 
 ### New(endpoint, accessKeyID, secretAccessKey string, ssl bool) (*Client, error)
 Initializes a new client object.
@@ -553,7 +553,7 @@ __minio.PutObjectOptions__
 | `opts.ContentLanguage` | _string_ | Content language of object, e.g "French" |
 | `opts.CacheControl` | _string_ | Used to specify directives for caching mechanisms in both requests and responses e.g "max-age=600"|
 | `opts.ServerSideEncryption` | _encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go) |
-| `opts.StorageClass` | _string_ | Specify storage class for the object. Supported values for Minio server are `REDUCED_REDUNDANCY` and `STANDARD` |
+| `opts.StorageClass` | _string_ | Specify storage class for the object. Supported values for MinIO server are `REDUCED_REDUNDANCY` and `STANDARD` |
 | `opts.WebsiteRedirectLocation` | _string_ | Specify a redirect for the object, to another object in the same bucket or to a external URL. |
 
 __Example__

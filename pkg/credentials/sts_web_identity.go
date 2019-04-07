@@ -1,6 +1,6 @@
 /*
- * Minio Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2019 Minio, Inc.
+ * MinIO Go Library for Amazon S3 Compatible Cloud Storage
+ * Copyright 2019 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ type AssumeRoleWithWebIdentityResponse struct {
 }
 
 // WebIdentityResult - Contains the response to a successful AssumeRoleWithWebIdentity
-// request, including temporary credentials that can be used to make Minio API requests.
+// request, including temporary credentials that can be used to make MinIO API requests.
 type WebIdentityResult struct {
 	AssumedRoleUser AssumedRoleUser `xml:",omitempty"`
 	Audience        string          `xml:",omitempty"`
@@ -57,15 +57,15 @@ type WebIdentityToken struct {
 	Expiry int
 }
 
-// A STSWebIdentity retrieves credentials from Minio service, and keeps track if
+// A STSWebIdentity retrieves credentials from MinIO service, and keeps track if
 // those credentials are expired.
 type STSWebIdentity struct {
 	Expiry
 
-	// Required http Client to use when connecting to Minio STS service.
+	// Required http Client to use when connecting to MinIO STS service.
 	Client *http.Client
 
-	// Minio endpoint to fetch STS credentials.
+	// MinIO endpoint to fetch STS credentials.
 	stsEndpoint string
 
 	// getWebIDTokenExpiry function which returns ID tokens
@@ -138,7 +138,7 @@ func getWebIdentityCredentials(clnt *http.Client, endpoint string,
 	return a, nil
 }
 
-// Retrieve retrieves credentials from the Minio service.
+// Retrieve retrieves credentials from the MinIO service.
 // Error will be returned if the request fails.
 func (m *STSWebIdentity) Retrieve() (Value, error) {
 	a, err := getWebIdentityCredentials(m.Client, m.stsEndpoint, m.getWebIDTokenExpiry)
