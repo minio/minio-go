@@ -282,7 +282,7 @@ func checkBucketNameCommon(bucketName string, strict bool) (err error) {
 	if ipAddress.MatchString(bucketName) {
 		return errors.New("Bucket name cannot be an ip address")
 	}
-	if strings.Contains(bucketName, "..") {
+	if strings.Contains(bucketName, "..") || strings.Contains(bucketName, ".-") || strings.Contains(bucketName, "-.") {
 		return errors.New("Bucket name contains invalid characters")
 	}
 	if strict {
