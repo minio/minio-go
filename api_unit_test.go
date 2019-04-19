@@ -120,18 +120,31 @@ func TestPartSize(t *testing.T) {
 	if err == nil {
 		t.Fatal("Error: should fail")
 	}
-	totalPartsCount, partSize, lastPartSize, err := optimalPartInfo(5497558138880, minPartSize)
+	totalPartsCount, partSize, lastPartSize, err := optimalPartInfo(5243928576, 5*1024*1024)
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
-	if totalPartsCount != 9103 {
-		t.Fatalf("Error: expecting total parts count of 9987: got %v instead", totalPartsCount)
+	if totalPartsCount != 1001 {
+		t.Fatalf("Error: expecting total parts count of 1001: got %v instead", totalPartsCount)
 	}
-	if partSize != 603979776 {
-		t.Fatalf("Error: expecting part size of 550502400: got %v instead", partSize)
+	if partSize != 5242880 {
+		t.Fatalf("Error: expecting part size of 5242880: got %v instead", partSize)
 	}
-	if lastPartSize != 134217728 {
-		t.Fatalf("Error: expecting last part size of 241172480: got %v instead", lastPartSize)
+	if lastPartSize != 1048576 {
+		t.Fatalf("Error: expecting last part size of 1048576: got %v instead", lastPartSize)
+	}
+	totalPartsCount, partSize, lastPartSize, err = optimalPartInfo(5243928576, 0)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+	if totalPartsCount != 79 {
+		t.Fatalf("Error: expecting total parts count of 79: got %v instead", totalPartsCount)
+	}
+	if partSize != 67108864 {
+		t.Fatalf("Error: expecting part size of 67108864: got %v instead", partSize)
+	}
+	if lastPartSize != 9437184 {
+		t.Fatalf("Error: expecting last part size of 9437184: got %v instead", lastPartSize)
 	}
 	_, partSize, _, err = optimalPartInfo(5000000000, minPartSize)
 	if err != nil {
@@ -140,18 +153,24 @@ func TestPartSize(t *testing.T) {
 	if partSize != minPartSize {
 		t.Fatalf("Error: expecting part size of %v: got %v instead", minPartSize, partSize)
 	}
-	totalPartsCount, partSize, lastPartSize, err = optimalPartInfo(-1, minPartSize)
+	// if stream and client configured min part size
+	_, _, _, err = optimalPartInfo(-1, minPartSize)
+	if err == nil {
+		t.Fatal("Error:", err)
+	}
+	// if stream and using default optimal part size determined by sdk
+	totalPartsCount, partSize, lastPartSize, err = optimalPartInfo(-1, 0)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 	if totalPartsCount != 9103 {
-		t.Fatalf("Error: expecting total parts count of 9987: got %v instead", totalPartsCount)
+		t.Fatalf("Error: expecting total parts count of 9103: got %v instead", totalPartsCount)
 	}
 	if partSize != 603979776 {
-		t.Fatalf("Error: expecting part size of 550502400: got %v instead", partSize)
+		t.Fatalf("Error: expecting part size of 603979776: got %v instead", partSize)
 	}
 	if lastPartSize != 134217728 {
-		t.Fatalf("Error: expecting last part size of 241172480: got %v instead", lastPartSize)
+		t.Fatalf("Error: expecting last part size of 134217728: got %v instead", lastPartSize)
 	}
 }
 
