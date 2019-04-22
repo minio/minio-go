@@ -148,12 +148,13 @@ func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName stri
 		return c.putObjectNoChecksum(ctx, bucketName, objectName, reader, size, opts)
 	}
 
+	partSize := opts.PartSize
 	if opts.PartSize == 0 {
-		opts.PartSize = minPartSize
+		partSize = minPartSize
 	}
 
 	if c.overrideSignerType.IsV2() {
-		if size >= 0 && size < int64(opts.PartSize) {
+		if size >= 0 && size < int64(partSize) {
 			return c.putObjectNoChecksum(ctx, bucketName, objectName, reader, size, opts)
 		}
 		return c.putObjectMultipart(ctx, bucketName, objectName, reader, size, opts)
@@ -162,7 +163,7 @@ func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName stri
 		return c.putObjectMultipartStreamNoLength(ctx, bucketName, objectName, reader, opts)
 	}
 
-	if size < int64(opts.PartSize) {
+	if size < int64(partSize) {
 		return c.putObjectNoChecksum(ctx, bucketName, objectName, reader, size, opts)
 	}
 

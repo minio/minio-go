@@ -79,29 +79,36 @@ func optimalPartInfo(objectSize int64, configuredPartSize uint64) (totalPartsCou
 		return
 	}
 
-	if int64(configuredPartSize) > objectSize {
-		err = ErrEntityTooLarge(int64(configuredPartSize), objectSize, "", "")
-		return
+	var partSizeFlt float64
+	if configuredPartSize > 0 {
+		if int64(configuredPartSize) > objectSize {
+			err = ErrEntityTooLarge(int64(configuredPartSize), objectSize, "", "")
+			return
+		}
+
+		if objectSize > (int64(configuredPartSize) * maxPartsCount) {
+			err = ErrInvalidArgument("Part size * max_parts(10000) is lesser than input objectSize.")
+			return
+		}
+
+		if configuredPartSize < absMinPartSize {
+			err = ErrInvalidArgument("Input part size is smaller than allowed minimum of 5MiB.")
+			return
+		}
+
+		if configuredPartSize > maxPartSize {
+			err = ErrInvalidArgument("Input part size is bigger than allowed maximum of 5GiB.")
+			return
+		}
+		partSizeFlt = float64(configuredPartSize)
+	} else {
+		configuredPartSize = minPartSize
+		// Use floats for part size for all calculations to avoid
+		// overflows during float64 to int64 conversions.
+		partSizeFlt = math.Ceil(float64(objectSize / maxPartsCount))
+		partSizeFlt = math.Ceil(partSizeFlt/float64(configuredPartSize)) * float64(configuredPartSize)
 	}
 
-	if objectSize > (int64(configuredPartSize) * maxPartsCount) {
-		err = ErrInvalidArgument("Part size * max_parts(10000) is lesser than input objectSize.")
-	}
-
-	if configuredPartSize < absMinPartSize {
-		err = ErrInvalidArgument("Input part size is smaller than allowed minimum of 5MiB.")
-		return
-	}
-
-	if configuredPartSize > maxPartSize {
-		err = ErrInvalidArgument("Input part size is bigger than allowed maximum of 5GiB.")
-		return
-	}
-
-	// Use floats for part size for all calculations to avoid
-	// overflows during float64 to int64 conversions.
-	partSizeFlt := math.Ceil(float64(objectSize / maxPartsCount))
-	partSizeFlt = math.Ceil(partSizeFlt/float64(configuredPartSize)) * float64(configuredPartSize)
 	// Total parts count.
 	totalPartsCount = int(math.Ceil(float64(objectSize) / partSizeFlt))
 	// Part size.
