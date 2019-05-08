@@ -143,6 +143,7 @@ var retryableHTTPStatusCodes = map[int]struct{}{
 	http.StatusInternalServerError: {},
 	http.StatusBadGateway:          {},
 	http.StatusServiceUnavailable:  {},
+	http.StatusGatewayTimeout:      {},
 	// Add more HTTP status codes here.
 }
 
