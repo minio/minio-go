@@ -1,20 +1,8 @@
-# 适用于与Amazon S3兼容云存储的MinIO Go SDK [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io) [![Sourcegraph](https://sourcegraph.com/github.com/minio/minio-go/-/badge.svg)](https://sourcegraph.com/github.com/minio/minio-go?badge)
+# 适用于与Amazon S3兼容云存储的MinIO Go SDK [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io) [![Sourcegraph](https://sourcegraph.com/github.com/minio/minio-go/-/badge.svg)](https://sourcegraph.com/github.com/minio/minio-go?badge) [![Apache V2 License](http://img.shields.io/badge/license-Apache%20V2-blue.svg)](https://github.com/minio/minio-go/blob/master/LICENSE)
 
 MinIO Go Client SDK提供了简单的API来访问任何与Amazon S3兼容的对象存储服务。
 
-**支持的云存储:** 
-
-- AWS Signature Version 4
-   - Amazon S3
-   - MinIO
-
-- AWS Signature Version 2
-   - Google Cloud Storage (兼容模式)
-   - Openstack Swift + Swift3 middleware
-   - Ceph Object Gateway
-   - Riak CS
-
-本文我们将学习如何安装MinIO client SDK，连接到MinIO，并提供一下文件上传的示例。对于完整的API以及示例，请参考[Go Client API Reference](https://docs.min.io/docs/golang-client-api-reference)。
+这篇文章将向你展示如何安装MinIO client SDK以及如何连接到MinIO，而且还提供一个简单的文件上传的示例。对于完整的API以及示例，请参考[Go Client API Reference](https://docs.min.io/docs/golang-client-api-reference)。
 
 本文假设你已经有 [Go开发环境](https://docs.min.io/docs/how-to-install-golang)。
 
@@ -24,14 +12,14 @@ go get -u github.com/minio/minio-go
 ```
 
 ## 初始化MinIO Client
-MinIO client需要以下4个参数来连接与Amazon S3兼容的对象存储。
+MinIO client需要以下4个指定的参数来连接到Amazon S3兼容的对象存储。
 
 | 参数  | 描述| 
 | :---         |     :---     |
 | endpoint   | 对象存储服务的URL   | 
-| accessKeyID | Access key是唯一标识你的账户的用户ID。 |   
+| accessKeyID | Access key是唯一标识你账户的用户ID。 |   
 | secretAccessKey | Secret key是你账户的密码。 |
-| secure | true代表使用HTTPS |
+| secure | 设置此值为"true"来启用安全连接（HTTPS） |
 
 
 ```go
@@ -48,18 +36,18 @@ func main() {
 	secretAccessKey := "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG"
 	useSSL := true
 
-	// 初使化 minio client对象。
+	// 初始化 minio client对象。
 	minioClient, err := minio.New(endpoint, accessKeyID, secretAccessKey, useSSL)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	log.Printf("%#v\n", minioClient) // minioClient初使化成功
+	log.Printf("%#v\n", minioClient) // minioClient初始化成功
 }
 ```
 
-## 示例-文件上传
-本示例连接到一个对象存储服务，创建一个存储桶并上传一个文件到存储桶中。
+## 快速入门示例-文件上传
+本示例程序将连接到一个对象存储服务，创建一个存储桶并上传一个文件到存储桶中。
 
 我们在本示例中使用运行在 [https://play.min.io:9000](https://play.min.io:9000) 上的MinIO服务，你可以用这个服务来开发和测试。示例中的访问凭据是公开的。
 
@@ -78,7 +66,7 @@ func main() {
 	secretAccessKey := "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG"
 	useSSL := true
 
-	// 初使化minio client对象。
+	// 初始化minio client对象。
 	minioClient, err := minio.New(endpoint, accessKeyID, secretAccessKey, useSSL)
 	if err != nil {
 		log.Fatalln(err)
@@ -90,7 +78,7 @@ func main() {
 
 	err = minioClient.MakeBucket(bucketName, location)
 	if err != nil {
-		// 检查存储桶是否已经存在。
+		// 检查存储桶是否已经存在(如果运行这个两次，可能会发生)
 		exists, err := minioClient.BucketExists(bucketName)
 		if err == nil && exists {
 			log.Printf("We already own %s\n", bucketName)
@@ -129,7 +117,7 @@ mc ls play/mymusic/
 完整的API文档在这里。
 * [完整API文档](https://docs.min.io/docs/golang-client-api-reference)
 
-### API文档 : 操作存储桶
+### API文档 : 存储桶操作
 * [`MakeBucket`](https://docs.min.io/docs/golang-client-api-reference#MakeBucket)
 * [`ListBuckets`](https://docs.min.io/docs/golang-client-api-reference#ListBuckets)
 * [`BucketExists`](https://docs.min.io/docs/golang-client-api-reference#BucketExists)
@@ -138,23 +126,23 @@ mc ls play/mymusic/
 * [`ListObjectsV2`](https://docs.min.io/docs/golang-client-api-reference#ListObjectsV2)
 * [`ListIncompleteUploads`](https://docs.min.io/docs/golang-client-api-reference#ListIncompleteUploads)
 
-### API文档 : 存储桶策略
+### API文档 : 存储桶策略操作
 * [`SetBucketPolicy`](https://docs.min.io/docs/golang-client-api-reference#SetBucketPolicy)
 * [`GetBucketPolicy`](https://docs.min.io/docs/golang-client-api-reference#GetBucketPolicy)
 
-### API文档 : 存储桶通知
+### API文档 : 存储桶通知操作
 * [`SetBucketNotification`](https://docs.min.io/docs/golang-client-api-reference#SetBucketNotification)
 * [`GetBucketNotification`](https://docs.min.io/docs/golang-client-api-reference#GetBucketNotification)
 * [`RemoveAllBucketNotification`](https://docs.min.io/docs/golang-client-api-reference#RemoveAllBucketNotification)
 * [`ListenBucketNotification`](https://docs.min.io/docs/golang-client-api-reference#ListenBucketNotification) (MinIO Extension)
 
-### API文档 : 操作文件对象
+### API文档 : 文件对象操作
 * [`FPutObject`](https://docs.min.io/docs/golang-client-api-reference#FPutObject)
 * [`FGetObject`](https://docs.min.io/docs/golang-client-api-reference#FPutObject)
 * [`FPutObjectWithContext`](https://docs.min.io/docs/golang-client-api-reference#FPutObjectWithContext)
 * [`FGetObjectWithContext`](https://docs.min.io/docs/golang-client-api-reference#FGetObjectWithContext)
 
-### API文档 : 操作对象
+### API文档 : 对象操作
 * [`GetObject`](https://docs.min.io/docs/golang-client-api-reference#GetObject)
 * [`PutObject`](https://docs.min.io/docs/golang-client-api-reference#PutObject)
 * [`GetObjectWithContext`](https://docs.min.io/docs/golang-client-api-reference#GetObjectWithContext)
@@ -165,10 +153,7 @@ mc ls play/mymusic/
 * [`RemoveObject`](https://docs.min.io/docs/golang-client-api-reference#RemoveObject)
 * [`RemoveObjects`](https://docs.min.io/docs/golang-client-api-reference#RemoveObjects)
 * [`RemoveIncompleteUpload`](https://docs.min.io/docs/golang-client-api-reference#RemoveIncompleteUpload)
-
-### API文档: 操作加密对象
-* [`GetEncryptedObject`](https://docs.min.io/docs/golang-client-api-reference#GetEncryptedObject)
-* [`PutEncryptedObject`](https://docs.min.io/docs/golang-client-api-reference#PutEncryptedObject)
+* [`SelectObjectContent`](https://docs.min.io/docs/golang-client-api-reference#SelectObjectContent)
 
 ### API文档 : Presigned操作
 * [`PresignedGetObject`](https://docs.min.io/docs/golang-client-api-reference#PresignedGetObject)
@@ -193,24 +178,24 @@ mc ls play/mymusic/
 * [listobjectsV2.go](https://github.com/minio/minio-go/blob/master/examples/s3/listobjectsV2.go)
 * [listincompleteuploads.go](https://github.com/minio/minio-go/blob/master/examples/s3/listincompleteuploads.go)
 
-### 完整示例 : 存储桶策略
+### 完整示例 : 存储桶策略操作
 * [setbucketpolicy.go](https://github.com/minio/minio-go/blob/master/examples/s3/setbucketpolicy.go)
 * [getbucketpolicy.go](https://github.com/minio/minio-go/blob/master/examples/s3/getbucketpolicy.go)
 * [listbucketpolicies.go](https://github.com/minio/minio-go/blob/master/examples/s3/listbucketpolicies.go)
  
-### 完整示例 : 存储桶通知
+### 完整示例 : 存储桶通知操作
 * [setbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/s3/setbucketnotification.go)
 * [getbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/s3/getbucketnotification.go)
 * [removeallbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/s3/removeallbucketnotification.go)
 * [listenbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/minio/listenbucketnotification.go) (MinIO扩展)
 
-### 完整示例 : 操作文件对象
+### 完整示例 : 文件对象操作
 * [fputobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/fputobject.go)
 * [fgetobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/fgetobject.go)
 * [fputobject-context.go](https://github.com/minio/minio-go/blob/master/examples/s3/fputobject-context.go)
 * [fgetobject-context.go](https://github.com/minio/minio-go/blob/master/examples/s3/fgetobject-context.go)
 
-### 完整示例 : 操作对象
+### 完整示例 : 对象操作
 * [putobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/putobject.go)
 * [getobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/getobject.go)
 * [putobject-context.go](https://github.com/minio/minio-go/blob/master/examples/s3/putobject-context.go)
@@ -221,7 +206,7 @@ mc ls play/mymusic/
 * [removeincompleteupload.go](https://github.com/minio/minio-go/blob/master/examples/s3/removeincompleteupload.go)
 * [removeobjects.go](https://github.com/minio/minio-go/blob/master/examples/s3/removeobjects.go)
 
-### 完整示例 : 操作加密对象
+### 完整示例 : 加密对象操作
 * [put-encrypted-object.go](https://github.com/minio/minio-go/blob/master/examples/s3/put-encrypted-object.go)
 * [get-encrypted-object.go](https://github.com/minio/minio-go/blob/master/examples/s3/get-encrypted-object.go)
 * [fput-encrypted-object.go](https://github.com/minio/minio-go/blob/master/examples/s3/fputencrypted-object.go)
@@ -242,3 +227,6 @@ mc ls play/mymusic/
 [![Build Status](https://travis-ci.org/minio/minio-go.svg)](https://travis-ci.org/minio/minio-go)
 [![Build status](https://ci.appveyor.com/api/projects/status/1d05e6nvxcelmrak?svg=true)](https://ci.appveyor.com/project/harshavardhana/minio-go)
 
+## 许可
+
+此SDK在[Apache License，Version 2.0](http://www.apache.org/licenses/LICENSE-2.0)下发布，请参阅[LICENSE](./LICENSE)和[NOTICE](./NOTICE)更多信息。

@@ -70,6 +70,7 @@ func main() {
 |   | [`FGetObjectWithContext`](#FGetObjectWithContext)  | [`FGetObjectWithContext`](#FGetObjectWithContext) |   |   |
 |   | [`RemoveObjectsWithContext`](#RemoveObjectsWithContext)  | |    |   |
 | | [`SelectObjectContent`](#SelectObjectContent)  |   |
+
 ## 1. Constructor
 <a name="MinIO"></a>
 
@@ -1146,7 +1147,7 @@ if err != nil {
 }
 ```
 
-## 5. Presigned operations
+## 4. Presigned operations
 
 <a name="PresignedGetObject"></a>
 ### PresignedGetObject(bucketName, objectName string, expiry time.Duration, reqParams url.Values) (*url.URL, error)
@@ -1279,7 +1280,7 @@ fmt.Printf("-F file=@/etc/bash.bashrc ")
 fmt.Printf("%s\n", url)
 ```
 
-## 6. Bucket policy/notification operations
+## 5. Bucket policy/notification operations
 
 <a name="SetBucketPolicy"></a>
 ### SetBucketPolicy(bucketname, policy string) error
@@ -1541,14 +1542,14 @@ if err != nil {
 ### GetBucketLifecycle(bucketName) (lifecycle string, error)
 Get lifecycle on a bucket or a prefix.
 
-__Parameters__
+__参数__
 
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
 |`bucketName`  | _string_  |Name of the bucket   |
 
-__Return Values__
+__返回类型__
 
 
 |Param   |Type   |Description   |
@@ -1556,7 +1557,7 @@ __Return Values__
 |`lifecycle`  | _string_ |Lifecycle returned from the server |
 |`err` | _error_  |Standard Error  |
 
-__Example__
+__示例__
 
 ```go
 lifecycle, err := minioClient.GetBucketLifecycle("my-bucketname")
@@ -1565,7 +1566,7 @@ if err != nil {
 }
 ```
 
-## 7. Client custom settings
+## 6. Client custom settings
 
 <a name="SetAppInfo"></a>
 ### SetAppInfo(appName, appVersion string)

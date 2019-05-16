@@ -1,6 +1,6 @@
 # MinIO Go Client API文档 [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io)
 
-## 初使化MinIO Client对象。
+## 初始化MinIO Client对象。
 
 ##  MinIO
 
@@ -14,10 +14,10 @@ import (
 )
 
 func main() {
-        // 使用ssl
+        // Use a secure connection.
         ssl := true
 
-        // 初使化minio client对象。
+        // Initialize minio client object.
         minioClient, err := minio.New("play.min.io:9000", "Q3AM3UQ867SPQQA43P2F", "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG", ssl)
         if err != nil {
                 fmt.Println(err)
@@ -38,10 +38,10 @@ import (
 )
 
 func main() {
-        // 使用ssl
+        // Use a secure connection.
         ssl := true
 
-        // 初使化minio client对象。
+        // Initialize minio client object.
         s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", ssl)
         if err != nil {
                 fmt.Println(err)
@@ -52,27 +52,30 @@ func main() {
 
 | 操作存储桶                                 | 操作对象                                  | 操作加密对象                 | Presigned操作                          | 存储桶策略/通知                         | 客户端自定义设置 |
 | :---                                              | :---                                                | :---                                        | :---                                          | :---                                                          | :---                                                  |
-| [`MakeBucket`](#MakeBucket)                       | [`GetObject`](#GetObject)                           | [`NewSymmetricKey`](#NewSymmetricKey)       | [`PresignedGetObject`](#PresignedGetObject)   | [`SetBucketPolicy`](#SetBucketPolicy)                         | [`SetAppInfo`](#SetAppInfo)                           |
-| [`ListBuckets`](#ListBuckets)                     | [`PutObject`](#PutObject)                           | [`NewAsymmetricKey`](#NewAsymmetricKey)     | [`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)                         | [`SetCustomTransport`](#SetCustomTransport)           |
-| [`BucketExists`](#BucketExists)                   | [`CopyObject`](#CopyObject)                         | [`GetEncryptedObject`](#GetEncryptedObject) | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`SetBucketNotification`](#SetBucketNotification)                     | [`TraceOn`](#TraceOn)                                 |
-| [`RemoveBucket`](#RemoveBucket)                   | [`StatObject`](#StatObject)                         | [`PutEncryptedObject`](#PutEncryptedObject) |                                               | [`GetBucketNotification`](#GetBucketNotification)           | [`TraceOff`](#TraceOff)                               |
-| [`ListObjects`](#ListObjects)                     | [`RemoveObject`](#RemoveObject)                     | [`NewSSEInfo`](#NewSSEInfo)               |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification)             | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
-| [`ListObjectsV2`](#ListObjectsV2)                 | [`RemoveObjects`](#RemoveObjects)                   | [`FPutEncryptedObject`](#FPutEncryptedObject)    |                                               | [`ListenBucketNotification`](#ListenBucketNotification) |                                                       |
-| [`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                             |                                               |        |                                                       |
-|                                                   | [`FPutObject`](#FPutObject)                         |                                             |                                               |                                                               |                                                       |
-|                                                   | [`FGetObject`](#FGetObject)                         |                                             |                                               |                                                               |                                                       |
-|                                                   | [`ComposeObject`](#ComposeObject)                   |                                             |                                               |                                                               |                                                       |
-|                                                   | [`NewSourceInfo`](#NewSourceInfo)                   |                                             |                                               |                                                               |                                                       |
-|                                                   | [`NewDestinationInfo`](#NewDestinationInfo)         |                                             |                                               |                                                               |                                                       |
-|   | [`PutObjectWithContext`](#PutObjectWithContext)  | |   |   |
-|   | [`GetObjectWithContext`](#GetObjectWithContext)  | |   |   |
-|   | [`FPutObjectWithContext`](#FPutObjectWithContext)  | |   |   |
-|   | [`FGetObjectWithContext`](#FGetObjectWithContext)  | |   |   |
+| [`MakeBucket`](#MakeBucket)                       | [`GetObject`](#GetObject)              |   [`GetObject`](#GetObject)     | [`PresignedGetObject`](#PresignedGetObject)   | [`SetBucketPolicy`](#SetBucketPolicy)                         | [`SetAppInfo`](#SetAppInfo)                           |
+| [`ListBuckets`](#ListBuckets)                     | [`PutObject`](#PutObject)                           | [`PutObject`](#PutObject)    | [`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)                         | [`SetCustomTransport`](#SetCustomTransport)           |
+| [`BucketExists`](#BucketExists)                   | [`CopyObject`](#CopyObject)                         | [`CopyObject`](#CopyObject) | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`SetBucketNotification`](#SetBucketNotification)                  | [`TraceOn`](#TraceOn)                                 |
+| [`RemoveBucket`](#RemoveBucket)                   | [`StatObject`](#StatObject)                         | [`StatObject`](#StatObject) |                                               | [`GetBucketNotification`](#GetBucketNotification)              | [`TraceOff`](#TraceOff)                               |
+| [`ListObjects`](#ListObjects)                     | [`RemoveObject`](#RemoveObject)                     |                |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification)            | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
+| [`ListObjectsV2`](#ListObjectsV2)                 | [`RemoveObjects`](#RemoveObjects)                   |    |                                               | [`ListenBucketNotification`](#ListenBucketNotification)   |                                                       |
+| [`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                             |                                               | [`SetBucketLifecycle`](#SetBucketLifecycle)     |                                                       |
+|                                                   | [`FPutObject`](#FPutObject)                         |    [`FPutObject`](#FPutObject)                                         |                                               | [`GetBucketLifecycle`](#GetBucketLifecycle)                                                              |                                                       |
+|                                                   | [`FGetObject`](#FGetObject)                         |    [`FGetObject`](#FGetObject)                                         |                                               |                                                               |                                                       |
+|                                                   | [`ComposeObject`](#ComposeObject)                   |    [`ComposeObject`](#ComposeObject)                                         |                                               |                                                               |                                                       |
+|                                                   | [`NewSourceInfo`](#NewSourceInfo)                   |    [`NewSourceInfo`](#NewSourceInfo)                                         |                                               |                                                               |                                                       |
+|                                                   | [`NewDestinationInfo`](#NewDestinationInfo)         |    [`NewDestinationInfo`](#NewDestinationInfo)                                         |                                               |                                                               |                                                       |
+|   | [`PutObjectWithContext`](#PutObjectWithContext)  | [`PutObjectWithContext`](#PutObjectWithContext) |   |   |
+|   | [`GetObjectWithContext`](#GetObjectWithContext)  | [`GetObjectWithContext`](#GetObjectWithContext) |   |   |
+|   | [`FPutObjectWithContext`](#FPutObjectWithContext)  | [`FPutObjectWithContext`](#FPutObjectWithContext) |   |   |
+|   | [`FGetObjectWithContext`](#FGetObjectWithContext)  | [`FGetObjectWithContext`](#FGetObjectWithContext) |   |   |
+|   | [`RemoveObjectsWithContext`](#RemoveObjectsWithContext)  | |    |   |
+| | [`SelectObjectContent`](#SelectObjectContent)  |   |
+
 ## 1. 构造函数
 <a name="MinIO"></a>
 
 ### New(endpoint, accessKeyID, secretAccessKey string, ssl bool) (*Client, error)
-初使化一个新的client对象。
+初始化一个新的client对象。
 
 __参数__
 
@@ -81,10 +84,10 @@ __参数__
 |`endpoint`   | _string_  |S3兼容对象存储服务endpoint   |
 |`accessKeyID`  |_string_   |对象存储的Access key |
 |`secretAccessKey`  | _string_  |对象存储的Secret key |
-|`ssl`   | _bool_  |true代表使用HTTPS |
+|`ssl`   | _bool_  |如果为"true"，API请求将会使用安全访问(HTTPS),否则将使用非安全访问(HTTP) |
 
 ### NewWithRegion(endpoint, accessKeyID, secretAccessKey string, ssl bool, region string) (*Client, error)
-初使化minio client,带有region配置。和New()不同的是，NewWithRegion避免了bucket-location操作，所以会快那么一丢丢。如果你的应用只使用一个region的话可以用这个方法。
+初始化minio client,并配置region。和New()不同的是，NewWithRegion避免了bucket-location查找操作，所以会快那么一丢丢。如果你的应用只使用一个region的话可以用这个方法。
 
 __参数__
 
@@ -93,21 +96,43 @@ __参数__
 |`endpoint`   | _string_  |S3兼容对象存储服务endpoint |
 |`accessKeyID`  |_string_   |对象存储的Access key |
 |`secretAccessKey`  | _string_  |对象存储的Secret key |
-|`ssl` | _bool_  |true代表使用HTTPS |
+|`ssl` | _bool_  |如果为"true"，API请求将会使用安全访问(HTTPS),否则将使用非安全访问(HTTP) |
 |`region`| _string_ | 对象存储的region |
+
+### NewWithOptions(endpoint string, options *Options) (*Client, error)
+使用配置的选项初始化minio客户端。
+
+__参数__
+
+|参数   |类型   |描述   |
+|:---|:---| :---|
+|`endpoint`   | _string_  |S3兼容对象存储服务endpoint |
+|`opts`  |_minio.Options_   |创建新客户端的选项 |
+
+__minio.Options__
+|字段 |类型 | 描述 |
+|:--- |:--- | :--- |
+| `opts.Creds` | _*credentials.Credentials_ | 访问凭证（Access Credentials）|
+| `opts.Secure` | _bool_ | 如果为"true"，API请求将会使用安全访问(HTTPS),否则将使用非安全访问(HTTP) |
+| `opts.Region` | _string_ | 区域 |
+| `opts.BucketLookup` | _BucketLookupType_ | 存储桶查找类型可以是如下值中的一种 |
+| |  | _minio.BucketLookupDNS_ |
+| |  | _minio.BucketLookupPath_ |
+| |  | _minio.BucketLookupAuto_ |
+
 
 ## 2. 操作存储桶
 
 <a name="MakeBucket"></a>
 ### MakeBucket(bucketName, location string) error
-创建一个存储桶。
+创建一个新的存储桶。
 
 __参数__
 
 | 参数  | 类型  | 描述  |
 |---|---|---|
 |`bucketName`  | _string_  | 存储桶名称 |
-| `location`  |  _string_ | 存储桶被创建的region(地区)，默认是us-east-1(美国东一区)，下面列举的是其它合法的值。注意：如果用的是minio服务的话，resion是在它的配置文件中，（默认是us-east-1）。|
+| `location`  |  _string_ | 存储桶被创建的region(地区)。默认值是us-east-1(美国东一区)，下面列举的是其它合法的值。注意：如果用的是minio服务的话，请使用其配置文件中指定的区域，（默认是us-east-1）。|
 | | |us-east-1 |
 | | |us-west-1 |
 | | |us-west-2 |
@@ -228,8 +253,8 @@ __参数__
 |参数   |类型   |描述   |
 |:---|:---| :---|
 |`bucketName` | _string_  |存储桶名称   |
-|`objectPrefix` |_string_   | 要列举的对象前缀 |
-|`recursive`  | _bool_  |`true`代表递归查找，`false`代表类似文件夹查找，以'/'分隔，不查子文件夹。  |
+|`objectPrefix` |_string_   | 列举的对象前缀 |
+|`recursive`  | _bool_  |`true`代表递归查找，`false`代表类似以'/'分隔的文件夹查找。  |
 |`doneCh`  | _chan struct{}_ | 在该channel上结束ListObjects iterator的一个message。 |
 
 
@@ -270,7 +295,7 @@ for object := range objectCh {
 
 <a name="ListObjectsV2"></a>
 ### ListObjectsV2(bucketName, prefix string, recursive bool, doneCh chan struct{}) <-chan ObjectInfo
-使用listing API v2版本列举存储桶中的对象。
+使用推荐的listing API v2版本列举存储桶中的对象。
 
 __参数__
 
@@ -278,16 +303,16 @@ __参数__
 |参数   |类型   |描述   |
 |:---|:---| :---|
 |`bucketName`  | _string_  |存储桶名称 |
-| `objectPrefix` |_string_   | 要列举的对象前缀 |
-| `recursive`  | _bool_  |`true`代表递归查找，`false`代表类似文件夹查找，以'/'分隔，不查子文件夹。  |
-|`doneCh`  | _chan struct{}_ | 在该channel上结束ListObjects iterator的一个message。  |
+| `objectPrefix` |_string_   | 列举的对象前缀 |
+| `recursive`  | _bool_  |`true`代表递归查找，`false`代表类似以'/'分隔的文件夹查找。  |
+|`doneCh`  | _chan struct{}_ | 在该channel上结束ListObjects iterator的一个message消息。  |
 
 
 __返回值__
 
 |参数   |类型   |描述   |
 |:---|:---| :---|
-|`objectInfo`  | _chan minio.ObjectInfo_ |存储桶中所有对象的read channel |
+|`objectInfo`  | _chan minio.ObjectInfo_ |存储桶中所有对象的read channel， 对象的格式如下所示：|
 
 
 ```go
@@ -319,7 +344,7 @@ __参数__
 |:---|:---| :---|
 |`bucketName`  | _string_  |存储桶名称 |
 | `prefix` |_string_   | 不完整上传的对象的前缀 |
-| `recursive`  | _bool_  |`true`代表递归查找，`false`代表类似文件夹查找，以'/'分隔，不查子文件夹。 |
+| `recursive`  | _bool_  |`true`代表递归查找，`false`代表类似以'/'分隔的文件夹查找 |
 |`doneCh`  | _chan struct{}_ | 在该channel上结束ListIncompleteUploads iterator的一个message。   |
 
 
@@ -335,7 +360,7 @@ __minio.ObjectMultipartInfo__
 |:---|:---| :---|
 |`multiPartObjInfo.Key`  | _string_  |未完整上传的对象的名称 |
 |`multiPartObjInfo.UploadID` | _string_ |未完整上传的对象的Upload ID |
-|`multiPartObjInfo.Size` | _int64_ |未完整上传的对象的大小 |
+|`multiPartObjInfo.Size` | _int64_ |未完整上传对象的大小 |
 
 __示例__
 
@@ -358,11 +383,11 @@ for multiPartObject := range multiPartObjectCh {
 }
 ```
 
-## 3. 操作对象
+## 3. 对象操作
 
 <a name="GetObject"></a>
 ### GetObject(bucketName, objectName string, opts GetObjectOptions) (*Object, error)
-返回对象数据的流，error是读流时经常抛的那些错。
+返回对象数据的流，error是读取流时经常发生的错误。
 
 
 __参数__
@@ -379,7 +404,7 @@ __minio.GetObjectOptions__
 
 |参数 | 类型 | 描述 |
 |:---|:---|:---|
-| `opts.Materials` | _encrypt.Materials_ | `encrypt`包提供的对流加密的接口，(更多信息，请看https://godoc.org/github.com/minio/minio-go) |
+| `opts.ServerSideEncryption` | _encrypt.ServerSide_ | 由`encrypt`包指定的服务端加密接口。 (更多信息请参考 https://godoc.org/github.com/minio/minio-go) |
 
 __返回值__
 
@@ -411,7 +436,7 @@ if _, err = io.Copy(localFile, object); err != nil {
 
 <a name="FGetObject"></a>
 ### FGetObject(bucketName, objectName, filePath string, opts GetObjectOptions) error
-下载并将文件保存到本地文件系统。
+将对象作为文件下载并保存到本地文件系统。
 
 __参数__
 
@@ -434,6 +459,7 @@ if err != nil {
     return
 }
 ```
+
 <a name="GetObjectWithContext"></a>
 ### GetObjectWithContext(ctx context.Context, bucketName, objectName string, opts GetObjectOptions) (*Object, error)
 和GetObject操作是一样的，不过传入了取消请求的context。
@@ -443,7 +469,7 @@ __参数__
 
 |参数   |类型   |描述   |
 |:---|:---| :---|
-|`ctx`  | _context.Context_  |请求上下文（Request context） |
+|`ctx`  | _context.Context_  |请求上下文 |
 |`bucketName`  | _string_  |存储桶名称  |
 |`objectName` | _string_  |对象的名称  |
 |`opts` | _minio.GetObjectOptions_ |  GET请求的一些额外参数，像encryption，If-Match |
@@ -512,42 +538,6 @@ if err != nil {
 }
 ```
 
-<a name="FGetEncryptedObject"></a>
-### FGetEncryptedObject(bucketName, objectName, filePath string, materials encrypt.Materials) error
-和FGetObject操作是一样的，不过会对加密请求进行解密。
-
-__参数__
-
-
-|参数   |类型   |描述   |
-|:---|:---| :---|
-|`bucketName`  | _string_  |存储桶名称 |
-|`objectName` | _string_  |对象的名称  |
-|`filePath` | _string_  |下载后保存的路径|
-|`materials` | _encrypt.Materials_ | `encrypt`包提供的对流加密的接口，(更多信息，请看https://godoc.org/github.com/minio/minio-go) |
-
-
-__示例__
-
-
-```go
-// Generate a master symmetric key
-key := encrypt.NewSymmetricKey([]byte("my-secret-key-00"))
-
-// Build the CBC encryption material
-cbcMaterials, err := encrypt.NewCBCSecureMaterials(key)
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-err = minioClient.FGetEncryptedObject("mybucket", "myobject", "/tmp/myobject", cbcMaterials)
-if err != nil {
-    fmt.Println(err)
-    return
-}
-```
-
 <a name="PutObject"></a>
 ### PutObject(bucketName, objectName string, reader io.Reader, objectSize int64,opts PutObjectOptions) (n int, err error)
 当对象小于64MiB时，直接在一次PUT请求里进行上传。当大于64MiB时，根据文件的实际大小，PutObject会自动地将对象进行拆分成64MiB一块或更大一些进行上传。对象的最大大小是5TB。
@@ -560,7 +550,7 @@ __参数__
 |`bucketName`  | _string_  |存储桶名称  |
 |`objectName` | _string_  |对象的名称   |
 |`reader` | _io.Reader_  |任意实现了io.Reader的GO类型 |
-|`objectSize`| _int64_ |上传的对象的大小，-1代表未知。 |
+|`objectSize`| _int64_ |上传的对象的大小，-1代表未知 |
 |`opts` | _minio.PutObjectOptions_  |  允许用户设置可选的自定义元数据，内容标题，加密密钥和用于分段上传操作的线程数量。 |
 
 __minio.PutObjectOptions__
@@ -569,12 +559,14 @@ __minio.PutObjectOptions__
 |:--- |:--- | :--- |
 | `opts.UserMetadata` | _map[string]string_ | 用户元数据的Map|
 | `opts.Progress` | _io.Reader_ | 获取上传进度的Reader |
-| `opts.ContentType` | _string_ | 对象的Content type， 例如"application/text" |
-| `opts.ContentEncoding` | _string_ | 对象的Content encoding，例如"gzip" |
-| `opts.ContentDisposition` | _string_ | 对象的Content disposition, "inline" |
+| `opts.ContentType` | _string_ | 对象的Content类型， 例如"application/text" |
+| `opts.ContentEncoding` | _string_ | 对象的Content编码，例如"gzip" |
+| `opts.ContentDisposition` | _string_ | 对象的Content规定, "inline" |
+| `opts.ContentLanguage` | _string_ | 对象的Content语言, 例如"French" |
 | `opts.CacheControl` | _string_ | 指定针对请求和响应的缓存机制，例如"max-age=600"|
-| `opts.EncryptMaterials` | _encrypt.Materials_ | `encrypt`包提供的对流加密的接口，(更多信息，请看https://godoc.org/github.com/minio/minio-go) |
-
+| `opts.ServerSideEncryption` | _encrypt.ServerSide_ | 由`encrypt`包指定的服务端加密接口。 (更多信息请参考 https://godoc.org/github.com/minio/minio-go)  |
+| `opts.StorageClass` | _string_ | 指定对象的存储类。MinIO服务支持的值有`REDUCED_REDUNDANCY` and `STANDARD`。 |
+| `opts.WebsiteRedirectLocation` | _string_ | 为对象指定一个重定向到同一个存储桶中的另一个对象或外部的URL。 |
 
 __示例__
 
@@ -601,11 +593,11 @@ if err != nil {
 fmt.Println("Successfully uploaded bytes: ", n)
 ```
 
-API方法在minio-go SDK版本v3.0.3中提供的PutObjectWithSize，PutObjectWithMetadata，PutObjectStreaming和PutObjectWithProgress被替换为接受指向PutObjectOptions struct的指针的新的PutObject调用变体。
+API方法在minio-go SDK版本v3.0.3中提供的PutObjectWithSize，PutObjectWithMetadata，PutObjectStreaming和PutObjectWithProgress被替换为接受指向PutObjectOptions struct的指针的新PutObject调用变体。
 
 <a name="PutObjectWithContext"></a>
 ### PutObjectWithContext(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64, opts PutObjectOptions) (n int, err error)
-和PutObject是一样的，不过允许取消请求。
+和PutObject操作是一样的，不过允许取消请求。
 
 __参数__
 
@@ -661,8 +653,8 @@ __参数__
 
 |参数   |类型   |描述   |
 |:---|:---| :---|
-|`dst`  | _minio.DestinationInfo_  |目标对象 |
-|`src` | _minio.SourceInfo_  |源对象 |
+|`dst`  | _minio.DestinationInfo_  |描述目标对象的参数 |
+|`src` | _minio.SourceInfo_  |描述源对象的参数 |
 
 
 __示例__
@@ -728,15 +720,15 @@ if err != nil {
 
 <a name="ComposeObject"></a>
 ### ComposeObject(dst minio.DestinationInfo, srcs []minio.SourceInfo) error
-通过使用服务端拷贝实现钭多个源对象合并创建成一个新的对象。
+通过使用服务端拷贝实现多个源对象合并创建成一个新的对象。
 
 __参数__
 
 
 |参数   |类型   |描述   |
 |:---|:---|:---|
-|`dst`  | _minio.DestinationInfo_  |要被创建的目标对象 |
-|`srcs` | _[]minio.SourceInfo_  |要合并的多个源对象 |
+|`dst`  | _minio.DestinationInfo_  |包含要被创建目标对象的信息的结构体。 |
+|`srcs` | _[]minio.SourceInfo_  |包含要按序合并多个源对象的信息的结构体。 |
 
 
 __示例__
@@ -787,11 +779,11 @@ fmt.Println("Composed object successfully.")
 
 __参数__
 
-| 参数         | 类型             | 描述                                                      |
-| :---          | :---             | :---                                                             |
-| `bucket`      | _string_         | 源存储桶                                       |
-| `object`      | _string_         | 源对象                                     |
-| `decryptSSEC` | _*minio.SSEInfo_ | 源对象的解密信息 (`nil`代表不用解密) |
+| 参数         | 类型             | 描述              |
+| :---          | :---             | :---            |
+| `bucket`      | _string_         | 源存储桶名称                                   |
+| `object`      | _string_         | 源对象名称                                     |
+| `sse` | _*encrypt.ServerSide_ | 由`encrypt`包提供的用于指定服务端加密的接口。(更多的信息请参照https://godoc.org/github.com/minio/minio-go) |
 
 __示例__
 
@@ -816,8 +808,8 @@ if err != nil {
 
 ```go
 // With decryption parameter.
-decKey := minio.NewSSEInfo([]byte{1,2,3}, "")
-src := minio.NewSourceInfo("bucket", "object", &decKey)
+sseSrc := encrypt.DefaultPBKDF([]byte("password"), []byte("salt"))
+src := minio.NewSourceInfo("bucket", "object", sseSrc)
 
 // Destination object
 dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", nil, nil)
@@ -842,9 +834,9 @@ __参数__
 
 | 参数         | 类型                | 描述                                                                                                    |
 | :---          | :---                | :---                                                                                                           |
-| `bucket`      | _string_            | 目标存储桶名称                                                                                 |
-| `object`      | _string_            | 目标对象名称                                                                                |
-| `encryptSSEC` | _*minio.SSEInfo_    | 源对象的加密信息 (`nil`代表不用加密)                                               |
+| `bucket`      | _string_            | 目标存储桶名称    |
+| `object`      | _string_            | 目标对象名称      |
+| `sse` | _*encrypt.ServerSide_ | 由`encrypt`包提供的用于指定服务端加密的接口。(更多的信息请参照https://godoc.org/github.com/minio/minio-go) |                                              |
 | `userMeta`    | _map[string]string_ | 给目标对象的用户元数据，如果是nil,并只有一个源对象，则将源对象的用户元数据拷贝给目标对象。|
 
 __示例__
@@ -929,7 +921,7 @@ __参数__
 |`bucketName`  | _string_  |存储桶名称  |
 |`objectName` | _string_  |对象的名称 |
 |`filePath` | _string_  |要上传的文件的路径 |
-|`opts` | _minio.PutObjectOptions_  |允许用户设置可选的自定义元数据，content-type，content-encoding，content-disposition以及cache-control headers，传递加密模块以加密对象，并可选地设置multipart put操作的线程数量。 |
+|`opts` | _minio.PutObjectOptions_  |指向允许用户设置可选的自定义元数据，content-type，content-encoding，content-disposition以及cache-control headers，传递加密模块以加密对象，并可选地设置multipart put操作的线程数量的结构体的指针。 |
 
 __示例__
 
@@ -1050,6 +1042,102 @@ for rErr := range minioClient.RemoveObjects("mybucket", objectsCh) {
 }
 ```
 
+<a name="RemoveObjectsWithContext"></a>
+### RemoveObjectsWithContext(ctx context.Context, bucketName string, objectsCh chan string) (errorCh <-chan RemoveObjectError)
+*和RemoveObjects operation相同，但是可接收请求取消。*
+
+__参数__
+
+|参数   |类型   |描述   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  |请求上下文  |
+|`bucketName`  | _string_  |存储桶名称  |
+|`objectsCh` |  _chan string_  | 要删除对象的channel  |
+
+
+__返回类型__
+
+|参数   |类型   |描述   |
+|:---|:---| :---|
+|`errorCh` | _<-chan minio.RemoveObjectError_  | Receive-only channel of errors observed during deletion.  |
+
+```go
+objectsCh := make(chan string)
+ctx, cancel := context.WithTimeout(context.Background(), 100 * time.Second)
+defer cancel()
+
+// Send object names that are needed to be removed to objectsCh
+go func() {
+	defer close(objectsCh)
+	// List all objects from a bucket-name with a matching prefix.
+	for object := range minioClient.ListObjects("my-bucketname", "my-prefixname", true, nil) {
+		if object.Err != nil {
+			log.Fatalln(object.Err)
+		}
+		objectsCh <- object.Key
+	}
+}()
+
+for rErr := range minioClient.RemoveObjects(ctx, "my-bucketname", objectsCh) {
+    fmt.Println("Error detected during deletion: ", rErr)
+}
+```
+<a name="SelectObjectContent"></a>
+### SelectObjectContent(ctx context.Context, bucketName string, objectsName string, expression string, options SelectObjectOptions) *SelectResults
+
+__参数__
+
+|参数   |类型   |描述   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  |请求上下文  |
+|`bucketName`  | _string_  |存储桶名称  |
+|`objectName`  | _string_  |对象的名称 |
+|`options` |  _SelectObjectOptions_  |查询选项 |
+
+__Return Values__
+
+|参数   |类型   |描述   |
+|:---|:---| :---|
+|`SelectResults` | _SelectResults_  | 可以直接传递给csv.NewReader用于处理输出io.ReadCloser对象。  |
+
+```go
+	// Initialize minio client object.
+	minioClient, err := minio.New(endpoint, accessKeyID, secretAccessKey, useSSL)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	opts := minio.SelectObjectOptions{
+		Expression:     "select count(*) from s3object",
+		ExpressionType: minio.QueryExpressionTypeSQL,
+		InputSerialization: minio.SelectObjectInputSerialization{
+			CompressionType: minio.SelectCompressionNONE,
+			CSV: &minio.CSVInputOptions{
+				FileHeaderInfo:  minio.CSVFileHeaderInfoNone,
+				RecordDelimiter: "\n",
+				FieldDelimiter:  ",",
+			},
+		},
+		OutputSerialization: minio.SelectObjectOutputSerialization{
+			CSV: &minio.CSVOutputOptions{
+				RecordDelimiter: "\n",
+				FieldDelimiter:  ",",
+			},
+		},
+	}
+
+	reader, err := s3Client.SelectObjectContent(context.Background(), "mycsvbucket", "mycsv.csv", opts)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer reader.Close()
+
+	if _, err := io.Copy(os.Stdout, reader); err != nil {
+		log.Fatalln(err)
+	}
+```
+
+
 <a name="RemoveIncompleteUpload"></a>
 ### RemoveIncompleteUpload(bucketName, objectName string) error
 删除一个未完整上传的对象。
@@ -1073,288 +1161,11 @@ if err != nil {
 }
 ```
 
-## 4. 操作加密对象
-
-<a name="NewSymmetricKey"></a>
-### NewSymmetricKey(key []byte) *encrypt.SymmetricKey
-
-__参数__
-
-|参数   |类型   |描述   |
-|:---|:---| :---|
-|`key`  | _string_  |存储桶名称  |
-
-
-__返回值__
-
-|参数   |类型   |描述   |
-|:---|:---| :---|
-|`symmetricKey`  | _*encrypt.SymmetricKey_ | 加密解密的对称秘钥 |
-
-```go
-symKey := encrypt.NewSymmetricKey([]byte("my-secret-key-00"))
-
-// Build the CBC encryption material with symmetric key.
-cbcMaterials, err := encrypt.NewCBCSecureMaterials(symKey)
-if err != nil {
-    fmt.Println(err)
-    return
-}
-fmt.Println("Successfully initialized Symmetric key CBC materials", cbcMaterials)
-
-object, err := minioClient.GetEncryptedObject("mybucket", "myobject", cbcMaterials)
-if err != nil {
-    fmt.Println(err)
-    return
-}
-defer object.Close()
-```
-
-<a name="NewAsymmetricKey"></a>
-### NewAsymmetricKey(privateKey []byte, publicKey[]byte) (*encrypt.AsymmetricKey, error)
-
-__参数__
-
-|参数   |类型   |描述   |
-|:---|:---| :---|
-|`privateKey` | _[]byte_ | Private key数据  |
-|`publicKey`  | _[]byte_ | Public key数据  |
-
-
-__返回值__
-
-|参数   |类型   |描述   |
-|:---|:---| :---|
-|`asymmetricKey`  | _*encrypt.AsymmetricKey_ | 加密解密的非对称秘钥 |
-|`err`  | _error_ |  标准Error |
-
-
-```go
-privateKey, err := ioutil.ReadFile("private.key")
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-publicKey, err := ioutil.ReadFile("public.key")
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-// Initialize the asymmetric key
-asymmetricKey, err := encrypt.NewAsymmetricKey(privateKey, publicKey)
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-// Build the CBC encryption material for asymmetric key.
-cbcMaterials, err := encrypt.NewCBCSecureMaterials(asymmetricKey)
-if err != nil {
-    fmt.Println(err)
-    return
-}
-fmt.Println("Successfully initialized Asymmetric key CBC materials", cbcMaterials)
-
-object, err := minioClient.GetEncryptedObject("mybucket", "myobject", cbcMaterials)
-if err != nil {
-    fmt.Println(err)
-    return
-}
-defer object.Close()
-```
-
-<a name="GetEncryptedObject"></a>
-### GetEncryptedObject(bucketName, objectName string, encryptMaterials encrypt.Materials) (io.ReadCloser, error)
-
-返回对象的解密流。读流时的常见错误。
-
-__参数__
-
-|参数   |类型   |描述   |
-|:---|:---| :---|
-|`bucketName`  | _string_  | 存储桶名称  |
-|`objectName` | _string_  | 对象的名称  |
-|`encryptMaterials` | _encrypt.Materials_ | `encrypt`包提供的对流加密的接口，(更多信息，请看https://godoc.org/github.com/minio/minio-go) |
-
-
-__返回值__
-
-|参数   |类型   |描述   |
-|:---|:---| :---|
-|`stream`  | _io.ReadCloser_ | 返回对象的reader,调用者需要在读取之后进行关闭。 |
-|`err`  | _error | 错误信息 |
-
-
-__示例__
-
-
-```go
-// Generate a master symmetric key
-key := encrypt.NewSymmetricKey([]byte("my-secret-key-00"))
-
-// Build the CBC encryption material
-cbcMaterials, err := encrypt.NewCBCSecureMaterials(key)
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-object, err := minioClient.GetEncryptedObject("mybucket", "myobject", cbcMaterials)
-if err != nil {
-    fmt.Println(err)
-    return
-}
-defer object.Close()
-
-localFile, err := os.Create("/tmp/local-file.jpg")
-if err != nil {
-    fmt.Println(err)
-    return
-}
-defer localFile.Close()
-
-if _, err = io.Copy(localFile, object); err != nil {
-    fmt.Println(err)
-    return
-}
-```
-
-<a name="PutEncryptedObject"></a>
-
-### PutEncryptedObject(bucketName, objectName string, reader io.Reader, encryptMaterials encrypt.Materials) (n int, err error)
-加密并上传对象。
-
-__参数__
-
-|参数   |类型   |描述   |
-|:---|:---| :---|
-|`bucketName`  | _string_  |存储桶名称  |
-|`objectName` | _string_  |对象的名称   |
-|`reader` | _io.Reader_  |任何实现io.Reader的Go类型 |
-|`encryptMaterials` | _encrypt.Materials_  | `encrypt`包提供的对流加密的接口，(更多信息，请看https://godoc.org/github.com/minio/minio-go) |
-
-__示例__
-
-```go
-// Load a private key
-privateKey, err := ioutil.ReadFile("private.key")
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-// Load a public key
-publicKey, err := ioutil.ReadFile("public.key")
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-// Build an asymmetric key
-key, err := encrypt.NewAsymmetricKey(privateKey, publicKey)
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-// Build the CBC encryption module
-cbcMaterials, err := encrypt.NewCBCSecureMaterials(key)
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-// Open a file to upload
-file, err := os.Open("my-testfile")
-if err != nil {
-    fmt.Println(err)
-    return
-}
-defer file.Close()
-
-// Upload the encrypted form of the file
-n, err := minioClient.PutEncryptedObject("mybucket", "myobject", file, cbcMaterials)
-if err != nil {
-    fmt.Println(err)
-    return
-}
-fmt.Println("Successfully uploaded encrypted bytes: ", n)
-```
-
-<a name="FPutEncryptedObject"></a>
-### FPutEncryptedObject(bucketName, objectName, filePath, encryptMaterials encrypt.Materials) (n int, err error)
-通过一个文件进行加密并上传到对象。
-
-__参数__
-
-
-|参数   |类型   |描述   |
-|:---|:---| :---|
-|`bucketName`  | _string_  |存储桶名称  |
-|`objectName` | _string_  |对象的名称 |
-|`filePath` | _string_  |要上传的文件的路径 |
-|`encryptMaterials` | _encrypt.Materials_  | `encrypt`包提供的对流加密的接口，(更多信息，请看https://godoc.org/github.com/minio/minio-go) |
-
-__示例__
-
-
-```go
-// Load a private key
-privateKey, err := ioutil.ReadFile("private.key")
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-// Load a public key
-publicKey, err := ioutil.ReadFile("public.key")
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-// Build an asymmetric key
-key, err := encrypt.NewAsymmetricKey(privateKey, publicKey)
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-// Build the CBC encryption module
-cbcMaterials, err := encrypt.NewCBCSecureMaterials(key)
-if err != nil {
-    fmt.Println(err)
-    return
-}
-
-n, err := minioClient.FPutEncryptedObject("mybucket", "myobject.csv", "/tmp/otherobject.csv", cbcMaterials)
-if err != nil {
-    fmt.Println(err)
-    return
-}
-fmt.Println("Successfully uploaded encrypted bytes: ", n)
-```
-
-<a name="NewSSEInfo"></a>
-
-### NewSSEInfo(key []byte, algo string) SSEInfo
-创建一个通过用户提供的key(SSE-C),进行服务端加解密操作的key对象。
-
-__参数__
-
-| 参数  | 类型     | 描述                                                                                          |
-| :---   | :---     | :---                                                                                                 |
-| `key`  | _[]byte_ | 未编码的二进制key数组                                                        |
-| `algo` | _string_ | 加密算法，可以为空（默认是`AES256`） |
-
-
-## 5. Presigned操作
+## 4. Presigned操作
 
 <a name="PresignedGetObject"></a>
 ### PresignedGetObject(bucketName, objectName string, expiry time.Duration, reqParams url.Values) (*url.URL, error)
-生成一个用于HTTP GET操作的presigned URL。浏览器/移动客户端可以在即使存储桶为私有的情况下也可以通过这个URL进行下载。这个presigned URL可以有一个过期时间，默认是7天。
+生成一个用于HTTP GET操作的presigned URL。浏览器/移动客户端可以在即使存储桶为私有的情况下直接通过这个URL进行下载。这个presigned URL可以有一个过期时间，之后不再有效。默认是7天。
 
 __参数__
 
@@ -1364,7 +1175,7 @@ __参数__
 |`bucketName`  | _string_  |存储桶名称   |
 |`objectName` | _string_  |对象的名称   |
 |`expiry` | _time.Duration_  |presigned URL的过期时间，单位是秒   |
-|`reqParams` | _url.Values_  |额外的响应头，支持_response-expires_， _response-content-type_， _response-cache-control_， _response-content-disposition_。  |
+|`reqParams` | _url.Values_  |额外的响应头，支持_response-expires_， _response-content-type_， _response-cache-control_， _response-content-disposition_  |
 
 
 __示例__
@@ -1395,9 +1206,9 @@ __参数__
 
 |参数   |类型   |描述   |
 |:---|:---| :---|
-|`bucketName`  | _string_  |存储桶名称   |
-|`objectName` | _string_  |对象的名称   |
-|`expiry` | _time.Duration_  |presigned URL的过期时间，单位是秒 |
+|`bucketName`  | _string_  |存储桶名称。   |
+|`objectName` | _string_  |对象的名称。  |
+|`expiry` | _time.Duration_  |presigned URL的过期时间，单位是秒。 |
 
 
 __示例__
@@ -1416,15 +1227,15 @@ fmt.Println("Successfully generated presigned URL", presignedURL)
 
 <a name="PresignedHeadObject"></a>
 ### PresignedHeadObject(bucketName, objectName string, expiry time.Duration, reqParams url.Values) (*url.URL, error)
-生成一个用于HTTP GET操作的presigned URL。浏览器/移动客户端可以在即使存储桶为私有的情况下也可以通过这个URL进行下载。这个presigned URL可以有一个过期时间，默认是7天。
+生成一个用于HTTP GET操作的presigned URL。浏览器/移动客户端可以在即使存储桶为私有的情况下也可以通过这个URL进行下载。这个presigned URL可以有一个过期时间，之后不再有效。默认是7天。
 
 __参数__
 
 |参数   |类型   |描述   |
 |:---|:---| :---|
-|`bucketName`  | _string_  |存储桶名称   |
-|`objectName` | _string_  |对象的名称   |
-|`expiry` | _time.Duration_  |presigned URL的过期时间，单位是秒   |
+|`bucketName`  | _string_  |存储桶名称。   |
+|`objectName` | _string_  |对象的名称。   |
+|`expiry` | _time.Duration_  |presigned URL的过期时间，单位是秒。  |
 |`reqParams` | _url.Values_  |额外的响应头，支持_response-expires_， _response-content-type_， _response-cache-control_， _response-content-disposition_。  |
 
 
@@ -1483,13 +1294,12 @@ fmt.Printf("-F file=@/etc/bash.bashrc ")
 fmt.Printf("%s\n", url)
 ```
 
-## 6. 存储桶策略/通知
+## 5. 存储桶策略/通知
 
 <a name="SetBucketPolicy"></a>
-### SetBucketPolicy(bucketname, objectPrefix string, policy policy.BucketPolicy) error
+### SetBucketPolicy(bucketname, policy string) error
 给存储桶或者对象前缀设置访问权限。
 
-必须引入`github.com/minio/minio-go/pkg/policy`包。
 
 __参数__
 
@@ -1497,12 +1307,8 @@ __参数__
 |参数   |类型   |描述   |
 |:---|:---| :---|
 |`bucketName` | _string_  |存储桶名称|
-|`objectPrefix` | _string_  |对象的名称前缀|
-|`policy` | _policy.BucketPolicy_  |Policy的取值如下： |
-| |  | _policy.BucketPolicyNone_ |
-| |  | _policy.BucketPolicyReadOnly_ |
-| |  | _policy.BucketPolicyReadWrite_ |
-| |  | _policy.BucketPolicyWriteOnly_ |
+|`policy` | _policy.BucketPolicy_  |设置的策略 |
+
 
 
 __返回值__
@@ -1517,9 +1323,9 @@ __示例__
 
 
 ```go
-// Sets 'mybucket' with a sub-directory 'myprefix' to be anonymously accessible for
-// both read and write operations.
-err = minioClient.SetBucketPolicy("mybucket", "myprefix", policy.BucketPolicyReadWrite)
+policy := `{"Version": "2012-10-17","Statement": [{"Action": ["s3:GetObject"],"Effect": "Allow","Principal": {"AWS": ["*"]},"Resource": ["arn:aws:s3:::my-bucketname/*"],"Sid": ""}]}`
+
+err = minioClient.SetBucketPolicy("my-bucketname", policy)
 if err != nil {
     fmt.Println(err)
     return
@@ -1527,7 +1333,7 @@ if err != nil {
 ```
 
 <a name="GetBucketPolicy"></a>
-### GetBucketPolicy(bucketName, objectPrefix string) (policy.BucketPolicy, error)
+### GetBucketPolicy(bucketName) (policy string, error)
 获取存储桶或者对象前缀的访问权限。
 
 必须引入`github.com/minio/minio-go/pkg/policy`包。
@@ -1538,14 +1344,13 @@ __参数__
 |参数   |类型   |描述   |
 |:---|:---| :---|
 |`bucketName`  | _string_  |存储桶名称   |
-|`objectPrefix` | _string_  |该存储桶下的对象前缀 |
 
 __返回值__
 
 
 |参数   |类型   |描述   |
 |:---|:---| :---|
-|`bucketPolicy`  | _policy.BucketPolicy_ |取值如下： `none`, `readonly`, `readwrite`,或者`writeonly`   |
+|`Policy`  | _policy.BucketPolicy_ |从服务器返回的策略(policy)    |
 |`err` | _error_  |标准Error  |
 
 __示例__
@@ -1562,7 +1367,7 @@ fmt.Println("Access permissions for mybucket is", bucketPolicy)
 
 <a name="GetBucketNotification"></a>
 ### GetBucketNotification(bucketName string) (BucketNotification, error)
-获取存储桶的通知配置
+获取存储桶的通知配置。
 
 __参数__
 
@@ -1598,7 +1403,7 @@ for _, queueConfig := range bucketNotification.QueueConfigs {
 
 <a name="SetBucketNotification"></a>
 ### SetBucketNotification(bucketName string, bucketNotification BucketNotification) error
-给存储桶设置新的通知
+给存储桶设置新的通知。
 
 __参数__
 
@@ -1638,7 +1443,7 @@ if err != nil {
 
 <a name="RemoveAllBucketNotification"></a>
 ### RemoveAllBucketNotification(bucketName string) error
-删除存储桶上所有配置的通知
+删除存储桶上所有配置的通知。
 
 __参数__
 
@@ -1695,7 +1500,7 @@ __minio.NotificationInfo__
 
 |属性   |类型   |描述   |
 |`notificationInfo.Records` | _[]minio.NotificationEvent_ | 通知事件的集合 |
-|`notificationInfo.Err` | _error_ | 操作时报的任何错误(标准Error) |
+|`notificationInfo.Err` | _error_ | 携有操作时发生的所有错误(标准Error) |
 
 
 __示例__
@@ -1721,7 +1526,73 @@ for notificationInfo := range minioClient.ListenBucketNotification("mybucket", "
 }
 ```
 
-## 7. 客户端自定义设置
+<a name="SetBucketLifecycle"></a>
+### SetBucketLifecycle(bucketname, lifecycle string) error
+设置存储桶或对象前缀的生命周期。
+
+__参数__
+
+|参数   |类型   |描述   |
+|:---|:---| :---|
+|`bucketName` | _string_  |存储桶名称|
+|`lifecycle` | _string_  |设置的生命周期 |
+
+__返回类型__
+
+|参数   |类型   |描述   |
+|:---|:---| :---|
+|`err` | _error_  |标准错误   |
+
+__示例__
+
+```go
+lifecycle := `<LifecycleConfiguration>
+ <Rule>
+   <ID>expire-bucket</ID>
+   <Prefix></Prefix>
+   <Status>Enabled</Status>
+   <Expiration>
+     <Days>365</Days>
+   </Expiration>
+ </Rule>
+</LifecycleConfiguration>`
+
+err = minioClient.SetBucketLifecycle("my-bucketname", lifecycle)
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
+
+<a name="GetBucketLifecycle"></a>
+### GetBucketLifecycle(bucketName) (lifecycle string, error)
+获取存储桶或对象前缀的生命周期。
+
+__参数__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |存储桶名称   |
+
+__返回类型__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`lifecycle`  | _string_ |从服务器返回的生命周期 |
+|`err` | _error_  |标准Error  |
+
+__示例__
+
+```go
+lifecycle, err := minioClient.GetBucketLifecycle("my-bucketname")
+if err != nil {
+    log.Fatalln(err)
+}
+```
+
+## 6. 客户端自定义设置
 
 <a name="SetAppInfo"></a>
 ### SetAppInfo(appName, appVersion string)
@@ -1731,8 +1602,8 @@ __参数__
 
 | 参数  | 类型  | 描述  |
 |---|---|---|
-|`appName`  | _string_  | 发请求的应用名称 |
-| `appVersion`| _string_ | 发请求的应用版本 |
+|`appName`  | _string_  | 发请求的应用名称。 |
+| `appVersion`| _string_ | 发请求的应用版本。 |
 
 
 __示例__
@@ -1751,28 +1622,28 @@ __参数__
 
 | 参数  | 类型  | 描述  |
 |---|---|---|
-|`customHTTPTransport`  | _http.RoundTripper_  | 自定义的transport，例如：为了调试对API请求响应进行追踪。|
+|`customHTTPTransport`  | _http.RoundTripper_  | 自定义的transport，例如，为了调试对API请求和响应进行追踪。|
 
 
 <a name="TraceOn"></a>
 ### TraceOn(outputStream io.Writer)
-开启HTTP tracing。追踪信息输出到io.Writer，如果outputstream为nil，则trace写入到os.Stdout标准输出。
+开启HTTP tracing。追踪信息输出到io.Writer，如果outputstream为nil，则trace写入到os.Stdout标准输出中。
 
 __参数__
 
 | 参数  | 类型  | 描述  |
 |---|---|---|
-|`outputStream`  | _io.Writer_  | HTTP trace写入到outputStream |
+|`outputStream`  | _io.Writer_  | HTTP trace写入到outputStream。 |
 
 
 <a name="TraceOff"></a>
 ### TraceOff()
-关闭HTTP tracing。
+禁用HTTP tracing。
 
 <a name="SetS3TransferAccelerate"></a>
 ### SetS3TransferAccelerate(acceleratedEndpoint string)
 给后续所有API请求设置ASW S3传输加速endpoint。
-注意：此API仅对AWS S3有效，对其它S3兼容的对象存储服务不生效。
+注意：此API仅适用于AWS S3，对其它S3兼容的对象存储服务不生效。
 
 __参数__
 
