@@ -40,9 +40,9 @@ import (
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
-	minio "github.com/minio/minio-go"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/minio/minio-go/minio"
 	"github.com/minio/minio-go/pkg/encrypt"
 )
 

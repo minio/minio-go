@@ -1,15 +1,21 @@
 sudo: false
 language: go
 
+# this ensures PRs based on a local branch are not built twice
+# the downside is that a PR targeting a different branch is not built
+# but as a workaround you can add the branch to this list
+branches:
+  only:
+    - master
+
 os:
 - linux
 
 env:
 - ARCH=x86_64
-- ARCH=i686
 
 go:
-- 1.11.x
+- 1.12.x
 - tip
 
 matrix:
@@ -23,6 +29,10 @@ addons:
       - devscripts
 
 script:
+- export GO111MODULE=on
 - diff -au <(gofmt -d .) <(printf "")
-- diff -au <(licensecheck --check '.go$' --recursive --lines 0 * | grep -v -w 'Apache (v2.0)') <(printf "")
+- (cd minio && diff -au <(licensecheck --check '.go$' --recursive --lines 0 * | grep -v -w 'Apache (v2.0)') <(printf ""));
+- (cd pkg && diff -au <(licensecheck --check '.go$' --recursive --lines 0 * | grep -v -w 'Apache (v2.0)') <(printf ""));
+- (cd examples && diff -au <(licensecheck --check '.go$' --recursive --lines 0 * | grep -v -w 'Apache (v2.0)') <(printf ""));
+- (cd docs && diff -au <(licensecheck --check '.go$' --recursive --lines 0 * | grep -v -w 'Apache (v2.0)') <(printf ""));
 - make

@@ -1,3 +1,5 @@
+// +build !windows
+
 /*
  * MinIO Go Library for Amazon S3 Compatible Cloud Storage
  * Copyright 2017 MinIO, Inc.

@@ -8,7 +8,7 @@ This document assumes that you have a working [Go development environment](https
 
 ## Download from Github
 ```sh
-go get -u github.com/minio/minio-go
+go get github.com/minio/minio-go
 ```
 
 ## Initialize MinIO Client
@@ -17,7 +17,7 @@ MinIO client requires the following four parameters specified to connect to an A
 | Parameter  | Description|
 | :---         |     :---     |
 | endpoint   | URL to object storage service.   |
-| accessKeyID | Access key is the user ID that uniquely identifies your account. |   
+| accessKeyID | Access key is the user ID that uniquely identifies your account. |
 | secretAccessKey | Secret key is the password to your account. |
 | secure | Set this value to 'true' to enable secure (HTTPS) access. |
 
@@ -26,8 +26,9 @@ MinIO client requires the following four parameters specified to connect to an A
 package main
 
 import (
-	"github.com/minio/minio-go"
 	"log"
+
+	"github.com/minio/minio-go/minio"
 )
 
 func main() {
@@ -56,8 +57,9 @@ We will use the MinIO server running at [https://play.min.io:9000](https://play.
 package main
 
 import (
-	"github.com/minio/minio-go"
 	"log"
+
+	"github.com/minio/minio-go/minio"
 )
 
 func main() {
