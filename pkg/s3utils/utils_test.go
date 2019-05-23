@@ -99,6 +99,7 @@ func TestIsValidDomain(t *testing.T) {
 		{"s3.amz.test.com", true},
 		{"s3.%%", false},
 		{"localhost", true},
+		{"localhost.", true}, // http://www.dns-sd.org/trailingdotsindomainnames.html
 		{"-localhost", false},
 		{"", false},
 		{"\n \t", false},
