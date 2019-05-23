@@ -47,8 +47,8 @@ func IsValidDomain(host string) bool {
 	if host[len(host)-1:] == "_" || host[:1] == "_" {
 		return false
 	}
-	// host cannot start or end with a "."
-	if host[len(host)-1:] == "." || host[:1] == "." {
+	// host cannot start with a "."
+	if host[:1] == "." {
 		return false
 	}
 	// All non alphanumeric characters are invalid.
