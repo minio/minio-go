@@ -32,7 +32,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/minio/minio-go/pkg/s3utils"
+	"github.com/minio/minio-go/v6/pkg/s3utils"
 )
 
 // xmlDecoder provide decoded value in xml.
@@ -229,7 +229,7 @@ var supportedHeaders = []string{
 
 // isStorageClassHeader returns true if the header is a supported storage class header
 func isStorageClassHeader(headerKey string) bool {
-	return strings.ToLower(amzStorageClass) == strings.ToLower(headerKey)
+	return strings.EqualFold(amzStorageClass, headerKey)
 }
 
 // isStandardHeader returns true if header is a supported header and not a custom header

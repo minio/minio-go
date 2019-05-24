@@ -41,9 +41,9 @@ import (
 
 	"golang.org/x/net/publicsuffix"
 
-	"github.com/minio/minio-go/pkg/credentials"
-	"github.com/minio/minio-go/pkg/s3signer"
-	"github.com/minio/minio-go/pkg/s3utils"
+	"github.com/minio/minio-go/v6/pkg/credentials"
+	"github.com/minio/minio-go/v6/pkg/s3signer"
+	"github.com/minio/minio-go/v6/pkg/s3utils"
 )
 
 // Client implements Amazon S3 compatible methods.
@@ -264,7 +264,7 @@ func (c *Client) redirectHeaders(req *http.Request, via []*http.Request) error {
 		case signerType.IsV2():
 			return errors.New("signature V2 cannot support redirection")
 		case signerType.IsV4():
-			req = s3signer.SignV4(*req, accessKeyID, secretAccessKey, sessionToken, getDefaultLocation(*c.endpointURL, region))
+			s3signer.SignV4(*req, accessKeyID, secretAccessKey, sessionToken, getDefaultLocation(*c.endpointURL, region))
 		}
 	}
 	return nil
@@ -331,10 +331,6 @@ func privateNew(endpoint string, creds *credentials.Credentials, secure bool, re
 func (c *Client) SetAppInfo(appName string, appVersion string) {
 	// if app name and version not set, we do not set a new user agent.
 	if appName != "" && appVersion != "" {
-		c.appInfo = struct {
-			appName    string
-			appVersion string
-		}{}
 		c.appInfo.appName = appName
 		c.appInfo.appVersion = appVersion
 	}
@@ -661,7 +657,7 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 			if errResponse.Code == "AuthorizationHeaderMalformed" || errResponse.Code == "InvalidRegion" {
 				if metadata.bucketName != "" && errResponse.Region != "" {
 					// Gather Cached location only if bucketName is present.
-					if _, cachedLocationError := c.bucketLocCache.Get(metadata.bucketName); cachedLocationError != false {
+					if _, cachedOk := c.bucketLocCache.Get(metadata.bucketName); cachedOk {
 						c.bucketLocCache.Set(metadata.bucketName, errResponse.Region)
 						continue // Retry.
 					}

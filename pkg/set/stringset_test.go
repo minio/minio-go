@@ -127,7 +127,7 @@ func TestStringSetFuncMatch(t *testing.T) {
 	}{
 		// Test to check match function doing case insensive compare.
 		{func(setValue string, compareValue string) bool {
-			return strings.ToUpper(setValue) == strings.ToUpper(compareValue)
+			return strings.EqualFold(setValue, compareValue)
 		}, "Bar", `[bar]`},
 		// Test to check match function doing prefix check.
 		{func(setValue string, compareValue string) bool {
