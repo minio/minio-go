@@ -528,7 +528,7 @@ if err != nil {
 
 <a name="PutObject"></a>
 ### PutObject(bucketName, objectName string, reader io.Reader, objectSize int64,opts PutObjectOptions) (n int, err error)
-Uploads objects that are less than 64MiB in a single PUT operation. For objects that are greater than 64MiB in size, PutObject seamlessly uploads the object as parts of 64MiB or more depending on the actual file size. The max upload size for an object is 5TB.
+Uploads objects that are less than 128MiB in a single PUT operation. For objects that are greater than 128MiB in size, PutObject seamlessly uploads the object as parts of 128MiB or more depending on the actual file size. The max upload size for an object is 5TB.
 
 __Parameters__
 
@@ -869,7 +869,7 @@ if err != nil {
 ### FPutObject(bucketName, objectName, filePath, opts PutObjectOptions) (length int64, err error)
 Uploads contents from a file to objectName.
 
-FPutObject uploads objects that are less than 64MiB in a single PUT operation. For objects that are greater than the 64MiB in size, FPutObject seamlessly uploads the object in chunks of 64MiB or more depending on the actual file size. The max upload size for an object is 5TB.
+FPutObject uploads objects that are less than 128MiB in a single PUT operation. For objects that are greater than the 128MiB in size, FPutObject seamlessly uploads the object in chunks of 128MiB or more depending on the actual file size. The max upload size for an object is 5TB.
 
 __Parameters__
 

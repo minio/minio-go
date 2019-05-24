@@ -264,7 +264,7 @@ var dataFileMap = map[string]int{
 	"datafile-5-MB":    5 * humanize.MiByte,
 	"datafile-6-MB":    6 * humanize.MiByte,
 	"datafile-11-MB":   11 * humanize.MiByte,
-	"datafile-65-MB":   65 * humanize.MiByte,
+	"datafile-129-MB":  129 * humanize.MiByte,
 }
 
 func isFullMode() bool {
@@ -531,8 +531,8 @@ func testPutObjectReadAt() {
 		return
 	}
 
-	bufSize := dataFileMap["datafile-65-MB"]
-	var reader = getDataReader("datafile-65-MB")
+	bufSize := dataFileMap["datafile-129-MB"]
+	var reader = getDataReader("datafile-129-MB")
 	defer reader.Close()
 
 	// Save the data
@@ -641,8 +641,8 @@ func testPutObjectWithMetadata() {
 		return
 	}
 
-	bufSize := dataFileMap["datafile-65-MB"]
-	var reader = getDataReader("datafile-65-MB")
+	bufSize := dataFileMap["datafile-129-MB"]
+	var reader = getDataReader("datafile-129-MB")
 	defer reader.Close()
 
 	// Save the data
@@ -1308,7 +1308,7 @@ func testFPutObjectMultipart() {
 	}
 
 	// Upload 4 parts to utilize all 3 'workers' in multipart and still have a part to upload.
-	var fileName = getMintDataDirFilePath("datafile-65-MB")
+	var fileName = getMintDataDirFilePath("datafile-129-MB")
 	if fileName == "" {
 		// Make a temp file with minPartSize bytes of data.
 		file, err := ioutil.TempFile(os.TempDir(), "FPutObjectTest")
@@ -1317,7 +1317,7 @@ func testFPutObjectMultipart() {
 			return
 		}
 		// Upload 2 parts to utilize all 3 'workers' in multipart and still have a part to upload.
-		if _, err = io.Copy(file, getDataReader("datafile-65-MB")); err != nil {
+		if _, err = io.Copy(file, getDataReader("datafile-129-MB")); err != nil {
 			logError(testName, function, args, startTime, "", "Copy failed", err)
 			return
 		}
@@ -1328,7 +1328,7 @@ func testFPutObjectMultipart() {
 		fileName = file.Name()
 		args["fileName"] = fileName
 	}
-	totalSize := dataFileMap["datafile-65-MB"]
+	totalSize := dataFileMap["datafile-129-MB"]
 	// Set base object name
 	objectName := bucketName + "FPutObject" + "-standard"
 	args["objectName"] = objectName
@@ -1426,7 +1426,7 @@ func testFPutObject() {
 
 	// Upload 3 parts worth of data to use all 3 of multiparts 'workers' and have an extra part.
 	// Use different data in part for multipart tests to check parts are uploaded in correct order.
-	var fName = getMintDataDirFilePath("datafile-65-MB")
+	var fName = getMintDataDirFilePath("datafile-129-MB")
 	if fName == "" {
 		// Make a temp file with minPartSize bytes of data.
 		file, err := ioutil.TempFile(os.TempDir(), "FPutObjectTest")
@@ -1436,7 +1436,7 @@ func testFPutObject() {
 		}
 
 		// Upload 3 parts to utilize all 3 'workers' in multipart and still have a part to upload.
-		if _, err = io.Copy(file, getDataReader("datafile-65-MB")); err != nil {
+		if _, err = io.Copy(file, getDataReader("datafile-129-MB")); err != nil {
 			logError(testName, function, args, startTime, "", "File copy failed", err)
 			return
 		}
@@ -1448,7 +1448,7 @@ func testFPutObject() {
 		defer os.Remove(file.Name())
 		fName = file.Name()
 	}
-	totalSize := dataFileMap["datafile-65-MB"]
+	totalSize := dataFileMap["datafile-129-MB"]
 
 	// Set base object name
 	function = "FPutObject(bucketName, objectName, fileName, opts)"
@@ -2706,9 +2706,9 @@ func testSSECEncryptedGetObjectReadSeekFunctional() {
 		}
 	}()
 
-	// Generate 65MiB of data.
-	bufSize := dataFileMap["datafile-65-MB"]
-	var reader = getDataReader("datafile-65-MB")
+	// Generate 129MiB of data.
+	bufSize := dataFileMap["datafile-129-MB"]
+	var reader = getDataReader("datafile-129-MB")
 	defer reader.Close()
 
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -2894,9 +2894,9 @@ func testSSES3EncryptedGetObjectReadSeekFunctional() {
 		}
 	}()
 
-	// Generate 65MiB of data.
-	bufSize := dataFileMap["datafile-65-MB"]
-	var reader = getDataReader("datafile-65-MB")
+	// Generate 129MiB of data.
+	bufSize := dataFileMap["datafile-129-MB"]
+	var reader = getDataReader("datafile-129-MB")
 	defer reader.Close()
 
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -3072,9 +3072,9 @@ func testSSECEncryptedGetObjectReadAtFunctional() {
 		return
 	}
 
-	// Generate 65MiB of data.
-	bufSize := dataFileMap["datafile-65-MB"]
-	var reader = getDataReader("datafile-65-MB")
+	// Generate 129MiB of data.
+	bufSize := dataFileMap["datafile-129-MB"]
+	var reader = getDataReader("datafile-129-MB")
 	defer reader.Close()
 
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -3263,9 +3263,9 @@ func testSSES3EncryptedGetObjectReadAtFunctional() {
 		return
 	}
 
-	// Generate 65MiB of data.
-	bufSize := dataFileMap["datafile-65-MB"]
-	var reader = getDataReader("datafile-65-MB")
+	// Generate 129MiB of data.
+	bufSize := dataFileMap["datafile-129-MB"]
+	var reader = getDataReader("datafile-129-MB")
 	defer reader.Close()
 
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
@@ -8561,8 +8561,8 @@ func testPutObjectNoLengthV2() {
 	objectName := bucketName + "unique"
 	args["objectName"] = objectName
 
-	bufSize := dataFileMap["datafile-65-MB"]
-	var reader = getDataReader("datafile-65-MB")
+	bufSize := dataFileMap["datafile-129-MB"]
+	var reader = getDataReader("datafile-129-MB")
 	defer reader.Close()
 	args["size"] = bufSize
 

@@ -550,7 +550,7 @@ if err != nil {
 
 <a name="PutObject"></a>
 ### PutObject(bucketName, objectName string, reader io.Reader, objectSize int64,opts PutObjectOptions) (n int, err error)
-当对象小于64MiB时，直接在一次PUT请求里进行上传。当大于64MiB时，根据文件的实际大小，PutObject会自动地将对象进行拆分成64MiB一块或更大一些进行上传。对象的最大大小是5TB。
+当对象小于128MiB时，直接在一次PUT请求里进行上传。当大于128MiB时，根据文件的实际大小，PutObject会自动地将对象进行拆分成128MiB一块或更大一些进行上传。对象的最大大小是5TB。
 
 __参数__
 
@@ -889,7 +889,7 @@ if err != nil {
 ### FPutObject(bucketName, objectName, filePath, opts PutObjectOptions) (length int64, err error)
 将filePath对应的文件内容上传到一个对象中。
 
-当对象小于64MiB时，FPutObject直接在一次PUT请求里进行上传。当大于64MiB时，根据文件的实际大小，FPutObject会自动地将对象进行拆分成64MiB一块或更大一些进行上传。对象的最大大小是5TB。
+当对象小于128MiB时，FPutObject直接在一次PUT请求里进行上传。当大于128MiB时，根据文件的实际大小，FPutObject会自动地将对象进行拆分成128MiB一块或更大一些进行上传。对象的最大大小是5TB。
 
 __参数__
 
