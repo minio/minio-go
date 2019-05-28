@@ -64,7 +64,7 @@ func isReadAt(reader io.Reader) (ok bool) {
 // object storage it will have the following parameters as constants.
 //
 //  maxPartsCount - 10000
-//  minPartSize - 64MiB
+//  minPartSize - 128MiB
 //  maxMultipartPutObjectSize - 5TiB
 //
 func optimalPartInfo(objectSize int64, configuredPartSize uint64) (totalPartsCount int, partSize int64, lastPartSize int64, err error) {

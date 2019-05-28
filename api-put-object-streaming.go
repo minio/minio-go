@@ -75,7 +75,7 @@ type uploadPartReq struct {
 	Part    *ObjectPart // Size of the part uploaded.
 }
 
-// putObjectMultipartFromReadAt - Uploads files bigger than 64MiB.
+// putObjectMultipartFromReadAt - Uploads files bigger than 128MiB.
 // Supports all readers which implements io.ReaderAt interface
 // (ReadAt method).
 //

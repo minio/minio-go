@@ -124,9 +124,9 @@ func (a completedParts) Less(i, j int) bool { return a[i].PartNumber < a[j].Part
 //
 // You must have WRITE permissions on a bucket to create an object.
 //
-//  - For size smaller than 64MiB PutObject automatically does a
+//  - For size smaller than 128MiB PutObject automatically does a
 //    single atomic Put operation.
-//  - For size larger than 64MiB PutObject automatically does a
+//  - For size larger than 128MiB PutObject automatically does a
 //    multipart Put operation.
 //  - For size input as -1 PutObject does a multipart Put operation
 //    until input stream reaches EOF. Maximum object size that can
@@ -167,7 +167,7 @@ func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName stri
 		return c.putObjectNoChecksum(ctx, bucketName, objectName, reader, size, opts)
 	}
 
-	// For all sizes greater than 64MiB do multipart.
+	// For all sizes greater than 128MiB do multipart.
 	return c.putObjectMultipartStream(ctx, bucketName, objectName, reader, size, opts)
 }
 
