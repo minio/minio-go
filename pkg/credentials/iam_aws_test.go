@@ -67,7 +67,7 @@ func initTestServerNoRoles() *httptest.Server {
 
 func initTestServer(expireOn string, failAssume bool) *httptest.Server {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/latest/meta-data/iam/security-credentials" {
+		if r.URL.Path == "/latest/meta-data/iam/security-credentials/" {
 			fmt.Fprintln(w, "RoleName")
 		} else if r.URL.Path == "/latest/meta-data/iam/security-credentials/RoleName" {
 			if failAssume {
