@@ -41,6 +41,23 @@ import (
 func (c Client) ListBuckets() ([]BucketInfo, error) {
 	// Execute GET on service.
 	resp, err := c.executeMethod(context.Background(), "GET", requestMetadata{contentSHA256Hex: emptySHA256Hex})
+
+	if err != nil {
+		closeResponse(resp)
+		return nil, err
+	}
+	if resp != nil {
+		if resp.StatusCode != http.StatusOK {
+			errResponse := ToErrorResponse(httpRespToErrorResponse(resp, "", ""))
+			closeResponse(resp)
+			if errResponse.Code != "AuthorizationHeaderMalformed" && errResponse.Code != "InvalidRegion" {
+				return nil, httpRespToErrorResponse(resp, "", "")
+			}
+			// Retry with the region returned by the server.
+			resp, err = c.executeMethod(context.Background(), "GET", requestMetadata{contentSHA256Hex: emptySHA256Hex, bucketLocation: errResponse.Region})
+		}
+	}
+
 	defer closeResponse(resp)
 	if err != nil {
 		return nil, err
