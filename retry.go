@@ -111,6 +111,9 @@ func isHTTPReqErrorRetryable(err error) bool {
 		} else if strings.Contains(err.Error(), "net/http: HTTP/1.x transport connection broken") {
 			// If error is transport connection broken, retry.
 			return true
+		} else if strings.Contains(err.Error(), "net/http: timeout awaiting response headers") {
+			// Retry errors due to server not sending the response before timeout
+			return true
 		}
 	}
 	return false
