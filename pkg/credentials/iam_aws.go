@@ -53,7 +53,7 @@ type IAM struct {
 const (
 	defaultIAMRoleEndpoint      = "http://169.254.169.254"
 	defaultECSRoleEndpoint      = "http://169.254.170.2"
-	defaultIAMSecurityCredsPath = "/latest/meta-data/iam/security-credentials"
+	defaultIAMSecurityCredsPath = "/latest/meta-data/iam/security-credentials/"
 )
 
 // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html
