@@ -124,8 +124,16 @@ func processBucketLocationResponse(resp *http.Response, bucketName string) (buck
 			// For access denied error, it could be an anonymous
 			// request. Move forward and let the top level callers
 			// succeed if possible based on their policy.
-			if errResp.Code == "AccessDenied" {
-				return "us-east-1", nil
+			switch errResp.Code {
+			case "AuthorizationHeaderMalformed":
+				fallthrough
+			case "InvalidRegion":
+				fallthrough
+			case "AccessDenied":
+				if errResp.Region == "" {
+					return "us-east-1", nil
+				}
+				return errResp.Region, nil
 			}
 			return "", err
 		}
