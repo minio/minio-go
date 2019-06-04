@@ -125,10 +125,40 @@ func GetRegionFromURL(endpointURL url.URL) string {
 	return ""
 }
 
+// amazonS3VirtualHostPrefix - regular expression used to determine if URL is virtual host style for an S3 endpoint
+var amazonS3VirtualHostPrefix = regexp.MustCompile(`^(.*?)\.(s3(.*?)\.amazonaws\.com)$`)
+
+// GetBucketFromURL  parses virutal style URL to get bucketname and rest of the URL
+func GetBucketFromURL(endpointURL url.URL) (string, url.URL) {
+	if endpointURL == sentinelURL {
+		return "", endpointURL
+	}
+	if endpointURL.Host == "s3.amazonaws.com" {
+		return "", endpointURL
+	}
+	if endpointURL.Host == "s3-external-1.amazonaws.com" {
+		return "", endpointURL
+	}
+	parts := amazonS3VirtualHostPrefix.FindStringSubmatch(endpointURL.Host)
+	if len(parts) > 2 {
+		u, e := url.Parse(parts[2])
+		if e != nil {
+			panic(e)
+		}
+		return parts[1], *u
+	}
+	return "", endpointURL
+}
+
 // IsAmazonEndpoint - Match if it is exactly Amazon S3 endpoint.
 func IsAmazonEndpoint(endpointURL url.URL) bool {
 	if endpointURL.Host == "s3-external-1.amazonaws.com" || endpointURL.Host == "s3.amazonaws.com" {
 		return true
+	}
+	// extract bucket from endpointURL if endpoint entered as virtual style hostname
+	bucket, s3endpoint := GetBucketFromURL(endpointURL)
+	if bucket != "" {
+		endpointURL = s3endpoint
 	}
 	return GetRegionFromURL(endpointURL) != ""
 }
