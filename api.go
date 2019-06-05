@@ -653,14 +653,23 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 		//
 		// Additionally we should only retry if bucketLocation and custom
 		// region is empty.
-		if metadata.bucketLocation == "" && c.region == "" {
-			if errResponse.Code == "AuthorizationHeaderMalformed" || errResponse.Code == "InvalidRegion" {
+		if c.region == "" {
+			switch errResponse.Code {
+			case "AuthorizationHeaderMalformed":
+				fallthrough
+			case "InvalidRegion":
+				fallthrough
+			case "AccessDenied":
 				if metadata.bucketName != "" && errResponse.Region != "" {
 					// Gather Cached location only if bucketName is present.
 					if _, cachedOk := c.bucketLocCache.Get(metadata.bucketName); cachedOk {
 						c.bucketLocCache.Set(metadata.bucketName, errResponse.Region)
 						continue // Retry.
 					}
+				} else {
+					// Most probably for ListBuckets()
+					metadata.bucketLocation = errResponse.Region
+					continue // Retry
 				}
 			}
 		}
@@ -694,13 +703,8 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 			// Gather location only if bucketName is present.
 			location, err = c.getBucketLocation(metadata.bucketName)
 			if err != nil {
-				if ToErrorResponse(err).Code != "AccessDenied" {
-					return nil, err
-				}
+				return nil, err
 			}
-			// Upon AccessDenied error on fetching bucket location, default
-			// to possible locations based on endpoint URL. This can usually
-			// happen when GetBucketLocation() is disabled using IAM policies.
 		}
 		if location == "" {
 			location = getDefaultLocation(*c.endpointURL, c.region)
