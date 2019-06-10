@@ -1094,7 +1094,7 @@ __参数__
 |`objectName`  | _string_  |对象的名称 |
 |`options` |  _SelectObjectOptions_  |查询选项 |
 
-__Return Values__
+__返回类型__
 
 |参数   |类型   |描述   |
 |:---|:---| :---|

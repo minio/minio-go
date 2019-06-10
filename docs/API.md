@@ -1542,14 +1542,14 @@ if err != nil {
 ### GetBucketLifecycle(bucketName) (lifecycle string, error)
 Get lifecycle on a bucket or a prefix.
 
-__参数__
+__Parameters__
 
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
 |`bucketName`  | _string_  |Name of the bucket   |
 
-__返回类型__
+__Return Values__
 
 
 |Param   |Type   |Description   |
@@ -1557,7 +1557,7 @@ __返回类型__
 |`lifecycle`  | _string_ |Lifecycle returned from the server |
 |`err` | _error_  |Standard Error  |
 
-__示例__
+__Example__
 
 ```go
 lifecycle, err := minioClient.GetBucketLifecycle("my-bucketname")
