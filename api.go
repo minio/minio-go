@@ -668,8 +668,15 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 					}
 				} else {
 					// Most probably for ListBuckets()
-					metadata.bucketLocation = errResponse.Region
-					continue // Retry
+					if errResponse.Region != metadata.bucketLocation {
+						// Retry if the error
+						// response has a
+						// different region
+						// than the request we
+						// just made.
+						metadata.bucketLocation = errResponse.Region
+						continue // Retry
+					}
 				}
 			}
 		}
