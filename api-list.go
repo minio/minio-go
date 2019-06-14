@@ -195,8 +195,10 @@ func (c Client) listObjectsV2Query(bucketName, objectPrefix, continuationToken s
 	// Set object prefix, prefix value to be set to empty is okay.
 	urlValues.Set("prefix", objectPrefix)
 
-	// Set delimiter, delimiter value to be set to empty is okay.
-	urlValues.Set("delimiter", delimiter)
+	// Set delimiter, only set delimiter if delimiter is not empty. This to support NetApp StorageGrid S3 implementation.
+	if delimiter != "" {
+		urlValues.Set("delimiter", delimiter)
+	}
 
 	// Set continuation token
 	if continuationToken != "" {
@@ -382,8 +384,10 @@ func (c Client) listObjectsQuery(bucketName, objectPrefix, objectMarker, delimit
 	// Set object prefix, prefix value to be set to empty is okay.
 	urlValues.Set("prefix", objectPrefix)
 
-	// Set delimiter, delimiter value to be set to empty is okay.
-	urlValues.Set("delimiter", delimiter)
+	// Set delimiter, only set delimiter if delimiter is not empty. This to support NetApp StorageGrid S3 implementation.
+	if delimiter != "" {
+		urlValues.Set("delimiter", delimiter)
+	}
 
 	// Set object marker.
 	if objectMarker != "" {
@@ -564,8 +568,10 @@ func (c Client) listMultipartUploadsQuery(bucketName, keyMarker, uploadIDMarker,
 	// Set object prefix, prefix value to be set to empty is okay.
 	urlValues.Set("prefix", prefix)
 
-	// Set delimiter, delimiter value to be set to empty is okay.
-	urlValues.Set("delimiter", delimiter)
+	// Set delimiter, only set delimiter if delimiter is not empty. This to support NetApp StorageGrid S3 implementation.
+	if delimiter != "" {
+		urlValues.Set("delimiter", delimiter)
+	}
 
 	// maxUploads should be 1000 or less.
 	if maxUploads == 0 || maxUploads > 1000 {
