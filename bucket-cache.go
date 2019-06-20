@@ -170,7 +170,7 @@ func (c Client) getBucketLocationRequest(bucketName string) (*http.Request, erro
 	urlValues.Set("location", "")
 
 	// Set get bucket location always as path style.
-	targetURL := c.endpointURL
+	targetURL := *c.endpointURL
 
 	// as it works in makeTargetURL method from api.go file
 	if h, p, err := net.SplitHostPort(targetURL.Host); err == nil {

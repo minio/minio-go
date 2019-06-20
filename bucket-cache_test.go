@@ -73,7 +73,7 @@ func TestGetBucketLocationRequest(t *testing.T) {
 		urlValues.Set("location", "")
 
 		// Set get bucket location always as path style.
-		targetURL := c.endpointURL
+		targetURL := *c.endpointURL
 		targetURL.Path = path.Join(bucketName, "") + "/"
 		targetURL.RawQuery = urlValues.Encode()
 
