@@ -163,13 +163,14 @@ func (c Client) ListenBucketNotification(bucketName, prefix, suffix string, even
 		// Indicate to our routine to exit cleanly upon return.
 		defer close(retryDoneCh)
 
+		// Prepare urlValues to pass into the request on every loop
+		urlValues := make(url.Values)
+		urlValues.Set("prefix", prefix)
+		urlValues.Set("suffix", suffix)
+		urlValues["events"] = events
+
 		// Wait on the jitter retry loop.
 		for range c.newRetryTimerContinous(time.Second, time.Second*30, MaxJitter, retryDoneCh) {
-			urlValues := make(url.Values)
-			urlValues.Set("prefix", prefix)
-			urlValues.Set("suffix", suffix)
-			urlValues["events"] = events
-
 			// Execute GET on bucket to list objects.
 			resp, err := c.executeMethod(context.Background(), "GET", requestMetadata{
 				bucketName:       bucketName,
