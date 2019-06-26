@@ -16,12 +16,8 @@ matrix:
   allow_failures:
   - go: tip
 
-addons:
-  apt:
-    packages:
-      - devscripts
-
 before_install:
+  - sudo apt-get install devscripts
   - curl -O https://dl.minio.io/server/minio/release/linux-amd64/minio && chmod +x ./minio
   - sudo cp testcerts/public.crt /usr/local/share/ca-certificates/
   - sudo update-ca-certificates
@@ -31,7 +27,3 @@ script:
   - diff -au <(gofmt -d .) <(printf "")
   - diff -au <(licensecheck --check '.go$' --recursive --lines 0 * | grep -v -w 'Apache (v2.0)') <(printf "")
   - make
-
-addons:
-  artifacts:
-    - minio.log
