@@ -719,10 +719,14 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 	}
 
 	// Look if target url supports virtual host.
-	isVirtualHost := c.isVirtualHostStyleRequest(*c.endpointURL, metadata.bucketName)
+	// We explicitly disallow MakeBucket calls to not use virtual DNS style,
+	// since the resolution may fail.
+	isMakeBucket := (metadata.objectName == "" && method == "PUT" && len(metadata.queryValues) == 0)
+	isVirtualHost := c.isVirtualHostStyleRequest(*c.endpointURL, metadata.bucketName) && !isMakeBucket
 
 	// Construct a new target URL.
-	targetURL, err := c.makeTargetURL(metadata.bucketName, metadata.objectName, location, isVirtualHost, metadata.queryValues)
+	targetURL, err := c.makeTargetURL(metadata.bucketName, metadata.objectName, location,
+		isVirtualHost, metadata.queryValues)
 	if err != nil {
 		return nil, err
 	}
