@@ -321,6 +321,7 @@ func (o *Object) Read(b []byte) (n int, err error) {
 	if o.prevErr != nil || o.isClosed {
 		return 0, o.prevErr
 	}
+
 	// Create a new request.
 	readReq := getRequest{
 		isReadOp: true,
@@ -403,9 +404,12 @@ func (o *Object) ReadAt(b []byte, offset int64) (n int, err error) {
 	defer o.mutex.Unlock()
 
 	// prevErr is error which was saved in previous operation.
-	if o.prevErr != nil || o.isClosed {
+	if o.prevErr != nil && o.prevErr != io.EOF || o.isClosed {
 		return 0, o.prevErr
 	}
+
+	// Set the current offset to ReadAt offset, because the current offset will be shifted at the end of this method.
+	o.currOffset = offset
 
 	// Can only compare offsets to size when size has been set.
 	if o.objectInfoSet {
@@ -476,11 +480,9 @@ func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
 
-	if o.prevErr != nil {
-		// At EOF seeking is legal allow only io.EOF, for any other errors we return.
-		if o.prevErr != io.EOF {
-			return 0, o.prevErr
-		}
+	// At EOF seeking is legal allow only io.EOF, for any other errors we return.
+	if o.prevErr != nil && o.prevErr != io.EOF {
+		return 0, o.prevErr
 	}
 
 	// Negative offset is valid for whence of '2'.
