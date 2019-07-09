@@ -2226,6 +2226,133 @@ func testGetObjectReadAtFunctional() {
 	successLogger(testName, function, args, startTime).Info()
 }
 
+// Reproduces issue https://github.com/minio/minio-go/issues/1137
+func testGetObjectReadAtWhenEOFWasReached() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "GetObject(bucketName, objectName)"
+	args := map[string]interface{}{}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.New(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
+		return
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucket(bucketName, "us-east-1")
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	// Generate 33K of data.
+	bufSize := dataFileMap["datafile-33-kB"]
+	var reader = getDataReader("datafile-33-kB")
+	defer reader.Close()
+
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	args["objectName"] = objectName
+
+	buf, err := ioutil.ReadAll(reader)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "ReadAll failed", err)
+		return
+	}
+
+	// Save the data
+	n, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject failed", err)
+		return
+	}
+
+	if n != int64(bufSize) {
+		logError(testName, function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+", got "+string(n), err)
+		return
+	}
+
+	// read the data back
+	r, err := c.GetObject(bucketName, objectName, minio.GetObjectOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject failed", err)
+		return
+	}
+
+	// read directly
+	buf1 := make([]byte, n)
+	buf2 := make([]byte, 512)
+
+	m, err := r.Read(buf1)
+	if err != nil {
+		if err != io.EOF {
+			logError(testName, function, args, startTime, "", "Read failed", err)
+			return
+		}
+	}
+	if m != len(buf1) {
+		logError(testName, function, args, startTime, "", "Read read shorter bytes before reaching EOF, expected "+string(len(buf1))+", got "+string(m), err)
+		return
+	}
+	if !bytes.Equal(buf1, buf) {
+		logError(testName, function, args, startTime, "", "Incorrect count of Read data", err)
+		return
+	}
+
+	st, err := r.Stat()
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Stat failed", err)
+		return
+	}
+
+	if st.Size != int64(bufSize) {
+		logError(testName, function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(bufSize))+", got "+string(st.Size), err)
+		return
+	}
+
+	m, err = r.ReadAt(buf2, 512)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "ReadAt failed", err)
+		return
+	}
+	if m != len(buf2) {
+		logError(testName, function, args, startTime, "", "ReadAt read shorter bytes before reaching EOF, expected "+string(len(buf2))+", got "+string(m), err)
+		return
+	}
+	if !bytes.Equal(buf2, buf[512:1024]) {
+		logError(testName, function, args, startTime, "", "Incorrect count of ReadAt data", err)
+		return
+	}
+
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		return
+	}
+
+	successLogger(testName, function, args, startTime).Info()
+}
+
 // Test Presigned Post Policy
 func testPresignedPostPolicy() {
 	// initialize logging params
@@ -10004,6 +10131,7 @@ func main() {
 		testFPutObject()
 		testGetObjectReadSeekFunctional()
 		testGetObjectReadAtFunctional()
+		testGetObjectReadAtWhenEOFWasReached()
 		testPresignedPostPolicy()
 		testCopyObject()
 		testComposeObjectErrorCases()
