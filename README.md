@@ -79,8 +79,8 @@ func main() {
 	err = minioClient.MakeBucket(bucketName, location)
 	if err != nil {
 		// Check to see if we already own this bucket (which happens if you run this twice)
-		exists, err := minioClient.BucketExists(bucketName)
-		if err == nil && exists {
+		exists, errBucketExists := minioClient.BucketExists(bucketName)
+		if errBucketExists == nil && exists {
 			log.Printf("We already own %s\n", bucketName)
 		} else {
 			log.Fatalln(err)
