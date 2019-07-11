@@ -187,6 +187,12 @@ func NewWithOptions(endpoint string, opts *Options) (*Client, error) {
 	return privateNew(endpoint, opts.Creds, opts.Secure, opts.Region, opts.BucketLookup)
 }
 
+// EndpointURL returns the URL of the S3 endpoint.
+func (c *Client) EndpointURL() *url.URL {
+	endpoint := *c.endpointURL // copy to prevent callers from modifying internal state
+	return &endpoint
+}
+
 // lockedRandSource provides protected rand source, implements rand.Source interface.
 type lockedRandSource struct {
 	lk  sync.Mutex
