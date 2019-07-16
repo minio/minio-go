@@ -31,7 +31,7 @@ import (
 )
 
 func main() {
-	endpoint := "play.min.io:9000"
+	endpoint := "play.min.io"
 	accessKeyID := "Q3AM3UQ867SPQQA43P2F"
 	secretAccessKey := "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG"
 	useSSL := true
@@ -49,7 +49,7 @@ func main() {
 ## Quick Start Example - File Uploader
 This example program connects to an object storage server, creates a bucket and uploads a file to the bucket.
 
-We will use the MinIO server running at [https://play.min.io:9000](https://play.min.io:9000) in this example. Feel free to use this service for testing and development. Access credentials shown in this example are open to the public.
+We will use the MinIO server running at [https://play.min.io](https://play.min.io) in this example. Feel free to use this service for testing and development. Access credentials shown in this example are open to the public.
 
 ### FileUploader.go
 ```go
@@ -61,7 +61,7 @@ import (
 )
 
 func main() {
-	endpoint := "play.min.io:9000"
+	endpoint := "play.min.io"
 	accessKeyID := "Q3AM3UQ867SPQQA43P2F"
 	secretAccessKey := "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG"
 	useSSL := true

@@ -43,7 +43,7 @@ import (
 )
 
 func main() {
-	endpoint := "play.min.io:9000"
+	endpoint := "play.min.io"
 	accessKeyID := "Q3AM3UQ867SPQQA43P2F"
 	secretAccessKey := "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG"
 	useSSL := true
@@ -61,7 +61,7 @@ func main() {
 ## 示例-文件上传
 本示例连接到一个对象存储服务，创建一个存储桶并上传一个文件到存储桶中。
 
-我们在本示例中使用运行在 [https://play.min.io:9000](https://play.min.io:9000) 上的MinIO服务，你可以用这个服务来开发和测试。示例中的访问凭据是公开的。
+我们在本示例中使用运行在 [https://play.min.io](https://play.min.io) 上的MinIO服务，你可以用这个服务来开发和测试。示例中的访问凭据是公开的。
 
 ### FileUploader.go
 ```go
@@ -73,7 +73,7 @@ import (
 )
 
 func main() {
-	endpoint := "play.min.io:9000"
+	endpoint := "play.min.io"
 	accessKeyID := "Q3AM3UQ867SPQQA43P2F"
 	secretAccessKey := "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG"
 	useSSL := true

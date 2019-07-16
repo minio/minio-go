@@ -184,9 +184,9 @@ func isErrNotImplemented(err error) bool {
 
 func init() {
 	// If server endpoint is not set, all tests default to
-	// using https://play.min.io:9000
+	// using https://play.min.io
 	if os.Getenv(serverEndpoint) == "" {
-		os.Setenv(serverEndpoint, "play.min.io:9000")
+		os.Setenv(serverEndpoint, "play.min.io")
 		os.Setenv(accessKey, "Q3AM3UQ867SPQQA43P2F")
 		os.Setenv(secretKey, "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG")
 		os.Setenv(enableHTTPS, "1")
