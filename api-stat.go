@@ -176,6 +176,17 @@ func (c Client) statObject(ctx context.Context, bucketName, objectName string, o
 	if t, err := time.Parse(http.TimeFormat, expiryStr); err == nil {
 		expTime = t.UTC()
 	}
+
+	metadata := extractObjMetadata(resp.Header)
+	userMetadata := map[string]string{}
+	const xamzmeta = "x-amz-meta-"
+	const xamzmetaLen = len(xamzmeta)
+	for k, v := range metadata {
+		if strings.HasPrefix(strings.ToLower(k), xamzmeta) {
+			userMetadata[k[xamzmetaLen:]] = v[0]
+		}
+	}
+
 	// Save object metadata info.
 	return ObjectInfo{
 		ETag:         md5sum,
@@ -187,6 +198,7 @@ func (c Client) statObject(ctx context.Context, bucketName, objectName string, o
 		// Extract only the relevant header keys describing the object.
 		// following function filters out a list of standard set of keys
 		// which are not part of object metadata.
-		Metadata: extractObjMetadata(resp.Header),
+		Metadata:     metadata,
+		UserMetadata: userMetadata,
 	}, nil
 }

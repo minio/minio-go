@@ -47,6 +47,9 @@ type ObjectInfo struct {
 	// eg: x-amz-meta-*, content-encoding etc.
 	Metadata http.Header `json:"metadata" xml:"-"`
 
+	// x-amz-meta-* headers stripped "x-amz-meta-" prefix containing the first value.
+	UserMetadata map[string]string `json:"userMetadata" xml:"-"`
+
 	// Owner name.
 	Owner struct {
 		DisplayName string `json:"name"`
