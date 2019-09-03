@@ -8,7 +8,7 @@ This document assumes that you have a working [Go development environment](https
 
 ## Download from Github
 ```sh
-go get -u github.com/minio/minio-go
+GO111MODULE=on go get github.com/minio/minio-go/v6
 ```
 
 ## Initialize MinIO Client
