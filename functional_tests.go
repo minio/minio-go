@@ -8566,6 +8566,8 @@ func testStorageClassMetadataCopyObject() {
 
 	fetchMeta := func(object string) (h http.Header) {
 		objInfo, err := c.StatObject(bucketName, object, minio.StatObjectOptions{})
+		args["bucket"] = bucketName
+		args["object"] = object
 		if err != nil {
 			logError(testName, function, args, startTime, "", "Stat failed", err)
 			return
@@ -8600,7 +8602,9 @@ func testStorageClassMetadataCopyObject() {
 	// Make server side copy of object uploaded in previous step
 	src := minio.NewSourceInfo(bucketName, "srcObjectRRSClass", nil)
 	dst, err := minio.NewDestinationInfo(bucketName, "srcObjectRRSClassCopy", nil, nil)
-	c.CopyObject(dst, src)
+	if err = c.CopyObject(dst, src); err != nil {
+		logError(testName,function,args,startTime,"", "CopyObject failed on RRS", err)
+	}
 
 	// Get the returned metadata
 	returnedMeta := fetchMeta("srcObjectRRSClassCopy")
@@ -8625,8 +8629,9 @@ func testStorageClassMetadataCopyObject() {
 	// Make server side copy of object uploaded in previous step
 	src = minio.NewSourceInfo(bucketName, "srcObjectSSClass", nil)
 	dst, err = minio.NewDestinationInfo(bucketName, "srcObjectSSClassCopy", nil, nil)
-	c.CopyObject(dst, src)
-
+	if err = c.CopyObject(dst, src); err != nil {
+		logError(testName, function, args, startTime, "", "CopyObject failed on SS", err)
+	}
 	// Fetch the meta data of copied object
 	if reflect.DeepEqual(metadata, fetchMeta("srcObjectSSClassCopy")) {
 		logError(testName, function, args, startTime, "", "Metadata verification failed, STANDARD storage class should not be a part of response metadata", err)
