@@ -8603,7 +8603,7 @@ func testStorageClassMetadataCopyObject() {
 	src := minio.NewSourceInfo(bucketName, "srcObjectRRSClass", nil)
 	dst, err := minio.NewDestinationInfo(bucketName, "srcObjectRRSClassCopy", nil, nil)
 	if err = c.CopyObject(dst, src); err != nil {
-		logError(testName,function,args,startTime,"", "CopyObject failed on RRS", err)
+		logError(testName, function, args, startTime, "", "CopyObject failed on RRS", err)
 	}
 
 	// Get the returned metadata
