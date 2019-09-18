@@ -192,6 +192,9 @@ func (c Client) listObjectsV2Query(bucketName, objectPrefix, continuationToken s
 	// Always set list-type in ListObjects V2
 	urlValues.Set("list-type", "2")
 
+	// Always set encoding-type in ListObjects V2
+	urlValues.Set("encoding-type", "url")
+
 	// Set object prefix, prefix value to be set to empty is okay.
 	urlValues.Set("prefix", objectPrefix)
 
@@ -396,6 +399,9 @@ func (c Client) listObjectsQuery(bucketName, objectPrefix, objectMarker, delimit
 	}
 	// Set max keys.
 	urlValues.Set("max-keys", fmt.Sprintf("%d", maxkeys))
+
+	// Always set encoding-type
+	urlValues.Set("encoding-type", "url")
 
 	// Execute GET on bucket to list objects.
 	resp, err := c.executeMethod(context.Background(), "GET", requestMetadata{
