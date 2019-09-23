@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/dustin/go-humanize v1.0.0 // indirect
-	github.com/minio/sha256-simd v0.1.0
+	github.com/minio/sha256-simd v0.1.1
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
