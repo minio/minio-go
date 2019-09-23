@@ -128,6 +128,13 @@ func (c Client) ListObjectsV2(bucketName, objectPrefix string, recursive bool, d
 
 			// If contents are available loop through and send over channel.
 			for _, object := range result.Contents {
+				object.Key, err = url.QueryUnescape(object.Key)
+				if err != nil {
+					objectStatCh <- ObjectInfo{
+						Err: err,
+					}
+					return
+				}
 				select {
 				// Send object content.
 				case objectStatCh <- object:
@@ -140,12 +147,17 @@ func (c Client) ListObjectsV2(bucketName, objectPrefix string, recursive bool, d
 			// Send all common prefixes if any.
 			// NOTE: prefixes are only present if the request is delimited.
 			for _, obj := range result.CommonPrefixes {
+				objInfo := ObjectInfo{}
+				objInfo.Key, err = url.QueryUnescape(obj.Prefix)
+				if err != nil {
+					objectStatCh <- ObjectInfo{
+						Err: err,
+					}
+					return
+				}
 				select {
 				// Send object prefixes.
-				case objectStatCh <- ObjectInfo{
-					Key:  obj.Prefix,
-					Size: 0,
-				}:
+				case objectStatCh <- objInfo:
 				// If receives done from the caller, return here.
 				case <-doneCh:
 					return
@@ -154,7 +166,13 @@ func (c Client) ListObjectsV2(bucketName, objectPrefix string, recursive bool, d
 
 			// If continuation token present, save it for next request.
 			if result.NextContinuationToken != "" {
-				continuationToken = result.NextContinuationToken
+				continuationToken, err = url.QueryUnescape(result.NextContinuationToken)
+				if err != nil {
+					objectStatCh <- ObjectInfo{
+						Err: err,
+					}
+					return
+				}
 			}
 
 			// Listing ends result is not truncated, return right here.
@@ -320,6 +338,13 @@ func (c Client) ListObjects(bucketName, objectPrefix string, recursive bool, don
 
 			// If contents are available loop through and send over channel.
 			for _, object := range result.Contents {
+				object.Key, err = url.QueryUnescape(object.Key)
+				if err != nil {
+					objectStatCh <- ObjectInfo{
+						Err: err,
+					}
+					return
+				}
 				// Save the marker.
 				marker = object.Key
 				select {
@@ -335,7 +360,13 @@ func (c Client) ListObjects(bucketName, objectPrefix string, recursive bool, don
 			// NOTE: prefixes are only present if the request is delimited.
 			for _, obj := range result.CommonPrefixes {
 				object := ObjectInfo{}
-				object.Key = obj.Prefix
+				object.Key, err = url.QueryUnescape(obj.Prefix)
+				if err != nil {
+					objectStatCh <- ObjectInfo{
+						Err: err,
+					}
+					return
+				}
 				object.Size = 0
 				select {
 				// Send object prefixes.
@@ -348,7 +379,13 @@ func (c Client) ListObjects(bucketName, objectPrefix string, recursive bool, don
 
 			// If next marker present, save it for next request.
 			if result.NextMarker != "" {
-				marker = result.NextMarker
+				marker, err = url.QueryUnescape(result.NextMarker)
+				if err != nil {
+					objectStatCh <- ObjectInfo{
+						Err: err,
+					}
+					return
+				}
 			}
 
 			// Listing ends result is not truncated, return right here.
@@ -495,8 +532,20 @@ func (c Client) listIncompleteUploads(bucketName, objectPrefix string, recursive
 				return
 			}
 			// Save objectMarker and uploadIDMarker for next request.
-			objectMarker = result.NextKeyMarker
-			uploadIDMarker = result.NextUploadIDMarker
+			objectMarker, err = url.QueryUnescape(result.NextKeyMarker)
+			if err != nil {
+				objectMultipartStatCh <- ObjectMultipartInfo{
+					Err: err,
+				}
+				return
+			}
+			uploadIDMarker, err = url.QueryUnescape(result.NextUploadIDMarker)
+			if err != nil {
+				objectMultipartStatCh <- ObjectMultipartInfo{
+					Err: err,
+				}
+				return
+			}
 			// Send all multipart uploads.
 			for _, obj := range result.Uploads {
 				// Calculate total size of the uploaded parts if 'aggregateSize' is enabled.
@@ -510,6 +559,13 @@ func (c Client) listIncompleteUploads(bucketName, objectPrefix string, recursive
 						continue
 					}
 				}
+				obj.Key, err = url.QueryUnescape(obj.Key)
+				if err != nil {
+					objectMultipartStatCh <- ObjectMultipartInfo{
+						Err: err,
+					}
+					return
+				}
 				select {
 				// Send individual uploads here.
 				case objectMultipartStatCh <- obj:
@@ -522,7 +578,13 @@ func (c Client) listIncompleteUploads(bucketName, objectPrefix string, recursive
 			// NOTE: prefixes are only present if the request is delimited.
 			for _, obj := range result.CommonPrefixes {
 				object := ObjectMultipartInfo{}
-				object.Key = obj.Prefix
+				object.Key, err = url.QueryUnescape(obj.Prefix)
+				if err != nil {
+					objectMultipartStatCh <- ObjectMultipartInfo{
+						Err: err,
+					}
+					return
+				}
 				object.Size = 0
 				select {
 				// Send delimited prefixes here.
@@ -572,6 +634,9 @@ func (c Client) listMultipartUploadsQuery(bucketName, keyMarker, uploadIDMarker,
 
 	// Set delimiter, delimiter value to be set to empty is okay.
 	urlValues.Set("delimiter", delimiter)
+
+	// Always set encoding-type
+	urlValues.Set("encoding-type", "url")
 
 	// maxUploads should be 1000 or less.
 	if maxUploads == 0 || maxUploads > 1000 {
