@@ -21,7 +21,9 @@ import (
 	"bytes"
 	"io"
 	"log"
+	"net/http"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -121,7 +123,7 @@ func TestGetObjectCore(t *testing.T) {
 
 	opts := GetObjectOptions{}
 	opts.SetRange(offset, offset+int64(len(buf1))-1)
-	reader, objectInfo, err := c.GetObject(bucketName, objectName, opts)
+	reader, objectInfo, _, err := c.GetObject(bucketName, objectName, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +142,7 @@ func TestGetObjectCore(t *testing.T) {
 	offset += 512
 
 	opts.SetRange(offset, offset+int64(len(buf2))-1)
-	reader, objectInfo, err = c.GetObject(bucketName, objectName, opts)
+	reader, objectInfo, _, err = c.GetObject(bucketName, objectName, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +161,7 @@ func TestGetObjectCore(t *testing.T) {
 	}
 
 	opts.SetRange(0, int64(len(buf3)))
-	reader, objectInfo, err = c.GetObject(bucketName, objectName, opts)
+	reader, objectInfo, _, err = c.GetObject(bucketName, objectName, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +182,7 @@ func TestGetObjectCore(t *testing.T) {
 
 	opts = GetObjectOptions{}
 	opts.SetMatchETag("etag")
-	_, _, err = c.GetObject(bucketName, objectName, opts)
+	_, _, _, err = c.GetObject(bucketName, objectName, opts)
 	if err == nil {
 		t.Fatal("Unexpected GetObject should fail with mismatching etags")
 	}
@@ -190,7 +192,7 @@ func TestGetObjectCore(t *testing.T) {
 
 	opts = GetObjectOptions{}
 	opts.SetMatchETagExcept("etag")
-	reader, objectInfo, err = c.GetObject(bucketName, objectName, opts)
+	reader, objectInfo, _, err = c.GetObject(bucketName, objectName, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,7 +212,7 @@ func TestGetObjectCore(t *testing.T) {
 
 	opts = GetObjectOptions{}
 	opts.SetRange(0, 0)
-	reader, objectInfo, err = c.GetObject(bucketName, objectName, opts)
+	reader, objectInfo, _, err = c.GetObject(bucketName, objectName, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,6 +225,23 @@ func TestGetObjectCore(t *testing.T) {
 
 	if objectInfo.Size != int64(m) {
 		t.Fatalf("Error: GetObject read shorter bytes before reaching EOF, want %v, got %v\n", objectInfo.Size, m)
+	}
+
+	opts = GetObjectOptions{}
+	opts.SetRange(offset, offset+int64(len(buf2))-1)
+	contentLength := len(buf2)
+	var header http.Header
+	_, _, header, err = c.GetObject(bucketName, objectName, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	contentLengthValue, err := strconv.Atoi(header.Get("Content-Length"))
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+	if contentLength != contentLengthValue {
+		t.Fatalf("Error: Content Length in response header %v, not equal to set content lenght %v\n", contentLengthValue, contentLength)
 	}
 
 	err = c.RemoveObject(bucketName, objectName)
@@ -287,7 +306,7 @@ func TestGetObjectContentEncoding(t *testing.T) {
 		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), n)
 	}
 
-	rwc, objInfo, err := c.GetObject(bucketName, objectName, GetObjectOptions{})
+	rwc, objInfo, _, err := c.GetObject(bucketName, objectName, GetObjectOptions{})
 	if err != nil {
 		t.Fatalf("Error: %v", err)
 	}
@@ -590,7 +609,7 @@ func TestCoreCopyObjectPart(t *testing.T) {
 	// Now we read the data back
 	getOpts := GetObjectOptions{}
 	getOpts.SetRange(0, 5*1024*1024-1)
-	r, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		t.Fatal("Error:", err, destBucketName, destObjectName)
 	}
@@ -604,7 +623,7 @@ func TestCoreCopyObjectPart(t *testing.T) {
 	}
 
 	getOpts.SetRange(5*1024*1024, 0)
-	r, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		t.Fatal("Error:", err, destBucketName, destObjectName)
 	}
@@ -765,7 +784,7 @@ func TestCoreGetObjectMetadata(t *testing.T) {
 		log.Fatalln(err)
 	}
 
-	reader, objInfo, err := core.GetObject(bucketName, "my-objectname", GetObjectOptions{})
+	reader, objInfo, _, err := core.GetObject(bucketName, "my-objectname", GetObjectOptions{})
 	if err != nil {
 		log.Fatalln(err)
 	}
