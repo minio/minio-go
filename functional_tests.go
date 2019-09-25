@@ -6245,7 +6245,7 @@ func testEncryptedCopyObjectWrapper(c *minio.Client, bucketName string, sseSrc, 
 	}
 	// 3. get copied object and check if content is equal
 	coreClient := minio.Core{c}
-	reader, _, err := coreClient.GetObject(bucketName, "dstObject", minio.GetObjectOptions{ServerSideEncryption: dstEncryption})
+	reader, _, _, err := coreClient.GetObject(bucketName, "dstObject", minio.GetObjectOptions{ServerSideEncryption: dstEncryption})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject failed", err)
 		return
@@ -6285,7 +6285,7 @@ func testEncryptedCopyObjectWrapper(c *minio.Client, bucketName string, sseSrc, 
 		}
 
 		// Get copied object and check if content is equal
-		reader, _, err = coreClient.GetObject(bucketName, "srcObject", minio.GetObjectOptions{ServerSideEncryption: newSSE})
+		reader, _, _, err = coreClient.GetObject(bucketName, "srcObject", minio.GetObjectOptions{ServerSideEncryption: newSSE})
 		if err != nil {
 			logError(testName, function, args, startTime, "", "GetObject failed", err)
 			return
@@ -6319,7 +6319,7 @@ func testEncryptedCopyObjectWrapper(c *minio.Client, bucketName string, sseSrc, 
 	}
 
 	// Get copied decrypted object and check if content is equal
-	reader, _, err = coreClient.GetObject(bucketName, "srcObject", minio.GetObjectOptions{})
+	reader, _, _, err = coreClient.GetObject(bucketName, "srcObject", minio.GetObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject failed", err)
 		return
@@ -6814,7 +6814,7 @@ func testSSECMultipartEncryptedToSSECCopyObjectPart() {
 	// Now we read the data back
 	getOpts := minio.GetObjectOptions{ServerSideEncryption: dstencryption}
 	getOpts.SetRange(0, 6*1024*1024-1)
-	r, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject call failed", err)
 	}
@@ -6828,7 +6828,7 @@ func testSSECMultipartEncryptedToSSECCopyObjectPart() {
 	}
 
 	getOpts.SetRange(6*1024*1024, 0)
-	r, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject call failed", err)
 	}
@@ -6965,7 +6965,7 @@ func testSSECEncryptedToSSECCopyObjectPart() {
 	// Now we read the data back
 	getOpts := minio.GetObjectOptions{ServerSideEncryption: dstencryption}
 	getOpts.SetRange(0, 5*1024*1024-1)
-	r, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject call failed", err)
 	}
@@ -6979,7 +6979,7 @@ func testSSECEncryptedToSSECCopyObjectPart() {
 	}
 
 	getOpts.SetRange(5*1024*1024, 0)
-	r, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject call failed", err)
 	}
@@ -7115,7 +7115,7 @@ func testSSECEncryptedToUnencryptedCopyPart() {
 	// Now we read the data back
 	getOpts := minio.GetObjectOptions{}
 	getOpts.SetRange(0, 5*1024*1024-1)
-	r, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject call failed", err)
 	}
@@ -7129,7 +7129,7 @@ func testSSECEncryptedToUnencryptedCopyPart() {
 	}
 
 	getOpts.SetRange(5*1024*1024, 0)
-	r, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject call failed", err)
 	}
@@ -7267,7 +7267,7 @@ func testSSECEncryptedToSSES3CopyObjectPart() {
 	// Now we read the data back
 	getOpts := minio.GetObjectOptions{}
 	getOpts.SetRange(0, 5*1024*1024-1)
-	r, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject call failed", err)
 	}
@@ -7281,7 +7281,7 @@ func testSSECEncryptedToSSES3CopyObjectPart() {
 	}
 
 	getOpts.SetRange(5*1024*1024, 0)
-	r, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject call failed", err)
 	}
@@ -7416,7 +7416,7 @@ func testUnencryptedToSSECCopyObjectPart() {
 	// Now we read the data back
 	getOpts := minio.GetObjectOptions{ServerSideEncryption: dstencryption}
 	getOpts.SetRange(0, 5*1024*1024-1)
-	r, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject call failed", err)
 	}
@@ -7430,7 +7430,7 @@ func testUnencryptedToSSECCopyObjectPart() {
 	}
 
 	getOpts.SetRange(5*1024*1024, 0)
-	r, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject call failed", err)
 	}
@@ -7562,7 +7562,7 @@ func testUnencryptedToUnencryptedCopyPart() {
 	// Now we read the data back
 	getOpts := minio.GetObjectOptions{}
 	getOpts.SetRange(0, 5*1024*1024-1)
-	r, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject call failed", err)
 	}
@@ -7576,7 +7576,7 @@ func testUnencryptedToUnencryptedCopyPart() {
 	}
 
 	getOpts.SetRange(5*1024*1024, 0)
-	r, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject call failed", err)
 	}
@@ -7711,7 +7711,7 @@ func testUnencryptedToSSES3CopyObjectPart() {
 	// Now we read the data back
 	getOpts := minio.GetObjectOptions{}
 	getOpts.SetRange(0, 5*1024*1024-1)
-	r, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject call failed", err)
 	}
@@ -7725,7 +7725,7 @@ func testUnencryptedToSSES3CopyObjectPart() {
 	}
 
 	getOpts.SetRange(5*1024*1024, 0)
-	r, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject call failed", err)
 	}
@@ -7860,7 +7860,7 @@ func testSSES3EncryptedToSSECCopyObjectPart() {
 	// Now we read the data back
 	getOpts := minio.GetObjectOptions{ServerSideEncryption: dstencryption}
 	getOpts.SetRange(0, 5*1024*1024-1)
-	r, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject call failed", err)
 	}
@@ -7874,7 +7874,7 @@ func testSSES3EncryptedToSSECCopyObjectPart() {
 	}
 
 	getOpts.SetRange(5*1024*1024, 0)
-	r, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject call failed", err)
 	}
@@ -8007,7 +8007,7 @@ func testSSES3EncryptedToUnencryptedCopyPart() {
 	// Now we read the data back
 	getOpts := minio.GetObjectOptions{}
 	getOpts.SetRange(0, 5*1024*1024-1)
-	r, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject call failed", err)
 	}
@@ -8021,7 +8021,7 @@ func testSSES3EncryptedToUnencryptedCopyPart() {
 	}
 
 	getOpts.SetRange(5*1024*1024, 0)
-	r, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject call failed", err)
 	}
@@ -8157,7 +8157,7 @@ func testSSES3EncryptedToSSES3CopyObjectPart() {
 	// Now we read the data back
 	getOpts := minio.GetObjectOptions{}
 	getOpts.SetRange(0, 5*1024*1024-1)
-	r, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err := c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject call failed", err)
 	}
@@ -8171,7 +8171,7 @@ func testSSES3EncryptedToSSES3CopyObjectPart() {
 	}
 
 	getOpts.SetRange(5*1024*1024, 0)
-	r, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
+	r, _, _, err = c.GetObject(destBucketName, destObjectName, getOpts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject call failed", err)
 	}
