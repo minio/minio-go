@@ -18,7 +18,9 @@ matrix:
 
 before_install:
   - sudo apt-get install devscripts
-  - go get github.com/minio/minio
+  - mkdir /tmp/minio
+  - cd /tmp/minio
+  - GO111MODULE=on go get github.com/minio/minio
   - sudo cp testcerts/public.crt /usr/local/share/ca-certificates/
   - sudo update-ca-certificates
   - MINIO_ACCESS_KEY=minio MINIO_SECRET_KEY=minio123 ${GOPATH}/bin/minio server --compat --quiet --certs-dir testcerts data 2>&1 > minio.log &
