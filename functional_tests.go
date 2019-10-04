@@ -9969,7 +9969,7 @@ func testFGetObjectWithContextV2() {
 
 }
 
-// Test list object v1 and V2 storage class fields
+// Test list object v1 and V2
 func testListObjects() {
 	// initialize logging params
 	startTime := time.Now()
@@ -10012,66 +10012,63 @@ func testListObjects() {
 		return
 	}
 
-	bufSize := dataFileMap["datafile-33-kB"]
-	var reader = getDataReader("datafile-33-kB")
-	defer reader.Close()
+	testObjects := []struct {
+		name         string
+		storageClass string
+	}{
 
-	// Save the data
-	objectName1 := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-
-	_, err = c.PutObject(bucketName, objectName1, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream", StorageClass: "STANDARD"})
-	if err != nil {
-		logError(testName, function, args, startTime, "", "PutObject1 call failed", err)
-		return
+		// \x17 is a forbidden character in a xml document
+		{"foo\x17bar", "STANDARD"},
+		// Special characters
+		{"foo bar", "STANDARD"},
+		{"foo-%", "STANDARD"},
+		{"random-object-1", "STANDARD"},
+		{"random-object-2", "REDUCED_REDUNDANCY"},
 	}
 
-	bufSize1 := dataFileMap["datafile-33-kB"]
-	var reader1 = getDataReader("datafile-33-kB")
-	defer reader1.Close()
-	objectName2 := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-
-	_, err = c.PutObject(bucketName, objectName2, reader1, int64(bufSize1), minio.PutObjectOptions{ContentType: "binary/octet-stream", StorageClass: "REDUCED_REDUNDANCY"})
-	if err != nil {
-		logError(testName, function, args, startTime, "", "PutObject2 call failed", err)
-		return
-	}
-
-	// Create a done channel to control 'ListObjects' go routine.
-	doneCh := make(chan struct{})
-	// Exit cleanly upon return.
-	defer close(doneCh)
-
-	// check for storage-class from ListObjects result
-	for objInfo := range c.ListObjects(bucketName, "", true, doneCh) {
-		if objInfo.Err != nil {
-			logError(testName, function, args, startTime, "", "ListObjects failed unexpectedly", err)
+	for i, object := range testObjects {
+		bufSize := dataFileMap["datafile-33-kB"]
+		var reader = getDataReader("datafile-33-kB")
+		defer reader.Close()
+		_, err = c.PutObject(bucketName, object.name, reader, int64(bufSize),
+			minio.PutObjectOptions{ContentType: "binary/octet-stream", StorageClass: object.storageClass})
+		if err != nil {
+			logError(testName, function, args, startTime, "", fmt.Sprintf("PutObject %d call failed", i+1), err)
 			return
 		}
-		if objInfo.Key == objectName1 && objInfo.StorageClass != "STANDARD" {
-			// Ignored as Gateways (Azure/GCS etc) wont return storage class
-			ignoredLog(testName, function, args, startTime, "ListObjects doesn't return expected storage class").Info()
+	}
+
+	testList := func(listFn func(string, string, bool, <-chan struct{}) <-chan minio.ObjectInfo, bucket string) {
+		// Create a done channel to control 'ListObjects' go routine.
+		doneCh := make(chan struct{})
+		// Exit cleanly upon return.
+		defer close(doneCh)
+
+		var objCursor int
+
+		// check for object name and storage-class from listing object result
+		for objInfo := range listFn(bucket, "", true, doneCh) {
+			if objInfo.Err != nil {
+				logError(testName, function, args, startTime, "", "ListObjects failed unexpectedly", err)
+				return
+			}
+			if objInfo.Key != testObjects[objCursor].name {
+				logError(testName, function, args, startTime, "", "ListObjects does not return expected object name", err)
+			}
+			if objInfo.StorageClass != testObjects[objCursor].storageClass {
+				// Ignored as Gateways (Azure/GCS etc) wont return storage class
+				ignoredLog(testName, function, args, startTime, "ListObjects doesn't return expected storage class").Info()
+			}
+			objCursor++
 		}
-		if objInfo.Key == objectName2 && objInfo.StorageClass != "REDUCED_REDUNDANCY" {
-			// Ignored as Gateways (Azure/GCS etc) wont return storage class
-			ignoredLog(testName, function, args, startTime, "ListObjects doesn't return expected storage class").Info()
+
+		if objCursor != len(testObjects) {
+			logError(testName, function, args, startTime, "", "ListObjects returned unexpected number of items", errors.New(""))
 		}
 	}
 
-	// check for storage-class from ListObjectsV2 result
-	for objInfo := range c.ListObjectsV2(bucketName, "", true, doneCh) {
-		if objInfo.Err != nil {
-			logError(testName, function, args, startTime, "", "ListObjectsV2 failed unexpectedly", err)
-			return
-		}
-		if objInfo.Key == objectName1 && objInfo.StorageClass != "STANDARD" {
-			// Ignored as Gateways (Azure/GCS etc) wont return storage class
-			ignoredLog(testName, function, args, startTime, "ListObjectsV2 doesn't return expected storage class").Info()
-		}
-		if objInfo.Key == objectName2 && objInfo.StorageClass != "REDUCED_REDUNDANCY" {
-			// Ignored as Gateways (Azure/GCS etc) wont return storage class
-			ignoredLog(testName, function, args, startTime, "ListObjectsV2 doesn't return expected storage class").Info()
-		}
-	}
+	testList(c.ListObjects, bucketName)
+	testList(c.ListObjectsV2, bucketName)
 
 	// Delete all objects and buckets
 	if err = cleanupBucket(bucketName, c); err != nil {
@@ -10080,7 +10077,6 @@ func testListObjects() {
 	}
 
 	successLogger(testName, function, args, startTime).Info()
-
 }
 
 // Convert string to bool and always return false if any error
