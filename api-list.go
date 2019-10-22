@@ -434,21 +434,21 @@ func (c Client) listObjectsQuery(bucketName, objectPrefix, objectMarker, delimit
 	}
 
 	for i, obj := range listBucketResult.Contents {
-		listBucketResult.Contents[i].Key, err = url.QueryUnescape(obj.Key)
+		listBucketResult.Contents[i].Key, err = url.PathUnescape(obj.Key)
 		if err != nil {
 			return listBucketResult, err
 		}
 	}
 
 	for i, obj := range listBucketResult.CommonPrefixes {
-		listBucketResult.CommonPrefixes[i].Prefix, err = url.QueryUnescape(obj.Prefix)
+		listBucketResult.CommonPrefixes[i].Prefix, err = url.PathUnescape(obj.Prefix)
 		if err != nil {
 			return listBucketResult, err
 		}
 	}
 
 	if listBucketResult.NextMarker != "" {
-		listBucketResult.NextMarker, err = url.QueryUnescape(listBucketResult.NextMarker)
+		listBucketResult.NextMarker, err = url.PathUnescape(listBucketResult.NextMarker)
 		if err != nil {
 			return listBucketResult, err
 		}
