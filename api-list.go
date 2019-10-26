@@ -1,6 +1,6 @@
 /*
  * MinIO Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2015-2017 MinIO, Inc.
+ * Copyright 2015-2019 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -208,12 +208,10 @@ func (c Client) listObjectsV2Query(bucketName, objectPrefix, continuationToken s
 		urlValues.Set("fetch-owner", "true")
 	}
 
-	// maxkeys should default to 1000 or less.
-	if maxkeys == 0 || maxkeys > 1000 {
-		maxkeys = 1000
-	}
 	// Set max keys.
-	urlValues.Set("max-keys", fmt.Sprintf("%d", maxkeys))
+	if maxkeys > 0 {
+		urlValues.Set("max-keys", fmt.Sprintf("%d", maxkeys))
+	}
 
 	// Set start-after
 	if startAfter != "" {
@@ -401,12 +399,10 @@ func (c Client) listObjectsQuery(bucketName, objectPrefix, objectMarker, delimit
 		urlValues.Set("marker", objectMarker)
 	}
 
-	// maxkeys should default to 1000 or less.
-	if maxkeys == 0 || maxkeys > 1000 {
-		maxkeys = 1000
-	}
 	// Set max keys.
-	urlValues.Set("max-keys", fmt.Sprintf("%d", maxkeys))
+	if maxkeys > 0 {
+		urlValues.Set("max-keys", fmt.Sprintf("%d", maxkeys))
+	}
 
 	// Always set encoding-type
 	urlValues.Set("encoding-type", "url")
