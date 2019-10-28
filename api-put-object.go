@@ -148,10 +148,10 @@ func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName stri
 		return c.putObjectNoChecksum(ctx, bucketName, objectName, reader, size, opts)
 	}
 
-	partSize := opts.PartSize
 	if opts.PartSize == 0 {
-		partSize = minPartSize
+		opts.PartSize = minPartSize
 	}
+	partSize := opts.PartSize
 
 	if c.overrideSignerType.IsV2() {
 		if size >= 0 && size < int64(partSize) {
