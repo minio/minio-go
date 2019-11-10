@@ -53,17 +53,17 @@ func main() {
 | Bucket operations                                 | Object operations                                   | Encrypted Object operations                 | Presigned operations                          | Bucket Policy/Notification Operations                         | Client custom settings                                |
 | :---                                              | :---                                                | :---                                        | :---                                          | :---                                                          | :---                                                  |
 | [`MakeBucket`](#MakeBucket)                       | [`GetObject`](#GetObject)              |   [`GetObject`](#GetObject)     | [`PresignedGetObject`](#PresignedGetObject)   | [`SetBucketPolicy`](#SetBucketPolicy)                         | [`SetAppInfo`](#SetAppInfo)                           |
-| [`ListBuckets`](#ListBuckets)                     | [`PutObject`](#PutObject)                           | [`PutObject`](#PutObject)    | [`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)                         | [`SetCustomTransport`](#SetCustomTransport)           |
-| [`BucketExists`](#BucketExists)                   | [`CopyObject`](#CopyObject)                         | [`CopyObject`](#CopyObject) | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`SetBucketNotification`](#SetBucketNotification)                  | [`TraceOn`](#TraceOn)                                 |
-| [`RemoveBucket`](#RemoveBucket)                   | [`StatObject`](#StatObject)                         | [`StatObject`](#StatObject) |                                               | [`GetBucketNotification`](#GetBucketNotification)              | [`TraceOff`](#TraceOff)                               |
-| [`ListObjects`](#ListObjects)                     | [`RemoveObject`](#RemoveObject)                     |                |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification)            | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
-| [`ListObjectsV2`](#ListObjectsV2)                 | [`RemoveObjects`](#RemoveObjects)                   |    |                                               | [`ListenBucketNotification`](#ListenBucketNotification)   |                                                       |
-| [`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                             |                                               | [`SetBucketLifecycle`](#SetBucketLifecycle)     |                                                       |
-|                                                   | [`FPutObject`](#FPutObject)                         |    [`FPutObject`](#FPutObject)                                         |                                               | [`GetBucketLifecycle`](#GetBucketLifecycle)                                                              |                                                       |
-|                                                   | [`FGetObject`](#FGetObject)                         |    [`FGetObject`](#FGetObject)                                         |                                               |                                                               |                                                       |
-|                                                   | [`ComposeObject`](#ComposeObject)                   |    [`ComposeObject`](#ComposeObject)                                         |                                               |                                                               |                                                       |
-|                                                   | [`NewSourceInfo`](#NewSourceInfo)                   |    [`NewSourceInfo`](#NewSourceInfo)                                         |                                               |                                                               |                                                       |
-|                                                   | [`NewDestinationInfo`](#NewDestinationInfo)         |    [`NewDestinationInfo`](#NewDestinationInfo)                                         |                                               |                                                               |                                                       |
+| [`MakeBucketWithObjectLock`](#MakeBucketWithObjectLock) | [`PutObject`](#PutObject)                           | [`PutObject`](#PutObject)    | [`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)                         | [`SetCustomTransport`](#SetCustomTransport)           |
+| [`ListBuckets`](#ListBuckets)                     | [`CopyObject`](#CopyObject)                         | [`CopyObject`](#CopyObject) | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`SetBucketNotification`](#SetBucketNotification)                  | [`TraceOn`](#TraceOn)                                 |
+| [`BucketExists`](#BucketExists)                   | [`StatObject`](#StatObject)                         | [`StatObject`](#StatObject) |                                               | [`GetBucketNotification`](#GetBucketNotification)              | [`TraceOff`](#TraceOff)                               |
+| [`RemoveBucket`](#RemoveBucket)                   | [`RemoveObject`](#RemoveObject)                     |                |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification)            | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
+| [`ListObjects`](#ListObjects)                     | [`RemoveObjects`](#RemoveObjects)                   |    |                                               | [`ListenBucketNotification`](#ListenBucketNotification)   |                                                       |
+| [`ListObjectsV2`](#ListObjectsV2)                 | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                             |                                               | [`SetBucketLifecycle`](#SetBucketLifecycle)     |                                                       |
+| [`ListIncompleteUploads`](#ListIncompleteUploads) | [`FPutObject`](#FPutObject)                         |    [`FPutObject`](#FPutObject)                                         |                                               | [`GetBucketLifecycle`](#GetBucketLifecycle)                                                              |                                                       |
+|                                                   | [`FGetObject`](#FGetObject)                         |    [`FGetObject`](#FGetObject)                                         |                                               | [`SetBucketObjectLockConfig`](#SetBucketObjectLockConfig)                         |                                                       |
+|                                                   | [`ComposeObject`](#ComposeObject)                   |    [`ComposeObject`](#ComposeObject)                                         |                                               | [`GetBucketObjectLockConfig`](#GetBucketObjectLockConfig)                   |                                                       |
+|                                                   | [`NewSourceInfo`](#NewSourceInfo)                   |    [`NewSourceInfo`](#NewSourceInfo)                                         |                                               | [`EnableVersioning`](#EnableVersioning)                                                              |                                                       |
+|                                                   | [`NewDestinationInfo`](#NewDestinationInfo)         |    [`NewDestinationInfo`](#NewDestinationInfo)                                         |                                               | [`DisableVersioning`](#DisableVersioning)                                                              |                                                       |
 |   | [`PutObjectWithContext`](#PutObjectWithContext)  | [`PutObjectWithContext`](#PutObjectWithContext) |   |   |
 |   | [`GetObjectWithContext`](#GetObjectWithContext)  | [`GetObjectWithContext`](#GetObjectWithContext) |   |   |
 |   | [`FPutObjectWithContext`](#FPutObjectWithContext)  | [`FPutObjectWithContext`](#FPutObjectWithContext) |   |   |
@@ -137,6 +137,39 @@ __Example__
 
 ```go
 err = minioClient.MakeBucket("mybucket", "us-east-1")
+if err != nil {
+    fmt.Println(err)
+    return
+}
+fmt.Println("Successfully created mybucket.")
+```
+
+<a name="MakeBucketWithObjectLock"></a>
+### MakeBucketWithObjectLock(bucketName, location string) error
+Creates a new bucket with object lock enabled.
+
+__Parameters__
+
+| Param  | Type  | Description  |
+|---|---|---|
+|`bucketName`  | _string_  | Name of the bucket |
+| `location`  |  _string_ | Region where the bucket is to be created. Default value is us-east-1. Other valid values are listed below. Note: When used with minio server, use the region specified in its config file (defaults to us-east-1).|
+| | |us-east-1 |
+| | |us-west-1 |
+| | |us-west-2 |
+| | |eu-west-1 |
+| | | eu-central-1|
+| | | ap-southeast-1|
+| | | ap-northeast-1|
+| | | ap-southeast-2|
+| | | sa-east-1|
+
+
+__Example__
+
+
+```go
+err = minioClient.MakeBucketWithObjectLock("mybucket", "us-east-1")
 if err != nil {
     fmt.Println(err)
     return
@@ -1563,6 +1596,133 @@ lifecycle, err := minioClient.GetBucketLifecycle("my-bucketname")
 if err != nil {
     log.Fatalln(err)
 }
+```
+
+<a name="SetBucketObjectLockConfig"></a>
+### SetBucketObjectLockConfig(bucketname, mode *RetentionMode, validity *uint, unit *ValidityUnit) error
+Set object lock configuration in given bucket. mode, validity and unit are either all set or all nil.
+
+__Parameters__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName` | _string_  |Name of the bucket|
+|`mode` | _RetentionMode_  |Retention mode to be set |
+|`validity` | _uint_  |Validity period to be set |
+|`unit` | _ValidityUnit_  |Unit of validity period |
+
+__Return Values__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`err` | _error_  |Standard Error   |
+
+__Example__
+
+```go
+mode := Governance
+validity := uint(30)
+unit := Days
+
+err = minioClient.SetBucketObjectLockConfig("my-bucketname", &mode, &validity, &unit)
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
+
+<a name="GetBucketObjectLockConfig"></a>
+### GetBucketObjectLockConfig(bucketName) (*RetentionMode, *uint, *ValidityUnit, error)
+Get object lock configuration of given bucket.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |Name of the bucket   |
+
+__Return Values__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`mode` | _RetentionMode_  |Current retention mode |
+|`validity` | _uint_  |Current validity period |
+|`unit` | _ValidityUnit_  |Unit of validity period |
+|`err` | _error_  |Standard Error  |
+
+__Example__
+
+```go
+mode, validity, unit, err := minioClient.GetObjectLockConfig("my-bucketname")
+if err != nil {
+    log.Fatalln(err)
+}
+
+if mode != nil {
+	fmt.Printf("%v mode is enabled for %v %v for bucket 'my-bucketname'\n", *mode, *validity, *unit)
+} else {
+	fmt.Println("No mode is enabled for bucket 'my-bucketname'")
+}
+```
+
+<a name="EnableVersioning"></a>
+### EnableVersioning(bucketName) error
+Enable bucket versioning support.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |Name of the bucket   |
+
+__Return Values__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`err` | _error_  |Standard Error  |
+
+__Example__
+
+```go
+err := minioClient.EnableVersioning("my-bucketname")
+if err != nil {
+    log.Fatalln(err)
+}
+
+fmt.Println("versioning enabled for bucket 'my-bucketname'")
+```
+
+<a name="DisableVersioning"></a>
+### DisableVersioning(bucketName) error
+Disable bucket versioning support.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |Name of the bucket   |
+
+__Return Values__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`err` | _error_  |Standard Error  |
+
+__Example__
+
+```go
+err := minioClient.DisableVersioning("my-bucketname")
+if err != nil {
+    log.Fatalln(err)
+}
+
+fmt.Println("versioning disabled for bucket 'my-bucketname'")
 ```
 
 ## 7. Client custom settings

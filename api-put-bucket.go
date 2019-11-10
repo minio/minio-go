@@ -31,14 +31,7 @@ import (
 
 /// Bucket operations
 
-// MakeBucket creates a new bucket with bucketName.
-//
-// Location is an optional argument, by default all buckets are
-// created in US Standard Region.
-//
-// For Amazon S3 for more supported regions - http://docs.aws.amazon.com/general/latest/gr/rande.html
-// For Google Cloud Storage for more supported regions - https://cloud.google.com/storage/docs/bucket-locations
-func (c Client) MakeBucket(bucketName string, location string) (err error) {
+func (c Client) makeBucket(bucketName string, location string, objectLockEnabled bool) (err error) {
 	defer func() {
 		// Save the location into cache on a successful makeBucket response.
 		if err == nil {
@@ -64,6 +57,12 @@ func (c Client) MakeBucket(bucketName string, location string) (err error) {
 	reqMetadata := requestMetadata{
 		bucketName:     bucketName,
 		bucketLocation: location,
+	}
+
+	if objectLockEnabled {
+		headers := make(http.Header)
+		headers.Add("x-amz-bucket-object-lock-enabled", "true")
+		reqMetadata.customHeader = headers
 	}
 
 	// If location is not 'us-east-1' create bucket location config.
@@ -96,6 +95,28 @@ func (c Client) MakeBucket(bucketName string, location string) (err error) {
 
 	// Success.
 	return nil
+}
+
+// MakeBucket creates a new bucket with bucketName.
+//
+// Location is an optional argument, by default all buckets are
+// created in US Standard Region.
+//
+// For Amazon S3 for more supported regions - http://docs.aws.amazon.com/general/latest/gr/rande.html
+// For Google Cloud Storage for more supported regions - https://cloud.google.com/storage/docs/bucket-locations
+func (c Client) MakeBucket(bucketName string, location string) (err error) {
+	return c.makeBucket(bucketName, location, false)
+}
+
+// MakeBucketWithObjectLock creates a object lock enabled new bucket with bucketName.
+//
+// Location is an optional argument, by default all buckets are
+// created in US Standard Region.
+//
+// For Amazon S3 for more supported regions - http://docs.aws.amazon.com/general/latest/gr/rande.html
+// For Google Cloud Storage for more supported regions - https://cloud.google.com/storage/docs/bucket-locations
+func (c Client) MakeBucketWithObjectLock(bucketName string, location string) (err error) {
+	return c.makeBucket(bucketName, location, true)
 }
 
 // SetBucketPolicy set the access permissions on an existing bucket.
@@ -303,4 +324,60 @@ func (c Client) SetBucketNotification(bucketName string, bucketNotification Buck
 // RemoveAllBucketNotification - Remove bucket notification clears all previously specified config
 func (c Client) RemoveAllBucketNotification(bucketName string) error {
 	return c.SetBucketNotification(bucketName, BucketNotification{})
+}
+
+var (
+	versionEnableConfig       = []byte("<VersioningConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Status>Enabled</Status></VersioningConfiguration>")
+	versionEnableConfigLen    = int64(len(versionEnableConfig))
+	versionEnableConfigMD5Sum = sumMD5Base64(versionEnableConfig)
+	versionEnableConfigSHA256 = sum256Hex(versionEnableConfig)
+
+	versionDisableConfig       = []byte("<VersioningConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Status>Suspended</Status></VersioningConfiguration>")
+	versionDisableConfigLen    = int64(len(versionDisableConfig))
+	versionDisableConfigMD5Sum = sumMD5Base64(versionDisableConfig)
+	versionDisableConfigSHA256 = sum256Hex(versionDisableConfig)
+)
+
+func (c Client) setVersioning(bucketName string, config []byte, length int64, md5sum, sha256sum string) error {
+	// Input validation.
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		return err
+	}
+
+	// Get resources properly escaped and lined up before
+	// using them in http request.
+	urlValues := make(url.Values)
+	urlValues.Set("versioning", "")
+
+	reqMetadata := requestMetadata{
+		bucketName:       bucketName,
+		queryValues:      urlValues,
+		contentBody:      bytes.NewReader(config),
+		contentLength:    length,
+		contentMD5Base64: md5sum,
+		contentSHA256Hex: sha256sum,
+	}
+
+	// Execute PUT to set a bucket versioning.
+	resp, err := c.executeMethod(context.Background(), "PUT", reqMetadata)
+	defer closeResponse(resp)
+	if err != nil {
+		return err
+	}
+	if resp != nil {
+		if resp.StatusCode != http.StatusOK {
+			return httpRespToErrorResponse(resp, bucketName, "")
+		}
+	}
+	return nil
+}
+
+// EnableVersioning - Enable object versioning in given bucket.
+func (c Client) EnableVersioning(bucketName string) error {
+	return c.setVersioning(bucketName, versionEnableConfig, versionEnableConfigLen, versionEnableConfigMD5Sum, versionEnableConfigSHA256)
+}
+
+// DisableVersioning - Disable object versioning in given bucket.
+func (c Client) DisableVersioning(bucketName string) error {
+	return c.setVersioning(bucketName, versionDisableConfig, versionDisableConfigLen, versionDisableConfigMD5Sum, versionDisableConfigSHA256)
 }
