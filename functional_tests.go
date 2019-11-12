@@ -9641,7 +9641,7 @@ func testGetObjectACLWithContext() {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
 	args["ctx"] = ctx
 	defer cancel()
 
