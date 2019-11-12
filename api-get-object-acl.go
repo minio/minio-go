@@ -40,10 +40,9 @@ type accessControlPolicy struct {
 	} `xml:"AccessControlList"`
 }
 
-//GetObjectACL get object ACLs
-func (c Client) GetObjectACL(bucketName, objectName string) (*ObjectInfo, error) {
-
-	resp, err := c.executeMethod(context.Background(), "GET", requestMetadata{
+//GetObjectACLWithContext get object ACLs
+func (c Client) GetObjectACLWithContext(ctx context.Context, bucketName, objectName string) (*ObjectInfo, error) {
+	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
 		bucketName: bucketName,
 		objectName: objectName,
 		queryValues: url.Values{
@@ -65,10 +64,13 @@ func (c Client) GetObjectACL(bucketName, objectName string) (*ObjectInfo, error)
 		return nil, err
 	}
 
-	objInfo, err := c.statObject(context.Background(), bucketName, objectName, StatObjectOptions{})
+	objInfo, err := c.statObject(ctx, bucketName, objectName, StatObjectOptions{})
 	if err != nil {
 		return nil, err
 	}
+
+	objInfo.Owner.DisplayName = res.Owner.DisplayName
+	objInfo.Owner.ID = res.Owner.ID
 
 	cannedACL := getCannedACL(res)
 	if cannedACL != "" {
