@@ -243,3 +243,33 @@ func TestEcsTask(t *testing.T) {
 		t.Error("Expected creds to be expired.")
 	}
 }
+
+func TestEcsTaskFullURI(t *testing.T) {
+	server := initEcsTaskTestServer("2014-12-16T01:51:37Z")
+	defer server.Close()
+	p := &IAM{
+		Client: http.DefaultClient,
+	}
+	os.Setenv("AWS_CONTAINER_CREDENTIALS_FULL_URI",
+		fmt.Sprintf("%s%s", server.URL, "/v2/credentials?id=task_credential_id"))
+	creds, err := p.Retrieve()
+	os.Unsetenv("AWS_CONTAINER_CREDENTIALS_FULL_URI")
+	if err != nil {
+		t.Errorf("Unexpected failure %s", err)
+	}
+	if "accessKey" != creds.AccessKeyID {
+		t.Errorf("Expected \"accessKey\", got %s", creds.AccessKeyID)
+	}
+
+	if "secret" != creds.SecretAccessKey {
+		t.Errorf("Expected \"secret\", got %s", creds.SecretAccessKey)
+	}
+
+	if "token" != creds.SessionToken {
+		t.Errorf("Expected \"token\", got %s", creds.SessionToken)
+	}
+
+	if !p.IsExpired() {
+		t.Error("Expected creds to be expired.")
+	}
+}
