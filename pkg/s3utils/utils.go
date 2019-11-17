@@ -95,8 +95,21 @@ var amazonS3HostDot = regexp.MustCompile(`^s3\.(.*?)\.amazonaws\.com$`)
 // amazonS3ChinaHost - regular expression used to determine if the arg is s3 china host.
 var amazonS3ChinaHost = regexp.MustCompile(`^s3\.(cn.*?)\.amazonaws\.com\.cn$`)
 
+// scalewayS3HostDot - regular expression used to determine if an arg is s3 host in . style.
+var scalewayS3HostDot = regexp.MustCompile(`^s3\.(.*?)\.scw\.cloud$`)
+
 // GetRegionFromURL - returns a region from url host.
 func GetRegionFromURL(endpointURL url.URL) string {
+
+	parts := scalewayS3HostDot.FindStringSubmatch(endpointURL.Host)
+	if len(parts) > 1 {
+		return parts[1]
+	}
+	return GetAWSRegionFromURL(endpointURL)
+}
+
+// GetAWSRegionFromURL - returns a AWS region from url host.
+func GetAWSRegionFromURL(endpointURL url.URL) string {
 	if endpointURL == sentinelURL {
 		return ""
 	}
@@ -130,7 +143,7 @@ func IsAmazonEndpoint(endpointURL url.URL) bool {
 	if endpointURL.Host == "s3-external-1.amazonaws.com" || endpointURL.Host == "s3.amazonaws.com" {
 		return true
 	}
-	return GetRegionFromURL(endpointURL) != ""
+	return GetAWSRegionFromURL(endpointURL) != ""
 }
 
 // IsAmazonGovCloudEndpoint - Match if it is exactly Amazon S3 GovCloud endpoint.
@@ -185,6 +198,14 @@ func IsGoogleEndpoint(endpointURL url.URL) bool {
 		return false
 	}
 	return endpointURL.Host == "storage.googleapis.com"
+}
+
+// IsScalewayEndpoint - Match if it is exactly Scaleway object storage endpoint.
+func IsScalewayEndpoint(endpointURL url.URL) bool {
+	if endpointURL == sentinelURL {
+		return false
+	}
+	return endpointURL.Host == "s3.nl-ams.scw.cloud" || endpointURL.Host == "s3.fr-par.scw.cloud"
 }
 
 // Expects ascii encoded strings - from output of urlEncodePath

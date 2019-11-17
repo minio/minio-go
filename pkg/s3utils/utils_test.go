@@ -73,6 +73,14 @@ func TestGetRegionFromURL(t *testing.T) {
 			u:              url.URL{Host: "s3-external-1.amazonaws.com"},
 			expectedRegion: "",
 		},
+		{
+			u:              url.URL{Host: "s3.nl-ams.scw.cloud"},
+			expectedRegion: "nl-ams",
+		},
+		{
+			u:              url.URL{Host: "s3.fr-par.scw.cloud"},
+			expectedRegion: "fr-par",
+		},
 	}
 
 	for i, testCase := range testCases {
@@ -186,6 +194,8 @@ func TestIsAmazonEndpoint(t *testing.T) {
 		{"https://s3..amazonaws.com", false},
 		{"https://s3.dualstack.us-west-1.amazonaws.com.cn", false},
 		{"https://s3..us-west-1.amazonaws.com.cn", false},
+		{"https://s3.nl-ams.scw.cloud", false},
+		{"https://s3.fr-par.scw.cloud", false},
 		// valid inputs.
 		{"https://s3.amazonaws.com", true},
 		{"https://s3-external-1.amazonaws.com", true},
@@ -223,6 +233,8 @@ func TestIsGoogleEndpoint(t *testing.T) {
 		{"https://s3.cn-north-1.amazonaws.com.cn", false},
 		{"-192.168.1.1", false},
 		{"260.192.1.1", false},
+		{"https://s3.nl-ams.scw.cloud", false},
+		{"https://s3.fr-par.scw.cloud", false},
 		// valid inputs.
 		{"http://storage.googleapis.com", true},
 		{"https://storage.googleapis.com", true},
@@ -236,6 +248,41 @@ func TestIsGoogleEndpoint(t *testing.T) {
 		result := IsGoogleEndpoint(*u)
 		if testCase.result != result {
 			t.Errorf("Test %d: Expected isGoogleEndpoint to be '%v' for input \"%s\", but found it to be '%v' instead", i+1, testCase.result, testCase.url, result)
+		}
+	}
+
+}
+
+// Tests validate Google Cloud end point validator.
+func TestIsScalewayEndpointEndpoint(t *testing.T) {
+	testCases := []struct {
+		url string
+		// Expected result.
+		result bool
+	}{
+		{"192.168.1.1", false},
+		{"https://192.168.1.1", false},
+		{"s3.amazonaws.com", false},
+		{"http://s3.amazonaws.com", false},
+		{"https://s3.amazonaws.com", false},
+		{"https://s3.cn-north-1.amazonaws.com.cn", false},
+		{"-192.168.1.1", false},
+		{"260.192.1.1", false},
+		{"http://storage.googleapis.com", false},
+		{"https://storage.googleapis.com", false},
+		// valid inputs.
+		{"https://s3.nl-ams.scw.cloud", true},
+		{"https://s3.fr-par.scw.cloud", true},
+	}
+
+	for i, testCase := range testCases {
+		u, err := url.Parse(testCase.url)
+		if err != nil {
+			t.Errorf("Test %d: Expected to pass, but failed with: <ERROR> %s", i+1, err)
+		}
+		result := IsScalewayEndpoint(*u)
+		if testCase.result != result {
+			t.Errorf("Test %d: Expected isScalewayEndpoint to be '%v' for input \"%s\", but found it to be '%v' instead", i+1, testCase.result, testCase.url, result)
 		}
 	}
 

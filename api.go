@@ -165,6 +165,10 @@ func New(endpoint, accessKeyID, secretAccessKey string, secure bool) (*Client, e
 	if s3utils.IsAmazonEndpoint(*clnt.endpointURL) {
 		clnt.overrideSignerType = credentials.SignatureV4
 	}
+	// If Scaleway object storage set to signature v4.
+	if s3utils.IsScalewayEndpoint(*clnt.endpointURL) {
+		clnt.overrideSignerType = credentials.SignatureV4
+	}
 	return clnt, nil
 }
 

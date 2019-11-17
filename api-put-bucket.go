@@ -53,6 +53,12 @@ func (c Client) makeBucket(bucketName string, location string, objectLockEnabled
 			location = c.region
 		}
 	}
+	// For Scaleway endpoints, always us the custom region
+	if s3utils.IsScalewayEndpoint(*c.endpointURL) {
+		if c.region != "" {
+			location = c.region
+		}
+	}
 	// PUT bucket request metadata.
 	reqMetadata := requestMetadata{
 		bucketName:     bucketName,
