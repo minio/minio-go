@@ -69,6 +69,9 @@ func main() {
 |   | [`FPutObjectWithContext`](#FPutObjectWithContext)  | [`FPutObjectWithContext`](#FPutObjectWithContext) |   |   |
 |   | [`FGetObjectWithContext`](#FGetObjectWithContext)  | [`FGetObjectWithContext`](#FGetObjectWithContext) |   |   |
 |   | [`RemoveObjectsWithContext`](#RemoveObjectsWithContext)  | |    |   |
+|   | [`RemoveObjectWithOptions`](#RemoveObjectWithOptions)  | |    |   |
+|   | [`PutObjectRetention`](#PutObjectRetention)  | |    |   |
+|   | [`GetObjectRetention`](#GetObjectRetention)  | |    |   |
 | | [`SelectObjectContent`](#SelectObjectContent)  |   |
 ## 1. Constructor
 <a name="MinIO"></a>
@@ -585,6 +588,8 @@ __minio.PutObjectOptions__
 | `opts.ContentDisposition` | _string_ | Content disposition of object, "inline" |
 | `opts.ContentLanguage` | _string_ | Content language of object, e.g "French" |
 | `opts.CacheControl` | _string_ | Used to specify directives for caching mechanisms in both requests and responses e.g "max-age=600"|
+| `opts.Mode` | _*minio.RetentionMode_ | Retention mode to be set, e.g "COMPLIANCE" |
+| `opts.RetainUntilDate` | _*time.Time_ | Time until which the retention applied is valid|
 | `opts.ServerSideEncryption` | _encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go/v6) |
 | `opts.StorageClass` | _string_ | Specify storage class for the object. Supported values for MinIO server are `REDUCED_REDUNDANCY` and `STANDARD` |
 | `opts.WebsiteRedirectLocation` | _string_ | Specify a redirect for the object, to another object in the same bucket or to a external URL. |
@@ -1100,6 +1105,94 @@ go func() {
 
 for rErr := range minioClient.RemoveObjects(ctx, "my-bucketname", objectsCh) {
     fmt.Println("Error detected during deletion: ", rErr)
+}
+```
+<a name="RemoveObjectWithOptions"></a>
+### RemoveObjectWithOptions(bucketName, objectName string, opts minio.RemoveObjectOptions) error
+Removes an object.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |Name of the bucket  |
+|`objectName` | _string_  |Name of the object |
+|`opts`	|_minio.RemoveObjectOptions_ |Allows user to set options |
+
+__minio.RemoveObjectOptions__
+
+|Field | Type | Description |
+|:--- |:--- | :--- |
+| `opts.GovernanceBypass` | _bool_ |Set the bypass governance header to delete an object locked with GOVERNANCE mode|
+| `opts.VersionID` | _string_ |Version ID of the object to delete|
+
+
+```go
+opts := minio.RemoveObjectOptions {
+		GovernanceBypass: true,
+		VersionID: "myversionid",
+		}
+err = minioClient.RemoveObjectWithOptions("mybucket", "myobject", opts)
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
+<a name="PutObjectRetention"></a>
+### PutObjectRetention(bucketName, objectName string, opts minio.PutObjectRetentionOptions) error
+Applies object retention lock onto an object.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |Name of the bucket  |
+|`objectName` | _string_  |Name of the object |
+|`opts`	|_minio.PutObjectRetentionOptions_ |Allows user to set options like retention mode, expiry date and version id |
+
+__minio.PutObjectRetentionOptions__
+
+|Field | Type | Description |
+|:--- |:--- | :--- |
+| `opts.GovernanceBypass` | _bool_ |Set the bypass governance header to overwrite object retention if the existing retention mode is set to GOVERNANCE|
+| `opts.Mode` | _*minio.RetentionMode_ |Retention mode to be set|
+| `opts.RetainUntilDate` | _*time.Time_ |Time until which the retention applied is valid|
+| `opts.VersionID` | _string_ |Version ID of the object to apply retention on|
+
+```go
+t := time.Date(2020, time.November, 18, 14, 0, 0, 0, time.UTC)
+m := minio.RetentionMode(minio.Compliance)
+opts := minio.PutObjectRetentionOptions {
+    GovernanceBypass: true,
+    RetainUntilDate: &t,
+    Mode: &m,
+    }
+err = minioClient.PutObjectRetention("mybucket", "myobject", opts)
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
+<a name="GetObjectRetention"></a>
+### GetObjectRetention(bucketName, objectName, versionID string) (mode *RetentionMode, retainUntilDate *time.Time, err error)
+Returns retention set on a given object.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |Name of the bucket  |
+|`objectName` | _string_  |Name of the object |
+|`versionID`	|_string_ |Version ID of the object |
+
+```go
+err = minioClient.PutObjectRetention("mybucket", "myobject", "")
+if err != nil {
+    fmt.Println(err)
+    return
 }
 ```
 <a name="SelectObjectContent"></a>
