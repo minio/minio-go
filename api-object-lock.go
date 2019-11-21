@@ -203,7 +203,11 @@ func (c Client) GetBucketObjectLockConfig(bucketName string) (mode *RetentionMod
 	if err != nil {
 		return nil, nil, nil, err
 	}
-
+	if resp != nil {
+		if resp.StatusCode != http.StatusOK {
+			return nil, nil, nil, httpRespToErrorResponse(resp, bucketName, "")
+		}
+	}
 	config := &objectLockConfig{}
 	if err = xml.NewDecoder(resp.Body).Decode(config); err != nil {
 		return nil, nil, nil, err

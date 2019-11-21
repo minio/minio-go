@@ -224,6 +224,8 @@ var supportedHeaders = []string{
 	"content-disposition",
 	"content-language",
 	"x-amz-website-redirect-location",
+	"x-amz-object-lock-mode",
+	"x-amz-object-lock-retain-until-date",
 	"expires",
 	// Add more supported headers here.
 }
