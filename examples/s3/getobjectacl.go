@@ -45,6 +45,12 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	//print object owner informations
+	fmt.Printf(`Object owner:
+Display name: %q
+ID: %q
+`, objectInfo.Owner.DisplayName, objectInfo.Owner.ID)
+
 	//print all value header (acl, metadata, standard header value...)
 	for k, v := range objectInfo.Metadata {
 		fmt.Println("key:", k)

@@ -9528,13 +9528,14 @@ func testFGetObjectWithContext() {
 
 }
 
-// Test get object ACLs with GetObjectACL
-func testGetObjectACL() {
+// Test get object ACLs with GetObjectACLWithContext
+func testGetObjectACLWithContext() {
 	// initialize logging params
 	startTime := time.Now()
 	testName := getFuncName()
-	function := "GetObjectACL(bucketName, objectName)"
+	function := "GetObjectACLWithContext(ctx, bucketName, objectName)"
 	args := map[string]interface{}{
+		"ctx":        "",
 		"bucketName": "",
 		"objectName": "",
 	}
@@ -9594,26 +9595,30 @@ func testGetObjectACL() {
 		return
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	args["ctx"] = ctx
+	defer cancel()
+
 	// Read the data back
-	objectInfo, getObjectACLErr := c.GetObjectACL(bucketName, objectName)
+	objectInfo, getObjectACLErr := c.GetObjectACLWithContext(ctx, bucketName, objectName)
 	if getObjectACLErr == nil {
-		logError(testName, function, args, startTime, "", "GetObjectACL fail", getObjectACLErr)
+		logError(testName, function, args, startTime, "", "GetObjectACLWithContext fail", getObjectACLErr)
 		return
 	}
 
 	s, ok := objectInfo.Metadata["X-Amz-Acl"]
 	if !ok {
-		logError(testName, function, args, startTime, "", "GetObjectACL fail unable to find \"X-Amz-Acl\"", nil)
+		logError(testName, function, args, startTime, "", "GetObjectACLWithContext fail unable to find \"X-Amz-Acl\"", nil)
 		return
 	}
 
 	if len(s) != 1 {
-		logError(testName, function, args, startTime, "", "GetObjectACL fail \"X-Amz-Acl\" canned acl expected \"1\" got "+fmt.Sprintf(`"%d"`, len(s)), nil)
+		logError(testName, function, args, startTime, "", "GetObjectACLWithContext fail \"X-Amz-Acl\" canned acl expected \"1\" got "+fmt.Sprintf(`"%d"`, len(s)), nil)
 		return
 	}
 
 	if s[0] != "public-read-write" {
-		logError(testName, function, args, startTime, "", "GetObjectACL fail \"X-Amz-Acl\" expected \"public-read-write\" but got"+fmt.Sprintf("%q", s[0]), nil)
+		logError(testName, function, args, startTime, "", "GetObjectACLWithContext fail \"X-Amz-Acl\" expected \"public-read-write\" but got"+fmt.Sprintf("%q", s[0]), nil)
 		return
 	}
 
@@ -9636,47 +9641,51 @@ func testGetObjectACL() {
 		return
 	}
 
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+	args["ctx"] = ctx
+	defer cancel()
+
 	// Read the data back
-	objectInfo, getObjectACLErr = c.GetObjectACL(bucketName, objectName)
+	objectInfo, getObjectACLErr = c.GetObjectACLWithContext(ctx, bucketName, objectName)
 	if getObjectACLErr == nil {
-		logError(testName, function, args, startTime, "", "GetObjectACL fail", getObjectACLErr)
+		logError(testName, function, args, startTime, "", "GetObjectACLWithContext fail", getObjectACLErr)
 		return
 	}
 
 	if len(objectInfo.Metadata) != 3 {
-		logError(testName, function, args, startTime, "", "GetObjectACL fail expected \"3\" ACLs but got "+fmt.Sprintf(`"%d"`, len(objectInfo.Metadata)), nil)
+		logError(testName, function, args, startTime, "", "GetObjectACLWithContext fail expected \"3\" ACLs but got "+fmt.Sprintf(`"%d"`, len(objectInfo.Metadata)), nil)
 		return
 	}
 
 	s, ok = objectInfo.Metadata["X-Amz-Grant-Read"]
 	if !ok {
-		logError(testName, function, args, startTime, "", "GetObjectACL fail unable to find \"X-Amz-Grant-Read\"", nil)
+		logError(testName, function, args, startTime, "", "GetObjectACLWithContext fail unable to find \"X-Amz-Grant-Read\"", nil)
 		return
 	}
 
 	if len(s) != 1 {
-		logError(testName, function, args, startTime, "", "GetObjectACL fail \"X-Amz-Grant-Read\" acl expected \"1\" got "+fmt.Sprintf(`"%d"`, len(s)), nil)
+		logError(testName, function, args, startTime, "", "GetObjectACLWithContext fail \"X-Amz-Grant-Read\" acl expected \"1\" got "+fmt.Sprintf(`"%d"`, len(s)), nil)
 		return
 	}
 
 	if s[0] != "fooread@minio.go" {
-		logError(testName, function, args, startTime, "", "GetObjectACL fail \"X-Amz-Grant-Read\" acl expected \"fooread@minio.go\" got "+fmt.Sprintf("%q", s), nil)
+		logError(testName, function, args, startTime, "", "GetObjectACLWithContext fail \"X-Amz-Grant-Read\" acl expected \"fooread@minio.go\" got "+fmt.Sprintf("%q", s), nil)
 		return
 	}
 
 	s, ok = objectInfo.Metadata["X-Amz-Grant-Write"]
 	if !ok {
-		logError(testName, function, args, startTime, "", "GetObjectACL fail unable to find \"X-Amz-Grant-Write\"", nil)
+		logError(testName, function, args, startTime, "", "GetObjectACLWithContext fail unable to find \"X-Amz-Grant-Write\"", nil)
 		return
 	}
 
 	if len(s) != 1 {
-		logError(testName, function, args, startTime, "", "GetObjectACL fail \"X-Amz-Grant-Write\" acl expected \"1\" got "+fmt.Sprintf(`"%d"`, len(s)), nil)
+		logError(testName, function, args, startTime, "", "GetObjectACLWithContext fail \"X-Amz-Grant-Write\" acl expected \"1\" got "+fmt.Sprintf(`"%d"`, len(s)), nil)
 		return
 	}
 
 	if s[0] != "foowrite@minio.go" {
-		logError(testName, function, args, startTime, "", "GetObjectACL fail \"X-Amz-Grant-Write\" acl expected \"foowrite@minio.go\" got "+fmt.Sprintf("%q", s), nil)
+		logError(testName, function, args, startTime, "", "GetObjectACLWithContext fail \"X-Amz-Grant-Write\" acl expected \"foowrite@minio.go\" got "+fmt.Sprintf("%q", s), nil)
 		return
 	}
 
@@ -10146,7 +10155,7 @@ func main() {
 		testFPutObjectWithContext()
 		testFGetObjectWithContext()
 
-		testGetObjectACL()
+		testGetObjectACLWithContext()
 
 		testPutObjectWithContext()
 		testStorageClassMetadataPutObject()
