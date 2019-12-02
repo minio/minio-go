@@ -88,6 +88,16 @@ type ObjectInfo struct {
 		ID          string `json:"id"`
 	} `json:"owner"`
 
+	// ACL grant.
+	Grant []struct {
+		Grantee struct {
+			ID          string `xml:"ID"`
+			DisplayName string `xml:"DisplayName"`
+			URI         string `xml:"URI"`
+		} `xml:"Grantee"`
+		Permission string `xml:"Permission"`
+	} `xml:"Grant"`
+
 	// The class of storage used to store the object.
 	StorageClass string `json:"storageClass"`
 
