@@ -4325,7 +4325,7 @@ func testFunctional() {
 	function = "ListBucketsWithContext()"
 	functionAll += ", " + function
 	args = nil
-	buckets, err := c.ListBucketsWithContext(context.Background())
+	buckets, err = c.ListBucketsWithContext(context.Background())
 
 	if len(buckets) == 0 {
 		logError(testName, function, args, startTime, "", "Found bucket list to be empty", err)
