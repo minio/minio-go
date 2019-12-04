@@ -51,6 +51,16 @@ Display name: %q
 ID: %q
 `, objectInfo.Owner.DisplayName, objectInfo.Owner.ID)
 
+	//print object grant informations
+	for _, g := range objectInfo.Grant {
+		fmt.Printf(`Object grant:
+ - Display name: %q
+ - ID: %q
+ - URI: %q
+ - Permission: %q
+`, g.Grantee.DisplayName, g.Grantee.ID, g.Grantee.URI, g.Permission)
+	}
+
 	//print all value header (acl, metadata, standard header value...)
 	for k, v := range objectInfo.Metadata {
 		fmt.Println("key:", k)

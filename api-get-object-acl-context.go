@@ -72,6 +72,8 @@ func (c Client) GetObjectACLWithContext(ctx context.Context, bucketName, objectN
 	objInfo.Owner.DisplayName = res.Owner.DisplayName
 	objInfo.Owner.ID = res.Owner.ID
 
+	objInfo.Grant = append(objInfo.Grant, res.AccessControlList.Grant...)
+
 	cannedACL := getCannedACL(res)
 	if cannedACL != "" {
 		objInfo.Metadata.Add("X-Amz-Acl", cannedACL)
