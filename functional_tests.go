@@ -4207,6 +4207,24 @@ func testFunctional() {
 		return
 	}
 
+	// Verify if bucket exits and you have access.
+	var exists bool
+	function = "BucketExistsWithContext(ctx, bucketName)"
+	functionAll += ", " + function
+	args = map[string]interface{}{
+		"bucketName": bucketName,
+	}
+	exists, err = c.BucketExistsWithContext(context.Background(), bucketName)
+
+	if err != nil {
+		logError(testName, function, args, startTime, "", "BucketExistsWithContext failed", err)
+		return
+	}
+	if !exists {
+		logError(testName, function, args, startTime, "", "Could not find the bucket", err)
+		return
+	}
+
 	// Asserting the default bucket policy.
 	function = "GetBucketPolicy(bucketName)"
 	functionAll += ", " + function

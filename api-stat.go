@@ -29,6 +29,12 @@ import (
 
 // BucketExists verify if bucket exists and you have permission to access it.
 func (c Client) BucketExists(bucketName string) (bool, error) {
+	return c.BucketExistsWithContext(context.Background(), bucketName)
+}
+
+// BucketExistsWithContext verify if bucket exists and you have permission to access it. Allows for a Context to
+// control cancellations and timeouts.
+func (c Client) BucketExistsWithContext(ctx context.Context, bucketName string) (bool, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return false, err
