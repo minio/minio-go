@@ -4208,7 +4208,6 @@ func testFunctional() {
 	}
 
 	// Verify if bucket exits and you have access with context.
-	var exists bool
 	function = "BucketExistsWithContext(ctx, bucketName)"
 	functionAll += ", " + function
 	args = map[string]interface{}{
@@ -5320,7 +5319,7 @@ func testFPutObjectV2() {
 		return
 	}
 
-	rGTar, err := c.StatObjectWithContext(context.Background(), bucketName, objectName+"-GTar", minio.StatObjectOptions{})
+	rGTar, err = c.StatObjectWithContext(context.Background(), bucketName, objectName+"-GTar", minio.StatObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "StatObject failed", err)
 		return
