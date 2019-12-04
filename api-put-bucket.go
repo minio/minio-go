@@ -108,7 +108,7 @@ func (c Client) MakeBucket(bucketName string, location string) (err error) {
 	return c.MakeBucketWithContext(context.Background(), bucketName, location)
 }
 
-// MakeBucket creates a new bucket with bucketName.
+// MakeBucketWithContext creates a new bucket with bucketName with a context to control cancellations and timeouts.
 //
 // Location is an optional argument, by default all buckets are
 // created in US Standard Region.
@@ -130,8 +130,8 @@ func (c Client) MakeBucketWithObjectLock(bucketName string, location string) (er
 	return c.MakeBucketWithObjectLockWithContext(context.Background(), bucketName, location)
 }
 
-// MakeBucketWithObjectLock creates a object lock enabled new bucket with bucketName with a context to control
-// cancellations and timeouts.
+// MakeBucketWithObjectLockWithContext creates a object lock enabled new bucket with bucketName with a context to
+// control cancellations and timeouts.
 //
 // Location is an optional argument, by default all buckets are
 // created in US Standard Region.
@@ -147,7 +147,7 @@ func (c Client) SetBucketPolicy(bucketName, policy string) error {
 	return c.SetBucketPolicyWithContext(context.Background(), bucketName, policy)
 }
 
-// SetBucketPolicy set the access permissions on an existing bucket.
+// SetBucketPolicyWithContext set the access permissions on an existing bucket.
 func (c Client) SetBucketPolicyWithContext(ctx context.Context, bucketName, policy string) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
@@ -232,7 +232,7 @@ func (c Client) SetBucketLifecycle(bucketName, lifecycle string) error {
 	return c.SetBucketLifecycleWithContext(context.Background(), bucketName, lifecycle)
 }
 
-// SetBucketLifecycle set the lifecycle on an existing bucket with a context to control cancellations and timeouts.
+// SetBucketLifecycleWithContext set the lifecycle on an existing bucket with a context to control cancellations and timeouts.
 func (c Client) SetBucketLifecycleWithContext(ctx context.Context, bucketName, lifecycle string) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
@@ -416,7 +416,7 @@ func (c Client) EnableVersioning(bucketName string) error {
 	return c.EnableVersioningWithContext(context.Background(), bucketName)
 }
 
-// EnableVersioning - Enable object versioning in given bucket with a context to control cancellations and timeouts.
+// EnableVersioningWithContext - Enable object versioning in given bucket with a context to control cancellations and timeouts.
 func (c Client) EnableVersioningWithContext(ctx context.Context, bucketName string) error {
 	return c.setVersioning(ctx, bucketName, versionEnableConfig, versionEnableConfigLen, versionEnableConfigMD5Sum, versionEnableConfigSHA256)
 }
@@ -426,7 +426,7 @@ func (c Client) DisableVersioning(bucketName string) error {
 	return c.DisableVersioningWithContext(context.Background(), bucketName)
 }
 
-// DisableVersioning - Disable object versioning in given bucket with a context to control cancellations and timeouts.
+// DisableVersioningWithContext - Disable object versioning in given bucket with a context to control cancellations and timeouts.
 func (c Client) DisableVersioningWithContext(ctx context.Context, bucketName string) error {
 	return c.setVersioning(ctx, bucketName, versionDisableConfig, versionDisableConfigLen, versionDisableConfigMD5Sum, versionDisableConfigSHA256)
 }

@@ -100,7 +100,7 @@ func (c Client) StatObject(bucketName, objectName string, opts StatObjectOptions
 	return c.StatObjectWithContext(context.Background(), bucketName, objectName, opts)
 }
 
-// StatObject verifies if object exists and you have permission to access with a context to control
+// StatObjectWithContext verifies if object exists and you have permission to access with a context to control
 // cancellations and timeouts.
 func (c Client) StatObjectWithContext(ctx context.Context, bucketName, objectName string, opts StatObjectOptions) (ObjectInfo, error) {
 	// Input validation.

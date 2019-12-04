@@ -174,8 +174,8 @@ func (c Core) PutBucketPolicy(bucket, bucketPolicy string) error {
 	return c.PutBucketPolicyWithContext(context.Background(), bucket, bucketPolicy)
 }
 
-// PutBucketPolicy - applies a new bucket access policy for a given bucket with a context to control cancellations
-// and timeouts.
+// PutBucketPolicyWithContext - applies a new bucket access policy for a given bucket with a context to control
+// cancellations and timeouts.
 func (c Core) PutBucketPolicyWithContext(ctx context.Context, bucket, bucketPolicy string) error {
 	return c.putBucketPolicy(ctx, bucket, bucketPolicy)
 }
