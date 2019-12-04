@@ -4321,6 +4321,21 @@ func testFunctional() {
 		return
 	}
 
+	// List all buckets with context.
+	function = "ListBucketsWithContext()"
+	functionAll += ", " + function
+	args = nil
+	buckets, err := c.ListBucketsWithContext(context.Background())
+
+	if len(buckets) == 0 {
+		logError(testName, function, args, startTime, "", "Found bucket list to be empty", err)
+		return
+	}
+	if err != nil {
+		logError(testName, function, args, startTime, "", "ListBucketsWithContext failed", err)
+		return
+	}
+
 	// Verify if previously created bucket is listed in list buckets.
 	bucketFound := false
 	for _, bucket := range buckets {
