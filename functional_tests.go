@@ -39,7 +39,7 @@ import (
 	"strings"
 	"time"
 
-	humanize "github.com/dustin/go-humanize"
+	"github.com/dustin/go-humanize"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/minio/minio-go/v6"
@@ -4207,6 +4207,24 @@ func testFunctional() {
 		return
 	}
 
+	// Verify if bucket exits and you have access with context.
+	var exists bool
+	function = "BucketExistsWithContext(ctx, bucketName)"
+	functionAll += ", " + function
+	args = map[string]interface{}{
+		"bucketName": bucketName,
+	}
+	exists, err = c.BucketExistsWithContext(context.Background(), bucketName)
+
+	if err != nil {
+		logError(testName, function, args, startTime, "", "BucketExistsWithContext failed", err)
+		return
+	}
+	if !exists {
+		logError(testName, function, args, startTime, "", "Could not find the bucket", err)
+		return
+	}
+
 	// Asserting the default bucket policy.
 	function = "GetBucketPolicy(bucketName)"
 	functionAll += ", " + function
@@ -5293,6 +5311,16 @@ func testFPutObjectV2() {
 	}
 
 	rGTar, err := c.StatObject(bucketName, objectName+"-GTar", minio.StatObjectOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "StatObject failed", err)
+		return
+	}
+	if rGTar.ContentType != "application/x-gtar" && rGTar.ContentType != "application/octet-stream" {
+		logError(testName, function, args, startTime, "", "Content-Type headers mismatched, expected: application/x-gtar , got "+rGTar.ContentType, err)
+		return
+	}
+
+	rGTar, err := c.StatObjectWithContext(context.Background(), bucketName, objectName+"-GTar", minio.StatObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "StatObject failed", err)
 		return
@@ -10040,7 +10068,6 @@ func testListObjects() {
 		name         string
 		storageClass string
 	}{
-
 		// \x17 is a forbidden character in a xml document
 		{"foo\x17bar", "STANDARD"},
 		// Special characters

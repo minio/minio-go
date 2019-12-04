@@ -29,13 +29,19 @@ import (
 
 // BucketExists verify if bucket exists and you have permission to access it.
 func (c Client) BucketExists(bucketName string) (bool, error) {
+	return c.BucketExistsWithContext(context.Background(), bucketName)
+}
+
+// BucketExistsWithContext verify if bucket exists and you have permission to access it. Allows for a Context to
+// control cancellations and timeouts.
+func (c Client) BucketExistsWithContext(ctx context.Context, bucketName string) (bool, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return false, err
 	}
 
 	// Execute HEAD on bucketName.
-	resp, err := c.executeMethod(context.Background(), "HEAD", requestMetadata{
+	resp, err := c.executeMethod(ctx, "HEAD", requestMetadata{
 		bucketName:       bucketName,
 		contentSHA256Hex: emptySHA256Hex,
 	})
@@ -91,6 +97,12 @@ func extractObjMetadata(header http.Header) http.Header {
 
 // StatObject verifies if object exists and you have permission to access.
 func (c Client) StatObject(bucketName, objectName string, opts StatObjectOptions) (ObjectInfo, error) {
+	return c.StatObjectWithContext(context.Background(), bucketName, objectName, opts)
+}
+
+// StatObject verifies if object exists and you have permission to access with a context to control
+// cancellations and timeouts.
+func (c Client) StatObjectWithContext(ctx context.Context, bucketName, objectName string, opts StatObjectOptions) (ObjectInfo, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return ObjectInfo{}, err
@@ -98,7 +110,7 @@ func (c Client) StatObject(bucketName, objectName string, opts StatObjectOptions
 	if err := s3utils.CheckValidObjectName(objectName); err != nil {
 		return ObjectInfo{}, err
 	}
-	return c.statObject(context.Background(), bucketName, objectName, opts)
+	return c.statObject(ctx, bucketName, objectName, opts)
 }
 
 // Lower level API for statObject supporting pre-conditions and range headers.
