@@ -72,9 +72,7 @@ func (c Client) GetObjectACLWithContext(ctx context.Context, bucketName, objectN
 	objInfo.Owner.DisplayName = res.Owner.DisplayName
 	objInfo.Owner.ID = res.Owner.ID
 
-	for _, g := range res.AccessControlList.Grant {
-		objInfo.Grant = append(objInfo.Grant, g)
-	}
+	objInfo.Grant = append(objInfo.Grant, res.AccessControlList.Grant...)
 
 	cannedACL := getCannedACL(res)
 	if cannedACL != "" {
