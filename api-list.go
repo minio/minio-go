@@ -39,8 +39,23 @@ import (
 //   }
 //
 func (c Client) ListBuckets() ([]BucketInfo, error) {
+	return c.ListBucketsWithContext(context.Background())
+}
+
+// ListBucketsWithContext list all buckets owned by this authenticated user,
+// accepts a context for facilitate cancellation.
+//
+// This call requires explicit authentication, no anonymous requests are
+// allowed for listing buckets.
+//
+//   api := client.New(....)
+//   for message := range api.ListBucketsWithContext(context.Background()) {
+//       fmt.Println(message)
+//   }
+//
+func (c Client) ListBucketsWithContext(ctx context.Context) ([]BucketInfo, error) {
 	// Execute GET on service.
-	resp, err := c.executeMethod(context.Background(), "GET", requestMetadata{contentSHA256Hex: emptySHA256Hex})
+	resp, err := c.executeMethod(ctx, "GET", requestMetadata{contentSHA256Hex: emptySHA256Hex})
 	defer closeResponse(resp)
 	if err != nil {
 		return nil, err
