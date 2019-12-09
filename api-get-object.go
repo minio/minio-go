@@ -622,8 +622,7 @@ func (c Client) getObject(ctx context.Context, bucketName, objectName string, op
 	}
 
 	// Trim off the odd double quotes from ETag in the beginning and end.
-	md5sum := strings.TrimPrefix(resp.Header.Get("ETag"), "\"")
-	md5sum = strings.TrimSuffix(md5sum, "\"")
+	md5sum := trimEtag(resp.Header.Get("ETag"))
 
 	// Parse the date.
 	date, err := time.Parse(http.TimeFormat, resp.Header.Get("Last-Modified"))
