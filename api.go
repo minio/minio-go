@@ -560,6 +560,13 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 	var bodySeeker io.Seeker // Extracted seeker from io.Reader.
 	var reqRetry = MaxRetry  // Indicates how many times we can retry the request
 
+	defer func() {
+		if err != nil {
+			// close idle connections before returning, upon error.
+			c.httpClient.CloseIdleConnections()
+		}
+	}()
+
 	if metadata.contentBody != nil {
 		// Check if body is seekable then it is retryable.
 		bodySeeker, isRetryable = metadata.contentBody.(io.Seeker)

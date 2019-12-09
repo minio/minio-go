@@ -294,8 +294,7 @@ func (c Client) uploadPart(ctx context.Context, bucketName, objectName, uploadID
 	objPart.Size = size
 	objPart.PartNumber = partNumber
 	// Trim off the odd double quotes from ETag in the beginning and end.
-	objPart.ETag = strings.TrimPrefix(resp.Header.Get("ETag"), "\"")
-	objPart.ETag = strings.TrimSuffix(objPart.ETag, "\"")
+	objPart.ETag = trimEtag(resp.Header.Get("ETag"))
 	return objPart, nil
 }
 

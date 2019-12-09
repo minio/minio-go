@@ -407,8 +407,7 @@ func (c Client) putObjectDo(ctx context.Context, bucketName, objectName string, 
 
 	var objInfo ObjectInfo
 	// Trim off the odd double quotes from ETag in the beginning and end.
-	objInfo.ETag = strings.TrimPrefix(resp.Header.Get("ETag"), "\"")
-	objInfo.ETag = strings.TrimSuffix(objInfo.ETag, "\"")
+	objInfo.ETag = trimEtag(resp.Header.Get("ETag"))
 	// A success here means data was written to server successfully.
 	objInfo.Size = size
 

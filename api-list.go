@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/minio/minio-go/v6/pkg/s3utils"
 )
@@ -155,6 +154,7 @@ func (c Client) listObjectsV2(bucketName, objectPrefix string, recursive, metada
 
 			// If contents are available loop through and send over channel.
 			for _, object := range result.Contents {
+				object.ETag = trimEtag(object.ETag)
 				select {
 				// Send object content.
 				case objectStatCh <- object:
@@ -724,8 +724,7 @@ func (c Client) listObjectParts(bucketName, objectName, uploadID string) (partsI
 		// Append to parts info.
 		for _, part := range listObjPartsResult.ObjectParts {
 			// Trim off the odd double quotes from ETag in the beginning and end.
-			part.ETag = strings.TrimPrefix(part.ETag, "\"")
-			part.ETag = strings.TrimSuffix(part.ETag, "\"")
+			part.ETag = trimEtag(part.ETag)
 			partsInfo[part.PartNumber] = part
 		}
 		// Keep part number marker, for the next iteration.

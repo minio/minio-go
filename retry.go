@@ -91,30 +91,41 @@ func isHTTPReqErrorRetryable(err error) bool {
 	if err == nil {
 		return false
 	}
-	switch e := err.(type) {
-	case *url.Error:
-		switch e.Err.(type) {
-		case *net.DNSError, *net.OpError, net.UnknownNetworkError:
+	// We need to figure if the error either a timeout
+	// or a non-temporary error.
+	e, ok := err.(net.Error)
+	if ok {
+		urlErr, ok := e.(*url.Error)
+		if ok {
+			switch urlErr.Err.(type) {
+			case *net.DNSError, *net.OpError, net.UnknownNetworkError:
+				return true
+			}
+		}
+		if e.Timeout() {
 			return true
 		}
-		if strings.Contains(err.Error(), "Connection closed by foreign host") {
-			return true
-		} else if strings.Contains(err.Error(), "net/http: TLS handshake timeout") {
-			// If error is - tlsHandshakeTimeoutError, retry.
-			return true
-		} else if strings.Contains(err.Error(), "i/o timeout") {
-			// If error is - tcp timeoutError, retry.
-			return true
-		} else if strings.Contains(err.Error(), "connection timed out") {
-			// If err is a net.Dial timeout, retry.
-			return true
-		} else if strings.Contains(err.Error(), "net/http: HTTP/1.x transport connection broken") {
-			// If error is transport connection broken, retry.
-			return true
-		} else if strings.Contains(err.Error(), "net/http: timeout awaiting response headers") {
-			// Retry errors due to server not sending the response before timeout
-			return true
-		}
+	}
+	if strings.Contains(err.Error(), "Connection closed by foreign host") {
+		return true
+	} else if strings.Contains(err.Error(), "net/http: TLS handshake timeout") {
+		// If error is - tlsHandshakeTimeoutError, retry.
+		return true
+	} else if strings.Contains(err.Error(), "i/o timeout") {
+		// If error is - tcp timeoutError, retry.
+		return true
+	} else if strings.Contains(err.Error(), "connection timed out") {
+		// If err is a net.Dial timeout, retry.
+		return true
+	} else if strings.Contains(err.Error(), "net/http: HTTP/1.x transport connection broken") {
+		// If error is transport connection broken, retry.
+		return true
+	} else if strings.Contains(err.Error(), "net/http: timeout awaiting response headers") {
+		// Retry errors due to server not sending the response before timeout
+		return true
+	} else if strings.Contains(err.Error(), "connection reset by peer") {
+		// Retry errors due to connection reset by peer.
+		return true
 	}
 	return false
 }
