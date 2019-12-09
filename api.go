@@ -627,12 +627,7 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 		// Initiate the request.
 		res, err = c.do(req)
 		if err != nil {
-			// For supported http requests errors verify.
-			if isHTTPReqErrorRetryable(err) {
-				continue // Retry.
-			}
-			// For other errors, return here no need to retry.
-			return nil, err
+			continue
 		}
 
 		// For any known successful http status, return quickly.
