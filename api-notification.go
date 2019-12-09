@@ -229,3 +229,101 @@ func (c Client) ListenBucketNotification(bucketName, prefix, suffix string, even
 	// Returns the notification info channel, for caller to start reading from.
 	return notificationInfoCh
 }
+
+// ListenBucketNotificationV2 - listen on bucket notifications.
+func (c Client) ListenBucketNotificationV2(bucketName, prefix, suffix string, events []string, doneCh <-chan struct{}) <-chan NotificationInfo {
+	notificationInfoCh := make(chan NotificationInfo, 1)
+	// Only success, start a routine to start reading line by line.
+	go func(notificationInfoCh chan<- NotificationInfo) {
+		defer close(notificationInfoCh)
+
+		// Validate the bucket name.
+		if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+			notificationInfoCh <- NotificationInfo{
+				Err: err,
+			}
+			return
+		}
+
+		// Check ARN partition to verify if listening bucket is supported
+		if s3utils.IsAmazonEndpoint(*c.endpointURL) || s3utils.IsGoogleEndpoint(*c.endpointURL) {
+			notificationInfoCh <- NotificationInfo{
+				Err: ErrAPINotSupported("Listening for bucket notification is specific only to `minio` server endpoints"),
+			}
+			return
+		}
+
+		// Continuously run and listen on bucket notification.
+		// Create a done channel to control 'ListObjects' go routine.
+		retryDoneCh := make(chan struct{}, 1)
+
+		// Indicate to our routine to exit cleanly upon return.
+		defer close(retryDoneCh)
+
+		// Prepare urlValues to pass into the request on every loop
+		urlValues := make(url.Values)
+		urlValues.Set("type", "2")
+		urlValues.Set("prefix", prefix)
+		urlValues.Set("suffix", suffix)
+		urlValues["events"] = events
+
+		// Wait on the jitter retry loop.
+		for range c.newRetryTimerContinous(time.Second, time.Second*30, MaxJitter, retryDoneCh) {
+			// Execute GET on bucket to list objects.
+			resp, err := c.executeMethod(context.Background(), "GET", requestMetadata{
+				bucketName:       bucketName,
+				queryValues:      urlValues,
+				contentSHA256Hex: emptySHA256Hex,
+			})
+			if err != nil {
+				notificationInfoCh <- NotificationInfo{
+					Err: err,
+				}
+				return
+			}
+
+			// Validate http response, upon error return quickly.
+			if resp.StatusCode != http.StatusOK {
+				errResponse := httpRespToErrorResponse(resp, bucketName, "")
+				notificationInfoCh <- NotificationInfo{
+					Err: errResponse,
+				}
+				return
+			}
+
+			// Initialize a new bufio scanner, to read line by line.
+			bio := bufio.NewScanner(resp.Body)
+
+			// Unmarshal each line, returns marshalled values.
+			for bio.Scan() {
+				var notificationInfo NotificationInfo
+				if err = json.Unmarshal(bio.Bytes(), &notificationInfo); err != nil {
+					// Unexpected error during json unmarshal, send
+					// the error to caller for actionable as needed.
+					notificationInfoCh <- NotificationInfo{
+						Err: err,
+					}
+					closeResponse(resp)
+					continue
+				}
+				// Send notificationInfo
+				select {
+				case notificationInfoCh <- notificationInfo:
+				case <-doneCh:
+					closeResponse(resp)
+					return
+				}
+			}
+			if err = bio.Err(); err != nil {
+				notificationInfoCh <- NotificationInfo{
+					Err: err,
+				}
+			}
+			// Close current connection before looping further.
+			closeResponse(resp)
+		}
+	}(notificationInfoCh)
+
+	// Returns the notification info channel, for caller to start reading from.
+	return notificationInfoCh
+}
