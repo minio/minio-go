@@ -90,6 +90,9 @@ type Client struct {
 	// lookup indicates type of url lookup supported by server. If not specified,
 	// default to Auto.
 	lookup BucketLookupType
+
+	// Indicates how many times we can retry the request
+	maxRetry int
 }
 
 // Options for New method
@@ -98,6 +101,7 @@ type Options struct {
 	Secure       bool
 	Region       string
 	BucketLookup BucketLookupType
+	MaxRetry     int
 	// Add future fields here
 }
 
@@ -130,7 +134,7 @@ const (
 // '2' compatibility.
 func NewV2(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*Client, error) {
 	creds := credentials.NewStaticV2(accessKeyID, secretAccessKey, "")
-	clnt, err := privateNew(endpoint, creds, secure, "", BucketLookupAuto)
+	clnt, err := privateNew(endpoint, creds, secure, "", BucketLookupAuto, MaxRetry)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +146,7 @@ func NewV2(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*
 // '4' compatibility.
 func NewV4(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*Client, error) {
 	creds := credentials.NewStaticV4(accessKeyID, secretAccessKey, "")
-	clnt, err := privateNew(endpoint, creds, secure, "", BucketLookupAuto)
+	clnt, err := privateNew(endpoint, creds, secure, "", BucketLookupAuto, MaxRetry)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +157,7 @@ func NewV4(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*
 // New - instantiate minio client, adds automatic verification of signature.
 func New(endpoint, accessKeyID, secretAccessKey string, secure bool) (*Client, error) {
 	creds := credentials.NewStaticV4(accessKeyID, secretAccessKey, "")
-	clnt, err := privateNew(endpoint, creds, secure, "", BucketLookupAuto)
+	clnt, err := privateNew(endpoint, creds, secure, "", BucketLookupAuto, MaxRetry)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +176,7 @@ func New(endpoint, accessKeyID, secretAccessKey string, secure bool) (*Client, e
 // for retrieving credentials from various credentials provider such as
 // IAM, File, Env etc.
 func NewWithCredentials(endpoint string, creds *credentials.Credentials, secure bool, region string) (*Client, error) {
-	return privateNew(endpoint, creds, secure, region, BucketLookupAuto)
+	return privateNew(endpoint, creds, secure, region, BucketLookupAuto, MaxRetry)
 }
 
 // NewWithRegion - instantiate minio client, with region configured. Unlike New(),
@@ -180,12 +184,12 @@ func NewWithCredentials(endpoint string, creds *credentials.Credentials, secure 
 // Use this function when if your application deals with single region.
 func NewWithRegion(endpoint, accessKeyID, secretAccessKey string, secure bool, region string) (*Client, error) {
 	creds := credentials.NewStaticV4(accessKeyID, secretAccessKey, "")
-	return privateNew(endpoint, creds, secure, region, BucketLookupAuto)
+	return privateNew(endpoint, creds, secure, region, BucketLookupAuto, MaxRetry)
 }
 
 // NewWithOptions - instantiate minio client with options
 func NewWithOptions(endpoint string, opts *Options) (*Client, error) {
-	return privateNew(endpoint, opts.Creds, opts.Secure, opts.Region, opts.BucketLookup)
+	return privateNew(endpoint, opts.Creds, opts.Secure, opts.Region, opts.BucketLookup, opts.MaxRetry)
 }
 
 // EndpointURL returns the URL of the S3 endpoint.
@@ -277,7 +281,7 @@ func (c *Client) redirectHeaders(req *http.Request, via []*http.Request) error {
 	return nil
 }
 
-func privateNew(endpoint string, creds *credentials.Credentials, secure bool, region string, lookup BucketLookupType) (*Client, error) {
+func privateNew(endpoint string, creds *credentials.Credentials, secure bool, region string, lookup BucketLookupType, maxRetry int) (*Client, error) {
 	// construct endpoint.
 	endpointURL, err := getEndpointURL(endpoint, secure)
 	if err != nil {
@@ -330,6 +334,12 @@ func privateNew(endpoint string, creds *credentials.Credentials, secure bool, re
 	// Sets bucket lookup style, whether server accepts DNS or Path lookup. Default is Auto - determined
 	// by the SDK. When Auto is specified, DNS lookup is used for Amazon/Google cloud endpoints and Path for all other endpoints.
 	clnt.lookup = lookup
+
+	if maxRetry == 0 {
+		maxRetry = 10
+	}
+	clnt.maxRetry = maxRetry
+
 	// Return.
 	return clnt, nil
 }
@@ -556,9 +566,9 @@ var successStatus = []int{
 // request upon any error up to maxRetries attempts in a binomially
 // delayed manner using a standard back off algorithm.
 func (c Client) executeMethod(ctx context.Context, method string, metadata requestMetadata) (res *http.Response, err error) {
-	var isRetryable bool     // Indicates if request can be retried.
-	var bodySeeker io.Seeker // Extracted seeker from io.Reader.
-	var reqRetry = MaxRetry  // Indicates how many times we can retry the request
+	var isRetryable bool      // Indicates if request can be retried.
+	var bodySeeker io.Seeker  // Extracted seeker from io.Reader.
+	var reqRetry = c.maxRetry // Indicates how many times we can retry the request
 
 	defer func() {
 		if err != nil {
