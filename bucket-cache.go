@@ -125,6 +125,8 @@ func processBucketLocationResponse(resp *http.Response, bucketName string) (buck
 			// request. Move forward and let the top level callers
 			// succeed if possible based on their policy.
 			switch errResp.Code {
+			case "NotImplemented":
+				fallthrough
 			case "AuthorizationHeaderMalformed":
 				fallthrough
 			case "InvalidRegion":
