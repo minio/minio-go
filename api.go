@@ -824,7 +824,7 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 	case signerType.IsV2():
 		// Add signature version '2' authorization header.
 		req = s3signer.SignV2(*req, accessKeyID, secretAccessKey, isVirtualHost)
-	case metadata.objectName != "" && method == "PUT" && metadata.customHeader.Get("X-Amz-Copy-Source") == "" && !c.secure:
+	case metadata.objectName != "" && metadata.queryValues == nil && method == "PUT" && metadata.customHeader.Get("X-Amz-Copy-Source") == "" && !c.secure:
 		// Streaming signature is used by default for a PUT object request. Additionally we also
 		// look if the initialized client is secure, if yes then we don't need to perform
 		// streaming signature.
