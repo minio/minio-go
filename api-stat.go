@@ -91,6 +91,8 @@ func extractObjMetadata(header http.Header) http.Header {
 		"Last-Modified",
 		"Content-Type",
 		"Expires",
+		"X-Cache",
+		"X-Cache-Lookup",
 	}, defaultFilterKeys...)
 	return filterHeader(header, filterKeys)
 }
