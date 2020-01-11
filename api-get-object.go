@@ -45,6 +45,14 @@ func (c Client) getObjectWithContext(ctx context.Context, bucketName, objectName
 		return nil, err
 	}
 
+	// Detect if snowball is server location we are talking to.
+	var snowball bool
+	if location, ok := c.bucketLocCache.Get(bucketName); ok {
+		if location == "snowball" {
+			snowball = true
+		}
+	}
+
 	var httpReader io.ReadCloser
 	var objectInfo ObjectInfo
 	var err error
@@ -136,7 +144,10 @@ func (c Client) getObjectWithContext(ctx context.Context, bucketName, objectName
 				} else if req.settingObjectInfo { // Request is just to get objectInfo.
 					// Remove range header if already set, for stat Operations to get original file size.
 					delete(opts.headers, "Range")
-					if etag != "" {
+					// Check whether this is snowball
+					// if yes do not use If-Match feature
+					// it doesn't work.
+					if etag != "" && !snowball {
 						opts.SetMatchETag(etag)
 					}
 					objectInfo, err := c.statObject(ctx, bucketName, objectName, StatObjectOptions{opts})
@@ -159,7 +170,10 @@ func (c Client) getObjectWithContext(ctx context.Context, bucketName, objectName
 					// new ones when they haven't been already.
 					// All readAt requests are new requests.
 					if req.DidOffsetChange || !req.beenRead {
-						if etag != "" {
+						// Check whether this is snowball
+						// if yes do not use If-Match feature
+						// it doesn't work.
+						if etag != "" && !snowball {
 							opts.SetMatchETag(etag)
 						}
 						if httpReader != nil {
