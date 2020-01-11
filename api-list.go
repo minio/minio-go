@@ -101,6 +101,12 @@ func (c Client) ListBucketsWithContext(ctx context.Context) ([]BucketInfo, error
 //
 func (c Client) ListObjectsV2WithMetadata(bucketName, objectPrefix string, recursive bool,
 	doneCh <-chan struct{}) <-chan ObjectInfo {
+	// Check whether this is snowball region, if yes ListObjectsV2 doesn't work, fallback to listObjectsV1.
+	if location, ok := c.bucketLocCache.Get(bucketName); ok {
+		if location == "snowball" {
+			return c.ListObjects(bucketName, objectPrefix, recursive, doneCh)
+		}
+	}
 	return c.listObjectsV2(bucketName, objectPrefix, recursive, true, doneCh)
 }
 
@@ -210,6 +216,12 @@ func (c Client) listObjectsV2(bucketName, objectPrefix string, recursive, metada
 //   }
 //
 func (c Client) ListObjectsV2(bucketName, objectPrefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectInfo {
+	// Check whether this is snowball region, if yes ListObjectsV2 doesn't work, fallback to listObjectsV1.
+	if location, ok := c.bucketLocCache.Get(bucketName); ok {
+		if location == "snowball" {
+			return c.ListObjects(bucketName, objectPrefix, recursive, doneCh)
+		}
+	}
 	return c.listObjectsV2(bucketName, objectPrefix, recursive, false, doneCh)
 }
 
