@@ -19,7 +19,6 @@ package minio
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -299,7 +298,10 @@ func (c Client) listObjectsV2Query(bucketName, objectPrefix, continuationToken s
 	// This is an additional verification check to make
 	// sure proper responses are received.
 	if listBucketResult.IsTruncated && listBucketResult.NextContinuationToken == "" {
-		return listBucketResult, errors.New("Truncated response should have continuation token set")
+		return listBucketResult, ErrorResponse{
+			Code:    "NotImplemented",
+			Message: "Truncated response should have continuation token set",
+		}
 	}
 
 	for i, obj := range listBucketResult.Contents {
