@@ -73,6 +73,13 @@ func main() {
 |   | [`PutObjectRetention`](#PutObjectRetention)  | |    |   |
 |   | [`GetObjectRetention`](#GetObjectRetention)  | |    |   |
 | | [`SelectObjectContent`](#SelectObjectContent)  |   |
+| | [`PutObjectTagging`](#PutObjectTagging)  |   |
+| | [`PutObjectTaggingWithContext`](#PutObjectTaggingWithContext)  |   |
+| | [`GetObjectTagging`](#GetObjectTagging)  |   |
+| | [`GetObjectTaggingWithContext`](#GetObjectTaggingWithContext)  |   |
+| | [`RemoveObjectTagging`](#RemoveObjectTagging)  |   |
+| | [`RemoveObjectTaggingWithContext`](#RemoveObjectTaggingWithContext)  |   |
+
 ## 1. Constructor
 <a name="MinIO"></a>
 
@@ -582,6 +589,7 @@ __minio.PutObjectOptions__
 |Field | Type | Description |
 |:--- |:--- | :--- |
 | `opts.UserMetadata` | _map[string]string_ | Map of user metadata|
+| `opts.UserTags` | _map[string]string_ | Map of user object tags |
 | `opts.Progress` | _io.Reader_ | Reader to fetch progress of an upload |
 | `opts.ContentType` | _string_ | Content type of object, e.g "application/text" |
 | `opts.ContentEncoding` | _string_ | Content encoding of object, e.g "gzip" |
@@ -890,6 +898,68 @@ src := minio.NewSourceInfo("bucket", "object", nil)
 // With encryption parameter.
 sseDst := encrypt.DefaultPBKDF([]byte("password"), []byte("salt"))
 dst, err := minio.NewDestinationInfo("bucket", "object", sseDst, nil)
+if err != nil {
+    fmt.Println(err)
+    return
+}
+
+// Copy object call
+err = minioClient.CopyObject(dst, src)
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
+
+<a name="NewDestinationInfoWithOptions"></a>
+### NewDestinationInfoWithOptions(bucket, object string, destOpts DestInfoOptions) (DestinationInfo, error)
+Construct a `DestinationInfo` object that can be used as the destination object for server-side copying operations like `CopyObject` and `ComposeObject`.
+
+__Parameters__
+
+| Param         | Type                | Description                                                                                                    |
+| :---          | :---                | :---                                                                                                           |
+| `bucket`      | _string_            | Name of the destination bucket                                                                                 |
+| `object`      | _string_            | Name of the destination object                                                                                 |
+| `destOpts`    | _minio.DestInfoOptions_   | Pointer to struct that allows user to set optional custom metadata, user tags, and server side encryption parameters. |
+
+__Example__
+
+```go
+// No encryption parameter.
+src := minio.NewSourceInfo("bucket", "object", nil)
+tags := map[string]string{
+    "Tag1": "Value1",
+    "Tag2": "Value2",
+}
+dst, err := minio.NewDestinationInfoWithOptions("bucket", "object", minio.DestInfoOptions{
+    UserTags: tags, ReplaceTags: true,
+})
+if err != nil {
+    fmt.Println(err)
+    return
+}
+
+// Copy object call
+err = minioClient.CopyObject(dst, src)
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
+
+```go
+src := minio.NewSourceInfo("bucket", "object", nil)
+
+// With encryption parameter.
+sseDst := encrypt.DefaultPBKDF([]byte("password"), []byte("salt"))
+tags := map[string]string{
+    "Tag1": "Value1",
+    "Tag2": "Value2",
+}
+dst, err := minio.NewDestinationInfoWithOptions("bucket", "object", minio.DestInfoOptions{
+    Encryption: sseDst, UserTags: tags, ReplaceTags: true,
+})
 if err != nil {
     fmt.Println(err)
     return
@@ -1247,6 +1317,151 @@ __Return Values__
 	if _, err := io.Copy(os.Stdout, reader); err != nil {
 		log.Fatalln(err)
 	}
+```
+
+<a name="PutObjectTagging"></a>
+### PutObjectTagging(bucketName, objectName string, objectTags map[string]string) error
+Adds or replace Object Tags to the given object
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |Name of the bucket   |
+|`objectName` | _string_  |Name of the object   |
+|`objectTags` | _map[string]string_ | Map with Object Tag's Key and Value |
+
+__Example__
+
+
+```go
+err = minioClient.PutObjectTagging(bucketName, objectName, objectTags)
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
+
+<a name="PutObjectTaggingWithContext"></a>
+### PutObjectTaggingWithContext(ctx context.Context, sssbucketName, objectName string, objectTags map[string]string) error
+Identical to PutObjectTagging, but allows setting context to allow controlling context cancellations and timeouts.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  |Request context  |
+|`bucketName`  | _string_  |Name of the bucket   |
+|`objectName` | _string_  |Name of the object   |
+|`objectTags` | _map[string]string_ | Map with Object Tag's Key and Value |
+
+__Example__
+
+
+```go
+err = minioClient.PutObjectTaggingWithContext(ctx, bucketName, objectName, objectTags)
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
+
+<a name="GetObjectTagging"></a>
+### GetObjectTagging(bucketName, objectName string) (string, error)
+Fetch Object Tags from the given object
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |Name of the bucket   |
+|`objectName` | _string_  |Name of the object   |
+
+__Example__
+
+
+```go
+tags, err = minioClient.GetObjectTagging(bucketName, objectName)
+if err != nil {
+    fmt.Println(err)
+    return
+}
+fmt.Printf("Fetched Tags: %s", tags)
+```
+
+<a name="GetObjectTaggingWithContext"></a>
+### GetObjectTaggingWithContext(ctx context.Context, bucketName, objectName string) (string, error)
+Identical to GetObjectTagging, but allows setting context to allow controlling context cancellations and timeouts.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  |Request context  |
+|`bucketName`  | _string_  |Name of the bucket   |
+|`objectName` | _string_  |Name of the object   |
+
+__Example__
+
+
+```go
+tags, err = minioClient.GetObjectTaggingWithContext(ctx, bucketName, objectName)
+if err != nil {
+    fmt.Println(err)
+    return
+}
+fmt.Printf("Fetched Tags: %s", tags)
+```
+
+<a name="RemoveObjectTagging"></a>
+### RemoveObjectTagging(bucketName, objectName string) error
+Remove Object Tags from the given object
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |Name of the bucket   |
+|`objectName` | _string_  |Name of the object   |
+
+__Example__
+
+
+```go
+err = minioClient.RemoveObjectTagging(bucketName, objectName)
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
+
+<a name="RemoveObjectTaggingWithContext"></a>
+### RemoveObjectTaggingWithContext(ctx context.Context, bucketName, objectName string) error
+Identical to RemoveObjectTagging, but allows setting context to allow controlling context cancellations and timeouts.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  |Request context  |
+|`bucketName`  | _string_  |Name of the bucket   |
+|`objectName` | _string_  |Name of the object   |
+
+__Example__
+
+
+```go
+err = minioClient.RemoveObjectTaggingWithContext(ctx, bucketName, objectName)
+if err != nil {
+    fmt.Println(err)
+    return
+}
 ```
 
 <a name="RemoveIncompleteUpload"></a>

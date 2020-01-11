@@ -35,6 +35,7 @@ import (
 // PutObjectOptions represents options specified by user for PutObject call
 type PutObjectOptions struct {
 	UserMetadata            map[string]string
+	UserTags                map[string]string
 	Progress                io.Reader
 	ContentType             string
 	ContentEncoding         string
@@ -99,6 +100,9 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 	}
 	if opts.WebsiteRedirectLocation != "" {
 		header[amzWebsiteRedirectLocation] = []string{opts.WebsiteRedirectLocation}
+	}
+	if len(opts.UserTags) != 0 {
+		header[amzTaggingHeader] = []string{s3utils.TagEncode(opts.UserTags)}
 	}
 	for k, v := range opts.UserMetadata {
 		if !isAmzHeader(k) && !isStandardHeader(k) && !isStorageClassHeader(k) {

@@ -78,7 +78,7 @@ var defaultFilterKeys = []string{
 	"x-amz-id-2",
 	"Content-Security-Policy",
 	"X-Xss-Protection",
-
+	amzTaggingHeaderCount,
 	// Add new headers to be ignored.
 }
 
