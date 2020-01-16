@@ -107,7 +107,7 @@ func optimalPartInfo(objectSize int64, configuredPartSize uint64) (totalPartsCou
 
 		partSizeFlt = float64(configuredPartSize)
 		if unknownSize {
-			// If input has unkown size and part size is configured
+			// If input has unknown size and part size is configured
 			// keep it to maximum allowed as per 10000 parts.
 			objectSize = int64(configuredPartSize) * maxPartsCount
 		}
