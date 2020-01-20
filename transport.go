@@ -21,7 +21,6 @@ package minio
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"net"
 	"net/http"
 	"time"
@@ -54,17 +53,8 @@ var DefaultTransport = func(secure bool) (http.RoundTripper, error) {
 	}
 
 	if secure {
-		rootCAs, _ := x509.SystemCertPool()
-		if rootCAs == nil {
-			// In some systems (like Windows) system cert pool is
-			// not supported or no certificates are present on the
-			// system - so we create a new cert pool.
-			rootCAs = x509.NewCertPool()
-		}
-
 		// Keep TLS config.
 		tlsConfig := &tls.Config{
-			RootCAs: rootCAs,
 			// Can't use SSLv3 because of POODLE and BEAST
 			// Can't use TLSv1.0 because of POODLE and BEAST using CBC cipher
 			// Can't use TLSv1.1 because of RC4 cipher usage
