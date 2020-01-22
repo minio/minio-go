@@ -235,23 +235,23 @@ func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName
 	defer debug.FreeOSMemory()
 
 	for partNumber <= totalPartsCount {
-		length, rErr := io.ReadFull(reader, buf)
-		if rErr == io.EOF && partNumber > 1 {
+		length, rerr := io.ReadFull(reader, buf)
+		if rerr == io.EOF && partNumber > 1 {
 			break
 		}
-		if rErr != nil && rErr != io.ErrUnexpectedEOF && rErr != io.EOF {
-			return 0, rErr
+		if rerr != nil && rerr != io.ErrUnexpectedEOF && rerr != io.EOF {
+			return 0, rerr
 		}
+
 		// Update progress reader appropriately to the latest offset
 		// as we read from the source.
 		rd := newHook(bytes.NewReader(buf[:length]), opts.Progress)
 
 		// Proceed to upload the part.
-		var objPart ObjectPart
-		objPart, err = c.uploadPart(ctx, bucketName, objectName, uploadID, rd, partNumber,
+		objPart, uerr := c.uploadPart(ctx, bucketName, objectName, uploadID, rd, partNumber,
 			"", "", int64(length), opts.ServerSideEncryption)
-		if err != nil {
-			return totalUploadedSize, err
+		if uerr != nil {
+			return totalUploadedSize, uerr
 		}
 
 		// Save successfully uploaded part metadata.
@@ -265,7 +265,7 @@ func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName
 
 		// For unknown size, Read EOF we break away.
 		// We do not have to upload till totalPartsCount.
-		if rErr == io.EOF {
+		if rerr == io.EOF {
 			break
 		}
 	}
