@@ -109,14 +109,28 @@ __参数__
 |`bucketName`  | _string_  | 存储桶名称 |
 | `location`  |  _string_ | 存储桶被创建的region(地区)，默认是us-east-1(美国东一区)，下面列举的是其它合法的值。注意：如果用的是minio服务的话，resion是在它的配置文件中，（默认是us-east-1）。|
 | | |us-east-1 |
+| | |us-east-2 |
 | | |us-west-1 |
 | | |us-west-2 |
+| | |ca-central-1 |
 | | |eu-west-1 |
+| | |eu-west-2 |
+| | |eu-west-3 |
 | | | eu-central-1|
+| | | eu-north-1|
+| | | ap-east-1|
+| | | ap-south-1|
 | | | ap-southeast-1|
-| | | ap-northeast-1|
 | | | ap-southeast-2|
+| | | ap-northeast-1|
+| | | ap-northeast-2|
+| | | ap-northeast-3|
+| | | me-south-1|
 | | | sa-east-1|
+| | | us-gov-west-1|
+| | | us-gov-east-1|
+| | | cn-north-1|
+| | | cn-northwest-1|
 
 
 __示例__
