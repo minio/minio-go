@@ -10067,8 +10067,6 @@ func testListObjects() {
 		name         string
 		storageClass string
 	}{
-		// \x17 is a forbidden character in a xml document
-		{"foo\x17bar", "STANDARD"},
 		// Special characters
 		{"foo bar", "STANDARD"},
 		{"foo-%", "STANDARD"},
