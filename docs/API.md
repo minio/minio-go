@@ -64,9 +64,9 @@ func main() {
 |                                                   | [`ComposeObject`](#ComposeObject)                   |    [`ComposeObject`](#ComposeObject)                                         |                                               | [`GetBucketObjectLockConfig`](#GetBucketObjectLockConfig)                   |                                                       |
 |                                                   | [`NewSourceInfo`](#NewSourceInfo)                   |    [`NewSourceInfo`](#NewSourceInfo)                                         |                                               | [`EnableVersioning`](#EnableVersioning)                                                              |                                                       |
 |                                                   | [`NewDestinationInfo`](#NewDestinationInfo)         |    [`NewDestinationInfo`](#NewDestinationInfo)                                         |                                               | [`DisableVersioning`](#DisableVersioning)                                                              |                                                       |
-|   | [`PutObjectWithContext`](#PutObjectWithContext)  | [`PutObjectWithContext`](#PutObjectWithContext) |   |   |
-|   | [`GetObjectWithContext`](#GetObjectWithContext)  | [`GetObjectWithContext`](#GetObjectWithContext) |   |   |
-|   | [`FPutObjectWithContext`](#FPutObjectWithContext)  | [`FPutObjectWithContext`](#FPutObjectWithContext) |   |   |
+|   | [`PutObjectWithContext`](#PutObjectWithContext)  | [`PutObjectWithContext`](#PutObjectWithContext) |   | [`SetBucketEncryption`](#SetBucketEncryption)  |
+|   | [`GetObjectWithContext`](#GetObjectWithContext)  | [`GetObjectWithContext`](#GetObjectWithContext) |   | [`GetBucketEncryption`](#GetBucketEncryption) |   |
+|   | [`FPutObjectWithContext`](#FPutObjectWithContext)  | [`FPutObjectWithContext`](#FPutObjectWithContext) |   | [`DeleteBucketEncryption`](#DeleteBucketEncryption)   |
 |   | [`FGetObjectWithContext`](#FGetObjectWithContext)  | [`FGetObjectWithContext`](#FGetObjectWithContext) |   |   |
 |   | [`RemoveObjectsWithContext`](#RemoveObjectsWithContext)  | |    |   |
 |   | [`RemoveObjectWithOptions`](#RemoveObjectWithOptions)  | |    |   |
@@ -1918,6 +1918,109 @@ lifecycle, err := minioClient.GetBucketLifecycle("my-bucketname")
 if err != nil {
     log.Fatalln(err)
 }
+```
+
+<a name="SetBucketEncryption"></a>
+### SetBucketEncryption(bucketname string, configuration ServerSideEncryptionConfiguration) error
+Set default encryption configuration on a bucket.
+
+__Parameters__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName` | _string_  |Name of the bucket|
+|`configuration` | _minio.ServerSideEncyrptionConfiguration_  | Structure that holds default encryption configuration to be set |
+
+__Return Values__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`err` | _error_  |Standard Error   |
+
+__Example__
+
+```go
+s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", true)
+if err != nil {
+    log.Fatalln(err)
+}
+
+// Initialize default encryption configuration structure
+config := minio.ServerSideEncryptionConfiguration{Rules: []minio.Rule{
+    minio.Rule{
+        Apply: minio.ApplyServerSideEncryptionByDefault{
+            SSEAlgorithm: "AES256",
+        },
+    },
+}}
+// Set default encryption configuration on an S3 bucket
+err = s3Client.SetBucketEncryption("my-bucketname", config)
+if err != nil {
+    log.Fatalln(err)
+}
+```
+
+<a name="GetBucketEncryption"></a>
+### GetBucketEncryption(bucketName string) (ServerSideEncryptionConfiguration, error)
+Get default encryption configuration set on a bucket.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |Name of the bucket   |
+
+__Return Values__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`configuration` | _minio.ServerSideEncyrptionConfiguration_ | Structure that holds default encryption configuration |
+|`err` | _error_ |Standard Error  |
+
+__Example__
+
+```go
+s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", true)
+if err != nil {
+    log.Fatalln(err)
+}
+
+// Get default encryption configuration set on an S3 bucket and print it out
+encryptionConfig, err := s3Client.GetBucketEncryption("my-bucketname")
+if err != nil {
+    log.Fatalln(err)
+}
+fmt.Printf("%+v\n", encryptionConfig)
+```
+
+<a name="DeleteBucketEncryption"></a>
+### DeleteBucketEncryption(bucketName string) (error)
+Delete/Remove default encryption configuration set on a bucket.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---|:---|
+|`bucketName`  | _string_  |Name of the bucket   |
+
+__Return Values__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`err` | _error_  |Standard Error  |
+
+__Example__
+
+```go
+err := s3Client.DeleteBucketEncryption("my-bucketname")
+if err != nil {
+    log.Fatalln(err)
+}
+// "my-bucket" is successfully deleted/removed.
 ```
 
 <a name="SetBucketObjectLockConfig"></a>
