@@ -299,10 +299,10 @@ func checkBucketNameCommon(bucketName string, strict bool) (err error) {
 		return errors.New("Bucket name cannot be empty")
 	}
 	if len(bucketName) < 3 {
-		return errors.New("Bucket name cannot be smaller than 3 characters")
+		return errors.New("Bucket name cannot be shorter than 3 characters")
 	}
 	if len(bucketName) > 63 {
-		return errors.New("Bucket name cannot be greater than 63 characters")
+		return errors.New("Bucket name cannot be longer than 63 characters")
 	}
 	if ipAddress.MatchString(bucketName) {
 		return errors.New("Bucket name cannot be an ip address")
@@ -338,7 +338,7 @@ func CheckValidBucketNameStrict(bucketName string) (err error) {
 //   - http://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html
 func CheckValidObjectNamePrefix(objectName string) error {
 	if len(objectName) > 1024 {
-		return errors.New("Object name cannot be greater than 1024 characters")
+		return errors.New("Object name cannot be longer than 1024 characters")
 	}
 	if !utf8.ValidString(objectName) {
 		return errors.New("Object name with non UTF-8 strings are not supported")
