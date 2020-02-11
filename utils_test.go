@@ -273,7 +273,7 @@ func TestIsValidBucketName(t *testing.T) {
 		{".mybucket", ErrInvalidBucketName("Bucket name contains invalid characters"), false},
 		{"mybucket.", ErrInvalidBucketName("Bucket name contains invalid characters"), false},
 		{"mybucket-", ErrInvalidBucketName("Bucket name contains invalid characters"), false},
-		{"my", ErrInvalidBucketName("Bucket name cannot be smaller than 3 characters"), false},
+		{"my", ErrInvalidBucketName("Bucket name cannot be shorter than 3 characters"), false},
 		{"", ErrInvalidBucketName("Bucket name cannot be empty"), false},
 		{"my..bucket", ErrInvalidBucketName("Bucket name contains invalid characters"), false},
 		{"my.bucket.com", nil, true},
