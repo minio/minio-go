@@ -72,6 +72,8 @@ func main() {
 |   | [`RemoveObjectWithOptions`](#RemoveObjectWithOptions)  | |    |   |
 |   | [`PutObjectRetention`](#PutObjectRetention)  | |    |   |
 |   | [`GetObjectRetention`](#GetObjectRetention)  | |    |   |
+|   | [`PutObjectLegalHold`](#PutObjectLegalHold)  | |    |   |
+|   | [`GetObjectLegalHold`](#GetObjectLegalHold)  | |    |   |
 | | [`SelectObjectContent`](#SelectObjectContent)  |   |
 | | [`PutObjectTagging`](#PutObjectTagging)  |   |
 | | [`PutObjectTaggingWithContext`](#PutObjectTaggingWithContext)  |   |
@@ -1274,6 +1276,57 @@ __Parameters__
 
 ```go
 err = minioClient.PutObjectRetention("mybucket", "myobject", "")
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
+<a name="PutObjectLegalHold"></a>
+### PutObjectLegalHold(bucketName, objectName string, opts minio.PutObjectLegalHoldOptions) error
+Applies legal-hold onto an object.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |Name of the bucket  |
+|`objectName` | _string_  |Name of the object |
+|`opts`	|_minio.PutObjectLegalHoldOptions_ |Allows user to set options like status and version id |
+
+__minio.PutObjectLegalHoldOptions_
+
+|Field | Type | Description |
+|:--- |:--- | :--- |
+| `opts.Status` | _*minio.LegalHoldStatus_ |Legal-Hold status to be set|
+| `opts.VersionID` | _string_ |Version ID of the object to apply retention on|
+
+```go
+s := minio.LegalHoldEnabled
+opts := minio.PutObjectRetentionOptions {
+    Status: &s,
+}
+err = minioClient.PutObjectLegalHold("mybucket", "myobject", opts)
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
+<a name="GetObjectLegalHold"></a>
+### GetObjectLegalHold(bucketName, objectName, versionID string) (status *LegalHoldStatus, err error)
+Returns legal-hold status on a given object.
+
+__Parameters__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |Name of the bucket  |
+|`objectName` | _string_  |Name of the object |
+|`opts`	|_minio.GetObjectLegalHoldOptions_ |Allows user to set options like version id |
+
+```go
+opts := minio.GetObjectLegalHoldOptions{}
+err = minioClient.GetObjectLegalHold("mybucket", "myobject", opts)
 if err != nil {
     fmt.Println(err)
     return
