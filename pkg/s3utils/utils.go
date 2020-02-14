@@ -84,16 +84,22 @@ func IsVirtualHostSupported(endpointURL url.URL, bucketName string) bool {
 // Refer for region styles - https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region
 
 // amazonS3HostHyphen - regular expression used to determine if an arg is s3 host in hyphenated style.
-var amazonS3HostHyphen = regexp.MustCompile(`^s3-(.*?)\.amazonaws\.com$`)
+var amazonS3HostHyphen = regexp.MustCompile(`^s3-(.*?).amazonaws.com$`)
 
 // amazonS3HostDualStack - regular expression used to determine if an arg is s3 host dualstack.
-var amazonS3HostDualStack = regexp.MustCompile(`^s3\.dualstack\.(.*?)\.amazonaws\.com$`)
+var amazonS3HostDualStack = regexp.MustCompile(`^s3.dualstack.(.*?).amazonaws.com$`)
 
 // amazonS3HostDot - regular expression used to determine if an arg is s3 host in . style.
-var amazonS3HostDot = regexp.MustCompile(`^s3\.(.*?)\.amazonaws\.com$`)
+var amazonS3HostDot = regexp.MustCompile(`^s3.(.*?).amazonaws.com$`)
 
 // amazonS3ChinaHost - regular expression used to determine if the arg is s3 china host.
-var amazonS3ChinaHost = regexp.MustCompile(`^s3\.(cn.*?)\.amazonaws\.com\.cn$`)
+var amazonS3ChinaHost = regexp.MustCompile(`^s3.(cn.*?).amazonaws.com.cn$`)
+
+// Regular expression used to determine if the arg is elb host.
+var elbAmazonRegex = regexp.MustCompile(`elb(.*?).amazonaws.com$`)
+
+// Regular expression used to determine if the arg is elb host in china.
+var elbAmazonCnRegex = regexp.MustCompile(`elb(.*?).amazonaws.com.cn$`)
 
 // GetRegionFromURL - returns a region from url host.
 func GetRegionFromURL(endpointURL url.URL) string {
@@ -105,6 +111,10 @@ func GetRegionFromURL(endpointURL url.URL) string {
 	}
 	if IsAmazonGovCloudEndpoint(endpointURL) {
 		return "us-gov-west-1"
+	}
+	// if elb's are used we cannot calculate which region it may be, just return empty.
+	if elbAmazonRegex.MatchString(endpointURL.Host) || elbAmazonCnRegex.MatchString(endpointURL.Host) {
+		return ""
 	}
 	parts := amazonS3HostDualStack.FindStringSubmatch(endpointURL.Host)
 	if len(parts) > 1 {
