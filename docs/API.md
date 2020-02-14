@@ -1303,7 +1303,7 @@ _minio.PutObjectLegalHoldOptions_
 
 ```go
 s := minio.LegalHoldEnabled
-opts := minio.PutObjectRetentionOptions {
+opts := minio.PutObjectLegalHoldOptions {
     Status: &s,
 }
 err = minioClient.PutObjectLegalHold("mybucket", "myobject", opts)
