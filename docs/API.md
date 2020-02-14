@@ -1294,7 +1294,7 @@ __Parameters__
 |`objectName` | _string_  |Name of the object |
 |`opts`	|_minio.PutObjectLegalHoldOptions_ |Allows user to set options like status and version id |
 
-__minio.PutObjectLegalHoldOptions_
+_minio.PutObjectLegalHoldOptions_
 
 |Field | Type | Description |
 |:--- |:--- | :--- |
