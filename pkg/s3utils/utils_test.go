@@ -73,6 +73,23 @@ func TestGetRegionFromURL(t *testing.T) {
 			u:              url.URL{Host: "s3-external-1.amazonaws.com"},
 			expectedRegion: "",
 		},
+		{
+			u: url.URL{
+				Host: "s3.kubernetesfrontendlb-caf78da2b1f7516c.elb.us-west-2.amazonaws.com",
+			},
+			expectedRegion: "",
+		},
+		{
+			u: url.URL{
+				Host: "s3.kubernetesfrontendlb-caf78da2b1f7516c.elb.amazonaws.com",
+			},
+			expectedRegion: "",
+		},
+		{
+			u: url.URL{
+				Host: "s3.kubernetesfrontendlb-caf78da2b1f7516c.elb.amazonaws.com.cn",
+			},
+		},
 	}
 
 	for i, testCase := range testCases {
