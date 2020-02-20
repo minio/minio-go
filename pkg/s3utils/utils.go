@@ -226,7 +226,13 @@ func QueryEncode(v url.Values) string {
 			buf.WriteString(percentEncodeSlash(EncodePath(v)))
 		}
 	}
-	return buf.String()
+
+	// trim ending `=` for compatibility
+	queryStr := buf.String()
+	if strings.HasSuffix(queryStr, "=") {
+		queryStr = queryStr[0 : len(queryStr)-1]
+	}
+	return queryStr
 }
 
 // TagEncode - encodes tag values in their URL encoded form. In
