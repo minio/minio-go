@@ -617,6 +617,7 @@ __minio.PutObjectOptions__
 | `opts.ServerSideEncryption` | _encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go/v6) |
 | `opts.StorageClass` | _string_ | Specify storage class for the object. Supported values for MinIO server are `REDUCED_REDUNDANCY` and `STANDARD` |
 | `opts.WebsiteRedirectLocation` | _string_ | Specify a redirect for the object, to another object in the same bucket or to a external URL. |
+| `opts.SendContentMd5` | _bool_ | Specify if you'd like to send `content-md5` header with PutObject operation. Note that setting this flag will cause higher memory usage because of in-memory `md5sum` calculation. |
 
 __Example__
 
@@ -938,6 +939,16 @@ __Parameters__
 | `bucket`      | _string_            | Name of the destination bucket                                                                                 |
 | `object`      | _string_            | Name of the destination object                                                                                 |
 | `destOpts`    | _minio.DestInfoOptions_   | Pointer to struct that allows user to set optional custom metadata, user tags, and server side encryption parameters. |
+
+__minio.DestInfoOptions__
+
+|Field | Type | Description |
+|:--- |:--- | :--- |
+| `destOpts.Encryption` | _encrypt.ServerSide_ | Interface provided by encrypt package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go/v6). |
+| `destOpts.UserMetadata` | _map[string]string_ | Map of user meta data to be set on destination object. |
+| `destOpts.UserTags` | _map[string]string_ | Map of user object tags to be set on destination object. |
+| `destOpts.ReplaceTags` | _bool_ | Replace object tags of the destination object. |
+| `destOpts.LegalHold` | _*minio.LegalHoldStatus_ | LegalHold(En|Dis)abled. |
 
 __Example__
 

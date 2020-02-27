@@ -20,6 +20,8 @@ package minio
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -49,6 +51,8 @@ type PutObjectOptions struct {
 	StorageClass            string
 	WebsiteRedirectLocation string
 	PartSize                uint64
+	LegalHold               LegalHoldStatus
+	SendContentMd5          bool
 }
 
 // getNumThreads - gets the number of threads to be used in the multipart
@@ -92,6 +96,9 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 		header["x-amz-object-lock-retain-until-date"] = []string{opts.RetainUntilDate.Format(time.RFC3339)}
 	}
 
+	if opts.LegalHold != "" {
+		header[amzLegalHoldHeader] = []string{opts.LegalHold.String()}
+	}
 	if opts.ServerSideEncryption != nil {
 		opts.ServerSideEncryption.Marshal(header)
 	}
@@ -129,6 +136,9 @@ func (opts PutObjectOptions) validate() (err error) {
 			return ErrInvalidArgument(opts.Mode.String() + " unsupported retention mode")
 		}
 	}
+	if opts.LegalHold != "" && !opts.LegalHold.IsValid() {
+		return ErrInvalidArgument(opts.LegalHold.String() + " unsupported legal-hold status")
+	}
 	return nil
 }
 
@@ -164,8 +174,7 @@ func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName stri
 
 	// NOTE: Streaming signature is not supported by GCS.
 	if s3utils.IsGoogleEndpoint(*c.endpointURL) {
-		// Do not compute MD5 for Google Cloud Storage.
-		return c.putObjectNoChecksum(ctx, bucketName, objectName, reader, size, opts)
+		return c.putObject(ctx, bucketName, objectName, reader, size, opts)
 	}
 
 	partSize := opts.PartSize
@@ -175,7 +184,7 @@ func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName stri
 
 	if c.overrideSignerType.IsV2() {
 		if size >= 0 && size < int64(partSize) {
-			return c.putObjectNoChecksum(ctx, bucketName, objectName, reader, size, opts)
+			return c.putObject(ctx, bucketName, objectName, reader, size, opts)
 		}
 		return c.putObjectMultipart(ctx, bucketName, objectName, reader, size, opts)
 	}
@@ -184,10 +193,9 @@ func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName stri
 	}
 
 	if size < int64(partSize) {
-		return c.putObjectNoChecksum(ctx, bucketName, objectName, reader, size, opts)
+		return c.putObject(ctx, bucketName, objectName, reader, size, opts)
 	}
 
-	// For all sizes greater than 128MiB do multipart.
 	return c.putObjectMultipartStream(ctx, bucketName, objectName, reader, size, opts)
 }
 
@@ -243,13 +251,21 @@ func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName
 			return 0, rerr
 		}
 
+		var md5Base64 string
+		if opts.SendContentMd5 {
+			// Calculate md5sum.
+			hash := md5.New()
+			hash.Write(buf[:length])
+			md5Base64 = base64.StdEncoding.EncodeToString(hash.Sum(nil))
+		}
+
 		// Update progress reader appropriately to the latest offset
 		// as we read from the source.
 		rd := newHook(bytes.NewReader(buf[:length]), opts.Progress)
 
 		// Proceed to upload the part.
 		objPart, uerr := c.uploadPart(ctx, bucketName, objectName, uploadID, rd, partNumber,
-			"", "", int64(length), opts.ServerSideEncryption)
+			md5Base64, "", int64(length), opts.ServerSideEncryption)
 		if uerr != nil {
 			return totalUploadedSize, uerr
 		}

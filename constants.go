@@ -65,3 +65,6 @@ const amzWebsiteRedirectLocation = "X-Amz-Website-Redirect-Location"
 const amzTaggingHeader = "X-Amz-Tagging"
 const amzTaggingHeaderDirective = "X-Amz-Tagging-Directive"
 const amzTaggingHeaderCount = "X-Amz-Tagging-Count"
+
+// LegalHold Header constants
+const amzLegalHoldHeader = "X-Amz-Object-Lock-Legal-Hold"
