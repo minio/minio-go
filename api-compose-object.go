@@ -60,6 +60,9 @@ type DestInfoOptions struct {
 	// Otherwise this field is ignored
 	UserTags    map[string]string
 	ReplaceTags bool
+
+	// Specifies whether you want to apply a Legal Hold to the copied object.
+	LegalHold LegalHoldStatus
 }
 
 // Process custom-metadata to remove a `x-amz-meta-` prefix if
@@ -107,6 +110,7 @@ func NewDestinationInfo(bucket, object string, sse encrypt.ServerSide, userMeta 
 		UserMeta:    m,
 		UserTags:    nil,
 		ReplaceTags: false,
+		LegalHold:   LegalHoldStatus(""),
 	}
 	return DestinationInfo{
 		bucket: bucket,

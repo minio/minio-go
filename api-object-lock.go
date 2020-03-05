@@ -184,10 +184,10 @@ func (c Client) SetBucketObjectLockConfig(bucketName string, mode *RetentionMode
 }
 
 // GetBucketObjectLockConfig gets object lock configuration of given bucket.
-func (c Client) GetBucketObjectLockConfig(bucketName string) (mode *RetentionMode, validity *uint, unit *ValidityUnit, err error) {
+func (c Client) GetBucketObjectLockConfig(bucketName string) (objectLock string, mode *RetentionMode, validity *uint, unit *ValidityUnit, err error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
-		return nil, nil, nil, err
+		return "", nil, nil, nil, err
 	}
 
 	urlValues := make(url.Values)
@@ -201,16 +201,16 @@ func (c Client) GetBucketObjectLockConfig(bucketName string) (mode *RetentionMod
 	})
 	defer closeResponse(resp)
 	if err != nil {
-		return nil, nil, nil, err
+		return "", nil, nil, nil, err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return nil, nil, nil, httpRespToErrorResponse(resp, bucketName, "")
+			return "", nil, nil, nil, httpRespToErrorResponse(resp, bucketName, "")
 		}
 	}
 	config := &objectLockConfig{}
 	if err = xml.NewDecoder(resp.Body).Decode(config); err != nil {
-		return nil, nil, nil, err
+		return "", nil, nil, nil, err
 	}
 
 	if config.Rule != nil {
@@ -225,8 +225,8 @@ func (c Client) GetBucketObjectLockConfig(bucketName string) (mode *RetentionMod
 			unit = &years
 		}
 
-		return mode, validity, unit, nil
+		return config.ObjectLockEnabled, mode, validity, unit, nil
 	}
 
-	return nil, nil, nil, nil
+	return "", nil, nil, nil, nil
 }

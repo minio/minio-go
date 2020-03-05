@@ -413,7 +413,7 @@ func (c *Client) SetS3TransferAccelerate(accelerateEndpoint string) {
 //  - For signature v4 request if the connection is insecure compute only sha256.
 //  - For signature v4 request if the connection is secure compute only md5.
 //  - For anonymous request compute md5.
-func (c *Client) hashMaterials() (hashAlgos map[string]hash.Hash, hashSums map[string][]byte) {
+func (c *Client) hashMaterials(isMd5Requested bool) (hashAlgos map[string]hash.Hash, hashSums map[string][]byte) {
 	hashSums = make(map[string][]byte)
 	hashAlgos = make(map[string]hash.Hash)
 	if c.overrideSignerType.IsV4() {
@@ -426,6 +426,9 @@ func (c *Client) hashMaterials() (hashAlgos map[string]hash.Hash, hashSums map[s
 		if c.overrideSignerType.IsAnonymous() {
 			hashAlgos["md5"] = md5.New()
 		}
+	}
+	if isMd5Requested {
+		hashAlgos["md5"] = md5.New()
 	}
 	return hashAlgos, hashSums
 }
