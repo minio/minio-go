@@ -43,7 +43,7 @@ func main() {
 
 	// Set default encryption configuration on a bucket
 	config := minio.ServerSideEncryptionConfiguration{Rules: []minio.Rule{
-		minio.Rule{
+		{
 			Apply: minio.ApplyServerSideEncryptionByDefault{
 				SSEAlgorithm: "AES256",
 				// KmsMasterKeyID: "my-masterkey",

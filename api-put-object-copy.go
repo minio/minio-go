@@ -45,6 +45,10 @@ func (c Client) CopyObjectWithProgress(dst DestinationInfo, src SourceInfo, prog
 		header.Set(amzTaggingHeader, s3utils.TagEncode(dst.opts.UserTags))
 	}
 
+	if dst.opts.LegalHold != LegalHoldStatus("") {
+		header.Set(amzLegalHoldHeader, dst.opts.LegalHold.String())
+	}
+
 	var err error
 	var size int64
 	// If progress bar is specified, size should be requested as well initiate a StatObject request.
