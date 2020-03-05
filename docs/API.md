@@ -602,22 +602,24 @@ __Parameters__
 
 __minio.PutObjectOptions__
 
-|Field | Type | Description |
-|:--- |:--- | :--- |
-| `opts.UserMetadata` | _map[string]string_ | Map of user metadata|
-| `opts.UserTags` | _map[string]string_ | Map of user object tags |
-| `opts.Progress` | _io.Reader_ | Reader to fetch progress of an upload |
-| `opts.ContentType` | _string_ | Content type of object, e.g "application/text" |
-| `opts.ContentEncoding` | _string_ | Content encoding of object, e.g "gzip" |
-| `opts.ContentDisposition` | _string_ | Content disposition of object, "inline" |
-| `opts.ContentLanguage` | _string_ | Content language of object, e.g "French" |
-| `opts.CacheControl` | _string_ | Used to specify directives for caching mechanisms in both requests and responses e.g "max-age=600"|
-| `opts.Mode` | _*minio.RetentionMode_ | Retention mode to be set, e.g "COMPLIANCE" |
-| `opts.RetainUntilDate` | _*time.Time_ | Time until which the retention applied is valid|
-| `opts.ServerSideEncryption` | _encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go/v6) |
-| `opts.StorageClass` | _string_ | Specify storage class for the object. Supported values for MinIO server are `REDUCED_REDUNDANCY` and `STANDARD` |
-| `opts.WebsiteRedirectLocation` | _string_ | Specify a redirect for the object, to another object in the same bucket or to a external URL. |
-| `opts.SendContentMd5` | _bool_ | Specify if you'd like to send `content-md5` header with PutObject operation. Note that setting this flag will cause higher memory usage because of in-memory `md5sum` calculation. |
+| Field                          | Type                   | Description                                                                                                                                                                        |
+|:-------------------------------|:-----------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `opts.UserMetadata`            | _map[string]string_    | Map of user metadata                                                                                                                                                               |
+| `opts.UserTags`                | _map[string]string_    | Map of user object tags                                                                                                                                                            |
+| `opts.Progress`                | _io.Reader_            | Reader to fetch progress of an upload                                                                                                                                              |
+| `opts.ContentType`             | _string_               | Content type of object, e.g "application/text"                                                                                                                                     |
+| `opts.ContentEncoding`         | _string_               | Content encoding of object, e.g "gzip"                                                                                                                                             |
+| `opts.ContentDisposition`      | _string_               | Content disposition of object, "inline"                                                                                                                                            |
+| `opts.ContentLanguage`         | _string_               | Content language of object, e.g "French"                                                                                                                                           |
+| `opts.CacheControl`            | _string_               | Used to specify directives for caching mechanisms in both requests and responses e.g "max-age=600"                                                                                 |
+| `opts.Mode`                    | _*minio.RetentionMode_ | Retention mode to be set, e.g "COMPLIANCE"                                                                                                                                         |
+| `opts.RetainUntilDate`         | _*time.Time_           | Time until which the retention applied is valid                                                                                                                                    |
+| `opts.ServerSideEncryption`    | _encrypt.ServerSide_   | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go/v6)                               |
+| `opts.StorageClass`            | _string_               | Specify storage class for the object. Supported values for MinIO server are `REDUCED_REDUNDANCY` and `STANDARD`                                                                    |
+| `opts.WebsiteRedirectLocation` | _string_               | Specify a redirect for the object, to another object in the same bucket or to a external URL.                                                                                      |
+| `opts.SendContentMd5`          | _bool_                 | Specify if you'd like to send `content-md5` header with PutObject operation. Note that setting this flag will cause higher memory usage because of in-memory `md5sum` calculation. |
+| `opts.PartSize`                | _uint64_               | Specify a custom part size used for uploading the object                                                                                                                           |
+
 
 __Example__
 
