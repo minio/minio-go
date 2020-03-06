@@ -60,8 +60,8 @@ func main() {
 | [`ListObjects`](#ListObjects)                     | [`RemoveObjects`](#RemoveObjects)                   |    |                                               | [`ListenBucketNotification`](#ListenBucketNotification)   |                                                       |
 | [`ListObjectsV2`](#ListObjectsV2)                 | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                             |                                               | [`SetBucketLifecycle`](#SetBucketLifecycle)     |                                                       |
 | [`ListIncompleteUploads`](#ListIncompleteUploads) | [`FPutObject`](#FPutObject)                         |    [`FPutObject`](#FPutObject)                                         |                                               | [`GetBucketLifecycle`](#GetBucketLifecycle)                                                              |                                                       |
-|                                                   | [`FGetObject`](#FGetObject)                         |    [`FGetObject`](#FGetObject)                                         |                                               | [`SetBucketObjectLockConfig`](#SetBucketObjectLockConfig)                         |                                                       |
-|                                                   | [`ComposeObject`](#ComposeObject)                   |    [`ComposeObject`](#ComposeObject)                                         |                                               | [`GetBucketObjectLockConfig`](#GetBucketObjectLockConfig)                   |                                                       |
+|                                                   | [`FGetObject`](#FGetObject)                         |    [`FGetObject`](#FGetObject)                                         |                                               | [`SetObjectLockConfig`](#SetObjectLockConfig)                         |                                                       |
+|                                                   | [`ComposeObject`](#ComposeObject)                   |    [`ComposeObject`](#ComposeObject)                                         |                                               | [`GetObjectLockConfig`](#GetObjectLockConfig)                   |                                                       |
 |                                                   | [`NewSourceInfo`](#NewSourceInfo)                   |    [`NewSourceInfo`](#NewSourceInfo)                                         |                                               | [`EnableVersioning`](#EnableVersioning)                                                              |                                                       |
 |                                                   | [`NewDestinationInfo`](#NewDestinationInfo)         |    [`NewDestinationInfo`](#NewDestinationInfo)                                         |                                               | [`DisableVersioning`](#DisableVersioning)                                                              |                                                       |
 |   | [`PutObjectWithContext`](#PutObjectWithContext)  | [`PutObjectWithContext`](#PutObjectWithContext) |   | [`SetBucketEncryption`](#SetBucketEncryption)  |
@@ -2089,8 +2089,8 @@ if err != nil {
 // "my-bucket" is successfully deleted/removed.
 ```
 
-<a name="SetBucketObjectLockConfig"></a>
-### SetBucketObjectLockConfig(bucketname, mode *RetentionMode, validity *uint, unit *ValidityUnit) error
+<a name="SetObjectLockConfig"></a>
+### SetObjectLockConfig(bucketname, mode *RetentionMode, validity *uint, unit *ValidityUnit) error
 Set object lock configuration in given bucket. mode, validity and unit are either all set or all nil.
 
 __Parameters__
@@ -2115,15 +2115,15 @@ mode := Governance
 validity := uint(30)
 unit := Days
 
-err = minioClient.SetBucketObjectLockConfig("my-bucketname", &mode, &validity, &unit)
+err = minioClient.SetObjectLockConfig("my-bucketname", &mode, &validity, &unit)
 if err != nil {
     fmt.Println(err)
     return
 }
 ```
 
-<a name="GetBucketObjectLockConfig"></a>
-### GetBucketObjectLockConfig(bucketName) (*RetentionMode, *uint, *ValidityUnit, error)
+<a name="GetObjectLockConfig"></a>
+### GetObjectLockConfig(bucketName) (objectLock,*RetentionMode, *uint, *ValidityUnit, error)
 Get object lock configuration of given bucket.
 
 __Parameters__
@@ -2138,6 +2138,7 @@ __Return Values__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
+|`objectLock` | _objectLock_  |lock enabled status |
 |`mode` | _RetentionMode_  |Current retention mode |
 |`validity` | _uint_  |Current validity period |
 |`unit` | _ValidityUnit_  |Unit of validity period |
@@ -2146,11 +2147,11 @@ __Return Values__
 __Example__
 
 ```go
-mode, validity, unit, err := minioClient.GetObjectLockConfig("my-bucketname")
+enabled, mode, validity, unit, err := minioClient.GetObjectLockConfig("my-bucketname")
 if err != nil {
     log.Fatalln(err)
 }
-
+fmt.Println("object lock is %s for this bucket",enabled)
 if mode != nil {
 	fmt.Printf("%v mode is enabled for %v %v for bucket 'my-bucketname'\n", *mode, *validity, *unit)
 } else {

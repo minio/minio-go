@@ -22,6 +22,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 
 	minio "github.com/minio/minio-go/v6"
 )
@@ -35,7 +36,7 @@ func main() {
 
 	// New returns an Amazon S3 compatible client object. API compatibility (v2 or v4) is automatically
 	// determined based on the Endpoint value.
-	s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", true)
+	s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESS-KEY-HERE", "YOUR-SECRET-KEY-HERE", true)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -43,10 +44,11 @@ func main() {
 	// s3Client.TraceOn(os.Stderr)
 
 	// Get object lock configuration.
-	mode, validity, unit, err := s3Client.GetBucketObjectLockConfig("my-bucketname")
+	enabled, mode, validity, unit, err := s3Client.GetObjectLockConfig("tbucket13a")
 	if err != nil {
 		log.Fatalln(err)
 	}
+	fmt.Printf("object lock is %v for bucket 'my-bucketname'\n", enabled)
 
 	if mode != nil {
 		fmt.Printf("%v mode is enabled for %v %v for bucket 'my-bucketname'\n", *mode, *validity, *unit)
