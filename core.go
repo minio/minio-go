@@ -85,7 +85,7 @@ func (c Core) CopyObjectPart(srcBucket, srcObject, destBucket, destObject string
 }
 
 // PutObjectWithContext - Upload object. Uploads using single PUT call.
-func (c Core) PutObjectWithContext(ctx context.Context, bucket, object string, data io.Reader, size int64, md5Base64, sha256Hex string, metadata map[string]string, sse encrypt.ServerSide) (ObjectInfo, error) {
+func (c Core) PutObjectWithContext(ctx context.Context, bucket, object string, data io.Reader, size int64, md5Base64, sha256Hex string, metadata map[string]string, sse encrypt.ServerSide, usertags map[string]string) (ObjectInfo, error) {
 	opts := PutObjectOptions{}
 	m := make(map[string]string)
 	for k, v := range metadata {
@@ -107,12 +107,13 @@ func (c Core) PutObjectWithContext(ctx context.Context, bucket, object string, d
 	}
 	opts.UserMetadata = m
 	opts.ServerSideEncryption = sse
+	opts.UserTags = usertags
 	return c.putObjectDo(ctx, bucket, object, data, md5Base64, sha256Hex, size, opts)
 }
 
 // PutObject - Upload object. Uploads using single PUT call.
-func (c Core) PutObject(bucket, object string, data io.Reader, size int64, md5Base64, sha256Hex string, metadata map[string]string, sse encrypt.ServerSide) (ObjectInfo, error) {
-	return c.PutObjectWithContext(context.Background(), bucket, object, data, size, md5Base64, sha256Hex, metadata, sse)
+func (c Core) PutObject(bucket, object string, data io.Reader, size int64, md5Base64, sha256Hex string, metadata map[string]string, sse encrypt.ServerSide, usertags map[string]string) (ObjectInfo, error) {
+	return c.PutObjectWithContext(context.Background(), bucket, object, data, size, md5Base64, sha256Hex, metadata, sse, usertags)
 }
 
 // NewMultipartUpload - Initiates new multipart upload and returns the new uploadID.

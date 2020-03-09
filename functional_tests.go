@@ -6140,7 +6140,7 @@ func testEncryptedEmptyObject() {
 	// initialize logging params
 	startTime := time.Now()
 	testName := getFuncName()
-	function := "PutObject(bucketName, objectName, reader, objectSize, opts)"
+	function := "PutObject(bucketName, objectName, reader, objectSize, opts, tags)"
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
@@ -6939,7 +6939,7 @@ func testSSECEncryptedToSSECCopyObjectPart() {
 
 	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
 		"Content-Type": "binary/octet-stream",
-	}, srcencryption)
+	}, srcencryption, nil)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
@@ -7090,7 +7090,7 @@ func testSSECEncryptedToUnencryptedCopyPart() {
 
 	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
 		"Content-Type": "binary/octet-stream",
-	}, srcencryption)
+	}, srcencryption, nil)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
@@ -7240,7 +7240,7 @@ func testSSECEncryptedToSSES3CopyObjectPart() {
 
 	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
 		"Content-Type": "binary/octet-stream",
-	}, srcencryption)
+	}, srcencryption, nil)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
@@ -7391,7 +7391,7 @@ func testUnencryptedToSSECCopyObjectPart() {
 
 	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
 		"Content-Type": "binary/octet-stream",
-	}, nil)
+	}, nil, nil)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
@@ -7539,7 +7539,7 @@ func testUnencryptedToUnencryptedCopyPart() {
 
 	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
 		"Content-Type": "binary/octet-stream",
-	}, nil)
+	}, nil, nil)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
@@ -7685,7 +7685,7 @@ func testUnencryptedToSSES3CopyObjectPart() {
 
 	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
 		"Content-Type": "binary/octet-stream",
-	}, nil)
+	}, nil, nil)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
@@ -7835,7 +7835,7 @@ func testSSES3EncryptedToSSECCopyObjectPart() {
 	srcEncryption := encrypt.NewSSE()
 	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
 		"Content-Type": "binary/octet-stream",
-	}, srcEncryption)
+	}, srcEncryption, nil)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
@@ -7984,7 +7984,7 @@ func testSSES3EncryptedToUnencryptedCopyPart() {
 
 	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
 		"Content-Type": "binary/octet-stream",
-	}, srcEncryption)
+	}, srcEncryption, nil)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
@@ -8131,7 +8131,7 @@ func testSSES3EncryptedToSSES3CopyObjectPart() {
 
 	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
 		"Content-Type": "binary/octet-stream",
-	}, srcEncryption)
+	}, srcEncryption, nil)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
