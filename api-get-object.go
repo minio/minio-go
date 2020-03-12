@@ -23,9 +23,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"sync"
-	"time"
 
 	"github.com/minio/minio-go/v6/pkg/s3utils"
 )
@@ -635,38 +633,10 @@ func (c Client) getObject(ctx context.Context, bucketName, objectName string, op
 		}
 	}
 
-	// Trim off the odd double quotes from ETag in the beginning and end.
-	md5sum := trimEtag(resp.Header.Get("ETag"))
-
-	// Parse the date.
-	date, err := time.Parse(http.TimeFormat, resp.Header.Get("Last-Modified"))
+	objectStat, err := ToObjectInfo(bucketName, objectName, resp.Header)
 	if err != nil {
-		msg := "Last-Modified time format not recognized. " + reportIssue
-		return nil, ObjectInfo{}, nil, ErrorResponse{
-			Code:      "InternalError",
-			Message:   msg,
-			RequestID: resp.Header.Get("x-amz-request-id"),
-			HostID:    resp.Header.Get("x-amz-id-2"),
-			Region:    resp.Header.Get("x-amz-bucket-region"),
-		}
-	}
-
-	// Get content-type.
-	contentType := strings.TrimSpace(resp.Header.Get("Content-Type"))
-	if contentType == "" {
-		contentType = "application/octet-stream"
-	}
-
-	objectStat := ObjectInfo{
-		ETag:         md5sum,
-		Key:          objectName,
-		Size:         resp.ContentLength,
-		LastModified: date,
-		ContentType:  contentType,
-		// Extract only the relevant header keys describing the object.
-		// following function filters out a list of standard set of keys
-		// which are not part of object metadata.
-		Metadata: extractObjMetadata(resp.Header),
+		closeResponse(resp)
+		return nil, objectStat, resp.Header, nil
 	}
 
 	// do not close body here, caller will close
