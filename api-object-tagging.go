@@ -155,7 +155,7 @@ func (c Client) RemoveObjectTaggingWithContext(ctx context.Context, bucketName, 
 	}
 
 	if resp != nil {
-		if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode >= http.StatusOK && resp.StatusCode != http.StatusNoContent {
 			return httpRespToErrorResponse(resp, bucketName, objectName)
 		}
 	}
