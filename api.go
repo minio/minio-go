@@ -591,16 +591,10 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 		}
 	}
 
-	// Create a done channel to control 'newRetryTimer' go routine.
-	doneCh := make(chan struct{}, 1)
-
-	// Indicate to our routine to exit cleanly upon return.
-	defer close(doneCh)
-
 	// Blank indentifier is kept here on purpose since 'range' without
 	// blank identifiers is only supported since go1.4
 	// https://golang.org/doc/go1.4#forrange.
-	for range c.newRetryTimer(reqRetry, DefaultRetryUnit, DefaultRetryCap, MaxJitter, doneCh) {
+	for range c.newRetryTimer(ctx, reqRetry, DefaultRetryUnit, DefaultRetryCap, MaxJitter) {
 		// Retry executes the following function body if request has an
 		// error until maxRetries have been exhausted, retry attempts are
 		// performed after waiting for a given period of time in a
