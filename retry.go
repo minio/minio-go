@@ -70,9 +70,8 @@ func (c Client) newRetryTimer(ctx context.Context, maxRetry int, unit time.Durat
 	go func() {
 		defer close(attemptCh)
 		for i := 0; i < maxRetry; i++ {
-			attemptCh <- i + 1
-
 			select {
+			case attemptCh <- i + 1:
 			case <-time.After(exponentialBackoffWait(i)):
 			case <-ctx.Done():
 				return
