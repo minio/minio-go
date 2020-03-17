@@ -72,6 +72,11 @@ func (c Client) newRetryTimer(ctx context.Context, maxRetry int, unit time.Durat
 		for i := 0; i < maxRetry; i++ {
 			select {
 			case attemptCh <- i + 1:
+			case <-ctx.Done():
+				return
+			}
+
+			select {
 			case <-time.After(exponentialBackoffWait(i)):
 			case <-ctx.Done():
 				return
