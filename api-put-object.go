@@ -71,51 +71,58 @@ func (opts PutObjectOptions) getNumThreads() (numThreads int) {
 func (opts PutObjectOptions) Header() (header http.Header) {
 	header = make(http.Header)
 
-	if opts.ContentType != "" {
-		header["Content-Type"] = []string{opts.ContentType}
-	} else {
-		header["Content-Type"] = []string{"application/octet-stream"}
+	contentType := opts.ContentType
+	if contentType == "" {
+		contentType = "application/octet-stream"
 	}
+	header.Set("Content-Type", contentType)
+
 	if opts.ContentEncoding != "" {
-		header["Content-Encoding"] = []string{opts.ContentEncoding}
+		header.Set("Content-Encoding", opts.ContentEncoding)
 	}
 	if opts.ContentDisposition != "" {
-		header["Content-Disposition"] = []string{opts.ContentDisposition}
+		header.Set("Content-Disposition", opts.ContentDisposition)
 	}
 	if opts.ContentLanguage != "" {
-		header["Content-Language"] = []string{opts.ContentLanguage}
+		header.Set("Content-Language", opts.ContentLanguage)
 	}
 	if opts.CacheControl != "" {
-		header["Cache-Control"] = []string{opts.CacheControl}
+		header.Set("Cache-Control", opts.CacheControl)
 	}
 
 	if opts.Mode != nil {
-		header["x-amz-object-lock-mode"] = []string{opts.Mode.String()}
+		header.Set("X-Amz-Object-Lock-Mode", opts.Mode.String())
 	}
+
 	if opts.RetainUntilDate != nil {
-		header["x-amz-object-lock-retain-until-date"] = []string{opts.RetainUntilDate.Format(time.RFC3339)}
+		header.Set("X-Amz-Object-Lock-Retain-Until-Date", opts.RetainUntilDate.Format(time.RFC3339))
 	}
 
 	if opts.LegalHold != "" {
-		header[amzLegalHoldHeader] = []string{opts.LegalHold.String()}
+		header.Set(amzLegalHoldHeader, opts.LegalHold.String())
 	}
+
 	if opts.ServerSideEncryption != nil {
 		opts.ServerSideEncryption.Marshal(header)
 	}
+
 	if opts.StorageClass != "" {
-		header[amzStorageClass] = []string{opts.StorageClass}
+		header.Set(amzStorageClass, opts.StorageClass)
 	}
+
 	if opts.WebsiteRedirectLocation != "" {
-		header[amzWebsiteRedirectLocation] = []string{opts.WebsiteRedirectLocation}
+		header.Set(amzWebsiteRedirectLocation, opts.WebsiteRedirectLocation)
 	}
+
 	if len(opts.UserTags) != 0 {
-		header[amzTaggingHeader] = []string{s3utils.TagEncode(opts.UserTags)}
+		header.Set(amzTaggingHeader, s3utils.TagEncode(opts.UserTags))
 	}
+
 	for k, v := range opts.UserMetadata {
 		if !isAmzHeader(k) && !isStandardHeader(k) && !isStorageClassHeader(k) {
-			header["X-Amz-Meta-"+k] = []string{v}
+			header.Set("X-Amz-Meta-"+k, v)
 		} else {
-			header[k] = []string{v}
+			header.Set(k, v)
 		}
 	}
 	return
