@@ -591,6 +591,12 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 		}
 	}
 
+	// Create cancel context to control 'newRetryTimer' go routine.
+	ctx, cancel := context.WithCancel(ctx)
+
+	// Indicate to our routine to exit cleanly upon return.
+	defer cancel()
+
 	// Blank indentifier is kept here on purpose since 'range' without
 	// blank identifiers is only supported since go1.4
 	// https://golang.org/doc/go1.4#forrange.
