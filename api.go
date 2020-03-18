@@ -592,7 +592,7 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 	}
 
 	// Create cancel context to control 'newRetryTimer' go routine.
-	ctx, cancel := context.WithCancel(ctx)
+	retryCtx, cancel := context.WithCancel(ctx)
 
 	// Indicate to our routine to exit cleanly upon return.
 	defer cancel()
@@ -600,7 +600,7 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 	// Blank indentifier is kept here on purpose since 'range' without
 	// blank identifiers is only supported since go1.4
 	// https://golang.org/doc/go1.4#forrange.
-	for range c.newRetryTimer(ctx, reqRetry, DefaultRetryUnit, DefaultRetryCap, MaxJitter) {
+	for range c.newRetryTimer(retryCtx, reqRetry, DefaultRetryUnit, DefaultRetryCap, MaxJitter) {
 		// Retry executes the following function body if request has an
 		// error until maxRetries have been exhausted, retry attempts are
 		// performed after waiting for a given period of time in a
