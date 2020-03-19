@@ -627,18 +627,21 @@ func (c Client) getObject(ctx context.Context, bucketName, objectName string, op
 	if err != nil {
 		return nil, ObjectInfo{}, nil, err
 	}
+
+	var header http.Header
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
 			return nil, ObjectInfo{}, nil, httpRespToErrorResponse(resp, bucketName, objectName)
 		}
+		header = resp.Header
 	}
 
-	objectStat, err := ToObjectInfo(bucketName, objectName, resp.Header)
+	objectStat, err := ToObjectInfo(bucketName, objectName, header)
 	if err != nil {
 		closeResponse(resp)
-		return nil, objectStat, resp.Header, nil
+		return nil, objectStat, header, nil
 	}
 
 	// do not close body here, caller will close
-	return resp.Body, objectStat, resp.Header, nil
+	return resp.Body, objectStat, header, nil
 }

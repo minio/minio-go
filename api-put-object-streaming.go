@@ -437,15 +437,18 @@ func (c Client) putObjectDo(ctx context.Context, bucketName, objectName string, 
 	if err != nil {
 		return ObjectInfo{}, err
 	}
+
+	var eTag string
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
 			return ObjectInfo{}, httpRespToErrorResponse(resp, bucketName, objectName)
 		}
+		eTag = trimEtag(resp.Header.Get("ETag"))
 	}
 
 	var objInfo ObjectInfo
 	// Trim off the odd double quotes from ETag in the beginning and end.
-	objInfo.ETag = trimEtag(resp.Header.Get("ETag"))
+	objInfo.ETag = eTag
 	// A success here means data was written to server successfully.
 	objInfo.Size = size
 
