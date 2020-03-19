@@ -100,14 +100,11 @@ func (c Client) statObject(ctx context.Context, bucketName, objectName string, o
 	if err != nil {
 		return ObjectInfo{}, err
 	}
-
-	var header http.Header
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
 			return ObjectInfo{}, httpRespToErrorResponse(resp, bucketName, objectName)
 		}
-		header = resp.Header
 	}
 
-	return ToObjectInfo(bucketName, objectName, header)
+	return ToObjectInfo(bucketName, objectName, resp.Header)
 }
