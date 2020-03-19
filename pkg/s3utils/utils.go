@@ -1,6 +1,6 @@
 /*
  * MinIO Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2015-2017 MinIO, Inc.
+ * Copyright 2015-2020 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -229,29 +229,39 @@ func QueryEncode(v url.Values) string {
 	return buf.String()
 }
 
+// TagDecode - decodes canonical tag into map of key and value.
+func TagDecode(ctag string) map[string]string {
+	if ctag == "" {
+		return map[string]string{}
+	}
+	tags := strings.Split(ctag, "&")
+	tagMap := make(map[string]string, len(tags))
+	var err error
+	for _, tag := range tags {
+		kvs := strings.SplitN(tag, "=", 2)
+		if len(kvs) == 0 {
+			return map[string]string{}
+		}
+		if len(kvs) == 1 {
+			return map[string]string{}
+		}
+		tagMap[kvs[0]], err = url.PathUnescape(kvs[1])
+		if err != nil {
+			continue
+		}
+	}
+	return tagMap
+}
+
 // TagEncode - encodes tag values in their URL encoded form. In
 // addition to the percent encoding performed by urlEncodePath() used
 // here, it also percent encodes '/' (forward slash)
 func TagEncode(tags map[string]string) string {
-	if tags == nil {
-		return ""
+	values := url.Values{}
+	for k, v := range tags {
+		values[k] = []string{v}
 	}
-	var buf bytes.Buffer
-	keys := make([]string, 0, len(tags))
-	for k := range tags {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		v := tags[k]
-		prefix := percentEncodeSlash(EncodePath(k)) + "="
-		if buf.Len() > 0 {
-			buf.WriteByte('&')
-		}
-		buf.WriteString(prefix)
-		buf.WriteString(percentEncodeSlash(EncodePath(v)))
-	}
-	return buf.String()
+	return QueryEncode(values)
 }
 
 // if object matches reserved string, no need to encode them

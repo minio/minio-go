@@ -174,6 +174,7 @@ func extractObjMetadata(header http.Header) http.Header {
 		"X-Amz-Object-Lock-Retain-Until-Date",
 		"X-Amz-Object-Lock-Legal-Hold",
 		"X-Amz-Website-Redirect-Location",
+		"X-Amz-Server-Side-Encryption",
 		"X-Amz-Meta-",
 		// Add new headers to be preserved.
 		// if you add new headers here, please extend
@@ -256,6 +257,7 @@ func ToObjectInfo(bucketName string, objectName string, h http.Header) (ObjectIn
 			userMetadata[strings.TrimPrefix(k, "X-Amz-Meta-")] = v[0]
 		}
 	}
+	userTags := s3utils.TagDecode(h.Get(amzTaggingHeader))
 
 	// Save object metadata info.
 	return ObjectInfo{
@@ -270,6 +272,7 @@ func ToObjectInfo(bucketName string, objectName string, h http.Header) (ObjectIn
 		// which are not part of object metadata.
 		Metadata:     metadata,
 		UserMetadata: userMetadata,
+		UserTags:     userTags,
 	}, nil
 }
 
