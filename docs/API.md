@@ -950,7 +950,9 @@ __minio.DestInfoOptions__
 | `destOpts.UserMetadata` | _map[string]string_ | Map of user meta data to be set on destination object. |
 | `destOpts.UserTags` | _map[string]string_ | Map of user object tags to be set on destination object. |
 | `destOpts.ReplaceTags` | _bool_ | Replace object tags of the destination object. |
-| `destOpts.LegalHold` | _*minio.LegalHoldStatus_ | LegalHold(En|Dis)abled. |
+| `destOpts.LegalHold` | _minio.LegalHoldStatus_ | LegalHold(En|Dis)abled. |
+| `destOpts.Mode` | _minio.RetentionMode_ | Retention mode to be set on copied object. |
+| `destOpts.RetainUntilDate` | _time.Time_ | Time until object retention should be applied on copied object. |
 
 __Example__
 

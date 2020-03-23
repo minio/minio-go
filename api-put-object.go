@@ -91,7 +91,7 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 	}
 
 	if opts.Mode != nil {
-		header.Set("X-Amz-Object-Lock-Mode", opts.Mode.String())
+		header.Set(amzLockMode, opts.Mode.String())
 	}
 
 	if opts.RetainUntilDate != nil {
