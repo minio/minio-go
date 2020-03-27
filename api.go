@@ -725,9 +725,7 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 			// Gather location only if bucketName is present.
 			location, err = c.getBucketLocation(metadata.bucketName)
 			if err != nil {
-				if err != io.EOF {
-					return nil, err
-				}
+				return nil, err
 			}
 		}
 		if location == "" {
