@@ -68,4 +68,8 @@ const (
 
 	// Object legal hold header
 	amzLegalHoldHeader = "X-Amz-Object-Lock-Legal-Hold"
+
+	// Object retention header
+	amzLockMode        = "X-Amz-Object-Lock-Mode"
+	amzLockRetainUntil = "X-Amz-Object-Lock-Retain-Until-Date"
 )
