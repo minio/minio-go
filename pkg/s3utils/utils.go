@@ -78,7 +78,7 @@ func IsVirtualHostSupported(endpointURL url.URL, bucketName string) bool {
 		return false
 	}
 	// Return true for all other cases
-	return IsAmazonEndpoint(endpointURL) || IsGoogleEndpoint(endpointURL) || isAliyunOSSEndpoint(endpointURL)
+	return IsAmazonEndpoint(endpointURL) || IsGoogleEndpoint(endpointURL) || IsAliyunOSSEndpoint(endpointURL)
 }
 
 // Refer for region styles - https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region
@@ -135,8 +135,8 @@ func GetRegionFromURL(endpointURL url.URL) string {
 	return ""
 }
 
-// isAliyunOSSEndpoint - Match if it is exactly Aliyun OSS endpoint.
-func isAliyunOSSEndpoint(endpointURL url.URL) bool {
+// IsAliyunOSSEndpoint - Match if it is exactly Aliyun OSS endpoint.
+func IsAliyunOSSEndpoint(endpointURL url.URL) bool {
     return strings.HasSuffix(endpointURL.Host, "aliyuncs.com")
 }
 
