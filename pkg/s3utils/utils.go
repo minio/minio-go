@@ -137,7 +137,7 @@ func GetRegionFromURL(endpointURL url.URL) string {
 
 // IsAliyunOSSEndpoint - Match if it is exactly Aliyun OSS endpoint.
 func IsAliyunOSSEndpoint(endpointURL url.URL) bool {
-    return strings.HasSuffix(endpointURL.Host, "aliyuncs.com")
+	return strings.HasSuffix(endpointURL.Host, "aliyuncs.com")
 }
 
 // IsAmazonEndpoint - Match if it is exactly Amazon S3 endpoint.
