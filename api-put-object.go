@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -53,6 +54,7 @@ type PutObjectOptions struct {
 	PartSize                uint64
 	LegalHold               LegalHoldStatus
 	SendContentMd5          bool
+	DisableMultipart        bool
 }
 
 // getNumThreads - gets the number of threads to be used in the multipart
@@ -170,6 +172,10 @@ func (a completedParts) Less(i, j int) bool { return a[i].PartNumber < a[j].Part
 //    be uploaded through this operation will be 5TiB.
 func (c Client) PutObject(bucketName, objectName string, reader io.Reader, objectSize int64,
 	opts PutObjectOptions) (n int64, err error) {
+	if objectSize < 0 && opts.DisableMultipart {
+		return 0, errors.New("object size must be provided with disable multipart upload")
+	}
+
 	return c.PutObjectWithContext(context.Background(), bucketName, objectName, reader, objectSize, opts)
 }
 
@@ -190,7 +196,7 @@ func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName stri
 	}
 
 	if c.overrideSignerType.IsV2() {
-		if size >= 0 && size < int64(partSize) {
+		if size >= 0 && size < int64(partSize) || opts.DisableMultipart {
 			return c.putObject(ctx, bucketName, objectName, reader, size, opts)
 		}
 		return c.putObjectMultipart(ctx, bucketName, objectName, reader, size, opts)
@@ -199,7 +205,7 @@ func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName stri
 		return c.putObjectMultipartStreamNoLength(ctx, bucketName, objectName, reader, opts)
 	}
 
-	if size < int64(partSize) {
+	if size < int64(partSize) || opts.DisableMultipart {
 		return c.putObject(ctx, bucketName, objectName, reader, size, opts)
 	}
 
