@@ -10127,6 +10127,129 @@ func testListObjects() {
 	successLogger(testName, function, args, startTime).Info()
 }
 
+// Test deleting multiple objects with object retention set in Governance mode
+func testRemoveObjectsWithOptions() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "RemoveObjectsWithOptions(bucketName, objectsCh, opts)"
+	args := map[string]interface{}{
+		"bucketName":   "",
+		"objectPrefix": "",
+		"recursive":    "true",
+	}
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.New(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client v4 object creation failed", err)
+		return
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	args["objectName"] = objectName
+
+	// Make a new bucket.
+	err = c.MakeBucketWithObjectLock(bucketName, "us-east-1")
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	bufSize := dataFileMap["datafile-129-MB"]
+	var reader = getDataReader("datafile-129-MB")
+	defer reader.Close()
+
+	n, err := c.PutObject(bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{})
+	if err != nil {
+		log.Fatalln(err)
+	}
+	log.Println("Uploaded", objectName, " of size: ", n, "to bucket: ", bucketName, "Successfully.")
+
+	t := time.Date(2030, time.April, 25, 14, 0, 0, 0, time.UTC)
+	m := minio.RetentionMode(minio.Governance)
+	opts := minio.PutObjectRetentionOptions{
+		GovernanceBypass: false,
+		RetainUntilDate:  &t,
+		Mode:             &m,
+	}
+	err = c.PutObjectRetention(bucketName, objectName, opts)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	objectsCh := make(chan string)
+	// Send object names that are needed to be removed to objectsCh
+	go func() {
+		defer close(objectsCh)
+		// List all objects from a bucket-name with a matching prefix.
+		for object := range c.ListObjects(bucketName, "", true, nil) {
+			if object.Err != nil {
+				log.Fatalln(object.Err)
+			}
+			objectsCh <- object.Key
+		}
+	}()
+
+	for rErr := range c.RemoveObjects(bucketName, objectsCh) {
+		// Error is expected here because Retention is set on the object
+		// and RemoveObjects is called without Bypass Governance
+		if rErr.Err == nil {
+			logError(testName, function, args, startTime, "", "Expected error during deletion", nil)
+			return
+		}
+	}
+
+	objectsCh1 := make(chan string)
+
+	// Send object names that are needed to be removed to objectsCh
+	go func() {
+		defer close(objectsCh1)
+		// List all objects from a bucket-name with a matching prefix.
+		for object := range c.ListObjects(bucketName, "", true, nil) {
+			if object.Err != nil {
+				log.Fatalln(object.Err)
+			}
+			objectsCh1 <- object.Key
+		}
+	}()
+
+	opts1 := minio.RemoveObjectsOptions{
+		GovernanceBypass: true,
+	}
+
+	for rErr := range c.RemoveObjectsWithOptions(bucketName, objectsCh1, opts1) {
+		// Error is not expected here because Retention is set on the object
+		// and RemoveObjects is called with Bypass Governance
+		logError(testName, function, args, startTime, "", "Error detected during deletion", rErr.Err)
+		return
+	}
+
+	// Delete all objects and buckets
+	if err = cleanupBucket(bucketName, c); err != nil {
+		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		return
+	}
+
+	successLogger(testName, function, args, startTime).Info()
+}
+
 // Convert string to bool and always return false if any error
 func mustParseBool(str string) bool {
 	b, err := strconv.ParseBool(str)
@@ -10193,15 +10316,14 @@ func main() {
 		testGetObjectWithContext()
 		testFPutObjectWithContext()
 		testFGetObjectWithContext()
-
 		testGetObjectACLWithContext()
-
 		testPutObjectWithContext()
 		testStorageClassMetadataPutObject()
 		testStorageClassInvalidMetadataPutObject()
 		testStorageClassMetadataCopyObject()
 		testPutObjectWithContentLanguage()
 		testListObjects()
+		testRemoveObjectsWithOptions()
 
 		// SSE-C tests will only work over TLS connection.
 		if tls {
