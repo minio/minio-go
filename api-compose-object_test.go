@@ -130,7 +130,7 @@ func TestGetUserMetaHeadersMap(t *testing.T) {
 		"x-amz-grant-write":   "test@exo.ch",
 	}
 
-	destInfo, _ := NewDestinationInfo("bucket", "object", nil, userMetadata)
+	destInfo, _ := NewDestinationInfo("bucket", "object", nil, userMetadata, false)
 
 	r := destInfo.getUserMetaHeadersMap(true)
 

@@ -721,7 +721,7 @@ __Example__
 src := minio.NewSourceInfo("my-sourcebucketname", "my-sourceobjectname", nil)
 
 // Destination object
-dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", nil, nil)
+dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", nil, nil, false)
 if err != nil {
     fmt.Println(err)
     return
@@ -759,7 +759,7 @@ src.SetUnmodifiedSinceCond(time.Date(2014, time.April, 23, 0, 0, 0, 0, time.UTC)
 src.SetRange(0, 1024*1024-1)
 
 // Destination object
-dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", nil, nil)
+dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", nil, nil, false)
 if err != nil {
     fmt.Println(err)
     return
@@ -812,7 +812,7 @@ srcs := []minio.SourceInfo{src1, src2, src3}
 sseDst := encrypt.DefaultPBKDF([]byte("new-password"), []byte("new-salt"))
 
 // Create destination info
-dst, err := minio.NewDestinationInfo("bucket", "object", sseDst, nil)
+dst, err := minio.NewDestinationInfo("bucket", "object", sseDst, nil, false)
 if err != nil {
     fmt.Println(err)
     return
@@ -847,7 +847,7 @@ __Example__
 src := minio.NewSourceInfo("bucket", "object", nil)
 
 // Destination object
-dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", nil, nil)
+dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", nil, nil, false)
 if err != nil {
     fmt.Println(err)
     return
@@ -867,7 +867,7 @@ sseSrc := encrypt.DefaultPBKDF([]byte("password"), []byte("salt"))
 src := minio.NewSourceInfo("bucket", "object", sseSrc)
 
 // Destination object
-dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", nil, nil)
+dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", nil, nil, false)
 if err != nil {
     fmt.Println(err)
     return
@@ -882,7 +882,7 @@ if err != nil {
 ```
 
 <a name="NewDestinationInfo"></a>
-### NewDestinationInfo(bucket, object string, encryptSSEC *SSEInfo, userMeta map[string]string) (DestinationInfo, error)
+### NewDestinationInfo(bucket, object string, encryptSSEC *SSEInfo, userMeta map[string]string, disableMultipart bool) (DestinationInfo, error)
 Construct a `DestinationInfo` object that can be used as the destination object for server-side copying operations like `CopyObject` and `ComposeObject`.
 
 __Parameters__
@@ -899,7 +899,7 @@ __Example__
 ```go
 // No encryption parameter.
 src := minio.NewSourceInfo("bucket", "object", nil)
-dst, err := minio.NewDestinationInfo("bucket", "object", nil, nil)
+dst, err := minio.NewDestinationInfo("bucket", "object", nil, nil, false)
 if err != nil {
     fmt.Println(err)
     return
@@ -918,7 +918,7 @@ src := minio.NewSourceInfo("bucket", "object", nil)
 
 // With encryption parameter.
 sseDst := encrypt.DefaultPBKDF([]byte("password"), []byte("salt"))
-dst, err := minio.NewDestinationInfo("bucket", "object", sseDst, nil)
+dst, err := minio.NewDestinationInfo("bucket", "object", sseDst, nil, false)
 if err != nil {
     fmt.Println(err)
     return

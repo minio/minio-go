@@ -2,7 +2,7 @@ all: checks
 
 .PHONY: examples docs
 
-checks: vet test examples functional-test
+checks: vet test examples
 
 vet:
 	@GO111MODULE=on go vet ./...

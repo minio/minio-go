@@ -65,7 +65,7 @@ func main() {
 	encKey, _ := encrypt.NewSSEC([]byte{8, 9, 0})
 
 	// Create destination info
-	dst, err := minio.NewDestinationInfo("bucket", "object", encKey, nil)
+	dst, err := minio.NewDestinationInfo("bucket", "object", encKey, nil, false)
 	if err != nil {
 		log.Fatalln(err)
 	}

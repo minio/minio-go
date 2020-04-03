@@ -688,7 +688,7 @@ __示例__
 src := minio.NewSourceInfo("my-sourcebucketname", "my-sourceobjectname", nil)
 
 // Destination object
-dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", nil, nil)
+dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", nil, nil, false)
 if err != nil {
     fmt.Println(err)
     return
@@ -726,7 +726,7 @@ src.SetUnmodifiedSinceCond(time.Date(2014, time.April, 23, 0, 0, 0, 0, time.UTC)
 src.SetRange(0, 1024*1024-1)
 
 // Destination object
-dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", nil, nil)
+dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", nil, nil, false)
 if err != nil {
     fmt.Println(err)
     return
@@ -779,7 +779,7 @@ srcs := []minio.SourceInfo{src1, src2, src3}
 encKey := minio.NewSSEInfo([]byte{8, 9, 0}, "")
 
 // Create destination info
-dst, err := minio.NewDestinationInfo("bucket", "object", &encKey, nil)
+dst, err := minio.NewDestinationInfo("bucket", "object", &encKey, nil, false)
 if err != nil {
     fmt.Println(err)
     return
@@ -814,7 +814,7 @@ __示例__
 src := minio.NewSourceInfo("bucket", "object", nil)
 
 // Destination object
-dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", nil, nil)
+dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", nil, nil, false)
 if err != nil {
     fmt.Println(err)
     return
@@ -834,7 +834,7 @@ decKey := minio.NewSSEInfo([]byte{1,2,3}, "")
 src := minio.NewSourceInfo("bucket", "object", &decKey)
 
 // Destination object
-dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", nil, nil)
+dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", nil, nil, false)
 if err != nil {
     fmt.Println(err)
     return
@@ -849,7 +849,7 @@ if err != nil {
 ```
 
 <a name="NewDestinationInfo"></a>
-### NewDestinationInfo(bucket, object string, encryptSSEC *SSEInfo, userMeta map[string]string) (DestinationInfo, error)
+### NewDestinationInfo(bucket, object string, encryptSSEC *SSEInfo, userMeta map[string]string, disableMultipart bool) (DestinationInfo, error)
 构建一个用于服务端拷贝操作（像`CopyObject`和`ComposeObject`）的用作目标对象的`DestinationInfo`。
 
 __参数__
@@ -866,7 +866,7 @@ __示例__
 ```go
 // No encryption parameter.
 src := minio.NewSourceInfo("bucket", "object", nil)
-dst, err := minio.NewDestinationInfo("bucket", "object", nil, nil)
+dst, err := minio.NewDestinationInfo("bucket", "object", nil, nil, false)
 if err != nil {
     fmt.Println(err)
     return
@@ -885,7 +885,7 @@ src := minio.NewSourceInfo("bucket", "object", nil)
 
 // With encryption parameter.
 encKey := minio.NewSSEInfo([]byte{1,2,3}, "")
-dst, err := minio.NewDestinationInfo("bucket", "object", &encKey, nil)
+dst, err := minio.NewDestinationInfo("bucket", "object", &encKey, nil, false)
 if err != nil {
     fmt.Println(err)
     return

@@ -67,6 +67,8 @@ type DestInfoOptions struct {
 	// Object Retention related fields
 	Mode            RetentionMode
 	RetainUntilDate time.Time
+
+	DisableMultipart bool
 }
 
 // Process custom-metadata to remove a `x-amz-meta-` prefix if
@@ -97,7 +99,7 @@ func filterCustomMeta(userMeta map[string]string) (map[string]string, error) {
 // if needed. If nil is passed, and if only a single source (of any
 // size) is provided in the ComposeObject call, then metadata from the
 // source is copied to the destination.
-func NewDestinationInfo(bucket, object string, sse encrypt.ServerSide, userMeta map[string]string) (d DestinationInfo, err error) {
+func NewDestinationInfo(bucket, object string, sse encrypt.ServerSide, userMeta map[string]string, disableMutlpart bool) (d DestinationInfo, err error) {
 	// Input validation.
 	if err = s3utils.CheckValidBucketName(bucket); err != nil {
 		return d, err
@@ -110,12 +112,13 @@ func NewDestinationInfo(bucket, object string, sse encrypt.ServerSide, userMeta 
 		return d, err
 	}
 	opts := DestInfoOptions{
-		Encryption:  sse,
-		UserMeta:    m,
-		UserTags:    nil,
-		ReplaceTags: false,
-		LegalHold:   LegalHoldStatus(""),
-		Mode:        RetentionMode(""),
+		Encryption:       sse,
+		UserMeta:         m,
+		UserTags:         nil,
+		ReplaceTags:      false,
+		LegalHold:        LegalHoldStatus(""),
+		Mode:             RetentionMode(""),
+		DisableMultipart: disableMutlpart,
 	}
 	return DestinationInfo{
 		bucket: bucket,
@@ -417,6 +420,15 @@ func (c Client) ComposeObjectWithProgress(dst DestinationInfo, srcs []SourceInfo
 	if len(srcs) < 1 || len(srcs) > maxPartsCount {
 		return ErrInvalidArgument("There must be as least one and up to 10000 source objects.")
 	}
+
+	if dst.opts.DisableMultipart {
+		if len(srcs) > 1 {
+			return ErrInvalidArgument("Only one source object must be provided with DisableMultipart option.")
+		}
+
+		return c.CopyObjectWithProgress(dst, srcs[0], progress)
+	}
+
 	ctx := context.Background()
 	srcSizes := make([]int64, len(srcs))
 	var totalSize, size, totalParts int64

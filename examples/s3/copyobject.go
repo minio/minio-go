@@ -23,7 +23,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/minio/minio-go/v6"
+	minio "github.com/minio/minio-go/v6"
 )
 
 func main() {
@@ -61,7 +61,7 @@ func main() {
 	// src.SetMatchETagExceptCond("31624deb84149d2f8ef9c385918b653a")
 
 	// Destination object
-	dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", nil, nil)
+	dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", nil, nil, false)
 	if err != nil {
 		log.Fatalln(err)
 	}

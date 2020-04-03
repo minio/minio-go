@@ -42,7 +42,7 @@ import (
 	"github.com/dustin/go-humanize"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/minio/minio-go/v6"
+	minio "github.com/minio/minio-go"
 	"github.com/minio/minio-go/v6/pkg/encrypt"
 )
 
@@ -2669,7 +2669,7 @@ func testCopyObject() {
 		return
 	}
 
-	dst, err := minio.NewDestinationInfo(bucketName+"-copy", objectName+"-copy", nil, nil)
+	dst, err := minio.NewDestinationInfo(bucketName+"-copy", objectName+"-copy", nil, nil, false)
 	args["dst"] = dst
 	if err != nil {
 		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
@@ -2740,7 +2740,7 @@ func testCopyObject() {
 	src = minio.NewSourceInfo(bucketName, objectName, nil)
 	dst, err = minio.NewDestinationInfo(bucketName, objectName, nil, map[string]string{
 		"Copy": "should be same",
-	})
+	}, false)
 	args["dst"] = dst
 	args["src"] = src
 	if err != nil {
@@ -5864,7 +5864,7 @@ func testCopyObjectV2() {
 		return
 	}
 
-	dst, err := minio.NewDestinationInfo(bucketName+"-copy", objectName+"-copy", nil, nil)
+	dst, err := minio.NewDestinationInfo(bucketName+"-copy", objectName+"-copy", nil, nil, false)
 	args["destination"] = dst
 	if err != nil {
 		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
@@ -5964,7 +5964,7 @@ func testComposeObjectErrorCasesWrapper(c *minio.Client) {
 	// concatenated.
 	srcArr := [10001]minio.SourceInfo{}
 	srcSlice := srcArr[:]
-	dst, err := minio.NewDestinationInfo(bucketName, "object", nil, nil)
+	dst, err := minio.NewDestinationInfo(bucketName, "object", nil, nil, false)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
 		return
@@ -6082,7 +6082,7 @@ func testComposeMultipleSources(c *minio.Client) {
 	}
 	args["sourceList"] = srcs
 
-	dst, err := minio.NewDestinationInfo(bucketName, "dstObject", nil, nil)
+	dst, err := minio.NewDestinationInfo(bucketName, "dstObject", nil, nil, false)
 	args["destination"] = dst
 
 	if err != nil {
@@ -6178,10 +6178,10 @@ func testEncryptedEmptyObject() {
 	}
 
 	// 2. Test CopyObject for an empty object
-	dstInfo, err := minio.NewDestinationInfo(bucketName, "new-object", sse, nil)
+	dstInfo, err := minio.NewDestinationInfo(bucketName, "new-object", sse, nil, false)
 	if err != nil {
 		args["objectName"] = "new-object"
-		function = "NewDestinationInfo(bucketName, objectName, sse, userMetadata)"
+		function = "NewDestinationInfo(bucketName, objectName, sse, userMetadata, disableMultipart)"
 		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
 		return
 	}
@@ -6194,10 +6194,10 @@ func testEncryptedEmptyObject() {
 
 	// 3. Test Key rotation
 	newSSE := encrypt.DefaultPBKDF([]byte("Don't Panic"), []byte(bucketName+"new-object"))
-	dstInfo, err = minio.NewDestinationInfo(bucketName, "new-object", newSSE, nil)
+	dstInfo, err = minio.NewDestinationInfo(bucketName, "new-object", newSSE, nil, false)
 	if err != nil {
 		args["objectName"] = "new-object"
-		function = "NewDestinationInfo(bucketName, objectName, encryptSSEC, userMetadata)"
+		function = "NewDestinationInfo(bucketName, objectName, encryptSSEC, userMetadata, disableMultipart)"
 		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
 		return
 	}
@@ -6269,7 +6269,7 @@ func testEncryptedCopyObjectWrapper(c *minio.Client, bucketName string, sseSrc, 
 	// 2. copy object and change encryption key
 	src := minio.NewSourceInfo(bucketName, "srcObject", srcEncryption)
 	args["source"] = src
-	dst, err := minio.NewDestinationInfo(bucketName, "dstObject", sseDst, nil)
+	dst, err := minio.NewDestinationInfo(bucketName, "dstObject", sseDst, nil, false)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
 		return
@@ -6313,7 +6313,7 @@ func testEncryptedCopyObjectWrapper(c *minio.Client, bucketName string, sseSrc, 
 		newSSE = encrypt.NewSSE()
 	}
 	if newSSE != nil {
-		dst, err = minio.NewDestinationInfo(bucketName, "srcObject", newSSE, nil)
+		dst, err = minio.NewDestinationInfo(bucketName, "srcObject", newSSE, nil, false)
 		if err != nil {
 			logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
 			return
@@ -6344,7 +6344,7 @@ func testEncryptedCopyObjectWrapper(c *minio.Client, bucketName string, sseSrc, 
 		}
 		reader.Close()
 		// Test in-place decryption.
-		dst, err = minio.NewDestinationInfo(bucketName, "srcObject", nil, nil)
+		dst, err = minio.NewDestinationInfo(bucketName, "srcObject", nil, nil, false)
 		if err != nil {
 			logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
 			return
@@ -6702,7 +6702,7 @@ func testDecryptedCopyObject() {
 
 	src := minio.NewSourceInfo(bucketName, objectName, encrypt.SSECopy(encryption))
 	args["source"] = src
-	dst, err := minio.NewDestinationInfo(bucketName, "decrypted-"+objectName, nil, nil)
+	dst, err := minio.NewDestinationInfo(bucketName, "decrypted-"+objectName, nil, nil, false)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
 		return
@@ -8310,7 +8310,7 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 	// 2. create source
 	src := minio.NewSourceInfo(bucketName, "srcObject", nil)
 	// 2.1 create destination with metadata set
-	dst1, err := minio.NewDestinationInfo(bucketName, "dstObject-1", nil, map[string]string{"notmyheader": "notmyvalue"})
+	dst1, err := minio.NewDestinationInfo(bucketName, "dstObject-1", nil, map[string]string{"notmyheader": "notmyvalue"}, false)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
 		return
@@ -8334,7 +8334,7 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 	}
 
 	// 4. create destination with no metadata set and same source
-	dst2, err := minio.NewDestinationInfo(bucketName, "dstObject-2", nil, nil)
+	dst2, err := minio.NewDestinationInfo(bucketName, "dstObject-2", nil, nil, false)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
 		return
@@ -8362,7 +8362,7 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 		minio.NewSourceInfo(bucketName, "srcObject", nil),
 		minio.NewSourceInfo(bucketName, "srcObject", nil),
 	}
-	dst3, err := minio.NewDestinationInfo(bucketName, "dstObject-3", nil, nil)
+	dst3, err := minio.NewDestinationInfo(bucketName, "dstObject-3", nil, nil, false)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
 		return
@@ -8388,7 +8388,7 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 		minio.NewSourceInfo(bucketName, "srcObject", nil),
 		minio.NewSourceInfo(bucketName, "srcObject", nil),
 	}
-	dst4, err := minio.NewDestinationInfo(bucketName, "dstObject-4", nil, map[string]string{"notmyheader": "notmyvalue"})
+	dst4, err := minio.NewDestinationInfo(bucketName, "dstObject-4", nil, map[string]string{"notmyheader": "notmyvalue"}, false)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
 		return
@@ -8643,7 +8643,7 @@ func testStorageClassMetadataCopyObject() {
 
 	// Make server side copy of object uploaded in previous step
 	src := minio.NewSourceInfo(bucketName, "srcObjectRRSClass", nil)
-	dst, err := minio.NewDestinationInfo(bucketName, "srcObjectRRSClassCopy", nil, nil)
+	dst, err := minio.NewDestinationInfo(bucketName, "srcObjectRRSClassCopy", nil, nil, false)
 	if err = c.CopyObject(dst, src); err != nil {
 		logError(testName, function, args, startTime, "", "CopyObject failed on RRS", err)
 	}
@@ -8670,7 +8670,7 @@ func testStorageClassMetadataCopyObject() {
 
 	// Make server side copy of object uploaded in previous step
 	src = minio.NewSourceInfo(bucketName, "srcObjectSSClass", nil)
-	dst, err = minio.NewDestinationInfo(bucketName, "srcObjectSSClassCopy", nil, nil)
+	dst, err = minio.NewDestinationInfo(bucketName, "srcObjectSSClassCopy", nil, nil, false)
 	if err = c.CopyObject(dst, src); err != nil {
 		logError(testName, function, args, startTime, "", "CopyObject failed on SS", err)
 	}
