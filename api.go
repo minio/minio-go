@@ -630,6 +630,9 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 		// Initiate the request.
 		res, err = c.do(req)
 		if err != nil {
+			if err == context.Canceled || err == context.DeadlineExceeded {
+				return nil, err
+			}
 			continue
 		}
 
@@ -709,6 +712,12 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 		// For all other cases break out of the retry loop.
 		break
 	}
+
+	// Return an error when retry is canceled or deadlined
+	if e := retryCtx.Err(); e != nil {
+		return nil, e
+	}
+
 	return res, err
 }
 
