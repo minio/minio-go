@@ -152,10 +152,7 @@ func EqualNotificationEventTypeList(a, b []NotificationEventType) bool {
 		setB.Add(string(i))
 	}
 
-	if setA.Difference(setB).IsEmpty() {
-		return true
-	}
-	return false
+	return setA.Difference(setB).IsEmpty()
 }
 
 // EqualFilterRuleList tells whether a and b contain the same filters
@@ -174,11 +171,7 @@ func EqualFilterRuleList(a, b []FilterRule) bool {
 		setB.Add(fmt.Sprintf("%s-%s", i.Name, i.Value))
 	}
 
-	if setA.Difference(setB).IsEmpty() {
-		return true
-	}
-
-	return false
+	return setA.Difference(setB).IsEmpty()
 }
 
 // Equal returns whether this `NotificationConfig` is equal to another defined by the passed parameters
