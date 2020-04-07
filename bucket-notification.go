@@ -318,8 +318,8 @@ func (b *BucketNotification) RemoveTopicByArn(arn Arn) {
 	b.TopicConfigs = topics
 }
 
-// RemoveTopicByArnEventsPrefixSuffix removes a topic configuration that match the exact specified ARN, events, prefix and suffix
-func (b *BucketNotification) RemoveTopicByArnEventsPrefixSuffix(arn Arn, events []NotificationEventType, prefix, suffix string) {
+// RemoveTopicArnEventsPrefixSuffix removes a topic configuration that match the exact specified ARN, events, prefix and suffix
+func (b *BucketNotification) RemoveTopicArnEventsPrefixSuffix(arn Arn, events []NotificationEventType, prefix, suffix string) {
 	removeIndex := -1
 	for i, v := range b.TopicConfigs {
 		// if it matches events and filters, mark the index for deletion
@@ -344,8 +344,8 @@ func (b *BucketNotification) RemoveQueueByArn(arn Arn) {
 	b.QueueConfigs = queues
 }
 
-// RemoveQueueByArnEventsPrefixSuffix removes a queue configuration that match the exact specified ARN, events, prefix and suffix
-func (b *BucketNotification) RemoveQueueByArnEventsPrefixSuffix(arn Arn, events []NotificationEventType, prefix, suffix string) {
+// RemoveQueueArnEventsPrefixSuffix removes a queue configuration that match the exact specified ARN, events, prefix and suffix
+func (b *BucketNotification) RemoveQueueArnEventsPrefixSuffix(arn Arn, events []NotificationEventType, prefix, suffix string) {
 	removeIndex := -1
 	for i, v := range b.QueueConfigs {
 		// if it matches events and filters, mark the index for deletion
@@ -370,8 +370,8 @@ func (b *BucketNotification) RemoveLambdaByArn(arn Arn) {
 	b.LambdaConfigs = lambdas
 }
 
-// RemoveTopicByArnEventsPrefixSuffix removes a topic configuration that match the exact specified ARN, events, prefix and suffix
-func (b *BucketNotification) RemoveLambdaByArnEventsPrefixSuffix(arn Arn, events []NotificationEventType, prefix, suffix string) {
+// RemoveLambdaArnEventsPrefixSuffix removes a topic configuration that match the exact specified ARN, events, prefix and suffix
+func (b *BucketNotification) RemoveLambdaArnEventsPrefixSuffix(arn Arn, events []NotificationEventType, prefix, suffix string) {
 	removeIndex := -1
 	for i, v := range b.LambdaConfigs {
 		// if it matches events and filters, mark the index for deletion
