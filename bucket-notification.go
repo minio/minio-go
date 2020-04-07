@@ -152,7 +152,7 @@ func EqualNotificationEventTypeList(a, b []NotificationEventType) bool {
 		setB.Add(string(i))
 	}
 
-	if len(setA.Intersection(setB)) == len(a) {
+	if setA.Difference(setB).IsEmpty() {
 		return true
 	}
 	return false
@@ -174,22 +174,21 @@ func EqualFilterRuleList(a, b []FilterRule) bool {
 		setB.Add(fmt.Sprintf("%s-%s", i.Name, i.Value))
 	}
 
-	if len(setA.Intersection(setB)) == len(a) {
+	if setA.Difference(setB).IsEmpty() {
 		return true
 	}
 
 	return false
 }
 
-// EqualNotificationConfig returns wether two `NotificationConfig` are equivalent
-//func (v *NotificationConfig) Equal(arn string, eventsTyped []NotificationEventType, prefix, suffix string) bool {
-func (nc *NotificationConfig) Equal(arn string, events []NotificationEventType, prefix, suffix string) bool {
+// Equal returns whether this `NotificationConfig` is equal to another defined by the passed parameters
+func (t *NotificationConfig) Equal(arn string, events []NotificationEventType, prefix, suffix string) bool {
 	// if it's not the same ARN, return immediately.
-	if nc.Arn.String() != arn {
+	if t.Arn.String() != arn {
 		return false
 	}
 	//Compare events
-	passEvents := EqualNotificationEventTypeList(nc.Events, events)
+	passEvents := EqualNotificationEventTypeList(t.Events, events)
 
 	//Compare filters
 	var newFilter []FilterRule
@@ -200,7 +199,7 @@ func (nc *NotificationConfig) Equal(arn string, events []NotificationEventType, 
 		newFilter = append(newFilter, FilterRule{Name: "suffix", Value: suffix})
 	}
 
-	passFilters := EqualFilterRuleList(nc.Filter.S3Key.FilterRules, newFilter)
+	passFilters := EqualFilterRuleList(t.Filter.S3Key.FilterRules, newFilter)
 	// if it matches events and filters, mark the index for deletion
 	return passEvents && passFilters
 }
