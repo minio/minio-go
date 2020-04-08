@@ -30,7 +30,7 @@ import (
 type BucketVersioningConfiguration struct {
 	XMLName   xml.Name `xml:"VersioningConfiguration"`
 	Status    string   `xml:"Status"`
-	MfaDelete string   `xml:"MfaDelete",omitempty`
+	MfaDelete string   `xml:"MfaDelete,omitempty"`
 }
 
 // GetBucketVersioning - get versioning configuration for a bucket.
