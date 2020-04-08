@@ -456,7 +456,7 @@ func TestCoreCopyObject(t *testing.T) {
 		t.Fatal("Error:", err, bucketName, objectName, destBucketName, destObjectName)
 	}
 	if cobjInfo.ETag != objInfo.ETag {
-		t.Fatalf("Error: expected etag to be same as source object %s, but found different etag :%s", objInfo.ETag, cobjInfo.ETag)
+		t.Fatalf("Error: expected etag to be same as source object %s, but found different etag %s", objInfo.ETag, cobjInfo.ETag)
 	}
 
 	// Attempt to read from destBucketName and object name.
