@@ -28,7 +28,7 @@ import (
 	"testing"
 
 	"github.com/minio/minio-go/v6/pkg/credentials"
-	"github.com/minio/minio-go/v6/pkg/s3signer"
+	"github.com/minio/minio-go/v6/pkg/signer"
 )
 
 // Test validates `newBucketLocationCache`.
@@ -119,9 +119,9 @@ func TestGetBucketLocationRequest(t *testing.T) {
 				contentSha256 = unsignedPayload
 			}
 			req.Header.Set("X-Amz-Content-Sha256", contentSha256)
-			req = s3signer.SignV4(*req, accessKeyID, secretAccessKey, sessionToken, "us-east-1")
+			req = signer.SignV4(*req, accessKeyID, secretAccessKey, sessionToken, "us-east-1")
 		case signerType.IsV2():
-			req = s3signer.SignV2(*req, accessKeyID, secretAccessKey, false)
+			req = signer.SignV2(*req, accessKeyID, secretAccessKey, false)
 		}
 
 		return req, nil
