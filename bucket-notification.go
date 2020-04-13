@@ -19,7 +19,9 @@ package minio
 
 import (
 	"encoding/xml"
+	"errors"
 	"fmt"
+
 	"github.com/minio/minio-go/v6/pkg/set"
 )
 
@@ -175,11 +177,7 @@ func EqualFilterRuleList(a, b []FilterRule) bool {
 }
 
 // Equal returns whether this `NotificationConfig` is equal to another defined by the passed parameters
-func (t *NotificationConfig) Equal(arn string, events []NotificationEventType, prefix, suffix string) bool {
-	// if it's not the same ARN, return immediately.
-	if t.Arn.String() != arn {
-		return false
-	}
+func (t *NotificationConfig) Equal(events []NotificationEventType, prefix, suffix string) bool {
 	//Compare events
 	passEvents := EqualNotificationEventTypeList(t.Events, events)
 
@@ -310,19 +308,24 @@ func (b *BucketNotification) RemoveTopicByArn(arn Arn) {
 	b.TopicConfigs = topics
 }
 
+// ErrNoNotificationConfigMatch is returned when a notification configuration (sqs,sns,lambda) is not found when trying to delete
+var ErrNoNotificationConfigMatch = errors.New("no notification configuration matched")
+
 // RemoveTopicByArnEventsPrefixSuffix removes a topic configuration that match the exact specified ARN, events, prefix and suffix
-func (b *BucketNotification) RemoveTopicByArnEventsPrefixSuffix(arn Arn, events []NotificationEventType, prefix, suffix string) {
+func (b *BucketNotification) RemoveTopicByArnEventsPrefixSuffix(arn Arn, events []NotificationEventType, prefix, suffix string) error {
 	removeIndex := -1
 	for i, v := range b.TopicConfigs {
 		// if it matches events and filters, mark the index for deletion
-		if v.NotificationConfig.Equal(arn.String(), events, prefix, suffix) {
+		if v.Topic == arn.String() && v.NotificationConfig.Equal(events, prefix, suffix) {
 			removeIndex = i
 			break // since we have at most one matching config
 		}
 	}
 	if removeIndex >= 0 {
 		b.TopicConfigs = append(b.TopicConfigs[:removeIndex], b.TopicConfigs[removeIndex+1:]...)
+		return nil
 	}
+	return ErrNoNotificationConfigMatch
 }
 
 // RemoveQueueByArn removes all queue configurations that match the exact specified ARN
@@ -337,18 +340,20 @@ func (b *BucketNotification) RemoveQueueByArn(arn Arn) {
 }
 
 // RemoveQueueByArnEventsPrefixSuffix removes a queue configuration that match the exact specified ARN, events, prefix and suffix
-func (b *BucketNotification) RemoveQueueByArnEventsPrefixSuffix(arn Arn, events []NotificationEventType, prefix, suffix string) {
+func (b *BucketNotification) RemoveQueueByArnEventsPrefixSuffix(arn Arn, events []NotificationEventType, prefix, suffix string) error {
 	removeIndex := -1
 	for i, v := range b.QueueConfigs {
 		// if it matches events and filters, mark the index for deletion
-		if v.NotificationConfig.Equal(arn.String(), events, prefix, suffix) {
+		if v.Queue == arn.String() && v.NotificationConfig.Equal(events, prefix, suffix) {
 			removeIndex = i
 			break // since we have at most one matching config
 		}
 	}
 	if removeIndex >= 0 {
 		b.QueueConfigs = append(b.QueueConfigs[:removeIndex], b.QueueConfigs[removeIndex+1:]...)
+		return nil
 	}
+	return ErrNoNotificationConfigMatch
 }
 
 // RemoveLambdaByArn removes all lambda configurations that match the exact specified ARN
@@ -363,16 +368,18 @@ func (b *BucketNotification) RemoveLambdaByArn(arn Arn) {
 }
 
 // RemoveLambdaByArnEventsPrefixSuffix removes a topic configuration that match the exact specified ARN, events, prefix and suffix
-func (b *BucketNotification) RemoveLambdaByArnEventsPrefixSuffix(arn Arn, events []NotificationEventType, prefix, suffix string) {
+func (b *BucketNotification) RemoveLambdaByArnEventsPrefixSuffix(arn Arn, events []NotificationEventType, prefix, suffix string) error {
 	removeIndex := -1
 	for i, v := range b.LambdaConfigs {
 		// if it matches events and filters, mark the index for deletion
-		if v.NotificationConfig.Equal(arn.String(), events, prefix, suffix) {
+		if v.Lambda == arn.String() && v.NotificationConfig.Equal(events, prefix, suffix) {
 			removeIndex = i
 			break // since we have at most one matching config
 		}
 	}
 	if removeIndex >= 0 {
 		b.LambdaConfigs = append(b.LambdaConfigs[:removeIndex], b.LambdaConfigs[removeIndex+1:]...)
+		return nil
 	}
+	return ErrNoNotificationConfigMatch
 }
