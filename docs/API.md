@@ -69,6 +69,8 @@ func main() {
 |   | [`FPutObjectWithContext`](#FPutObjectWithContext)  | [`FPutObjectWithContext`](#FPutObjectWithContext) |   | [`GetBucketEncryption`](#GetBucketEncryption)   |
 |   | [`FGetObjectWithContext`](#FGetObjectWithContext)  | [`FGetObjectWithContext`](#FGetObjectWithContext) |   | [`DeleteBucketEncryption`](#DeleteBucketEncryption)  |
 |   | [`RemoveObjectsWithContext`](#RemoveObjectsWithContext)  | |    |   |
+|   | [`RemoveObjectsWithOptions`](#RemoveObjectsWithOptions)  | |    |   |
+|   | [`RemoveObjectsWithOptionsContext`](#RemoveObjectsWithOptionsContext)  | |    |   |
 |   | [`RemoveObjectWithOptions`](#RemoveObjectWithOptions)  | |    |   |
 |   | [`PutObjectRetention`](#PutObjectRetention)  | |    |   |
 |   | [`GetObjectRetention`](#GetObjectRetention)  | |    |   |
@@ -1252,6 +1254,99 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object |
 |`opts`	|_minio.PutObjectRetentionOptions_ |Allows user to set options like retention mode, expiry date and version id |
+
+<a name="RemoveObjectsWithOptions"></a>
+### RemoveObjectsWithOptions(bucketName string, objectsCh <-chan string, opts RemoveObjectsOptions) <-chan RemoveObjectError
+*Identical to RemoveObjects operation, but accepts opts for bypassing Governance mode.*
+
+Parameters
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |Name of the bucket  |
+|`objectsCh` |  _chan string_  | Channel of objects to be removed  |
+|`opts` |_minio.RemoveObjectsOptions_ | Allows user to set options |
+
+__minio.RemoveObjectsOptions__
+
+|Field | Type | Description |
+|:--- |:--- | :--- |
+| `opts.GovernanceBypass` | _bool_ |Set the bypass governance header to delete an object locked with GOVERNANCE mode|
+
+__Return Values__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`errorCh` | _<-chan minio.RemoveObjectError_  | Receive-only channel of errors observed during deletion.  |
+
+```go
+objectsCh := make(chan string)
+
+// Send object names that are needed to be removed to objectsCh
+go func() {
+	defer close(objectsCh)
+	// List all objects from a bucket-name with a matching prefix.
+	for object := range minioClient.ListObjects("my-bucketname", "my-prefixname", true, nil) {
+		if object.Err != nil {
+			log.Fatalln(object.Err)
+		}
+		objectsCh <- object.Key
+	}
+}()
+
+opts := minio.RemoveObjectsOptions{
+	GovernanceBypass: true,
+}
+    
+for rErr := range minioClient.RemoveObjectsWithOptions("my-bucketname", objectsCh, opts) {
+    fmt.Println("Error detected during deletion: ", rErr)
+}
+```
+
+<a name="RemoveObjectsWithOptionsContext"></a>
+### RemoveObjectsWithOptionsContext(ctx context.Context, bucketName string, objectsCh <-chan string, opts RemoveObjectsOptions) <-chan RemoveObjectError
+*Identical to RemoveObjectsWithContext operation, but accepts opts for bypassing Governance mode.*
+
+Parameters
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  |Request context  |
+|`bucketName`  | _string_  |Name of the bucket  |
+|`objectsCh` |  _chan string_  | Channel of objects to be removed  |
+|`opts` |_minio.RemoveObjectsOptions_ | Allows user to set options |
+
+__Return Values__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`errorCh` | _<-chan minio.RemoveObjectError_  | Receive-only channel of errors observed during deletion.  |
+
+```go
+objectsCh := make(chan string)
+ctx, cancel := context.WithTimeout(context.Background(), 100 * time.Second)
+defer cancel()
+
+// Send object names that are needed to be removed to objectsCh
+go func() {
+	defer close(objectsCh)
+	// List all objects from a bucket-name with a matching prefix.
+	for object := range minioClient.ListObjects("my-bucketname", "my-prefixname", true, nil) {
+		if object.Err != nil {
+			log.Fatalln(object.Err)
+		}
+		objectsCh <- object.Key
+	}
+}()
+
+opts := minio.RemoveObjectsOptions{
+	GovernanceBypass: true,
+}
+    
+for rErr := range minioClient.RemoveObjectsWithOptionsContext(ctx, "my-bucketname", objectsCh, opts) {
+    fmt.Println("Error detected during deletion: ", rErr)
+}
+```
 
 __minio.PutObjectRetentionOptions__
 
