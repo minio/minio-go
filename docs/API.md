@@ -64,10 +64,10 @@ func main() {
 |                                                   | [`ComposeObject`](#ComposeObject)                   |    [`ComposeObject`](#ComposeObject)                                         |                                               | [`GetObjectLockConfig`](#GetObjectLockConfig)                   |                                                       |
 |                                                   | [`NewSourceInfo`](#NewSourceInfo)                   |    [`NewSourceInfo`](#NewSourceInfo)                                         |                                               | [`EnableVersioning`](#EnableVersioning)                                                              |                                                       |
 |                                                   | [`NewDestinationInfo`](#NewDestinationInfo)         |    [`NewDestinationInfo`](#NewDestinationInfo)                                         |                                               | [`DisableVersioning`](#DisableVersioning)                                                              |                                                       |
-|   | [`PutObjectWithContext`](#PutObjectWithContext)  | [`PutObjectWithContext`](#PutObjectWithContext) |   | [`SetBucketEncryption`](#SetBucketEncryption)  |
-|   | [`GetObjectWithContext`](#GetObjectWithContext)  | [`GetObjectWithContext`](#GetObjectWithContext) |   | [`GetBucketEncryption`](#GetBucketEncryption) |   |
-|   | [`FPutObjectWithContext`](#FPutObjectWithContext)  | [`FPutObjectWithContext`](#FPutObjectWithContext) |   | [`DeleteBucketEncryption`](#DeleteBucketEncryption)   |
-|   | [`FGetObjectWithContext`](#FGetObjectWithContext)  | [`FGetObjectWithContext`](#FGetObjectWithContext) |   |   |
+|   | [`PutObjectWithContext`](#PutObjectWithContext)  | [`PutObjectWithContext`](#PutObjectWithContext) |   | [`GetBucketVersioning`](#GetBucketVersioning)  |
+|   | [`GetObjectWithContext`](#GetObjectWithContext)  | [`GetObjectWithContext`](#GetObjectWithContext) |   | [`SetBucketEncryption`](#SetBucketEncryption) |   |
+|   | [`FPutObjectWithContext`](#FPutObjectWithContext)  | [`FPutObjectWithContext`](#FPutObjectWithContext) |   | [`GetBucketEncryption`](#GetBucketEncryption)   |
+|   | [`FGetObjectWithContext`](#FGetObjectWithContext)  | [`FGetObjectWithContext`](#FGetObjectWithContext) |   | [`DeleteBucketEncryption`](#DeleteBucketEncryption)  |
 |   | [`RemoveObjectsWithContext`](#RemoveObjectsWithContext)  | |    |   |
 |   | [`RemoveObjectsWithOptions`](#RemoveObjectsWithOptions)  | |    |   |
 |   | [`RemoveObjectsWithOptionsContext`](#RemoveObjectsWithOptionsContext)  | |    |   |
@@ -2312,6 +2312,41 @@ if err != nil {
 }
 
 fmt.Println("versioning disabled for bucket 'my-bucketname'")
+```
+
+<a name="GetBucketVersioning"></a>
+### GetBucketVersioning(bucketName string) (BucketVersioningConfiguration, error)
+Get versioning configuration set on a bucket.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  |Name of the bucket   |
+
+__Return Values__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`configuration` | _minio.BucketVersioningConfiguration_ | Structure that holds versioning configuration |
+|`err` | _error_ |Standard Error  |
+
+__Example__
+
+```go
+s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", true)
+if err != nil {
+    log.Fatalln(err)
+}
+
+// Get versioning configuration set on an S3 bucket and print it out
+versioningConfig, err := s3Client.GetBucketVersioning("my-bucketname")
+if err != nil {
+    log.Fatalln(err)
+}
+fmt.Printf("%+v\n", versioningConfig)
 ```
 
 ## 7. Client custom settings
