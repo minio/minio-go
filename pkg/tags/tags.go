@@ -273,10 +273,7 @@ func NewTags(tagMap map[string]string, isObject bool) (*Tags, error) {
 	return tagging, nil
 }
 
-// UnmarshalXML decodes XML data of tags in reader specified in
-// https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketTagging.html#API_PutBucketTagging_RequestSyntax.
-// If isObject is set, it validates for object tags.
-func UnmarshalXML(reader io.Reader, isObject bool) (*Tags, error) {
+func unmarshalXML(reader io.Reader, isObject bool) (*Tags, error) {
 	tagging := &Tags{
 		TagSet: &tagSet{
 			tagMap:   make(map[string]string),
@@ -291,8 +288,20 @@ func UnmarshalXML(reader io.Reader, isObject bool) (*Tags, error) {
 	return tagging, nil
 }
 
-// Parse decodes HTTP query formatted string into tags. A query formatted string is like "key1=value1&key2=value2".
-func Parse(s string, isObject bool) (*Tags, error) {
+// ParseBucketXML decodes XML data of tags in reader specified in
+// https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketTagging.html#API_PutBucketTagging_RequestSyntax.
+func ParseBucketXML(reader io.Reader) (*Tags, error) {
+	return unmarshalXML(reader, false)
+}
+
+// ParseObjectXML decodes XML data of tags in reader specified in
+// https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectTagging.html#API_PutObjectTagging_RequestSyntax
+func ParseObjectXML(reader io.Reader) (*Tags, error) {
+	return unmarshalXML(reader, true)
+}
+
+// ParseObjectTags decodes HTTP query formatted string into tags. A query formatted string is like "key1=value1&key2=value2".
+func ParseObjectTags(s string) (*Tags, error) {
 	values, err := url.ParseQuery(s)
 	if err != nil {
 		return nil, err
@@ -301,7 +310,7 @@ func Parse(s string, isObject bool) (*Tags, error) {
 	tagging := &Tags{
 		TagSet: &tagSet{
 			tagMap:   make(map[string]string),
-			isObject: isObject,
+			isObject: true,
 		},
 	}
 
