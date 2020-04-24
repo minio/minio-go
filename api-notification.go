@@ -20,11 +20,11 @@ package minio
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/url"
 	"time"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/minio/minio-go/v6/pkg/s3utils"
 )
 
@@ -203,6 +203,7 @@ func (c Client) ListenBucketNotification(bucketName, prefix, suffix string, even
 			// Use a higher buffer to support unexpected
 			// caching done by proxies
 			bio.Buffer(notificationEventBuffer, notificationCapacity)
+			var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 			// Unmarshal each line, returns marshalled values.
 			for bio.Scan() {
