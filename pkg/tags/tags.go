@@ -300,8 +300,9 @@ func ParseObjectXML(reader io.Reader) (*Tags, error) {
 	return unmarshalXML(reader, true)
 }
 
-// ParseObjectTags decodes HTTP query formatted string into tags. A query formatted string is like "key1=value1&key2=value2".
-func ParseObjectTags(s string) (*Tags, error) {
+// Parse decodes HTTP query formatted string into tags which is limited by isObject.
+// A query formatted string is like "key1=value1&key2=value2".
+func Parse(s string, isObject bool) (*Tags, error) {
 	values, err := url.ParseQuery(s)
 	if err != nil {
 		return nil, err
@@ -310,7 +311,7 @@ func ParseObjectTags(s string) (*Tags, error) {
 	tagging := &Tags{
 		TagSet: &tagSet{
 			tagMap:   make(map[string]string),
-			isObject: true,
+			isObject: isObject,
 		},
 	}
 
@@ -321,4 +322,9 @@ func ParseObjectTags(s string) (*Tags, error) {
 	}
 
 	return tagging, nil
+}
+
+// ParseObjectTags decodes HTTP query formatted string into tags. A query formatted string is like "key1=value1&key2=value2".
+func ParseObjectTags(s string) (*Tags, error) {
+	return Parse(s, true)
 }
