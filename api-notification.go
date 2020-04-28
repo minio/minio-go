@@ -205,7 +205,7 @@ func (c Client) ListenBucketNotification(bucketName, prefix, suffix string, even
 			bio.Buffer(notificationEventBuffer, notificationCapacity)
 			var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
-			// Unmarshal each line, returns marshalled values.
+			// Unmarshal each line, returns marshaled values.
 			for bio.Scan() {
 				var notificationInfo NotificationInfo
 				if err = json.Unmarshal(bio.Bytes(), &notificationInfo); err != nil {
