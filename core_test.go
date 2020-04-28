@@ -241,7 +241,7 @@ func TestGetObjectCore(t *testing.T) {
 		t.Fatal("Error: ", err)
 	}
 	if contentLength != contentLengthValue {
-		t.Fatalf("Error: Content Length in response header %v, not equal to set content lenght %v\n", contentLengthValue, contentLength)
+		t.Fatalf("Error: Content Length in response header %v, not equal to set content length %v\n", contentLengthValue, contentLength)
 	}
 
 	err = c.RemoveObject(bucketName, objectName)
