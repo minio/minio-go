@@ -1,0 +1,47 @@
+name: Go
+
+on:
+  pull_request:
+    branches:
+    - master
+  push:
+    branches:
+    - master
+
+jobs:
+  build:
+    name: Test on Go ${{ matrix.go-version }} and ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        go-version: [1.13.x, 1.14.x]
+        os: [ubuntu-latest]
+    steps:
+      - name: Set up Go ${{ matrix.go-version }} on ${{ matrix.os }}
+        uses: actions/setup-go@v1
+        with:
+          go-version: ${{ matrix.go-version }}
+        id: go
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v1
+
+      - name: Build on ${{ matrix.os }}
+        env:
+          MINT_MODE: full
+          SERVER_ENDPOINT: localhost:9000
+          ACCESS_KEY: minio
+          SECRET_KEY: minio123
+          ENABLE_HTTPS: 1
+          MINIO_ACCESS_KEY: minio
+          MINIO_SECRET_KEY: minio123
+          GO111MODULE: on
+          SSL_CERT_FILE: /tmp/certs-dir/public.crt
+        run: |
+          sudo apt-get install devscripts
+          wget -O /tmp/minio https://dl.min.io/server/minio/release/linux-amd64/minio
+          chmod +x /tmp/minio
+          mkdir -p /tmp/certs-dir
+          cp testcerts/* /tmp/certs-dir
+          /tmp/minio server --quiet -S /tmp/certs-dir /tmp/fs &
+          make

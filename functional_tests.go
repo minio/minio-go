@@ -1555,11 +1555,7 @@ func testFPutObject() {
 		return
 	}
 
-	if err = os.Remove(fName + ".gtar"); err != nil {
-		logError(testName, function, args, startTime, "", "File remove failed", err)
-		return
-	}
-
+	os.Remove(fName + ".gtar")
 	successLogger(testName, function, args, startTime).Info()
 }
 
@@ -2513,8 +2509,30 @@ func testPresignedPostPolicy() {
 	}
 	writer.Close()
 
+	transport, err := minio.DefaultTransport(mustParseBool(os.Getenv(enableHTTPS)))
+	if err != nil {
+		logError(testName, function, args, startTime, "", "DefaultTransport failed", err)
+		return
+	}
+
+	httpClient := &http.Client{
+		// Setting a sensible time out of 30secs to wait for response
+		// headers. Request is pro-actively canceled after 30secs
+		// with no response.
+		Timeout:   30 * time.Second,
+		Transport: transport,
+	}
+
+	req, err := http.NewRequest(http.MethodPost, presignedPostPolicyURL.String(), bytes.NewReader(formBuf.Bytes()))
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Http request failed", err)
+		return
+	}
+
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
 	// make post request with correct form data
-	res, err := http.Post(presignedPostPolicyURL.String(), writer.FormDataContentType(), bytes.NewReader(formBuf.Bytes()))
+	res, err := httpClient.Do(req)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "Http request failed", err)
 		return
@@ -3768,10 +3786,7 @@ func testSSECEncryptionFPut() {
 			return
 		}
 
-		if err = os.Remove(fileName); err != nil {
-			logError(testName, function, args, startTime, "", "File remove failed", err)
-			return
-		}
+		os.Remove(fileName)
 	}
 
 	// Delete all objects and buckets
@@ -4009,10 +4024,7 @@ func testSSES3EncryptionFPut() {
 			return
 		}
 
-		if err = os.Remove(fileName); err != nil {
-			logError(testName, function, args, startTime, "", "File remove failed", err)
-			return
-		}
+		os.Remove(fileName)
 	}
 
 	// Delete all objects and buckets
@@ -4541,8 +4553,29 @@ func testFunctional() {
 		logError(testName, function, args, startTime, "", "PresignedHeadObject failed", err)
 		return
 	}
+
+	transport, err := minio.DefaultTransport(mustParseBool(os.Getenv(enableHTTPS)))
+	if err != nil {
+		logError(testName, function, args, startTime, "", "DefaultTransport failed", err)
+		return
+	}
+
+	httpClient := &http.Client{
+		// Setting a sensible time out of 30secs to wait for response
+		// headers. Request is pro-actively canceled after 30secs
+		// with no response.
+		Timeout:   30 * time.Second,
+		Transport: transport,
+	}
+
+	req, err := http.NewRequest(http.MethodHead, presignedHeadURL.String(), nil)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PresignedHeadObject request was incorrect", err)
+		return
+	}
+
 	// Verify if presigned url works.
-	resp, err := http.Head(presignedHeadURL.String())
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PresignedHeadObject response incorrect", err)
 		return
@@ -4586,7 +4619,13 @@ func testFunctional() {
 	}
 
 	// Verify if presigned url works.
-	resp, err = http.Get(presignedGetURL.String())
+	req, err = http.NewRequest(http.MethodGet, presignedGetURL.String(), nil)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PresignedGetObject request incorrect", err)
+		return
+	}
+
+	resp, err = httpClient.Do(req)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PresignedGetObject response incorrect", err)
 		return
@@ -4621,8 +4660,15 @@ func testFunctional() {
 		logError(testName, function, args, startTime, "", "PresignedGetObject failed", err)
 		return
 	}
+
 	// Verify if presigned url works.
-	resp, err = http.Get(presignedGetURL.String())
+	req, err = http.NewRequest(http.MethodGet, presignedGetURL.String(), nil)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PresignedGetObject request incorrect", err)
+		return
+	}
+
+	resp, err = httpClient.Do(req)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PresignedGetObject response incorrect", err)
 		return
@@ -4674,18 +4720,12 @@ func testFunctional() {
 
 	buf = bytes.Repeat([]byte("g"), 1<<19)
 
-	req, err := http.NewRequest("PUT", presignedPutURL.String(), bytes.NewReader(buf))
+	req, err = http.NewRequest(http.MethodPut, presignedPutURL.String(), bytes.NewReader(buf))
 	if err != nil {
 		logError(testName, function, args, startTime, "", "Couldn't make HTTP request with PresignedPutObject URL", err)
 		return
 	}
-	httpClient := &http.Client{
-		// Setting a sensible time out of 30secs to wait for response
-		// headers. Request is pro-actively cancelled after 30secs
-		// with no response.
-		Timeout:   30 * time.Second,
-		Transport: http.DefaultTransport,
-	}
+
 	resp, err = httpClient.Do(req)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PresignedPutObject failed", err)
@@ -4766,14 +4806,8 @@ func testFunctional() {
 		return
 	}
 
-	if err = os.Remove(fileName); err != nil {
-		logError(testName, function, args, startTime, "", "File Remove failed", err)
-		return
-	}
-	if err = os.Remove(fileName + "-f"); err != nil {
-		logError(testName, function, args, startTime, "", "File Remove failed", err)
-		return
-	}
+	os.Remove(fileName)
+	os.Remove(fileName + "-f")
 	successLogger(testName, functionAll, args, startTime).Info()
 }
 
@@ -5267,7 +5301,7 @@ func testFPutObjectV2() {
 
 	// Add extension to temp file name
 	fileName := file.Name()
-	err = os.Rename(file.Name(), fileName+".gtar")
+	err = os.Rename(fileName, fileName+".gtar")
 	if err != nil {
 		logError(testName, function, args, startTime, "", "Rename failed", err)
 		return
@@ -5335,11 +5369,7 @@ func testFPutObjectV2() {
 		return
 	}
 
-	err = os.Remove(fileName + ".gtar")
-	if err != nil {
-		logError(testName, function, args, startTime, "", "File remove failed", err)
-		return
-	}
+	os.Remove(fileName + ".gtar")
 	successLogger(testName, function, args, startTime).Info()
 }
 
@@ -9211,8 +9241,29 @@ func testFunctionalV2() {
 		logError(testName, function, args, startTime, "", "PresignedHeadObject failed", err)
 		return
 	}
+
+	transport, err := minio.DefaultTransport(mustParseBool(os.Getenv(enableHTTPS)))
+	if err != nil {
+		logError(testName, function, args, startTime, "", "DefaultTransport failed", err)
+		return
+	}
+
+	httpClient := &http.Client{
+		// Setting a sensible time out of 30secs to wait for response
+		// headers. Request is pro-actively canceled after 30secs
+		// with no response.
+		Timeout:   30 * time.Second,
+		Transport: transport,
+	}
+
+	req, err := http.NewRequest(http.MethodHead, presignedHeadURL.String(), nil)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PresignedHeadObject URL head request failed", err)
+		return
+	}
+
 	// Verify if presigned url works.
-	resp, err := http.Head(presignedHeadURL.String())
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PresignedHeadObject URL head request failed", err)
 		return
@@ -9240,12 +9291,20 @@ func testFunctionalV2() {
 		logError(testName, function, args, startTime, "", "PresignedGetObject failed", err)
 		return
 	}
+
 	// Verify if presigned url works.
-	resp, err = http.Get(presignedGetURL.String())
+	req, err = http.NewRequest(http.MethodGet, presignedGetURL.String(), nil)
 	if err != nil {
-		logError(testName, function, args, startTime, "", "PresignedGetObject URL GET request failed", err)
+		logError(testName, function, args, startTime, "", "PresignedGetObject request incorrect", err)
 		return
 	}
+
+	resp, err = httpClient.Do(req)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PresignedGetObject response incorrect", err)
+		return
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		logError(testName, function, args, startTime, "", "PresignedGetObject URL returns status "+string(resp.StatusCode), err)
 		return
@@ -9271,12 +9330,20 @@ func testFunctionalV2() {
 		logError(testName, function, args, startTime, "", "PresignedGetObject failed", err)
 		return
 	}
+
 	// Verify if presigned url works.
-	resp, err = http.Get(presignedGetURL.String())
+	req, err = http.NewRequest(http.MethodGet, presignedGetURL.String(), nil)
 	if err != nil {
-		logError(testName, function, args, startTime, "", "PresignedGetObject URL GET request failed", err)
+		logError(testName, function, args, startTime, "", "PresignedGetObject request incorrect", err)
 		return
 	}
+
+	resp, err = httpClient.Do(req)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PresignedGetObject response incorrect", err)
+		return
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		logError(testName, function, args, startTime, "", "PresignedGetObject URL returns status "+string(resp.StatusCode), err)
 		return
@@ -9312,18 +9379,12 @@ func testFunctionalV2() {
 	// Generate data more than 32K
 	buf = bytes.Repeat([]byte("1"), rand.Intn(1<<10)+32*1024)
 
-	req, err := http.NewRequest("PUT", presignedPutURL.String(), bytes.NewReader(buf))
+	req, err = http.NewRequest(http.MethodPut, presignedPutURL.String(), bytes.NewReader(buf))
 	if err != nil {
 		logError(testName, function, args, startTime, "", "HTTP request to PresignedPutObject URL failed", err)
 		return
 	}
-	httpClient := &http.Client{
-		// Setting a sensible time out of 30secs to wait for response
-		// headers. Request is pro-actively cancelled after 30secs
-		// with no response.
-		Timeout:   30 * time.Second,
-		Transport: http.DefaultTransport,
-	}
+
 	resp, err = httpClient.Do(req)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "HTTP request to PresignedPutObject URL failed", err)
@@ -9360,14 +9421,8 @@ func testFunctionalV2() {
 		return
 	}
 
-	if err = os.Remove(fileName); err != nil {
-		logError(testName, function, args, startTime, "", "File remove failed", err)
-		return
-	}
-	if err = os.Remove(fileName + "-f"); err != nil {
-		logError(testName, function, args, startTime, "", "File removes failed", err)
-		return
-	}
+	os.Remove(fileName)
+	os.Remove(fileName + "-f")
 	successLogger(testName, functionAll, args, startTime).Info()
 }
 
