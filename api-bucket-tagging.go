@@ -107,7 +107,7 @@ func (c Client) SetBucketTaggingWithContext(ctx context.Context, bucketName stri
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return httpRespToErrorResponse(resp, bucketName, "")
 	}
 	return nil
