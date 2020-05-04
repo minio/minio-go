@@ -20,7 +20,6 @@ package minio
 import (
 	"bytes"
 	"context"
-	"crypto/md5"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -267,9 +266,10 @@ func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName
 		var md5Base64 string
 		if opts.SendContentMd5 {
 			// Calculate md5sum.
-			hash := md5.New()
+			hash := c.md5Hasher()
 			hash.Write(buf[:length])
 			md5Base64 = base64.StdEncoding.EncodeToString(hash.Sum(nil))
+			hash.Close()
 		}
 
 		// Update progress reader appropriately to the latest offset

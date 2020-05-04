@@ -22,6 +22,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/xml"
+	"hash"
 	"io"
 	"io/ioutil"
 	"net"
@@ -32,9 +33,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/minio/sha256-simd"
-
 	"github.com/minio/minio-go/v6/pkg/s3utils"
+	"github.com/minio/sha256-simd"
 )
 
 func trimEtag(etag string) string {
@@ -372,3 +372,11 @@ func isAmzHeader(headerKey string) bool {
 
 	return strings.HasPrefix(key, "x-amz-meta-") || strings.HasPrefix(key, "x-amz-grant-") || key == "x-amz-acl" || isSSEHeader(headerKey)
 }
+
+// hashWrapper implements the md5simd.Hasher interface.
+type hashWrapper struct {
+	hash.Hash
+}
+
+// Close does nothing when wrapped.
+func (m hashWrapper) Close() {}
