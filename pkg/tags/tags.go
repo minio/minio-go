@@ -103,32 +103,6 @@ func (tag Tag) Validate() error {
 	return checkValue(tag.Value)
 }
 
-// MarshalXML encodes to XML data.
-func (tag Tag) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
-	if err := tag.Validate(); err != nil {
-		return err
-	}
-
-	type subTag Tag // to avoid recursively calling MarshalXML()
-	return e.EncodeElement(subTag(tag), start)
-}
-
-// UnmarshalXML decodes XML data to tag.
-func (tag *Tag) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
-	type subTag Tag // to avoid recursively calling UnmarshalXML()
-	var st subTag
-	if err := d.DecodeElement(&st, &start); err != nil {
-		return err
-	}
-
-	if err := Tag(st).Validate(); err != nil {
-		return err
-	}
-
-	*tag = Tag(st)
-	return nil
-}
-
 // tagSet represents list of unique tags.
 type tagSet struct {
 	tagMap   map[string]string
