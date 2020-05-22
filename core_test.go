@@ -434,9 +434,13 @@ func TestCoreCopyObject(t *testing.T) {
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
-		"Content-Type": "binary/octet-stream",
-	}, nil)
+
+	putopts := PutObjectOptions{
+		UserMetadata: map[string]string{
+			"Content-Type": "binary/octet-stream",
+		},
+	}
+	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", putopts)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
@@ -546,12 +550,15 @@ func TestCoreCopyObjectPart(t *testing.T) {
 
 	// Make a buffer with 5MB of data
 	buf := bytes.Repeat([]byte("abcde"), 1024*1024)
-
+	metadata := map[string]string{
+		"Content-Type": "binary/octet-stream",
+	}
+	putopts := PutObjectOptions{
+		UserMetadata: metadata,
+	}
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
-		"Content-Type": "binary/octet-stream",
-	}, nil)
+	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", putopts)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
@@ -697,13 +704,15 @@ func TestCorePutObject(t *testing.T) {
 	objectContentType := "binary/octet-stream"
 	metadata := make(map[string]string)
 	metadata["Content-Type"] = objectContentType
-
-	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "1B2M2Y8AsgTpgAmY7PhCfg==", "", metadata, nil)
+	putopts := PutObjectOptions{
+		UserMetadata: metadata,
+	}
+	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "1B2M2Y8AsgTpgAmY7PhCfg==", "", putopts)
 	if err == nil {
 		t.Fatal("Error expected: error, got: nil(success)")
 	}
 
-	objInfo, err = c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", metadata, nil)
+	objInfo, err = c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", putopts)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
@@ -777,9 +786,12 @@ func TestCoreGetObjectMetadata(t *testing.T) {
 	metadata := map[string]string{
 		"X-Amz-Meta-Key-1": "Val-1",
 	}
+	putopts := PutObjectOptions{
+		UserMetadata: metadata,
+	}
 
 	_, err = core.PutObject(bucketName, "my-objectname",
-		bytes.NewReader([]byte("hello")), 5, "", "", metadata, nil)
+		bytes.NewReader([]byte("hello")), 5, "", "", putopts)
 	if err != nil {
 		log.Fatalln(err)
 	}
