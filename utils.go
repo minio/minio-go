@@ -325,6 +325,7 @@ var supportedHeaders = []string{
 	"content-language",
 	"x-amz-website-redirect-location",
 	"x-amz-object-lock-mode",
+	"x-amz-metadata-directive",
 	"x-amz-object-lock-retain-until-date",
 	"expires",
 	// Add more supported headers here.
