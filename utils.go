@@ -175,6 +175,7 @@ func extractObjMetadata(header http.Header) http.Header {
 		"X-Amz-Object-Lock-Legal-Hold",
 		"X-Amz-Website-Redirect-Location",
 		"X-Amz-Server-Side-Encryption",
+		"X-Amz-Tagging-Count",
 		"X-Amz-Meta-",
 		// Add new headers to be preserved.
 		// if you add new headers here, please extend
@@ -324,6 +325,7 @@ var supportedHeaders = []string{
 	"content-language",
 	"x-amz-website-redirect-location",
 	"x-amz-object-lock-mode",
+	"x-amz-metadata-directive",
 	"x-amz-object-lock-retain-until-date",
 	"expires",
 	// Add more supported headers here.

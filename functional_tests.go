@@ -6966,10 +6966,14 @@ func testSSECEncryptedToSSECCopyObjectPart() {
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	password := "correct horse battery staple"
 	srcencryption := encrypt.DefaultPBKDF([]byte(password), []byte(bucketName+objectName))
-
-	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
+	putmetadata := map[string]string{
 		"Content-Type": "binary/octet-stream",
-	}, srcencryption)
+	}
+	opts := minio.PutObjectOptions{
+		UserMetadata:         putmetadata,
+		ServerSideEncryption: srcencryption,
+	}
+	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", opts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
@@ -7118,9 +7122,13 @@ func testSSECEncryptedToUnencryptedCopyPart() {
 	password := "correct horse battery staple"
 	srcencryption := encrypt.DefaultPBKDF([]byte(password), []byte(bucketName+objectName))
 
-	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
-		"Content-Type": "binary/octet-stream",
-	}, srcencryption)
+	opts := minio.PutObjectOptions{
+		UserMetadata: map[string]string{
+			"Content-Type": "binary/octet-stream",
+		},
+		ServerSideEncryption: srcencryption,
+	}
+	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", opts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
@@ -7267,10 +7275,15 @@ func testSSECEncryptedToSSES3CopyObjectPart() {
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	password := "correct horse battery staple"
 	srcencryption := encrypt.DefaultPBKDF([]byte(password), []byte(bucketName+objectName))
-
-	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
+	putmetadata := map[string]string{
 		"Content-Type": "binary/octet-stream",
-	}, srcencryption)
+	}
+	opts := minio.PutObjectOptions{
+		UserMetadata:         putmetadata,
+		ServerSideEncryption: srcencryption,
+	}
+
+	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", opts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
@@ -7418,10 +7431,13 @@ func testUnencryptedToSSECCopyObjectPart() {
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	password := "correct horse battery staple"
-
-	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
+	putmetadata := map[string]string{
 		"Content-Type": "binary/octet-stream",
-	}, nil)
+	}
+	opts := minio.PutObjectOptions{
+		UserMetadata: putmetadata,
+	}
+	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", opts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
@@ -7566,10 +7582,13 @@ func testUnencryptedToUnencryptedCopyPart() {
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-
-	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
+	putmetadata := map[string]string{
 		"Content-Type": "binary/octet-stream",
-	}, nil)
+	}
+	opts := minio.PutObjectOptions{
+		UserMetadata: putmetadata,
+	}
+	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", opts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
@@ -7712,10 +7731,12 @@ func testUnencryptedToSSES3CopyObjectPart() {
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-
-	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
-		"Content-Type": "binary/octet-stream",
-	}, nil)
+	opts := minio.PutObjectOptions{
+		UserMetadata: map[string]string{
+			"Content-Type": "binary/octet-stream",
+		},
+	}
+	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", opts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
@@ -7863,9 +7884,13 @@ func testSSES3EncryptedToSSECCopyObjectPart() {
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	password := "correct horse battery staple"
 	srcEncryption := encrypt.NewSSE()
-	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
-		"Content-Type": "binary/octet-stream",
-	}, srcEncryption)
+	opts := minio.PutObjectOptions{
+		UserMetadata: map[string]string{
+			"Content-Type": "binary/octet-stream",
+		},
+		ServerSideEncryption: srcEncryption,
+	}
+	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", opts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
@@ -8011,10 +8036,13 @@ func testSSES3EncryptedToUnencryptedCopyPart() {
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	srcEncryption := encrypt.NewSSE()
-
-	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
-		"Content-Type": "binary/octet-stream",
-	}, srcEncryption)
+	opts := minio.PutObjectOptions{
+		UserMetadata: map[string]string{
+			"Content-Type": "binary/octet-stream",
+		},
+		ServerSideEncryption: srcEncryption,
+	}
+	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", opts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
@@ -8158,10 +8186,14 @@ func testSSES3EncryptedToSSES3CopyObjectPart() {
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	srcEncryption := encrypt.NewSSE()
+	opts := minio.PutObjectOptions{
+		UserMetadata: map[string]string{
+			"Content-Type": "binary/octet-stream",
+		},
+		ServerSideEncryption: srcEncryption,
+	}
 
-	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", map[string]string{
-		"Content-Type": "binary/octet-stream",
-	}, srcEncryption)
+	objInfo, err := c.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", opts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
