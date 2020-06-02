@@ -118,6 +118,7 @@ func (c Client) putObjectMultipartNoStream(ctx context.Context, bucketName, obje
 		for k, v := range hashAlgos {
 			v.Write(buf[:length])
 			hashSums[k] = v.Sum(nil)
+			v.Close()
 		}
 
 		// Update progress reader appropriately to the latest offset

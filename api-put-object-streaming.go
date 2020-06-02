@@ -20,7 +20,6 @@ package minio
 import (
 	"bytes"
 	"context"
-	"crypto/md5"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -287,9 +286,11 @@ func (c Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, bu
 				return 0, rerr
 			}
 			// Calculate md5sum.
-			hash := md5.New()
+			hash := c.md5Hasher()
 			hash.Write(buf[:length])
 			md5Base64 = base64.StdEncoding.EncodeToString(hash.Sum(nil))
+			hash.Close()
+
 			// Update progress reader appropriately to the latest offset
 			// as we read from the source.
 			hookReader = newHook(bytes.NewReader(buf[:length]), opts.Progress)
@@ -393,10 +394,11 @@ func (c Client) putObject(ctx context.Context, bucketName, objectName string, re
 		}
 
 		// Calculate md5sum.
-		hash := md5.New()
+		hash := c.md5Hasher()
 		hash.Write(buf[:length])
 		md5Base64 = base64.StdEncoding.EncodeToString(hash.Sum(nil))
 		reader = bytes.NewReader(buf[:length])
+		hash.Close()
 	}
 
 	// Update progress reader appropriately to the latest offset as we
