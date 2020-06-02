@@ -20,7 +20,6 @@ package minio
 import (
 	"bytes"
 	"context"
-	"crypto/md5"
 	"errors"
 	"fmt"
 	"io"
@@ -41,7 +40,6 @@ import (
 	"github.com/minio/minio-go/v6/pkg/credentials"
 	"github.com/minio/minio-go/v6/pkg/s3utils"
 	"github.com/minio/minio-go/v6/pkg/signer"
-	"github.com/minio/sha256-simd"
 	"golang.org/x/net/publicsuffix"
 )
 
@@ -90,7 +88,8 @@ type Client struct {
 	lookup BucketLookupType
 
 	// Factory for MD5 hash functions.
-	md5Hasher func() md5simd.Hasher
+	md5Hasher    func() md5simd.Hasher
+	sha256Hasher func() md5simd.Hasher
 }
 
 // Options for New method
@@ -100,8 +99,9 @@ type Options struct {
 	Region       string
 	BucketLookup BucketLookupType
 
-	// Custom MD5 hasher. Leave nil to use standard.
-	CustomMD5 func() md5simd.Hasher
+	// Custom hash routines. Leave nil to use standard.
+	CustomMD5    func() md5simd.Hasher
+	CustomSHA256 func() md5simd.Hasher
 }
 
 // Global constants.
@@ -354,10 +354,12 @@ func privateNew(endpoint string, opts Options) (*Client, error) {
 
 	// Add default md5 hasher.
 	clnt.md5Hasher = opts.CustomMD5
+	clnt.sha256Hasher = opts.CustomSHA256
 	if clnt.md5Hasher == nil {
-		clnt.md5Hasher = func() md5simd.Hasher {
-			return hashWrapper{Hash: md5.New()}
-		}
+		clnt.md5Hasher = newMd5Hasher
+	}
+	if clnt.sha256Hasher == nil {
+		clnt.sha256Hasher = newSHA256Hasher
 	}
 	// Sets bucket lookup style, whether server accepts DNS or Path lookup. Default is Auto - determined
 	// by the SDK. When Auto is specified, DNS lookup is used for Amazon/Google cloud endpoints and Path for all other endpoints.
@@ -452,7 +454,7 @@ func (c *Client) hashMaterials(isMd5Requested bool) (hashAlgos map[string]md5sim
 		if c.secure {
 			hashAlgos["md5"] = c.md5Hasher()
 		} else {
-			hashAlgos["sha256"] = hashWrapper{sha256.New()}
+			hashAlgos["sha256"] = c.sha256Hasher()
 		}
 	} else {
 		if c.overrideSignerType.IsAnonymous() {

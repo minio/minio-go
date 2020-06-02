@@ -678,7 +678,8 @@ func TestCorePutObject(t *testing.T) {
 		mustParseBool(os.Getenv(enableSecurity)),
 	)
 	if err != nil {
-		t.Fatal("Error:", err)
+		t.Error("Error:", err)
+		return
 	}
 
 	// Enable tracing, write to stderr.
