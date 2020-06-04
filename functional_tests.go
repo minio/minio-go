@@ -22,6 +22,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -34,6 +35,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -154,6 +156,39 @@ func cleanupBucket(bucketName string, c *minio.Client) error {
 		}
 		if objCh.Key != "" {
 			err := c.RemoveObject(context.Background(), bucketName, objCh.Key)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	for objPartInfo := range c.ListIncompleteUploads(context.Background(), bucketName, "", true, doneCh) {
+		if objPartInfo.Err != nil {
+			return objPartInfo.Err
+		}
+		if objPartInfo.Key != "" {
+			err := c.RemoveIncompleteUpload(context.Background(), bucketName, objPartInfo.Key)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	// objects are already deleted, clear the buckets now
+	err := c.RemoveBucket(context.Background(), bucketName)
+	if err != nil {
+		return err
+	}
+	return err
+}
+
+func cleanupVersionedBucket(bucketName string, c *minio.Client) error {
+	doneCh := make(chan struct{})
+	defer close(doneCh)
+	for obj := range c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh) {
+		if obj.Err != nil {
+			return obj.Err
+		}
+		if obj.Key != "" {
+			err := c.RemoveObjectWithOptions(context.Background(), bucketName, obj.Key, minio.RemoveObjectOptions{VersionID: obj.VersionID})
 			if err != nil {
 				return err
 			}
@@ -585,6 +620,1088 @@ func testPutObjectReadAt() {
 
 	// Delete all objects and buckets
 	if err = cleanupBucket(bucketName, c); err != nil {
+		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		return
+	}
+
+	successLogger(testName, function, args, startTime).Info()
+}
+
+func testListObjectVersions() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "ListObjectVersions(bucketName, prefix, recursive)"
+	args := map[string]interface{}{
+		"bucketName": "",
+		"prefix":     "",
+		"recursive":  "",
+	}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.New(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
+		return
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucketWithObjectLock(context.Background(), bucketName, "us-east-1")
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Make bucket failed", err)
+		return
+	}
+
+	err = c.EnableVersioning(context.Background(), bucketName)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Enable versioning failed", err)
+		return
+	}
+
+	// Save the data
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	args["objectName"] = objectName
+
+	bufSize := dataFileMap["datafile-10-kB"]
+	var reader = getDataReader("datafile-10-kB")
+
+	n, err := c.PutObject(context.Background(), bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject failed", err)
+		return
+	}
+	if n != int64(bufSize) {
+		logError(testName, function, args, startTime, "", "Number of bytes returned by PutObject does not match, expected "+string(bufSize)+" got "+string(n), err)
+		return
+	}
+	reader.Close()
+
+	bufSize = dataFileMap["datafile-1-b"]
+	reader = getDataReader("datafile-1-b")
+	n, err = c.PutObject(context.Background(), bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject failed", err)
+		return
+	}
+	if n != int64(bufSize) {
+		logError(testName, function, args, startTime, "", "Number of bytes returned by PutObject does not match, expected "+string(bufSize)+" got "+string(n), err)
+		return
+	}
+	reader.Close()
+
+	err = c.RemoveObject(context.Background(), bucketName, objectName)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Unexpected object deletion", err)
+		return
+	}
+
+	var deleteMarkers, versions int
+
+	doneCh := make(chan struct{})
+	objectsInfo := c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh)
+
+	for info := range objectsInfo {
+		if info.Err != nil {
+			logError(testName, function, args, startTime, "", "Unexpected error during listing objects", err)
+			return
+		}
+		if info.Key != objectName {
+			logError(testName, function, args, startTime, "", "Unexpected object name in listing objects", nil)
+			return
+		}
+		if info.VersionID == "" {
+			logError(testName, function, args, startTime, "", "Unexpected version id in listing objects", nil)
+			return
+		}
+		if info.IsDeleteMarker {
+			deleteMarkers++
+			if !info.IsLatest {
+				logError(testName, function, args, startTime, "", "Unexpected IsLatest field in listing objects", nil)
+				return
+			}
+		} else {
+			versions++
+		}
+	}
+
+	if deleteMarkers != 1 {
+		logError(testName, function, args, startTime, "", "Unexpected number of DeleteMarker elements in listing objects", nil)
+		return
+	}
+
+	if versions != 2 {
+		logError(testName, function, args, startTime, "", "Unexpected number of Version elements in listing objects", nil)
+		return
+	}
+
+	// Delete all objects and their versions as long as the bucket itself
+	if err = cleanupVersionedBucket(bucketName, c); err != nil {
+		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		return
+	}
+
+	successLogger(testName, function, args, startTime).Info()
+}
+
+func testStatObjectWithVersioning() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "StatObject"
+	args := map[string]interface{}{}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.New(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
+		return
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucketWithObjectLock(context.Background(), bucketName, "us-east-1")
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Make bucket failed", err)
+		return
+	}
+
+	err = c.EnableVersioning(context.Background(), bucketName)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Enable versioning failed", err)
+		return
+	}
+
+	// Save the data
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	args["objectName"] = objectName
+
+	bufSize := dataFileMap["datafile-10-kB"]
+	var reader = getDataReader("datafile-10-kB")
+
+	n, err := c.PutObject(context.Background(), bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject failed", err)
+		return
+	}
+	if n != int64(bufSize) {
+		logError(testName, function, args, startTime, "", "Number of bytes returned by PutObject does not match, expected "+string(bufSize)+" got "+string(n), err)
+		return
+	}
+	reader.Close()
+
+	bufSize = dataFileMap["datafile-1-b"]
+	reader = getDataReader("datafile-1-b")
+	n, err = c.PutObject(context.Background(), bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject failed", err)
+		return
+	}
+	if n != int64(bufSize) {
+		logError(testName, function, args, startTime, "", "Number of bytes returned by PutObject does not match, expected "+string(bufSize)+" got "+string(n), err)
+		return
+	}
+	reader.Close()
+
+	doneCh := make(chan struct{})
+	objectsInfo := c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh)
+
+	var results []minio.ObjectVersionInfo
+	for info := range objectsInfo {
+		if info.Err != nil {
+			logError(testName, function, args, startTime, "", "Unexpected error during listing objects", err)
+			return
+		}
+		results = append(results, info)
+	}
+
+	if len(results) != 2 {
+		logError(testName, function, args, startTime, "", "Unexpected number of Version elements in listing objects", nil)
+		return
+	}
+
+	for i := 0; i < len(results); i++ {
+		opts := minio.StatObjectOptions{minio.GetObjectOptions{VersionID: results[i].VersionID}}
+		statInfo, err := c.StatObject(context.Background(), bucketName, objectName, opts)
+		if err != nil {
+			logError(testName, function, args, startTime, "", "error during HEAD object", err)
+			return
+		}
+		if statInfo.ETag != results[i].ETag {
+			logError(testName, function, args, startTime, "", "error during HEAD object, unexpected ETag", err)
+			return
+		}
+		if statInfo.LastModified != results[i].LastModified {
+			logError(testName, function, args, startTime, "", "error during HEAD object, unexpected Last-Modified", err)
+			return
+		}
+		if statInfo.Size != results[i].Size {
+			logError(testName, function, args, startTime, "", "error during HEAD object, unexpected Content-Length", err)
+			return
+		}
+	}
+
+	// Delete all objects and their versions as long as the bucket itself
+	if err = cleanupVersionedBucket(bucketName, c); err != nil {
+		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		return
+	}
+
+	successLogger(testName, function, args, startTime).Info()
+}
+
+func testGetObjectWithVersioning() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "GetObject()"
+	args := map[string]interface{}{}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.New(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
+		return
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucketWithObjectLock(context.Background(), bucketName, "us-east-1")
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Make bucket failed", err)
+		return
+	}
+
+	err = c.EnableVersioning(context.Background(), bucketName)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Enable versioning failed", err)
+		return
+	}
+
+	// Save the data
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	args["objectName"] = objectName
+
+	// Save the contents of datafiles to check with GetObject() reader output later
+	var buffers [][]byte
+	var testFiles = []string{"datafile-1-b", "datafile-10-kB"}
+
+	for _, testFile := range testFiles {
+		r := getDataReader(testFile)
+		buf, err := ioutil.ReadAll(r)
+		if err != nil {
+			logError(testName, function, args, startTime, "", "unexpected failure", err)
+			return
+		}
+		r.Close()
+		n, err := c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{})
+		if err != nil {
+			logError(testName, function, args, startTime, "", "PutObject failed", err)
+			return
+		}
+		if n != int64(len(buf)) {
+			logError(testName, function, args, startTime, "",
+				"Number of bytes returned by PutObject does not match, expected "+string(len(buf))+" got "+string(n), err)
+			return
+		}
+		buffers = append(buffers, buf)
+	}
+
+	doneCh := make(chan struct{})
+	objectsInfo := c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh)
+
+	var results []minio.ObjectVersionInfo
+	for info := range objectsInfo {
+		if info.Err != nil {
+			logError(testName, function, args, startTime, "", "Unexpected error during listing objects", err)
+			return
+		}
+		results = append(results, info)
+	}
+
+	if len(results) != 2 {
+		logError(testName, function, args, startTime, "", "Unexpected number of Version elements in listing objects", nil)
+		return
+	}
+
+	sort.SliceStable(results, func(i, j int) bool {
+		return results[i].Size < results[j].Size
+	})
+
+	sort.SliceStable(buffers, func(i, j int) bool {
+		return len(buffers[i]) < len(buffers[j])
+	})
+
+	for i := 0; i < len(results); i++ {
+		opts := minio.GetObjectOptions{VersionID: results[i].VersionID}
+		reader, err := c.GetObject(context.Background(), bucketName, objectName, opts)
+		if err != nil {
+			logError(testName, function, args, startTime, "", "error during  GET object", err)
+			return
+		}
+		statInfo, err := reader.Stat()
+		if err != nil {
+			logError(testName, function, args, startTime, "", "error during calling reader.Stat()", err)
+			return
+		}
+		if statInfo.ETag != results[i].ETag {
+			logError(testName, function, args, startTime, "", "error during HEAD object, unexpected ETag", err)
+			return
+		}
+		if statInfo.LastModified != results[i].LastModified {
+			logError(testName, function, args, startTime, "", "error during HEAD object, unexpected Last-Modified", err)
+			return
+		}
+		if statInfo.Size != results[i].Size {
+			logError(testName, function, args, startTime, "", "error during HEAD object, unexpected Content-Length", err)
+			return
+		}
+
+		tmpBuffer := bytes.NewBuffer([]byte{})
+		_, err = io.Copy(tmpBuffer, reader)
+		if err != nil {
+			logError(testName, function, args, startTime, "", "unexpected io.Copy()", err)
+			return
+		}
+
+		if !bytes.Equal(tmpBuffer.Bytes(), buffers[i]) {
+			fmt.Println(len(tmpBuffer.Bytes()), len(buffers[i]))
+			logError(testName, function, args, startTime, "", "unexpected content of GetObject()", err)
+			return
+		}
+	}
+
+	// Delete all objects and their versions as long as the bucket itself
+	if err = cleanupVersionedBucket(bucketName, c); err != nil {
+		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		return
+	}
+
+	successLogger(testName, function, args, startTime).Info()
+}
+
+func testCopyObjectWithVersioning() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "CopyObject()"
+	args := map[string]interface{}{}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.New(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
+		return
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucketWithObjectLock(context.Background(), bucketName, "us-east-1")
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Make bucket failed", err)
+		return
+	}
+
+	err = c.EnableVersioning(context.Background(), bucketName)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Enable versioning failed", err)
+		return
+	}
+
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	args["objectName"] = objectName
+
+	var testFiles = []string{"datafile-1-b", "datafile-10-kB"}
+	for _, testFile := range testFiles {
+		r := getDataReader(testFile)
+		buf, err := ioutil.ReadAll(r)
+		if err != nil {
+			logError(testName, function, args, startTime, "", "unexpected failure", err)
+			return
+		}
+		r.Close()
+		n, err := c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{})
+		if err != nil {
+			logError(testName, function, args, startTime, "", "PutObject failed", err)
+			return
+		}
+		if n != int64(len(buf)) {
+			logError(testName, function, args, startTime, "",
+				"Number of bytes returned by PutObject does not match, expected "+string(len(buf))+" got "+string(n), err)
+			return
+		}
+	}
+
+	doneCh := make(chan struct{})
+	objectsVersionsInfo := c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh)
+
+	var infos []minio.ObjectVersionInfo
+	for info := range objectsVersionsInfo {
+		if info.Err != nil {
+			logError(testName, function, args, startTime, "", "Unexpected error during listing objects", err)
+			return
+		}
+		infos = append(infos, info)
+	}
+
+	sort.Slice(infos, func(i, j int) bool {
+		return infos[i].Size < infos[j].Size
+	})
+
+	reader, err := c.GetObject(context.Background(), bucketName, objectName, minio.GetObjectOptions{VersionID: infos[0].VersionID})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "GetObject of the oldest version content failed", err)
+		return
+	}
+
+	oldestContent, err := ioutil.ReadAll(reader)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Reading the oldest object version failed", err)
+		return
+	}
+
+	// Copy Source
+	src := minio.NewSourceInfo(bucketName, objectName, nil)
+	src.SetVersionID(infos[0].VersionID)
+	args["src"] = src
+
+	dst, err := minio.NewDestinationInfo(bucketName, objectName+"-copy", nil, nil)
+	args["dst"] = dst
+	if err != nil {
+		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
+		return
+	}
+
+	// Perform the Copy
+	err = c.CopyObject(context.Background(), dst, src)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "CopyObject failed", err)
+		return
+	}
+
+	// Destination object
+	readerCopy, err := c.GetObject(context.Background(), bucketName, objectName+"-copy", minio.GetObjectOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "GetObject failed", err)
+		return
+	}
+	defer readerCopy.Close()
+
+	newestContent, err := ioutil.ReadAll(readerCopy)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Reading from GetObject reader failed", err)
+		return
+	}
+
+	if len(newestContent) == 0 || !bytes.Equal(oldestContent, newestContent) {
+		logError(testName, function, args, startTime, "", "Unexpected destination object content", err)
+		return
+	}
+
+	// Delete all objects and their versions as long as the bucket itself
+	if err = cleanupVersionedBucket(bucketName, c); err != nil {
+		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		return
+	}
+
+	successLogger(testName, function, args, startTime).Info()
+}
+
+func testComposeObjectWithVersioning() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "ComposeObject()"
+	args := map[string]interface{}{}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.New(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
+		return
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucketWithObjectLock(context.Background(), bucketName, "us-east-1")
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Make bucket failed", err)
+		return
+	}
+
+	err = c.EnableVersioning(context.Background(), bucketName)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Enable versioning failed", err)
+		return
+	}
+
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	args["objectName"] = objectName
+
+	// var testFiles = []string{"datafile-5-MB", "datafile-10-kB"}
+	var testFiles = []string{"datafile-5-MB", "datafile-10-kB"}
+	var testFilesBytes [][]byte
+
+	for _, testFile := range testFiles {
+		r := getDataReader(testFile)
+		buf, err := ioutil.ReadAll(r)
+		if err != nil {
+			logError(testName, function, args, startTime, "", "unexpected failure", err)
+			return
+		}
+		r.Close()
+		n, err := c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{})
+		if err != nil {
+			logError(testName, function, args, startTime, "", "PutObject failed", err)
+			return
+		}
+		if n != int64(len(buf)) {
+			logError(testName, function, args, startTime, "",
+				"Number of bytes returned by PutObject does not match, expected "+string(len(buf))+" got "+string(n), err)
+			return
+		}
+
+		testFilesBytes = append(testFilesBytes, buf)
+	}
+
+	doneCh := make(chan struct{})
+	objectsInfo := c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh)
+
+	var results []minio.ObjectVersionInfo
+	for info := range objectsInfo {
+		if info.Err != nil {
+			logError(testName, function, args, startTime, "", "Unexpected error during listing objects", err)
+			return
+		}
+		results = append(results, info)
+	}
+
+	sort.SliceStable(results, func(i, j int) bool {
+		return results[i].Size > results[j].Size
+	})
+
+	// Source objects to concatenate. We also specify decryption
+	// key for each
+	src1 := minio.NewSourceInfo(bucketName, objectName, nil)
+	src1.SetVersionID(results[0].VersionID)
+	src2 := minio.NewSourceInfo(bucketName, objectName, nil)
+	src2.SetVersionID(results[1].VersionID)
+
+	// Create slice of sources.
+	srcs := []minio.SourceInfo{src1, src2}
+
+	// Create destination info
+	dst, err := minio.NewDestinationInfo(bucketName, objectName+"-copy", nil, nil)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
+		return
+	}
+
+	err = c.ComposeObject(context.Background(), dst, srcs)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "ComposeObject failed", err)
+		return
+	}
+
+	// Destination object
+	readerCopy, err := c.GetObject(context.Background(), bucketName, objectName+"-copy", minio.GetObjectOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "GetObject of the copy object failed", err)
+		return
+	}
+	defer readerCopy.Close()
+
+	copyContentBytes, err := ioutil.ReadAll(readerCopy)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Reading from the copy object reader failed", err)
+		return
+	}
+
+	var expectedContent []byte
+	for _, fileBytes := range testFilesBytes {
+		expectedContent = append(expectedContent, fileBytes...)
+	}
+
+	if len(copyContentBytes) == 0 || !bytes.Equal(copyContentBytes, expectedContent) {
+		logError(testName, function, args, startTime, "", "Unexpected destination object content", err)
+		return
+	}
+
+	// Delete all objects and their versions as long as the bucket itself
+	if err = cleanupVersionedBucket(bucketName, c); err != nil {
+		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		return
+	}
+
+	successLogger(testName, function, args, startTime).Info()
+}
+
+func testRemoveObjectWithVersioning() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "DeleteObject()"
+	args := map[string]interface{}{}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.New(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
+		return
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucketWithObjectLock(context.Background(), bucketName, "us-east-1")
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Make bucket failed", err)
+		return
+	}
+
+	err = c.EnableVersioning(context.Background(), bucketName)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Enable versioning failed", err)
+		return
+	}
+
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	args["objectName"] = objectName
+
+	n, err := c.PutObject(context.Background(), bucketName, objectName, getDataReader("datafile-10-kB"), int64(dataFileMap["datafile-10-kB"]), minio.PutObjectOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject failed", err)
+		return
+	}
+	if n != int64(dataFileMap["datafile-10-kB"]) {
+		logError(testName, function, args, startTime, "",
+			"Number of bytes returned by PutObject does not match, expected "+string(dataFileMap["datafile-10-kB"])+" got "+string(n), err)
+		return
+	}
+
+	doneCh := make(chan struct{})
+	objectsInfo := c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh)
+	var version minio.ObjectVersionInfo
+	for info := range objectsInfo {
+		if info.Err != nil {
+			logError(testName, function, args, startTime, "", "Unexpected error during listing objects", err)
+			return
+		}
+		version = info
+		break
+	}
+
+	err = c.RemoveObjectWithOptions(context.Background(), bucketName, objectName, minio.RemoveObjectOptions{VersionID: version.VersionID})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "DeleteObject failed", err)
+		return
+	}
+
+	doneCh = make(chan struct{})
+	objectsInfo = c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh)
+	for range objectsInfo {
+		logError(testName, function, args, startTime, "", "Unexpected versioning info, should not have any one ", err)
+		return
+	}
+
+	err = c.RemoveBucket(context.Background(), bucketName)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		return
+	}
+
+	successLogger(testName, function, args, startTime).Info()
+}
+
+func testRemoveObjectsWithVersioning() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "DeleteObjects()"
+	args := map[string]interface{}{}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.New(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
+		return
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucketWithObjectLock(context.Background(), bucketName, "us-east-1")
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Make bucket failed", err)
+		return
+	}
+
+	err = c.EnableVersioning(context.Background(), bucketName)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Enable versioning failed", err)
+		return
+	}
+
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	args["objectName"] = objectName
+
+	n, err := c.PutObject(context.Background(), bucketName, objectName, getDataReader("datafile-10-kB"), int64(dataFileMap["datafile-10-kB"]), minio.PutObjectOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject failed", err)
+		return
+	}
+	if n != int64(dataFileMap["datafile-10-kB"]) {
+		logError(testName, function, args, startTime, "",
+			"Number of bytes returned by PutObject does not match, expected "+string(dataFileMap["datafile-10-kB"])+" got "+string(n), err)
+		return
+	}
+
+	objectsVersions := make(chan minio.ObjectVersion)
+	go func() {
+		doneCh := make(chan struct{})
+		objectsVersionsInfo := c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh)
+		for info := range objectsVersionsInfo {
+			if info.Err != nil {
+				logError(testName, function, args, startTime, "", "Unexpected error during listing objects", err)
+				return
+			}
+			objectsVersions <- minio.ObjectVersion{
+				Key:       info.Key,
+				VersionID: info.VersionID,
+			}
+		}
+		close(objectsVersions)
+	}()
+
+	removeErrors := c.RemoveObjectsWithVersions(context.Background(), bucketName, objectsVersions, minio.RemoveObjectsOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "DeleteObjects call failed", err)
+		return
+	}
+
+	for e := range removeErrors {
+		if e.Err != nil {
+			logError(testName, function, args, startTime, "", "Single delete operation failed", err)
+			return
+		}
+	}
+
+	doneCh := make(chan struct{})
+	objectsVersionsInfo := c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh)
+	for range objectsVersionsInfo {
+		logError(testName, function, args, startTime, "", "Unexpected versioning info, should not have any one ", err)
+		return
+	}
+
+	err = c.RemoveBucket(context.Background(), bucketName)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		return
+	}
+
+	successLogger(testName, function, args, startTime).Info()
+}
+
+func testObjectTaggingWithVersioning() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "{Get,Set,Remove}ObjectTagging()"
+	args := map[string]interface{}{}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.New(
+		os.Getenv(serverEndpoint),
+		os.Getenv(accessKey),
+		os.Getenv(secretKey),
+		mustParseBool(os.Getenv(enableHTTPS)),
+	)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
+		return
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucketWithObjectLock(context.Background(), bucketName, "us-east-1")
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Make bucket failed", err)
+		return
+	}
+
+	err = c.EnableVersioning(context.Background(), bucketName)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Enable versioning failed", err)
+		return
+	}
+
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	args["objectName"] = objectName
+
+	for _, file := range []string{"datafile-1-b", "datafile-10-kB"} {
+		n, err := c.PutObject(context.Background(), bucketName, objectName, getDataReader(file), int64(dataFileMap[file]), minio.PutObjectOptions{})
+		if err != nil {
+			logError(testName, function, args, startTime, "", "PutObject failed", err)
+			return
+		}
+		if n != int64(dataFileMap[file]) {
+			logError(testName, function, args, startTime, "",
+				"Number of bytes returned by PutObject does not match, expected "+string(dataFileMap[file])+" got "+string(n), err)
+			return
+		}
+	}
+
+	doneCh := make(chan struct{})
+	versionsInfo := c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh)
+
+	var versions []minio.ObjectVersionInfo
+	for info := range versionsInfo {
+		if info.Err != nil {
+			logError(testName, function, args, startTime, "", "Unexpected error during listing objects", err)
+			return
+		}
+		versions = append(versions, info)
+	}
+
+	sort.SliceStable(versions, func(i, j int) bool {
+		return versions[i].Size < versions[j].Size
+	})
+
+	tagsV1 := map[string]string{"key1": "val1"}
+	err = c.PutObjectTagging(context.Background(), bucketName, objectName, tagsV1, minio.PutObjectTaggingOptions{VersionID: versions[0].VersionID})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObjectTaggingWithOptions (1) failed", err)
+		return
+	}
+
+	tagsV2 := map[string]string{"key2": "val2"}
+	err = c.PutObjectTagging(context.Background(), bucketName, objectName, tagsV2, minio.PutObjectTaggingOptions{VersionID: versions[1].VersionID})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObjectTaggingWithOptions (2) failed", err)
+		return
+	}
+
+	type Tag struct {
+		Key   string
+		Value string
+	}
+
+	type TagSet struct {
+		Tag []Tag
+	}
+
+	type GetObjectTaggingOutput struct {
+		TagSet TagSet
+	}
+
+	tagsEqual := func(tags map[string]string, getObjectTagging GetObjectTaggingOutput) bool {
+		for k, v := range tags {
+			found := false
+			for _, t := range getObjectTagging.TagSet.Tag {
+				if k+"="+v == t.Key+"="+t.Value {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return false
+			}
+		}
+		return true
+	}
+
+	tagsV1XML, err := c.GetObjectTagging(context.Background(), bucketName, objectName, minio.GetObjectTaggingOptions{VersionID: versions[0].VersionID})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "GetObjectTaggingWithOptions failed", err)
+		return
+	}
+
+	var getObjectTaggingV1 GetObjectTaggingOutput
+	err = xml.Unmarshal([]byte(tagsV1XML), &getObjectTaggingV1)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Unexpected error during XML unmarshal (1)", err)
+		return
+	}
+
+	if !tagsEqual(tagsV1, getObjectTaggingV1) {
+		logError(testName, function, args, startTime, "", "Unexpected tags content (1)", err)
+		return
+	}
+
+	tagsV2XML, err := c.GetObjectTagging(context.Background(), bucketName, objectName, minio.GetObjectTaggingOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "GetObjectTaggingWithContext failed", err)
+		return
+	}
+
+	var getObjectTaggingV2 GetObjectTaggingOutput
+	err = xml.Unmarshal([]byte(tagsV2XML), &getObjectTaggingV2)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Unexpected error during XML unmarshal (2)", err)
+		return
+	}
+
+	if !tagsEqual(tagsV2, getObjectTaggingV2) {
+		logError(testName, function, args, startTime, "", "Unexpected tags content (2)", err)
+		return
+	}
+
+	err = c.RemoveObjectTagging(context.Background(), bucketName, objectName, minio.RemoveObjectTaggingOptions{VersionID: versions[0].VersionID})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObjectTaggingWithOptions (2) failed", err)
+		return
+	}
+
+	emptyTagsXML, err := c.GetObjectTagging(context.Background(), bucketName, objectName,
+		minio.GetObjectTaggingOptions{VersionID: versions[0].VersionID})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "GetObjectTaggingWithOptions failed", err)
+		return
+	}
+
+	var getObjectExpectedEmptyTagging GetObjectTaggingOutput
+	err = xml.Unmarshal([]byte(emptyTagsXML), &getObjectExpectedEmptyTagging)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Unexpected error during XML unmarshal (3)", err)
+		return
+	}
+
+	if len(getObjectExpectedEmptyTagging.TagSet.Tag) != 0 {
+		logError(testName, function, args, startTime, "", "Unexpected tags content (2)", err)
+		return
+	}
+
+	// Delete all objects and their versions as long as the bucket itself
+	if err = cleanupVersionedBucket(bucketName, c); err != nil {
 		logError(testName, function, args, startTime, "", "Cleanup failed", err)
 		return
 	}
@@ -10369,6 +11486,14 @@ func main() {
 		testPutObjectWithContentLanguage()
 		testListObjects()
 		testRemoveObjectsWithOptions()
+		testListObjectVersions()
+		testStatObjectWithVersioning()
+		testGetObjectWithVersioning()
+		testCopyObjectWithVersioning()
+		testComposeObjectWithVersioning()
+		testRemoveObjectWithVersioning()
+		testRemoveObjectsWithVersioning()
+		testObjectTaggingWithVersioning()
 
 		// SSE-C tests will only work over TLS connection.
 		if tls {

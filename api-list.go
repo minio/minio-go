@@ -1,6 +1,6 @@
 /*
  * MinIO Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2015-2019 MinIO, Inc.
+ * Copyright 2015-2020 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -421,6 +421,213 @@ func (c Client) ListObjects(ctx context.Context, bucketName, objectPrefix string
 		}
 	}(objectStatCh)
 	return objectStatCh
+}
+
+// ListObjectVersions - List versions of some or all objects.
+//
+// e.g.:
+//   api := client.New(....)
+//   // Create a done channel.
+//   doneCh := make(chan struct{})
+//   defer close(doneCh)
+//   // Recurively list all objects in 'mytestbucket'
+//   recursive := true
+//   for message := range api.ListObjectVersions(ctx, "mytestbucket", "prefix", recursive, doneCh) {
+//       fmt.Println(message)
+//   }
+func (c Client) ListObjectVersions(ctx context.Context, bucketName, prefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectVersionInfo {
+	// Allocate new list objects channel.
+	resultCh := make(chan ObjectVersionInfo, 1)
+	// Default listing is delimited at "/"
+	delimiter := "/"
+	if recursive {
+		// If recursive we do not delimit.
+		delimiter = ""
+	}
+
+	// Validate bucket name.
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		defer close(resultCh)
+		resultCh <- ObjectVersionInfo{
+			Err: err,
+		}
+		return resultCh
+	}
+
+	// Validate incoming object prefix.
+	if err := s3utils.CheckValidObjectNamePrefix(prefix); err != nil {
+		defer close(resultCh)
+		resultCh <- ObjectVersionInfo{
+			Err: err,
+		}
+		return resultCh
+	}
+
+	// Initiate list objects goroutine here.
+	go func(resultCh chan<- ObjectVersionInfo) {
+		defer close(resultCh)
+
+		var keyMarker, versionIDMarker string
+		for {
+			// Get list of objects a maximum of 1000 per request.
+			result, err := c.listObjectVersionsQuery(ctx, bucketName, prefix, keyMarker, versionIDMarker, delimiter, 0)
+			if err != nil {
+				resultCh <- ObjectVersionInfo{
+					Err: err,
+				}
+				return
+			}
+
+			// If contents are available loop through and send over channel.
+			for _, version := range result.Versions {
+				info := ObjectVersionInfo{
+					ETag:         trimEtag(version.ETag),
+					Key:          version.Key,
+					LastModified: version.LastModified,
+					Size:         version.Size,
+					Owner:        version.Owner,
+					StorageClass: version.StorageClass,
+					IsLatest:     version.IsLatest,
+					VersionID:    version.VersionID,
+
+					IsDeleteMarker: version.isDeleteMarker,
+				}
+				select {
+				// Send object version info.
+				case resultCh <- info:
+				// If receives done from the caller, return here.
+				case <-doneCh:
+					return
+				}
+			}
+
+			// Send all common prefixes if any.
+			// NOTE: prefixes are only present if the request is delimited.
+			for _, obj := range result.CommonPrefixes {
+				select {
+				// Send object prefixes.
+				case resultCh <- ObjectVersionInfo{Key: obj.Prefix}:
+				// If receives done from the caller, return here.
+				case <-doneCh:
+					return
+				}
+			}
+
+			// If next key marker is present, save it for next request.
+			if result.NextKeyMarker != "" {
+				keyMarker = result.NextKeyMarker
+			}
+
+			// If next version id marker is present, save it for next request.
+			if result.NextVersionIDMarker != "" {
+				versionIDMarker = result.NextVersionIDMarker
+			}
+
+			// Listing ends result is not truncated, return right here.
+			if !result.IsTruncated {
+				return
+			}
+		}
+	}(resultCh)
+	return resultCh
+}
+
+// listObjectVersions - (List Object Versions) - List some or all (up to 1000) of the existing objects
+// and their versions in a bucket.
+//
+// You can use the request parameters as selection criteria to return a subset of the objects in a bucket.
+// request parameters :-
+// ---------
+// ?key-marker - Specifies the key to start with when listing objects in a bucket.
+// ?version-id-marker - Specifies the version id marker to start with when listing objects with versions in a bucket.
+// ?delimiter - A delimiter is a character you use to group keys.
+// ?prefix - Limits the response to keys that begin with the specified prefix.
+// ?max-keys - Sets the maximum number of keys returned in the response body.
+func (c Client) listObjectVersionsQuery(ctx context.Context, bucketName, prefix, keyMarker, versionIDMarker, delimiter string, maxkeys int) (ListVersionsResult, error) {
+	// Validate bucket name.
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		return ListVersionsResult{}, err
+	}
+	// Validate object prefix.
+	if err := s3utils.CheckValidObjectNamePrefix(prefix); err != nil {
+		return ListVersionsResult{}, err
+	}
+	// Get resources properly escaped and lined up before
+	// using them in http request.
+	urlValues := make(url.Values)
+
+	// Set versions to trigger versioning API
+	urlValues.Set("versions", "")
+
+	// Set object prefix, prefix value to be set to empty is okay.
+	urlValues.Set("prefix", prefix)
+
+	// Set delimiter, delimiter value to be set to empty is okay.
+	urlValues.Set("delimiter", delimiter)
+
+	// Set object marker.
+	if keyMarker != "" {
+		urlValues.Set("key-marker", keyMarker)
+	}
+
+	// Set max keys.
+	if maxkeys > 0 {
+		urlValues.Set("max-keys", fmt.Sprintf("%d", maxkeys))
+	}
+
+	// Set version ID marker
+	if versionIDMarker != "" {
+		urlValues.Set("version-id-marker", versionIDMarker)
+	}
+
+	// Always set encoding-type
+	urlValues.Set("encoding-type", "url")
+
+	// Execute GET on bucket to list objects.
+	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
+		bucketName:       bucketName,
+		queryValues:      urlValues,
+		contentSHA256Hex: emptySHA256Hex,
+	})
+	defer closeResponse(resp)
+	if err != nil {
+		return ListVersionsResult{}, err
+	}
+	if resp != nil {
+		if resp.StatusCode != http.StatusOK {
+			return ListVersionsResult{}, httpRespToErrorResponse(resp, bucketName, "")
+		}
+	}
+
+	// Decode ListVersionsResult XML.
+	listObjectVersionsOutput := ListVersionsResult{}
+	err = xmlDecoder(resp.Body, &listObjectVersionsOutput)
+	if err != nil {
+		return ListVersionsResult{}, err
+	}
+
+	for i, obj := range listObjectVersionsOutput.Versions {
+		listObjectVersionsOutput.Versions[i].Key, err = decodeS3Name(obj.Key, listObjectVersionsOutput.EncodingType)
+		if err != nil {
+			return listObjectVersionsOutput, err
+		}
+	}
+
+	for i, obj := range listObjectVersionsOutput.CommonPrefixes {
+		listObjectVersionsOutput.CommonPrefixes[i].Prefix, err = decodeS3Name(obj.Prefix, listObjectVersionsOutput.EncodingType)
+		if err != nil {
+			return listObjectVersionsOutput, err
+		}
+	}
+
+	if listObjectVersionsOutput.NextKeyMarker != "" {
+		listObjectVersionsOutput.NextKeyMarker, err = decodeS3Name(listObjectVersionsOutput.NextKeyMarker, listObjectVersionsOutput.EncodingType)
+		if err != nil {
+			return listObjectVersionsOutput, err
+		}
+	}
+
+	return listObjectVersionsOutput, nil
 }
 
 // listObjects - (List Objects) - List some or all (up to 1000) of the objects in a bucket.

@@ -122,14 +122,15 @@ func (c Client) RemoveObjectWithOptions(ctx context.Context, bucketName, objectN
 // RemoveObjectError - container of Multi Delete S3 API error
 type RemoveObjectError struct {
 	ObjectName string
+	VersionID  string
 	Err        error
 }
 
 // generateRemoveMultiObjects - generate the XML request for remove multi objects request
-func generateRemoveMultiObjectsRequest(objects []string) []byte {
+func generateRemoveMultiObjectsRequest(objects []ObjectVersion) []byte {
 	rmObjects := []deleteObject{}
 	for _, obj := range objects {
-		rmObjects = append(rmObjects, deleteObject{Key: obj})
+		rmObjects = append(rmObjects, deleteObject(obj))
 	}
 	xmlBytes, _ := xml.Marshal(deleteMultiObjects{Objects: rmObjects, Quiet: true})
 	return xmlBytes
@@ -137,7 +138,7 @@ func generateRemoveMultiObjectsRequest(objects []string) []byte {
 
 // processRemoveMultiObjectsResponse - parse the remove multi objects web service
 // and return the success/failure result status for each object
-func processRemoveMultiObjectsResponse(body io.Reader, objects []string, errorCh chan<- RemoveObjectError) {
+func processRemoveMultiObjectsResponse(body io.Reader, objects []ObjectVersion, errorCh chan<- RemoveObjectError) {
 	// Parse multi delete XML response
 	rmResult := &deleteMultiObjectsResult{}
 	err := xmlDecoder(body, rmResult)
@@ -162,6 +163,28 @@ func processRemoveMultiObjectsResponse(body io.Reader, objects []string, errorCh
 // The list of objects to remove are received from objectsCh.
 // Remove failures are sent back via error channel.
 func (c Client) RemoveObjects(ctx context.Context, bucketName string, objectsCh <-chan string) <-chan RemoveObjectError {
+	objectsVersionsCh := make(chan ObjectVersion)
+	go func() {
+		defer close(objectsVersionsCh)
+		for obj := range objectsCh {
+			objectsVersionsCh <- ObjectVersion{
+				Key: obj,
+			}
+		}
+	}()
+	return c.RemoveObjectsWithVersions(ctx, bucketName, objectsVersionsCh, RemoveObjectsOptions{})
+}
+
+// ObjectVersion points to a specific object version
+type ObjectVersion struct {
+	Key       string
+	VersionID string
+}
+
+// RemoveObjectsWithVersions removes multiple objects from a bucket while
+// it is possible to specify objects versions which are received from
+// objectsCh. Remove failures are sent back via error channel.
+func (c Client) RemoveObjectsWithVersions(ctx context.Context, bucketName string, objectsCh <-chan ObjectVersion, opts RemoveObjectsOptions) <-chan RemoveObjectError {
 	errorCh := make(chan RemoveObjectError, 1)
 
 	// Validate if bucket name is valid.
@@ -181,12 +204,12 @@ func (c Client) RemoveObjects(ctx context.Context, bucketName string, objectsCh 
 		return errorCh
 	}
 
-	go c.removeObjects(ctx, bucketName, objectsCh, errorCh, RemoveObjectsOptions{})
+	go c.removeObjects(ctx, bucketName, objectsCh, errorCh, opts)
 	return errorCh
 }
 
 // Generate and call MultiDelete S3 requests based on entries received from objectsCh
-func (c Client) removeObjects(ctx context.Context, bucketName string, objectsCh <-chan string, errorCh chan<- RemoveObjectError, opts RemoveObjectsOptions) {
+func (c Client) removeObjects(ctx context.Context, bucketName string, objectsCh <-chan ObjectVersion, errorCh chan<- RemoveObjectError, opts RemoveObjectsOptions) {
 	maxEntries := 1000
 	finish := false
 	urlValues := make(url.Values)
@@ -201,7 +224,7 @@ func (c Client) removeObjects(ctx context.Context, bucketName string, objectsCh 
 			break
 		}
 		count := 0
-		var batch []string
+		var batch []ObjectVersion
 
 		// Try to gather 1000 entries
 		for object := range objectsCh {
@@ -246,7 +269,11 @@ func (c Client) removeObjects(ctx context.Context, bucketName string, objectsCh 
 		}
 		if err != nil {
 			for _, b := range batch {
-				errorCh <- RemoveObjectError{ObjectName: b, Err: err}
+				errorCh <- RemoveObjectError{
+					ObjectName: b.Key,
+					VersionID:  b.VersionID,
+					Err:        err,
+				}
 			}
 			continue
 		}
@@ -286,8 +313,16 @@ func (c Client) RemoveObjectsWithOptions(ctx context.Context, bucketName string,
 		return errorCh
 	}
 
-	go c.removeObjects(ctx, bucketName, objectsCh, errorCh, opts)
-	return errorCh
+	objectsVersionsCh := make(chan ObjectVersion)
+	go func() {
+		defer close(objectsVersionsCh)
+		for obj := range objectsCh {
+			objectsVersionsCh <- ObjectVersion{
+				Key: obj,
+			}
+		}
+	}()
+	return c.RemoveObjectsWithVersions(ctx, bucketName, objectsVersionsCh, opts)
 }
 
 // RemoveIncompleteUpload aborts an partially uploaded object.
