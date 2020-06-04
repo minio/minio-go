@@ -169,13 +169,13 @@ func (a completedParts) Less(i, j int) bool { return a[i].PartNumber < a[j].Part
 //  - For size input as -1 PutObject does a multipart Put operation
 //    until input stream reaches EOF. Maximum object size that can
 //    be uploaded through this operation will be 5TiB.
-func (c Client) PutObject(bucketName, objectName string, reader io.Reader, objectSize int64,
+func (c Client) PutObject(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64,
 	opts PutObjectOptions) (n int64, err error) {
 	if objectSize < 0 && opts.DisableMultipart {
 		return 0, errors.New("object size must be provided with disable multipart upload")
 	}
 
-	return c.PutObjectWithContext(context.Background(), bucketName, objectName, reader, objectSize, opts)
+	return c.PutObjectWithContext(ctx, bucketName, objectName, reader, objectSize, opts)
 }
 
 func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName string, reader io.Reader, size int64, opts PutObjectOptions) (n int64, err error) {

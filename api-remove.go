@@ -32,13 +32,13 @@ import (
 //
 //  All objects (including all object versions and delete markers).
 //  in the bucket must be deleted before successfully attempting this request.
-func (c Client) RemoveBucket(bucketName string) error {
+func (c Client) RemoveBucket(ctx context.Context, bucketName string) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return err
 	}
 	// Execute DELETE on bucket.
-	resp, err := c.executeMethod(context.Background(), "DELETE", requestMetadata{
+	resp, err := c.executeMethod(ctx, "DELETE", requestMetadata{
 		bucketName:       bucketName,
 		contentSHA256Hex: emptySHA256Hex,
 	})
@@ -311,7 +311,7 @@ func (c Client) RemoveIncompleteUpload(bucketName, objectName string) error {
 		return err
 	}
 	// Find multipart upload ids of the object to be aborted.
-	uploadIDs, err := c.findUploadIDs(bucketName, objectName)
+	uploadIDs, err := c.findUploadIDs(context.Background(), bucketName, objectName)
 	if err != nil {
 		return err
 	}

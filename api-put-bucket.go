@@ -133,8 +133,8 @@ func (c Client) doMakeBucket(ctx context.Context, bucketName string, location st
 //
 // For Amazon S3 for more supported regions - http://docs.aws.amazon.com/general/latest/gr/rande.html
 // For Google Cloud Storage for more supported regions - https://cloud.google.com/storage/docs/bucket-locations
-func (c Client) MakeBucket(bucketName string, location string) (err error) {
-	return c.MakeBucketWithContext(context.Background(), bucketName, location)
+func (c Client) MakeBucket(ctx context.Context, bucketName string, location string) (err error) {
+	return c.MakeBucketWithContext(ctx, bucketName, location)
 }
 
 // MakeBucketWithContext creates a new bucket with bucketName with a context to control cancellations and timeouts.
@@ -155,8 +155,8 @@ func (c Client) MakeBucketWithContext(ctx context.Context, bucketName string, lo
 //
 // For Amazon S3 for more supported regions - http://docs.aws.amazon.com/general/latest/gr/rande.html
 // For Google Cloud Storage for more supported regions - https://cloud.google.com/storage/docs/bucket-locations
-func (c Client) MakeBucketWithObjectLock(bucketName string, location string) (err error) {
-	return c.MakeBucketWithObjectLockWithContext(context.Background(), bucketName, location)
+func (c Client) MakeBucketWithObjectLock(ctx context.Context, bucketName string, location string) (err error) {
+	return c.MakeBucketWithObjectLockWithContext(ctx, bucketName, location)
 }
 
 // MakeBucketWithObjectLockWithContext creates a object lock enabled new bucket with bucketName with a context to
@@ -172,8 +172,8 @@ func (c Client) MakeBucketWithObjectLockWithContext(ctx context.Context, bucketN
 }
 
 // SetBucketPolicy set the access permissions on an existing bucket.
-func (c Client) SetBucketPolicy(bucketName, policy string) error {
-	return c.SetBucketPolicyWithContext(context.Background(), bucketName, policy)
+func (c Client) SetBucketPolicy(ctx context.Context, bucketName, policy string) error {
+	return c.SetBucketPolicyWithContext(ctx, bucketName, policy)
 }
 
 // SetBucketPolicyWithContext set the access permissions on an existing bucket.
@@ -257,8 +257,8 @@ func (c Client) removeBucketPolicy(ctx context.Context, bucketName string) error
 }
 
 // SetBucketLifecycle set the lifecycle on an existing bucket.
-func (c Client) SetBucketLifecycle(bucketName, lifecycle string) error {
-	return c.SetBucketLifecycleWithContext(context.Background(), bucketName, lifecycle)
+func (c Client) SetBucketLifecycle(ctx context.Context, bucketName, lifecycle string) error {
+	return c.SetBucketLifecycleWithContext(ctx, bucketName, lifecycle)
 }
 
 // SetBucketLifecycleWithContext set the lifecycle on an existing bucket with a context to control cancellations and timeouts.
@@ -466,7 +466,7 @@ func (c Client) SetBucketNotificationWithContext(ctx context.Context, bucketName
 }
 
 // RemoveAllBucketNotification - Remove bucket notification clears all previously specified config
-func (c Client) RemoveAllBucketNotification(bucketName string) error {
+func (c Client) RemoveAllBucketNotification(ctx context.Context, bucketName string) error {
 	return c.SetBucketNotification(bucketName, BucketNotification{})
 }
 

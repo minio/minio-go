@@ -29,8 +29,8 @@ import (
 )
 
 // GetObject - returns an seekable, readable object.
-func (c Client) GetObject(bucketName, objectName string, opts GetObjectOptions) (*Object, error) {
-	return c.getObjectWithContext(context.Background(), bucketName, objectName, opts)
+func (c Client) GetObject(ctx context.Context, bucketName, objectName string, opts GetObjectOptions) (*Object, error) {
+	return c.getObjectWithContext(ctx, bucketName, objectName, opts)
 }
 
 // GetObject wrapper function that accepts a request context

@@ -29,13 +29,13 @@ import (
 )
 
 // CopyObject - copy a source object into a new object
-func (c Client) CopyObject(dst DestinationInfo, src SourceInfo) error {
-	return c.CopyObjectWithProgress(dst, src, nil)
+func (c Client) CopyObject(ctx context.Context, dst DestinationInfo, src SourceInfo) error {
+	return c.CopyObjectWithProgress(ctx, dst, src, nil)
 }
 
 // CopyObjectWithProgress - copy a source object into a new object, optionally takes
 // progress bar input to notify current progress.
-func (c Client) CopyObjectWithProgress(dst DestinationInfo, src SourceInfo, progress io.Reader) error {
+func (c Client) CopyObjectWithProgress(ctx context.Context, dst DestinationInfo, src SourceInfo, progress io.Reader) error {
 	header := make(http.Header)
 	for k, v := range src.Headers {
 		header[k] = v
@@ -76,7 +76,7 @@ func (c Client) CopyObjectWithProgress(dst DestinationInfo, src SourceInfo, prog
 		header.Set(k, v)
 	}
 
-	resp, err := c.executeMethod(context.Background(), "PUT", requestMetadata{
+	resp, err := c.executeMethod(ctx, "PUT", requestMetadata{
 		bucketName:   dst.bucket,
 		objectName:   dst.object,
 		customHeader: header,

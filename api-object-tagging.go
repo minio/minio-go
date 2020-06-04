@@ -30,8 +30,8 @@ import (
 )
 
 // PutObjectTagging replaces or creates object tag(s)
-func (c Client) PutObjectTagging(bucketName, objectName string, objectTags map[string]string) error {
-	return c.PutObjectTaggingWithContext(context.Background(), bucketName, objectName, objectTags)
+func (c Client) PutObjectTagging(ctx context.Context, bucketName, objectName string, objectTags map[string]string) error {
+	return c.PutObjectTaggingWithContext(ctx, bucketName, objectName, objectTags)
 }
 
 // PutObjectTaggingWithContext replaces or creates object tag(s) with a context to control cancellations
@@ -81,8 +81,8 @@ func (c Client) PutObjectTaggingWithContext(ctx context.Context, bucketName, obj
 }
 
 // GetObjectTagging fetches object tag(s)
-func (c Client) GetObjectTagging(bucketName, objectName string) (string, error) {
-	return c.GetObjectTaggingWithContext(context.Background(), bucketName, objectName)
+func (c Client) GetObjectTagging(ctx context.Context, bucketName, objectName string) (string, error) {
+	return c.GetObjectTaggingWithContext(ctx, bucketName, objectName)
 }
 
 // GetObjectTaggingWithContext fetches object tag(s) with a context to control cancellations
@@ -120,8 +120,8 @@ func (c Client) GetObjectTaggingWithContext(ctx context.Context, bucketName, obj
 }
 
 // RemoveObjectTagging deletes object tag(s)
-func (c Client) RemoveObjectTagging(bucketName, objectName string) error {
-	return c.RemoveObjectTaggingWithContext(context.Background(), bucketName, objectName)
+func (c Client) RemoveObjectTagging(ctx context.Context, bucketName, objectName string) error {
+	return c.RemoveObjectTaggingWithContext(ctx, bucketName, objectName)
 }
 
 // RemoveObjectTaggingWithContext removes object tag(s) with a context to control cancellations

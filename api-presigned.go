@@ -18,6 +18,7 @@
 package minio
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -64,7 +65,7 @@ func (c Client) presignURL(method string, bucketName string, objectName string, 
 // data without credentials. URL can have a maximum expiry of
 // upto 7days or a minimum of 1sec. Additionally you can override
 // a set of response headers using the query parameters.
-func (c Client) PresignedGetObject(bucketName string, objectName string, expires time.Duration, reqParams url.Values) (u *url.URL, err error) {
+func (c Client) PresignedGetObject(ctx context.Context, bucketName string, objectName string, expires time.Duration, reqParams url.Values) (u *url.URL, err error) {
 	if err = s3utils.CheckValidObjectName(objectName); err != nil {
 		return nil, err
 	}

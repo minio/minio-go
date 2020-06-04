@@ -29,12 +29,12 @@ import (
 )
 
 // GetBucketNotification - get bucket notification at a given path.
-func (c Client) GetBucketNotification(bucketName string) (bucketNotification BucketNotification, err error) {
+func (c Client) GetBucketNotification(ctx context.Context, bucketName string) (bucketNotification BucketNotification, err error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return BucketNotification{}, err
 	}
-	notification, err := c.getBucketNotification(bucketName)
+	notification, err := c.getBucketNotification(ctx, bucketName)
 	if err != nil {
 		return BucketNotification{}, err
 	}
@@ -42,12 +42,12 @@ func (c Client) GetBucketNotification(bucketName string) (bucketNotification Buc
 }
 
 // Request server for notification rules.
-func (c Client) getBucketNotification(bucketName string) (BucketNotification, error) {
+func (c Client) getBucketNotification(ctx context.Context, bucketName string) (BucketNotification, error) {
 	urlValues := make(url.Values)
 	urlValues.Set("notification", "")
 
 	// Execute GET on bucket to list objects.
-	resp, err := c.executeMethod(context.Background(), "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
 		bucketName:       bucketName,
 		queryValues:      urlValues,
 		contentSHA256Hex: emptySHA256Hex,
@@ -136,7 +136,7 @@ type NotificationInfo struct {
 }
 
 // ListenBucketNotification - listen on bucket notifications.
-func (c Client) ListenBucketNotification(bucketName, prefix, suffix string, events []string, doneCh <-chan struct{}) <-chan NotificationInfo {
+func (c Client) ListenBucketNotification(ctx context.Context, bucketName, prefix, suffix string, events []string, doneCh <-chan struct{}) <-chan NotificationInfo {
 	notificationInfoCh := make(chan NotificationInfo, 1)
 	const notificationCapacity = 1024 * 1024
 	notificationEventBuffer := make([]byte, notificationCapacity)
@@ -182,7 +182,7 @@ func (c Client) ListenBucketNotification(bucketName, prefix, suffix string, even
 		// Wait on the jitter retry loop.
 		for range c.newRetryTimerContinous(time.Second, time.Second*30, MaxJitter, retryDoneCh) {
 			// Execute GET on bucket to list objects.
-			resp, err := c.executeMethod(context.Background(), http.MethodGet, requestMetadata{
+			resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
 				bucketName:       bucketName,
 				queryValues:      urlValues,
 				contentSHA256Hex: emptySHA256Hex,

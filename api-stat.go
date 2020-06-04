@@ -25,8 +25,8 @@ import (
 )
 
 // BucketExists verify if bucket exists and you have permission to access it.
-func (c Client) BucketExists(bucketName string) (bool, error) {
-	return c.BucketExistsWithContext(context.Background(), bucketName)
+func (c Client) BucketExists(ctx context.Context, bucketName string) (bool, error) {
+	return c.BucketExistsWithContext(ctx, bucketName)
 }
 
 // BucketExistsWithContext verify if bucket exists and you have permission to access it. Allows for a Context to
