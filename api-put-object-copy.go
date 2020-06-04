@@ -29,12 +29,12 @@ import (
 )
 
 // CopyObject - copy a source object into a new object
-func (c Client) CopyObject(ctx context.Context, dst DestinationInfo, src SourceInfo) error {
+func (c Client) CopyObject(ctx context.Context, dst DestinationInfo, src SourceInfo) (UploadInfo, error) {
 	return c.CopyObjectWithProgress(ctx, dst, src, nil)
 }
 
 // CopyObjectWithProgress is like CopyObject with additional progress bar.
-func (c Client) CopyObjectWithProgress(ctx context.Context, dst DestinationInfo, src SourceInfo, progress io.Reader) error {
+func (c Client) CopyObjectWithProgress(ctx context.Context, dst DestinationInfo, src SourceInfo, progress io.Reader) (UploadInfo, error) {
 	header := make(http.Header)
 	for k, v := range src.Headers {
 		header[k] = v
@@ -60,7 +60,7 @@ func (c Client) CopyObjectWithProgress(ctx context.Context, dst DestinationInfo,
 	if progress != nil {
 		size, _, _, err = src.getProps(c)
 		if err != nil {
-			return err
+			return UploadInfo{}, err
 		}
 	}
 
@@ -81,12 +81,12 @@ func (c Client) CopyObjectWithProgress(ctx context.Context, dst DestinationInfo,
 		customHeader: header,
 	})
 	if err != nil {
-		return err
+		return UploadInfo{}, err
 	}
 	defer closeResponse(resp)
 
 	if resp.StatusCode != http.StatusOK {
-		return httpRespToErrorResponse(resp, dst.bucket, dst.object)
+		return UploadInfo{}, httpRespToErrorResponse(resp, dst.bucket, dst.object)
 	}
 
 	// Update the progress properly after successful copy.
@@ -94,5 +94,9 @@ func (c Client) CopyObjectWithProgress(ctx context.Context, dst DestinationInfo,
 		io.CopyN(ioutil.Discard, progress, size)
 	}
 
-	return nil
+	return UploadInfo{
+		VersionID: resp.Header.Get("x-amz-version-id"),
+		Size:      size,
+		ETag:      trimEtag(resp.Header.Get("ETag")),
+	}, nil
 }

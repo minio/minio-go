@@ -174,23 +174,23 @@ func (a completedParts) Less(i, j int) bool { return a[i].PartNumber < a[j].Part
 //    until input stream reaches EOF. Maximum object size that can
 //    be uploaded through this operation will be 5TiB.
 func (c Client) PutObject(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64,
-	opts PutObjectOptions) (n int64, err error) {
+	opts PutObjectOptions) (info UploadInfo, err error) {
 	if objectSize < 0 && opts.DisableMultipart {
-		return 0, errors.New("object size must be provided with disable multipart upload")
+		return UploadInfo{}, errors.New("object size must be provided with disable multipart upload")
 	}
 
 	err = opts.validate()
 	if err != nil {
-		return 0, err
+		return UploadInfo{}, err
 	}
 
 	return c.putObjectCommon(ctx, bucketName, objectName, reader, objectSize, opts)
 }
 
-func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName string, reader io.Reader, size int64, opts PutObjectOptions) (n int64, err error) {
+func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName string, reader io.Reader, size int64, opts PutObjectOptions) (info UploadInfo, err error) {
 	// Check for largest object size allowed.
 	if size > int64(maxMultipartPutObjectSize) {
-		return 0, errEntityTooLarge(size, maxMultipartPutObjectSize, bucketName, objectName)
+		return UploadInfo{}, errEntityTooLarge(size, maxMultipartPutObjectSize, bucketName, objectName)
 	}
 
 	// NOTE: Streaming signature is not supported by GCS.
@@ -220,13 +220,13 @@ func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName stri
 	return c.putObjectMultipartStream(ctx, bucketName, objectName, reader, size, opts)
 }
 
-func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName, objectName string, reader io.Reader, opts PutObjectOptions) (n int64, err error) {
+func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName, objectName string, reader io.Reader, opts PutObjectOptions) (info UploadInfo, err error) {
 	// Input validation.
 	if err = s3utils.CheckValidBucketName(bucketName); err != nil {
-		return 0, err
+		return UploadInfo{}, err
 	}
 	if err = s3utils.CheckValidObjectName(objectName); err != nil {
-		return 0, err
+		return UploadInfo{}, err
 	}
 
 	// Total data read and written to server. should be equal to
@@ -239,12 +239,12 @@ func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName
 	// Calculate the optimal parts info for a given size.
 	totalPartsCount, partSize, _, err := optimalPartInfo(-1, opts.PartSize)
 	if err != nil {
-		return 0, err
+		return UploadInfo{}, err
 	}
 	// Initiate a new multipart upload.
 	uploadID, err := c.newUploadID(ctx, bucketName, objectName, opts)
 	if err != nil {
-		return 0, err
+		return UploadInfo{}, err
 	}
 
 	defer func() {
@@ -268,7 +268,7 @@ func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName
 			break
 		}
 		if rerr != nil && rerr != io.ErrUnexpectedEOF && rerr != io.EOF {
-			return 0, rerr
+			return UploadInfo{}, rerr
 		}
 
 		var md5Base64 string
@@ -288,7 +288,7 @@ func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName
 		objPart, uerr := c.uploadPart(ctx, bucketName, objectName, uploadID, rd, partNumber,
 			md5Base64, "", int64(length), opts.ServerSideEncryption)
 		if uerr != nil {
-			return totalUploadedSize, uerr
+			return UploadInfo{}, uerr
 		}
 
 		// Save successfully uploaded part metadata.
@@ -312,7 +312,7 @@ func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName
 	for i := 1; i < partNumber; i++ {
 		part, ok := partsInfo[i]
 		if !ok {
-			return 0, errInvalidArgument(fmt.Sprintf("Missing part number %d", i))
+			return UploadInfo{}, errInvalidArgument(fmt.Sprintf("Missing part number %d", i))
 		}
 		complMultipartUpload.Parts = append(complMultipartUpload.Parts, CompletePart{
 			ETag:       part.ETag,
@@ -322,10 +322,12 @@ func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName
 
 	// Sort all completed parts.
 	sort.Sort(completedParts(complMultipartUpload.Parts))
-	if _, err = c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload); err != nil {
-		return totalUploadedSize, err
+
+	uploadInfo, err := c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload)
+	if err != nil {
+		return UploadInfo{}, err
 	}
 
-	// Return final size.
-	return totalUploadedSize, nil
+	uploadInfo.Size = totalUploadedSize
+	return uploadInfo, nil
 }

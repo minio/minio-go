@@ -1,6 +1,6 @@
 /*
  * MinIO Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2015-2017 MinIO, Inc.
+ * Copyright 2015-2020 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,9 @@ package minio
 
 import (
 	"encoding/xml"
+	"errors"
+	"io"
+	"reflect"
 	"time"
 )
 
@@ -69,6 +72,103 @@ type ListBucketV2Result struct {
 	// FetchOwner and StartAfter are currently not used
 	FetchOwner string
 	StartAfter string
+}
+
+// Version is an element in the list object versions response
+type Version struct {
+	ETag         string
+	IsLatest     bool
+	Key          string
+	LastModified time.Time
+	Owner        Owner
+	Size         int64
+	StorageClass string
+	VersionID    string `xml:"VersionId"`
+
+	isDeleteMarker bool
+}
+
+// ListVersionsResult is an element in the list object versions response
+type ListVersionsResult struct {
+	Versions []Version
+
+	CommonPrefixes      []CommonPrefix
+	Name                string
+	Prefix              string
+	Delimiter           string
+	MaxKeys             int64
+	EncodingType        string
+	IsTruncated         bool
+	KeyMarker           string
+	VersionIDMarker     string
+	NextKeyMarker       string
+	NextVersionIDMarker string
+}
+
+// UnmarshalXML is a custom unmarshal code for the response of ListObjectVersions, the custom
+// code will unmarshal <Version> and <DeleteMarker> tags and save them in Versions field to
+// preserve the lexical order of the listing.
+func (l *ListVersionsResult) UnmarshalXML(d *xml.Decoder, start xml.StartElement) (err error) {
+	for {
+		// Read tokens from the XML document in a stream.
+		t, err := d.Token()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+
+		switch se := t.(type) {
+		case xml.StartElement:
+			tagName := se.Name.Local
+			switch tagName {
+			case "Name", "Prefix",
+				"Delimiter", "EncodingType",
+				"KeyMarker", "VersionIdMarker",
+				"NextKeyMarker", "NextVersionIdMarker":
+				var s string
+				if err = d.DecodeElement(&s, &se); err != nil {
+					return err
+				}
+				v := reflect.ValueOf(l).Elem().FieldByName(tagName)
+				if v.IsValid() {
+					v.SetString(s)
+				}
+			case "IsTruncated": //        bool
+				var b bool
+				if err = d.DecodeElement(&b, &se); err != nil {
+					return err
+				}
+				l.IsTruncated = b
+			case "MaxKeys": //       int64
+				var i int64
+				if err = d.DecodeElement(&i, &se); err != nil {
+					return err
+				}
+				l.MaxKeys = i
+			case "CommonPrefixes":
+				var cp CommonPrefix
+				if err = d.DecodeElement(&cp, &se); err != nil {
+					return err
+				}
+				l.CommonPrefixes = append(l.CommonPrefixes, cp)
+			case "DeleteMarker", "Version":
+				var v Version
+				if err = d.DecodeElement(&v, &se); err != nil {
+					return err
+				}
+				if tagName == "DeleteMarker" {
+					v.isDeleteMarker = true
+				}
+				l.Versions = append(l.Versions, v)
+			default:
+				return errors.New("unrecognized option:" + tagName)
+			}
+
+		}
+	}
+	return nil
 }
 
 // ListBucketResult container for listObjects response.

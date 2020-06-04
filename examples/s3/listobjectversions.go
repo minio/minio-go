@@ -2,7 +2,7 @@
 
 /*
  * MinIO Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2019 MinIO, Inc.
+ * Copyright 2020 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,30 +21,39 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
 
 	"github.com/minio/minio-go/v7"
 )
 
 func main() {
-	// Note: YOUR-ACCESSKEYID, YOUR-SECRETACCESSKEY, my-bucketname, my-objectname and
-	// my-testfile are dummy values, please replace them with original values.
+	// Note: YOUR-ACCESSKEYID, YOUR-SECRETACCESSKEY, my-bucketname and my-prefixname
+	// are dummy values, please replace them with original values.
 
 	// Requests are always secure (HTTPS) by default. Set secure=false to enable insecure (HTTP) access.
 	// This boolean value is the last argument for New().
 
 	// New returns an Amazon S3 compatible client object. API compatibility (v2 or v4) is automatically
 	// determined based on the Endpoint value.
-	s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESS-KEY-HERE", "YOUR-SECRET-KEY-HERE", true)
+	s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", true)
 	if err != nil {
-		log.Fatalln(err)
+		fmt.Println(err)
+		return
 	}
-	opts := minio.RemoveObjectOptions{
-		GovernanceBypass: true,
+
+	// Create a done channel to control 'ListObjects' go routine.
+	doneCh := make(chan struct{})
+
+	// Indicate to our routine to exit cleanly upon return.
+	defer close(doneCh)
+
+	// List all objects from a bucket-name with a matching prefix.
+	for objectVersion := range s3Client.ListObjectVersions(context.Background(), "my-bucketname", "my-prefixname", true, doneCh) {
+		if objectVersion.Err != nil {
+			fmt.Println(objectVersion.Err)
+			return
+		}
+		fmt.Println(objectVersion)
 	}
-	err = s3Client.RemoveObjectWithOptions(context.Background(), "my-bucket", "my-object", opts)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	log.Println("Remove object successful")
+	return
 }

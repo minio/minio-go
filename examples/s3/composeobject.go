@@ -66,15 +66,15 @@ func main() {
 	encKey, _ := encrypt.NewSSEC([]byte{8, 9, 0})
 
 	// Create destination info
-	dst, err := minio.NewDestinationInfo("bucket", "object", encKey, nil)
+	dst, err := minio.NewDestinationInfo("bucket", "object", minio.DestInfoOptions{Encryption: encKey})
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	err = s3Client.ComposeObject(context.Background(), dst, srcs)
+	uploadInfo, err := s3Client.ComposeObject(context.Background(), dst, srcs)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	log.Println("Composed object successfully.")
+	log.Println("Composed object successfully:", uploadInfo)
 }

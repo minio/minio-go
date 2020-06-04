@@ -67,14 +67,15 @@ func main() {
 	}
 
 	// Destination object
-	dst, err := minio.NewDestinationInfoWithOptions("my-bucketname", "my-objectname", minio.DestInfoOptions{
+	dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", minio.DestInfoOptions{
 		UserTags: tags, ReplaceTags: true,
 	})
 	if err != nil {
 		log.Fatalln(err)
 	}
+
 	// Initiate copy object.
-	err = s3Client.CopyObject(context.Background(), dst, src)
+	_, err = s3Client.CopyObject(context.Background(), dst, src)
 	if err != nil {
 		log.Fatalln(err)
 	}
