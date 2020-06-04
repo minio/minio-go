@@ -19,6 +19,7 @@ package minio
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"log"
 	"net/http"
@@ -64,6 +65,8 @@ func randString(n int, src rand.Source, prefix string) string {
 
 // Tests for Core GetObject() function.
 func TestGetObjectCore(t *testing.T) {
+	ctx := context.Background()
+
 	if testing.Short() {
 		t.Skip("skipping functional tests for the short runs")
 	}
@@ -86,13 +89,13 @@ func TestGetObjectCore(t *testing.T) {
 	// c.TraceOn(os.Stderr)
 
 	// Set user agent.
-	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
+	c.SetAppInfo(ctx, "MinIO-go-FunctionalTest", "0.1.0")
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 
 	// Make a new bucket.
-	err = c.MakeBucket(bucketName, "us-east-1")
+	err = c.MakeBucket(ctx, bucketName, "us-east-1")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -102,7 +105,7 @@ func TestGetObjectCore(t *testing.T) {
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-	n, err := c.Client.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), PutObjectOptions{
+	n, err := c.Client.PutObject(ctx, bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), PutObjectOptions{
 		ContentType: "binary/octet-stream",
 	})
 	if err != nil {
@@ -248,7 +251,7 @@ func TestGetObjectCore(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
-	err = c.RemoveBucket(bucketName)
+	err = c.RemoveBucket(ctx, bucketName)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -257,6 +260,8 @@ func TestGetObjectCore(t *testing.T) {
 // Tests GetObject to return Content-Encoding properly set
 // and overrides any auto decoding.
 func TestGetObjectContentEncoding(t *testing.T) {
+	ctx := context.Background()
+
 	if testing.Short() {
 		t.Skip("skipping functional tests for the short runs")
 	}
@@ -279,13 +284,13 @@ func TestGetObjectContentEncoding(t *testing.T) {
 	// c.TraceOn(os.Stderr)
 
 	// Set user agent.
-	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
+	c.SetAppInfo(ctx, "MinIO-go-FunctionalTest", "0.1.0")
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 
 	// Make a new bucket.
-	err = c.MakeBucket(bucketName, "us-east-1")
+	err = c.MakeBucket(ctx, bucketName, "us-east-1")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -295,7 +300,7 @@ func TestGetObjectContentEncoding(t *testing.T) {
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-	n, err := c.Client.PutObject(bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), PutObjectOptions{
+	n, err := c.Client.PutObject(ctx, bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), PutObjectOptions{
 		ContentEncoding: "gzip",
 	})
 	if err != nil {
@@ -326,7 +331,7 @@ func TestGetObjectContentEncoding(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
-	err = c.RemoveBucket(bucketName)
+	err = c.RemoveBucket(ctx, bucketName)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -334,6 +339,7 @@ func TestGetObjectContentEncoding(t *testing.T) {
 
 // Tests get bucket policy core API.
 func TestGetBucketPolicy(t *testing.T) {
+	ctx := context.Background()
 	if testing.Short() {
 		t.Skip("skipping functional tests for short runs")
 	}
@@ -356,20 +362,20 @@ func TestGetBucketPolicy(t *testing.T) {
 	// c.TraceOn(os.Stderr)
 
 	// Set user agent.
-	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
+	c.SetAppInfo(ctx, "MinIO-go-FunctionalTest", "0.1.0")
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 
 	// Make a new bucket.
-	err = c.MakeBucket(bucketName, "us-east-1")
+	err = c.MakeBucket(ctx, bucketName, "us-east-1")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
 
 	// Verify if bucket exits and you have access.
 	var exists bool
-	exists, err = c.BucketExists(bucketName)
+	exists, err = c.BucketExists(ctx, bucketName)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -378,7 +384,7 @@ func TestGetBucketPolicy(t *testing.T) {
 	}
 
 	// Asserting the default bucket policy.
-	bucketPolicy, err := c.GetBucketPolicy(bucketName)
+	bucketPolicy, err := c.GetBucketPolicy(ctx, bucketName)
 	if err != nil {
 		errResp := ToErrorResponse(err)
 		if errResp.Code != "NoSuchBucketPolicy" {
@@ -389,7 +395,7 @@ func TestGetBucketPolicy(t *testing.T) {
 		t.Errorf("Bucket policy expected %#v, got %#v", "", bucketPolicy)
 	}
 
-	err = c.RemoveBucket(bucketName)
+	err = c.RemoveBucket(ctx, bucketName)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -397,6 +403,7 @@ func TestGetBucketPolicy(t *testing.T) {
 
 // Tests Core CopyObject API implementation.
 func TestCoreCopyObject(t *testing.T) {
+	ctx := context.Background()
 	if testing.Short() {
 		t.Skip("skipping functional tests for short runs")
 	}
@@ -419,13 +426,13 @@ func TestCoreCopyObject(t *testing.T) {
 	// c.TraceOn(os.Stderr)
 
 	// Set user agent.
-	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
+	c.SetAppInfo(ctx, "MinIO-go-FunctionalTest", "0.1.0")
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 
 	// Make a new bucket.
-	err = c.MakeBucket(bucketName, "us-east-1")
+	err = c.MakeBucket(ctx, bucketName, "us-east-1")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -464,7 +471,7 @@ func TestCoreCopyObject(t *testing.T) {
 	}
 
 	// Attempt to read from destBucketName and object name.
-	r, err := c.Client.GetObject(destBucketName, destObjectName, GetObjectOptions{})
+	r, err := c.Client.GetObject(ctx, destBucketName, destObjectName, GetObjectOptions{})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
@@ -505,7 +512,7 @@ func TestCoreCopyObject(t *testing.T) {
 		t.Fatal("Error: ", err)
 	}
 
-	err = c.RemoveBucket(bucketName)
+	err = c.RemoveBucket(ctx, bucketName)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -515,6 +522,7 @@ func TestCoreCopyObject(t *testing.T) {
 
 // Test Core CopyObjectPart implementation
 func TestCoreCopyObjectPart(t *testing.T) {
+	ctx := context.Background()
 	if testing.Short() {
 		t.Skip("skipping functional tests for short runs")
 	}
@@ -537,13 +545,13 @@ func TestCoreCopyObjectPart(t *testing.T) {
 	// c.TraceOn(os.Stderr)
 
 	// Set user agent.
-	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
+	c.SetAppInfo(ctx, "MinIO-go-FunctionalTest", "0.1.0")
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 
 	// Make a new bucket.
-	err = c.MakeBucket(bucketName, "us-east-1")
+	err = c.MakeBucket(ctx, bucketName, "us-east-1")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -654,7 +662,7 @@ func TestCoreCopyObjectPart(t *testing.T) {
 		t.Fatal("Error: ", err)
 	}
 
-	if err := c.RemoveBucket(bucketName); err != nil {
+	if err := c.RemoveBucket(ctx, bucketName); err != nil {
 		t.Fatal("Error: ", err)
 	}
 
@@ -663,6 +671,7 @@ func TestCoreCopyObjectPart(t *testing.T) {
 
 // Test Core PutObject.
 func TestCorePutObject(t *testing.T) {
+	ctx := context.Background()
 	if testing.Short() {
 		t.Skip("skipping functional tests for short runs")
 	}
@@ -686,13 +695,13 @@ func TestCorePutObject(t *testing.T) {
 	// c.TraceOn(os.Stderr)
 
 	// Set user agent.
-	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
+	c.SetAppInfo(ctx, "MinIO-go-FunctionalTest", "0.1.0")
 
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 
 	// Make a new bucket.
-	err = c.MakeBucket(bucketName, "us-east-1")
+	err = c.MakeBucket(ctx, bucketName, "us-east-1")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -723,7 +732,7 @@ func TestCorePutObject(t *testing.T) {
 	}
 
 	// Read the data back
-	r, err := c.Client.GetObject(bucketName, objectName, GetObjectOptions{})
+	r, err := c.Client.GetObject(ctx, bucketName, objectName, GetObjectOptions{})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
@@ -755,13 +764,14 @@ func TestCorePutObject(t *testing.T) {
 		t.Fatal("Error: ", err)
 	}
 
-	err = c.RemoveBucket(bucketName)
+	err = c.RemoveBucket(ctx, bucketName)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 }
 
 func TestCoreGetObjectMetadata(t *testing.T) {
+	ctx := context.Background()
 	if testing.Short() {
 		t.Skip("skipping functional tests for the short runs")
 	}
@@ -779,7 +789,7 @@ func TestCoreGetObjectMetadata(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 
 	// Make a new bucket.
-	err = core.MakeBucket(bucketName, "us-east-1")
+	err = core.MakeBucket(ctx, bucketName, "us-east-1")
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -811,7 +821,7 @@ func TestCoreGetObjectMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
-	err = core.RemoveBucket(bucketName)
+	err = core.RemoveBucket(ctx, bucketName)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
