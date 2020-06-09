@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"runtime/debug"
 	"sort"
 	"strings"
 
@@ -262,7 +261,6 @@ func (c Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, bu
 
 	// Create a buffer.
 	buf := make([]byte, partSize)
-	defer debug.FreeOSMemory()
 
 	// Avoid declaring variables in the for loop
 	var md5Base64 string
@@ -386,7 +384,6 @@ func (c Client) putObject(ctx context.Context, bucketName, objectName string, re
 	if opts.SendContentMd5 {
 		// Create a buffer.
 		buf := make([]byte, size)
-		defer debug.FreeOSMemory()
 
 		length, rErr := io.ReadFull(reader, buf)
 		if rErr != nil && rErr != io.ErrUnexpectedEOF {
