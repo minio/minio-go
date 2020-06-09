@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"runtime/debug"
 	"sort"
 	"time"
 
@@ -252,7 +251,6 @@ func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName
 
 	// Create a buffer.
 	buf := make([]byte, partSize)
-	defer debug.FreeOSMemory()
 
 	for partNumber <= totalPartsCount {
 		length, rerr := io.ReadFull(reader, buf)
