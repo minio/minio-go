@@ -46,13 +46,13 @@ func NewCore(endpoint string, accessKeyID, secretAccessKey string, secure bool) 
 // ListObjects - List all the objects at a prefix, optionally with marker and delimiter
 // you can further filter the results.
 func (c Core) ListObjects(bucket, prefix, marker, delimiter string, maxKeys int) (result ListBucketResult, err error) {
-	return c.listObjectsQuery(bucket, prefix, marker, delimiter, maxKeys)
+	return c.listObjectsQuery(context.Background(), bucket, prefix, marker, delimiter, maxKeys)
 }
 
 // ListObjectsV2 - Lists all the objects at a prefix, similar to ListObjects() but uses
 // continuationToken instead of marker to support iteration over the results.
 func (c Core) ListObjectsV2(bucketName, objectPrefix, continuationToken string, fetchOwner bool, delimiter string, maxkeys int, startAfter string) (ListBucketV2Result, error) {
-	return c.listObjectsV2Query(bucketName, objectPrefix, continuationToken, fetchOwner, false, delimiter, maxkeys, startAfter)
+	return c.listObjectsV2Query(context.Background(), bucketName, objectPrefix, continuationToken, fetchOwner, false, delimiter, maxkeys, startAfter)
 }
 
 // CopyObjectWithContext - copies an object from source object to destination object on server side.
@@ -101,7 +101,7 @@ func (c Core) NewMultipartUpload(bucket, object string, opts PutObjectOptions) (
 
 // ListMultipartUploads - List incomplete uploads.
 func (c Core) ListMultipartUploads(bucket, prefix, keyMarker, uploadIDMarker, delimiter string, maxUploads int) (result ListMultipartUploadsResult, err error) {
-	return c.listMultipartUploadsQuery(bucket, keyMarker, uploadIDMarker, prefix, delimiter, maxUploads)
+	return c.listMultipartUploadsQuery(context.Background(), bucket, keyMarker, uploadIDMarker, prefix, delimiter, maxUploads)
 }
 
 // PutObjectPartWithContext - Upload an object part.
@@ -115,8 +115,8 @@ func (c Core) PutObjectPart(bucket, object, uploadID string, partID int, data io
 }
 
 // ListObjectParts - List uploaded parts of an incomplete upload.x
-func (c Core) ListObjectParts(bucket, object, uploadID string, partNumberMarker int, maxParts int) (result ListObjectPartsResult, err error) {
-	return c.listObjectPartsQuery(bucket, object, uploadID, partNumberMarker, maxParts)
+func (c Core) ListObjectParts(ctx context.Context, bucket, object, uploadID string, partNumberMarker int, maxParts int) (result ListObjectPartsResult, err error) {
+	return c.listObjectPartsQuery(ctx, bucket, object, uploadID, partNumberMarker, maxParts)
 }
 
 // CompleteMultipartUploadWithContext - Concatenate uploaded parts and commit to an object.
@@ -144,7 +144,7 @@ func (c Core) AbortMultipartUpload(bucket, object, uploadID string) error {
 
 // GetBucketPolicy - fetches bucket access policy for a given bucket.
 func (c Core) GetBucketPolicy(bucket string) (string, error) {
-	return c.getBucketPolicy(bucket)
+	return c.getBucketPolicy(context.Background(), bucket)
 }
 
 // PutBucketPolicy - applies a new bucket access policy for a given bucket.

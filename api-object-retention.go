@@ -65,8 +65,13 @@ type PutObjectRetentionOptions struct {
 	VersionID        string
 }
 
-// PutObjectRetention : sets object retention for a given object and versionID.
+// PutObjectRetention is a wrapper for PutObjectRetentionWithContext.
 func (c Client) PutObjectRetention(bucketName, objectName string, opts PutObjectRetentionOptions) error {
+	return c.PutObjectRetentionWithContext(context.Background(), bucketName, objectName, opts)
+}
+
+// PutObjectRetentionWithContext : sets object retention for a given object and versionID.
+func (c Client) PutObjectRetentionWithContext(ctx context.Context, bucketName, objectName string, opts PutObjectRetentionOptions) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return err
@@ -115,7 +120,7 @@ func (c Client) PutObjectRetention(bucketName, objectName string, opts PutObject
 	}
 
 	// Execute PUT Object Retention.
-	resp, err := c.executeMethod(context.Background(), "PUT", reqMetadata)
+	resp, err := c.executeMethod(ctx, "PUT", reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
 		return err

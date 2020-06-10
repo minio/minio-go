@@ -28,17 +28,22 @@ import (
 	"github.com/minio/minio-go/v6/pkg/s3utils"
 )
 
-// RemoveBucket deletes the bucket name.
+// RemoveBucket is the wrapper for RemoveBucketWithContext
+func (c Client) RemoveBucket(bucketName string) error {
+	return c.RemoveBucketWithContext(context.Background(), bucketName)
+}
+
+// RemoveBucketWithContext deletes the bucket name.
 //
 //  All objects (including all object versions and delete markers).
 //  in the bucket must be deleted before successfully attempting this request.
-func (c Client) RemoveBucket(bucketName string) error {
+func (c Client) RemoveBucketWithContext(ctx context.Context, bucketName string) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return err
 	}
 	// Execute DELETE on bucket.
-	resp, err := c.executeMethod(context.Background(), "DELETE", requestMetadata{
+	resp, err := c.executeMethod(ctx, "DELETE", requestMetadata{
 		bucketName:       bucketName,
 		contentSHA256Hex: emptySHA256Hex,
 	})
@@ -183,32 +188,6 @@ func (c Client) RemoveObjectsWithContext(ctx context.Context, bucketName string,
 	return errorCh
 }
 
-// RemoveObjectsWithOptionsContext - Identical to RemoveObjects call, but accepts context to
-// facilitate request cancellation and options to bypass governance retention
-func (c Client) RemoveObjectsWithOptionsContext(ctx context.Context, bucketName string, objectsCh <-chan string, opts RemoveObjectsOptions) <-chan RemoveObjectError {
-	errorCh := make(chan RemoveObjectError, 1)
-
-	// Validate if bucket name is valid.
-	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
-		defer close(errorCh)
-		errorCh <- RemoveObjectError{
-			Err: err,
-		}
-		return errorCh
-	}
-	// Validate objects channel to be properly allocated.
-	if objectsCh == nil {
-		defer close(errorCh)
-		errorCh <- RemoveObjectError{
-			Err: ErrInvalidArgument("Objects channel cannot be nil"),
-		}
-		return errorCh
-	}
-
-	go c.removeObjects(ctx, bucketName, objectsCh, errorCh, opts)
-	return errorCh
-}
-
 // Generate and call MultiDelete S3 requests based on entries received from objectsCh
 func (c Client) removeObjects(ctx context.Context, bucketName string, objectsCh <-chan string, errorCh chan<- RemoveObjectError, opts RemoveObjectsOptions) {
 	maxEntries := 1000
@@ -298,11 +277,42 @@ type RemoveObjectsOptions struct {
 // The list of objects to remove are received from objectsCh.
 // Remove failures are sent back via error channel.
 func (c Client) RemoveObjectsWithOptions(bucketName string, objectsCh <-chan string, opts RemoveObjectsOptions) <-chan RemoveObjectError {
-	return c.RemoveObjectsWithOptionsContext(context.Background(), bucketName, objectsCh, opts)
+	return c.RemoveObjectsWithOptionsWithContext(context.Background(), bucketName, objectsCh, opts)
 }
 
-// RemoveIncompleteUpload aborts an partially uploaded object.
+// RemoveObjectsWithOptionsWithContext - Identical to RemoveObjects call, but accepts context to
+// facilitate request cancellation and options to bypass governance retention
+func (c Client) RemoveObjectsWithOptionsWithContext(ctx context.Context, bucketName string, objectsCh <-chan string, opts RemoveObjectsOptions) <-chan RemoveObjectError {
+	errorCh := make(chan RemoveObjectError, 1)
+
+	// Validate if bucket name is valid.
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		defer close(errorCh)
+		errorCh <- RemoveObjectError{
+			Err: err,
+		}
+		return errorCh
+	}
+	// Validate objects channel to be properly allocated.
+	if objectsCh == nil {
+		defer close(errorCh)
+		errorCh <- RemoveObjectError{
+			Err: ErrInvalidArgument("Objects channel cannot be nil"),
+		}
+		return errorCh
+	}
+
+	go c.removeObjects(ctx, bucketName, objectsCh, errorCh, opts)
+	return errorCh
+}
+
+// RemoveIncompleteUpload is a wrapper for RemoveIncompleteUploadWithContext
 func (c Client) RemoveIncompleteUpload(bucketName, objectName string) error {
+	return c.RemoveIncompleteUploadWithContext(context.Background(), bucketName, objectName)
+}
+
+// RemoveIncompleteUploadWithContext aborts an partially uploaded object.
+func (c Client) RemoveIncompleteUploadWithContext(ctx context.Context, bucketName, objectName string) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return err
@@ -311,14 +321,14 @@ func (c Client) RemoveIncompleteUpload(bucketName, objectName string) error {
 		return err
 	}
 	// Find multipart upload ids of the object to be aborted.
-	uploadIDs, err := c.findUploadIDs(bucketName, objectName)
+	uploadIDs, err := c.findUploadIDs(ctx, bucketName, objectName)
 	if err != nil {
 		return err
 	}
 
 	for _, uploadID := range uploadIDs {
 		// abort incomplete multipart upload, based on the upload id passed.
-		err := c.abortMultipartUpload(context.Background(), bucketName, objectName, uploadID)
+		err := c.abortMultipartUpload(ctx, bucketName, objectName, uploadID)
 		if err != nil {
 			return err
 		}

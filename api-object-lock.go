@@ -138,8 +138,13 @@ func newObjectLockConfig(mode *RetentionMode, validity *uint, unit *ValidityUnit
 	return nil, fmt.Errorf("all of retention mode, validity and validity unit must be passed")
 }
 
-// SetBucketObjectLockConfig sets object lock configuration in given bucket. mode, validity and unit are either all set or all nil.
+// SetBucketObjectLockConfig is a wrapper for SetBucketObjectLockConfigWithContext.
 func (c Client) SetBucketObjectLockConfig(bucketName string, mode *RetentionMode, validity *uint, unit *ValidityUnit) error {
+	return c.SetBucketObjectLockConfigWithContext(context.Background(), bucketName, mode, validity, unit)
+}
+
+// SetBucketObjectLockConfigWithContext sets object lock configuration in given bucket. mode, validity and unit are either all set or all nil.
+func (c Client) SetBucketObjectLockConfigWithContext(ctx context.Context, bucketName string, mode *RetentionMode, validity *uint, unit *ValidityUnit) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return err
@@ -170,7 +175,7 @@ func (c Client) SetBucketObjectLockConfig(bucketName string, mode *RetentionMode
 	}
 
 	// Execute PUT bucket object lock configuration.
-	resp, err := c.executeMethod(context.Background(), "PUT", reqMetadata)
+	resp, err := c.executeMethod(ctx, "PUT", reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
 		return err
@@ -183,8 +188,13 @@ func (c Client) SetBucketObjectLockConfig(bucketName string, mode *RetentionMode
 	return nil
 }
 
-// GetObjectLockConfig gets object lock configuration of given bucket.
+// GetObjectLockConfig is a wrapper for GetObjectLockConfigWithContext
 func (c Client) GetObjectLockConfig(bucketName string) (objectLock string, mode *RetentionMode, validity *uint, unit *ValidityUnit, err error) {
+	return c.GetObjectLockConfigWithContext(context.Background(), bucketName)
+}
+
+// GetObjectLockConfigWithContext gets object lock configuration of given bucket.
+func (c Client) GetObjectLockConfigWithContext(ctx context.Context, bucketName string) (objectLock string, mode *RetentionMode, validity *uint, unit *ValidityUnit, err error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return "", nil, nil, nil, err
@@ -194,7 +204,7 @@ func (c Client) GetObjectLockConfig(bucketName string) (objectLock string, mode 
 	urlValues.Set("object-lock", "")
 
 	// Execute GET on bucket to list objects.
-	resp, err := c.executeMethod(context.Background(), "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
 		bucketName:       bucketName,
 		queryValues:      urlValues,
 		contentSHA256Hex: emptySHA256Hex,
@@ -230,8 +240,14 @@ func (c Client) GetObjectLockConfig(bucketName string) (objectLock string, mode 
 }
 
 // GetBucketObjectLockConfig gets object lock configuration of given bucket.
-func (c Client) GetBucketObjectLockConfig(bucketName string) (mode *RetentionMode, validity *uint, unit *ValidityUnit, err error) {
-	_, mode, validity, unit, err = c.GetObjectLockConfig(bucketName)
+func (c Client) GetBucketObjectLockConfig(bucketName string) (
+	mode *RetentionMode, validity *uint, unit *ValidityUnit, err error) {
+	return c.GetBucketObjectLockConfigWithContext(context.Background(), bucketName)
+}
+
+// GetBucketObjectLockConfigWithContext gets object lock configuration of given bucket.
+func (c Client) GetBucketObjectLockConfigWithContext(ctx context.Context, bucketName string) (mode *RetentionMode, validity *uint, unit *ValidityUnit, err error) {
+	_, mode, validity, unit, err = c.GetObjectLockConfigWithContext(ctx, bucketName)
 	return mode, validity, unit, err
 }
 
