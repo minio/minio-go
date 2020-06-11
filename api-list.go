@@ -73,7 +73,14 @@ func (c Client) ListBucketsWithContext(ctx context.Context) ([]BucketInfo, error
 
 /// Bucket Read Operations.
 
-// ListObjectsV2WithMetadata lists all objects matching the objectPrefix
+// ListObjectsV2WithMetadata is the wrapper for ListObjectsV2WithMetadataWithContext
+func (c Client) ListObjectsV2WithMetadata(bucketName, objectPrefix string,
+	recursive bool, doneCh <-chan struct{}) <-chan ObjectInfo {
+	return c.ListObjectsV2WithMetadataWithContext(context.Background(),
+		bucketName, objectPrefix, recursive, doneCh)
+}
+
+// ListObjectsV2WithMetadataWithContext lists all objects matching the objectPrefix
 // from the specified bucket. If recursion is enabled it would list
 // all subdirectories and all its contents. This call adds
 // UserMetadata information as well for each object.
@@ -95,11 +102,12 @@ func (c Client) ListBucketsWithContext(ctx context.Context) ([]BucketInfo, error
 //   recursive := true
 //   // Add metadata
 //   metadata := true
-//   for message := range api.ListObjectsV2WithMetadata("mytestbucket", "starthere", recursive, doneCh) {
+//   for message := range api.ListObjectsV2WithMetadataWithContext(ctx,
+//					   "mytestbucket", "starthere", recursive, doneCh) {
 //       fmt.Println(message)
 //   }
 //
-func (c Client) ListObjectsV2WithMetadata(bucketName, objectPrefix string, recursive bool,
+func (c Client) ListObjectsV2WithMetadataWithContext(ctx context.Context, bucketName, objectPrefix string, recursive bool,
 	doneCh <-chan struct{}) <-chan ObjectInfo {
 	// Check whether this is snowball region, if yes ListObjectsV2 doesn't work, fallback to listObjectsV1.
 	if location, ok := c.bucketLocCache.Get(bucketName); ok {
@@ -107,10 +115,10 @@ func (c Client) ListObjectsV2WithMetadata(bucketName, objectPrefix string, recur
 			return c.ListObjects(bucketName, objectPrefix, recursive, doneCh)
 		}
 	}
-	return c.listObjectsV2(bucketName, objectPrefix, recursive, true, doneCh)
+	return c.listObjectsV2(ctx, bucketName, objectPrefix, recursive, true, doneCh)
 }
 
-func (c Client) listObjectsV2(bucketName, objectPrefix string, recursive, metadata bool, doneCh <-chan struct{}) <-chan ObjectInfo {
+func (c Client) listObjectsV2(ctx context.Context, bucketName, objectPrefix string, recursive, metadata bool, doneCh <-chan struct{}) <-chan ObjectInfo {
 	// Allocate new list objects channel.
 	objectStatCh := make(chan ObjectInfo, 1)
 	// Default listing is delimited at "/"
@@ -148,7 +156,7 @@ func (c Client) listObjectsV2(bucketName, objectPrefix string, recursive, metada
 		var continuationToken string
 		for {
 			// Get list of objects a maximum of 1000 per request.
-			result, err := c.listObjectsV2Query(bucketName, objectPrefix, continuationToken,
+			result, err := c.listObjectsV2Query(ctx, bucketName, objectPrefix, continuationToken,
 				fetchOwner, metadata, delimiter, 0, "")
 			if err != nil {
 				objectStatCh <- ObjectInfo{
@@ -216,13 +224,18 @@ func (c Client) listObjectsV2(bucketName, objectPrefix string, recursive, metada
 //   }
 //
 func (c Client) ListObjectsV2(bucketName, objectPrefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectInfo {
+	return c.ListObjectsV2WithContext(context.Background(), bucketName, objectPrefix, recursive, doneCh)
+}
+
+// ListObjectsV2WithContext does the ListObjectsV2 job with context
+func (c Client) ListObjectsV2WithContext(ctx context.Context, bucketName, objectPrefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectInfo {
 	// Check whether this is snowball region, if yes ListObjectsV2 doesn't work, fallback to listObjectsV1.
 	if location, ok := c.bucketLocCache.Get(bucketName); ok {
 		if location == "snowball" {
-			return c.ListObjects(bucketName, objectPrefix, recursive, doneCh)
+			return c.ListObjectsWithContext(ctx, bucketName, objectPrefix, recursive, doneCh)
 		}
 	}
-	return c.listObjectsV2(bucketName, objectPrefix, recursive, false, doneCh)
+	return c.listObjectsV2(ctx, bucketName, objectPrefix, recursive, false, doneCh)
 }
 
 // listObjectsV2Query - (List Objects V2) - List some or all (up to 1000) of the objects in a bucket.
@@ -236,7 +249,7 @@ func (c Client) ListObjectsV2(bucketName, objectPrefix string, recursive bool, d
 // ?max-keys - Sets the maximum number of keys returned in the response body.
 // ?start-after - Specifies the key to start after when listing objects in a bucket.
 // ?metadata - Specifies if we want metadata for the objects as part of list operation.
-func (c Client) listObjectsV2Query(bucketName, objectPrefix, continuationToken string, fetchOwner, metadata bool, delimiter string, maxkeys int, startAfter string) (ListBucketV2Result, error) {
+func (c Client) listObjectsV2Query(ctx context.Context, bucketName, objectPrefix, continuationToken string, fetchOwner, metadata bool, delimiter string, maxkeys int, startAfter string) (ListBucketV2Result, error) {
 	// Validate bucket name.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return ListBucketV2Result{}, err
@@ -286,7 +299,7 @@ func (c Client) listObjectsV2Query(bucketName, objectPrefix, continuationToken s
 	}
 
 	// Execute GET on bucket to list objects.
-	resp, err := c.executeMethod(context.Background(), "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
 		bucketName:       bucketName,
 		queryValues:      urlValues,
 		contentSHA256Hex: emptySHA256Hex,
@@ -334,9 +347,16 @@ func (c Client) listObjectsV2Query(bucketName, objectPrefix, continuationToken s
 	return listBucketResult, nil
 }
 
-// ListObjects - (List Objects) - List some objects or all recursively.
-//
-// ListObjects lists all objects matching the objectPrefix from
+// ListObjects is a wrapper for ListObjectsWithContext
+func (c Client) ListObjects(bucketName, objectPrefix string, recursive bool,
+	doneCh <-chan struct{}) <-chan ObjectInfo {
+	return c.ListObjectsWithContext(context.Background(), bucketName,
+		objectPrefix, recursive, doneCh)
+}
+
+// ListObjectsWithContext - (List Objects with context) - List some
+// objects or all recursively.
+// ListObjectsWithContext lists all objects matching the objectPrefix from
 // the specified bucket. If recursion is enabled it would list
 // all subdirectories and all its contents.
 //
@@ -352,11 +372,13 @@ func (c Client) listObjectsV2Query(bucketName, objectPrefix, continuationToken s
 //   defer close(doneCh)
 //   // Recurively list all objects in 'mytestbucket'
 //   recursive := true
-//   for message := range api.ListObjects("mytestbucket", "starthere", recursive, doneCh) {
+//   for message := range api.ListObjectsWithContext(ctx, "mytestbucket",
+//		 "starthere", recursive, doneCh) {
 //       fmt.Println(message)
 //   }
 //
-func (c Client) ListObjects(bucketName, objectPrefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectInfo {
+func (c Client) ListObjectsWithContext(ctx context.Context, bucketName,
+	objectPrefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectInfo {
 	// Allocate new list objects channel.
 	objectStatCh := make(chan ObjectInfo, 1)
 	// Default listing is delimited at "/"
@@ -389,7 +411,7 @@ func (c Client) ListObjects(bucketName, objectPrefix string, recursive bool, don
 		var marker string
 		for {
 			// Get list of objects a maximum of 1000 per request.
-			result, err := c.listObjectsQuery(bucketName, objectPrefix, marker, delimiter, 0)
+			result, err := c.listObjectsQuery(ctx, bucketName, objectPrefix, marker, delimiter, 0)
 			if err != nil {
 				objectStatCh <- ObjectInfo{
 					Err: err,
@@ -445,7 +467,7 @@ func (c Client) ListObjects(bucketName, objectPrefix string, recursive bool, don
 // ?delimiter - A delimiter is a character you use to group keys.
 // ?prefix - Limits the response to keys that begin with the specified prefix.
 // ?max-keys - Sets the maximum number of keys returned in the response body.
-func (c Client) listObjectsQuery(bucketName, objectPrefix, objectMarker, delimiter string, maxkeys int) (ListBucketResult, error) {
+func (c Client) listObjectsQuery(ctx context.Context, bucketName, objectPrefix, objectMarker, delimiter string, maxkeys int) (ListBucketResult, error) {
 	// Validate bucket name.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return ListBucketResult{}, err
@@ -478,7 +500,7 @@ func (c Client) listObjectsQuery(bucketName, objectPrefix, objectMarker, delimit
 	urlValues.Set("encoding-type", "url")
 
 	// Execute GET on bucket to list objects.
-	resp, err := c.executeMethod(context.Background(), "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
 		bucketName:       bucketName,
 		queryValues:      urlValues,
 		contentSHA256Hex: emptySHA256Hex,
@@ -543,15 +565,21 @@ func (c Client) listObjectsQuery(bucketName, objectPrefix, objectMarker, delimit
 //   for message := range api.ListIncompleteUploads("mytestbucket", "starthere", recursive) {
 //       fmt.Println(message)
 //   }
-//
+
+// ListIncompleteUploads is a wrapper for ListIncompleteUploadsWithContent
 func (c Client) ListIncompleteUploads(bucketName, objectPrefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectMultipartInfo {
+	return c.ListIncompleteUploadsWithContext(context.Background(), bucketName, objectPrefix, recursive, doneCh)
+}
+
+// ListIncompleteUploadsWithContext adds the context argument to ListIncompleteUploads functionality
+func (c Client) ListIncompleteUploadsWithContext(ctx context.Context, bucketName, objectPrefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectMultipartInfo {
 	// Turn on size aggregation of individual parts.
 	isAggregateSize := true
-	return c.listIncompleteUploads(bucketName, objectPrefix, recursive, isAggregateSize, doneCh)
+	return c.listIncompleteUploads(ctx, bucketName, objectPrefix, recursive, isAggregateSize, doneCh)
 }
 
 // listIncompleteUploads lists all incomplete uploads.
-func (c Client) listIncompleteUploads(bucketName, objectPrefix string, recursive, aggregateSize bool, doneCh <-chan struct{}) <-chan ObjectMultipartInfo {
+func (c Client) listIncompleteUploads(ctx context.Context, bucketName, objectPrefix string, recursive, aggregateSize bool, doneCh <-chan struct{}) <-chan ObjectMultipartInfo {
 	// Allocate channel for multipart uploads.
 	objectMultipartStatCh := make(chan ObjectMultipartInfo, 1)
 	// Delimiter is set to "/" by default.
@@ -583,7 +611,7 @@ func (c Client) listIncompleteUploads(bucketName, objectPrefix string, recursive
 		var uploadIDMarker string
 		for {
 			// list all multipart uploads.
-			result, err := c.listMultipartUploadsQuery(bucketName, objectMarker, uploadIDMarker, objectPrefix, delimiter, 0)
+			result, err := c.listMultipartUploadsQuery(ctx, bucketName, objectMarker, uploadIDMarker, objectPrefix, delimiter, 0)
 			if err != nil {
 				objectMultipartStatCh <- ObjectMultipartInfo{
 					Err: err,
@@ -598,7 +626,7 @@ func (c Client) listIncompleteUploads(bucketName, objectPrefix string, recursive
 				// Calculate total size of the uploaded parts if 'aggregateSize' is enabled.
 				if aggregateSize {
 					// Get total multipart size.
-					obj.Size, err = c.getTotalMultipartSize(bucketName, obj.Key, obj.UploadID)
+					obj.Size, err = c.getTotalMultipartSize(ctx, bucketName, obj.Key, obj.UploadID)
 					if err != nil {
 						objectMultipartStatCh <- ObjectMultipartInfo{
 							Err: err,
@@ -633,9 +661,10 @@ func (c Client) listIncompleteUploads(bucketName, objectPrefix string, recursive
 	}(objectMultipartStatCh)
 	// return.
 	return objectMultipartStatCh
+
 }
 
-// listMultipartUploads - (List Multipart Uploads).
+// listMultipartUploadsQuery - (List Multipart Uploads).
 //   - Lists some or all (up to 1000) in-progress multipart uploads in a bucket.
 //
 // You can use the request parameters as selection criteria to return a subset of the uploads in a bucket.
@@ -646,7 +675,7 @@ func (c Client) listIncompleteUploads(bucketName, objectPrefix string, recursive
 // ?delimiter - A delimiter is a character you use to group keys.
 // ?prefix - Limits the response to keys that begin with the specified prefix.
 // ?max-uploads - Sets the maximum number of multipart uploads returned in the response body.
-func (c Client) listMultipartUploadsQuery(bucketName, keyMarker, uploadIDMarker, prefix, delimiter string, maxUploads int) (ListMultipartUploadsResult, error) {
+func (c Client) listMultipartUploadsQuery(ctx context.Context, bucketName, keyMarker, uploadIDMarker, prefix, delimiter string, maxUploads int) (ListMultipartUploadsResult, error) {
 	// Get resources properly escaped and lined up before using them in http request.
 	urlValues := make(url.Values)
 	// Set uploads.
@@ -676,7 +705,7 @@ func (c Client) listMultipartUploadsQuery(bucketName, keyMarker, uploadIDMarker,
 	}
 
 	// Execute GET on bucketName to list multipart uploads.
-	resp, err := c.executeMethod(context.Background(), "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
 		bucketName:       bucketName,
 		queryValues:      urlValues,
 		contentSHA256Hex: emptySHA256Hex,
@@ -725,13 +754,13 @@ func (c Client) listMultipartUploadsQuery(bucketName, keyMarker, uploadIDMarker,
 }
 
 // listObjectParts list all object parts recursively.
-func (c Client) listObjectParts(bucketName, objectName, uploadID string) (partsInfo map[int]ObjectPart, err error) {
+func (c Client) listObjectParts(ctx context.Context, bucketName, objectName, uploadID string) (partsInfo map[int]ObjectPart, err error) {
 	// Part number marker for the next batch of request.
 	var nextPartNumberMarker int
 	partsInfo = make(map[int]ObjectPart)
 	for {
 		// Get list of uploaded parts a maximum of 1000 per request.
-		listObjPartsResult, err := c.listObjectPartsQuery(bucketName, objectName, uploadID, nextPartNumberMarker, 1000)
+		listObjPartsResult, err := c.listObjectPartsQuery(ctx, bucketName, objectName, uploadID, nextPartNumberMarker, 1000)
 		if err != nil {
 			return nil, err
 		}
@@ -754,7 +783,7 @@ func (c Client) listObjectParts(bucketName, objectName, uploadID string) (partsI
 }
 
 // findUploadIDs lists all incomplete uploads and find the uploadIDs of the matching object name.
-func (c Client) findUploadIDs(bucketName, objectName string) ([]string, error) {
+func (c Client) findUploadIDs(ctx context.Context, bucketName, objectName string) ([]string, error) {
 	var uploadIDs []string
 	// Make list incomplete uploads recursive.
 	isRecursive := true
@@ -764,7 +793,7 @@ func (c Client) findUploadIDs(bucketName, objectName string) ([]string, error) {
 	doneCh := make(chan struct{})
 	defer close(doneCh)
 	// List all incomplete uploads.
-	for mpUpload := range c.listIncompleteUploads(bucketName, objectName, isRecursive, isAggregateSize, doneCh) {
+	for mpUpload := range c.listIncompleteUploads(ctx, bucketName, objectName, isRecursive, isAggregateSize, doneCh) {
 		if mpUpload.Err != nil {
 			return nil, mpUpload.Err
 		}
@@ -776,10 +805,9 @@ func (c Client) findUploadIDs(bucketName, objectName string) ([]string, error) {
 	return uploadIDs, nil
 }
 
-// getTotalMultipartSize - calculate total uploaded size for the a given multipart object.
-func (c Client) getTotalMultipartSize(bucketName, objectName, uploadID string) (size int64, err error) {
+func (c Client) getTotalMultipartSize(ctx context.Context, bucketName, objectName, uploadID string) (size int64, err error) {
 	// Iterate over all parts and aggregate the size.
-	partsInfo, err := c.listObjectParts(bucketName, objectName, uploadID)
+	partsInfo, err := c.listObjectParts(ctx, bucketName, objectName, uploadID)
 	if err != nil {
 		return 0, err
 	}
@@ -799,7 +827,7 @@ func (c Client) getTotalMultipartSize(bucketName, objectName, uploadID string) (
 // ?part-number-marker - Specifies the part after which listing should
 // begin.
 // ?max-parts - Maximum parts to be listed per request.
-func (c Client) listObjectPartsQuery(bucketName, objectName, uploadID string, partNumberMarker, maxParts int) (ListObjectPartsResult, error) {
+func (c Client) listObjectPartsQuery(ctx context.Context, bucketName, objectName, uploadID string, partNumberMarker, maxParts int) (ListObjectPartsResult, error) {
 	// Get resources properly escaped and lined up before using them in http request.
 	urlValues := make(url.Values)
 	// Set part number marker.
@@ -814,7 +842,7 @@ func (c Client) listObjectPartsQuery(bucketName, objectName, uploadID string, pa
 	}
 
 	// Execute GET on objectName to get list of parts.
-	resp, err := c.executeMethod(context.Background(), "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
 		bucketName:       bucketName,
 		objectName:       objectName,
 		queryValues:      urlValues,

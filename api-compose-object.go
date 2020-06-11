@@ -408,16 +408,20 @@ func (c Client) uploadPartCopy(ctx context.Context, bucket, object, uploadID str
 	return p, nil
 }
 
-// ComposeObjectWithProgress - creates an object using server-side copying of
+// ComposeObjectWithProgress is a wrapper for ComposeObjectWithProgressWithContext.
+func (c Client) ComposeObjectWithProgress(dst DestinationInfo, srcs []SourceInfo, progress io.Reader) error {
+	return c.ComposeObjectWithProgressWithContext(context.Background(), dst, srcs, progress)
+}
+
+// ComposeObjectWithProgressWithContext - creates an object using server-side copying of
 // existing objects. It takes a list of source objects (with optional
 // offsets) and concatenates them into a new object using only
 // server-side copying operations. Optionally takes progress reader hook
 // for applications to look at current progress.
-func (c Client) ComposeObjectWithProgress(dst DestinationInfo, srcs []SourceInfo, progress io.Reader) error {
+func (c Client) ComposeObjectWithProgressWithContext(ctx context.Context, dst DestinationInfo, srcs []SourceInfo, progress io.Reader) error {
 	if len(srcs) < 1 || len(srcs) > maxPartsCount {
 		return ErrInvalidArgument("There must be as least one and up to 10000 source objects.")
 	}
-	ctx := context.Background()
 	srcSizes := make([]int64, len(srcs))
 	var totalSize, size, totalParts int64
 	var srcUserMeta map[string]string
@@ -478,7 +482,7 @@ func (c Client) ComposeObjectWithProgress(dst DestinationInfo, srcs []SourceInfo
 	// involved, it is being copied wholly and at most 5GiB in
 	// size, emptyfiles are also supported).
 	if (totalParts == 1 && srcs[0].start == -1 && totalSize <= maxPartSize) || (totalSize == 0) {
-		return c.CopyObjectWithProgress(dst, srcs[0], progress)
+		return c.CopyObjectWithProgressWithContext(ctx, dst, srcs[0], progress)
 	}
 
 	// Now, handle multipart-copy cases.

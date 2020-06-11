@@ -171,12 +171,12 @@ func (c Client) MakeBucketWithObjectLockWithContext(ctx context.Context, bucketN
 	return c.makeBucket(ctx, bucketName, location, true)
 }
 
-// SetBucketPolicy set the access permissions on an existing bucket.
+// SetBucketPolicy sets the access permissions on an existing bucket.
 func (c Client) SetBucketPolicy(bucketName, policy string) error {
 	return c.SetBucketPolicyWithContext(context.Background(), bucketName, policy)
 }
 
-// SetBucketPolicyWithContext set the access permissions on an existing bucket.
+// SetBucketPolicyWithContext sets the access permissions on an existing bucket.
 func (c Client) SetBucketPolicyWithContext(ctx context.Context, bucketName, policy string) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
@@ -465,9 +465,14 @@ func (c Client) SetBucketNotificationWithContext(ctx context.Context, bucketName
 	return nil
 }
 
-// RemoveAllBucketNotification - Remove bucket notification clears all previously specified config
+// RemoveAllBucketNotification is a wrapper for RemoveAllBucketNotificationWithContext
 func (c Client) RemoveAllBucketNotification(bucketName string) error {
-	return c.SetBucketNotification(bucketName, BucketNotification{})
+	return c.RemoveAllBucketNotificationWithContext(context.Background(), bucketName)
+}
+
+// RemoveAllBucketNotificationWithContext - Remove bucket notification clears all previously specified config
+func (c Client) RemoveAllBucketNotificationWithContext(ctx context.Context, bucketName string) error {
+	return c.SetBucketNotificationWithContext(ctx, bucketName, BucketNotification{})
 }
 
 var (

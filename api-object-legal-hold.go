@@ -80,8 +80,13 @@ func newObjectLegalHold(status *LegalHoldStatus) (*objectLegalHold, error) {
 	return legalHold, nil
 }
 
-// PutObjectLegalHold : sets object legal hold for a given object and versionID.
+// PutObjectLegalHold is the wrapper for PutObjectLegalHoldWithContext.
 func (c Client) PutObjectLegalHold(bucketName, objectName string, opts PutObjectLegalHoldOptions) error {
+	return c.PutObjectLegalHoldWithContext(context.Background(), bucketName, objectName, opts)
+}
+
+// PutObjectLegalHoldWithContext : sets object legal hold for a given object and versionID.
+func (c Client) PutObjectLegalHoldWithContext(ctx context.Context, bucketName, objectName string, opts PutObjectLegalHoldOptions) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return err
@@ -121,7 +126,7 @@ func (c Client) PutObjectLegalHold(bucketName, objectName string, opts PutObject
 	}
 
 	// Execute PUT Object Legal Hold.
-	resp, err := c.executeMethod(context.Background(), "PUT", reqMetadata)
+	resp, err := c.executeMethod(ctx, "PUT", reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
 		return err

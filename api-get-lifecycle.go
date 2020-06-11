@@ -26,13 +26,18 @@ import (
 	"github.com/minio/minio-go/v6/pkg/s3utils"
 )
 
-// GetBucketLifecycle - get bucket lifecycle.
+// GetBucketLifecycle is a wrapper for GetBucketLifecycleWithContext.
 func (c Client) GetBucketLifecycle(bucketName string) (string, error) {
+	return c.GetBucketLifecycleWithContext(context.Background(), bucketName)
+}
+
+// GetBucketLifecycleWithContext - get bucket lifecycle.
+func (c Client) GetBucketLifecycleWithContext(ctx context.Context, bucketName string) (string, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return "", err
 	}
-	bucketLifecycle, err := c.getBucketLifecycle(bucketName)
+	bucketLifecycle, err := c.getBucketLifecycle(ctx, bucketName)
 	if err != nil {
 		errResponse := ToErrorResponse(err)
 		if errResponse.Code == "NoSuchLifecycleConfiguration" {
@@ -44,14 +49,14 @@ func (c Client) GetBucketLifecycle(bucketName string) (string, error) {
 }
 
 // Request server for current bucket lifecycle.
-func (c Client) getBucketLifecycle(bucketName string) (string, error) {
+func (c Client) getBucketLifecycle(ctx context.Context, bucketName string) (string, error) {
 	// Get resources properly escaped and lined up before
 	// using them in http request.
 	urlValues := make(url.Values)
 	urlValues.Set("lifecycle", "")
 
 	// Execute GET on bucket to get lifecycle.
-	resp, err := c.executeMethod(context.Background(), "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
 		bucketName:  bucketName,
 		queryValues: urlValues,
 	})
