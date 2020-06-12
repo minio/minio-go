@@ -277,12 +277,12 @@ type RemoveObjectsOptions struct {
 // The list of objects to remove are received from objectsCh.
 // Remove failures are sent back via error channel.
 func (c Client) RemoveObjectsWithOptions(bucketName string, objectsCh <-chan string, opts RemoveObjectsOptions) <-chan RemoveObjectError {
-	return c.RemoveObjectsWithOptionsWithContext(context.Background(), bucketName, objectsCh, opts)
+	return c.RemoveObjectsWithOptionsContext(context.Background(), bucketName, objectsCh, opts)
 }
 
-// RemoveObjectsWithOptionsWithContext - Identical to RemoveObjects call, but accepts context to
+// RemoveObjectsWithOptionsContext - Identical to RemoveObjects call, but accepts context to
 // facilitate request cancellation and options to bypass governance retention
-func (c Client) RemoveObjectsWithOptionsWithContext(ctx context.Context, bucketName string, objectsCh <-chan string, opts RemoveObjectsOptions) <-chan RemoveObjectError {
+func (c Client) RemoveObjectsWithOptionsContext(ctx context.Context, bucketName string, objectsCh <-chan string, opts RemoveObjectsOptions) <-chan RemoveObjectError {
 	errorCh := make(chan RemoveObjectError, 1)
 
 	// Validate if bucket name is valid.
