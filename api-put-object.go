@@ -53,6 +53,8 @@ type PutObjectOptions struct {
 	LegalHold               LegalHoldStatus
 	SendContentMd5          bool
 	DisableMultipart        bool
+	ReplicationVersionID    string
+	ReplicationStatus       string
 }
 
 // getNumThreads - gets the number of threads to be used in the multipart
@@ -114,6 +116,9 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 		header.Set(amzWebsiteRedirectLocation, opts.WebsiteRedirectLocation)
 	}
 
+	if opts.ReplicationStatus != "" {
+		header.Set(amzBucketReplicationStatus, opts.ReplicationStatus)
+	}
 	if len(opts.UserTags) != 0 {
 		header.Set(amzTaggingHeader, s3utils.TagEncode(opts.UserTags))
 	}

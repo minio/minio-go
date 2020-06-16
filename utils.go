@@ -332,6 +332,7 @@ var supportedHeaders = []string{
 	"x-amz-metadata-directive",
 	"x-amz-object-lock-retain-until-date",
 	"expires",
+	"x-amz-replication-status",
 	// Add more supported headers here.
 }
 
