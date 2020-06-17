@@ -34,13 +34,61 @@ import (
 
 // DestinationInfo - type with information about the object to be
 // created via server-side copy requests, using the Compose API.
-type DestinationInfo struct {
+//
+// Deprecated: Use DestinationOptions instead
+type DestinationInfo = DestinationOptions
+
+// SourceInfo - represents a source object to be copied, using
+// server-side copying APIs.
+//
+// Deprecated: Use SourceOptions instead
+type SourceInfo = SourceOptions
+
+// DestInfoOptions represents options specified by user for NewDestinationOptions call
+//
+// Deprecated: Use TargetObjectInfo instead
+type DestInfoOptions = TargetObjectInfo
+
+// NewDestinationInfo - creates a compose-object/copy-source
+// destination info object.
+//
+// `sse` is the key info for server-side-encryption with customer
+// provided key. If it is nil, no encryption is performed.
+//
+// `userMeta` is the user-metadata key-value pairs to be set on the
+// destination. The keys are automatically prefixed with `x-amz-meta-`
+// if needed. If nil is passed, and if only a single source (of any
+// size) is provided in the ComposeObject call, then metadata from the
+// source is copied to the destination.
+//
+// Deprecated: Use NewDestinationOptions instead
+var NewDestinationInfo = NewDestinationOptions
+
+// NewDestinationInfoWithOptions - creates a compose-object/copy-source
+// destination info object.
+//
+// Deprecated: Use NewDestinationOptionsWithTargetInfo instead
+var NewDestinationInfoWithOptions = NewDestinationOptionsWithTargetInfo
+
+// NewSourceInfo - create a compose-object/copy-object source options
+// object.
+//
+// `decryptSSEC` is the decryption key using server-side-encryption
+// with customer provided key. It may be nil if the source is not
+// encrypted.
+//
+// Deprecated: Use NewSourceOptions instead
+var NewSourceInfo = NewSourceOptions
+
+// DestinationOptions - type with information about the object to be
+// created via server-side copy requests, using the Compose API.
+type DestinationOptions struct {
 	bucket, object string
-	opts           DestInfoOptions
+	opts           TargetObjectInfo
 }
 
-// DestInfoOptions represents options specified by user for NewDestinationInfo call
-type DestInfoOptions struct {
+// TargetObjectInfo represents options specified by user for NewDestinationOptions call
+type TargetObjectInfo struct {
 	// `Encryption` is the key info for server-side-encryption with customer
 	// provided key. If it is nil, no encryption is performed.
 	Encryption encrypt.ServerSide
@@ -86,7 +134,7 @@ func filterCustomMeta(userMeta map[string]string) (map[string]string, error) {
 	return m, nil
 }
 
-// NewDestinationInfo - creates a compose-object/copy-source
+// NewDestinationOptions - creates a compose-object/copy-source
 // destination info object.
 //
 // `sse` is the key info for server-side-encryption with customer
@@ -97,7 +145,7 @@ func filterCustomMeta(userMeta map[string]string) (map[string]string, error) {
 // if needed. If nil is passed, and if only a single source (of any
 // size) is provided in the ComposeObject call, then metadata from the
 // source is copied to the destination.
-func NewDestinationInfo(bucket, object string, sse encrypt.ServerSide, userMeta map[string]string) (d DestinationInfo, err error) {
+func NewDestinationOptions(bucket, object string, sse encrypt.ServerSide, userMeta map[string]string) (d DestinationOptions, err error) {
 	// Input validation.
 	if err = s3utils.CheckValidBucketName(bucket); err != nil {
 		return d, err
@@ -109,7 +157,7 @@ func NewDestinationInfo(bucket, object string, sse encrypt.ServerSide, userMeta 
 	if err != nil {
 		return d, err
 	}
-	opts := DestInfoOptions{
+	opts := TargetObjectInfo{
 		Encryption:  sse,
 		UserMeta:    m,
 		UserTags:    nil,
@@ -117,16 +165,16 @@ func NewDestinationInfo(bucket, object string, sse encrypt.ServerSide, userMeta 
 		LegalHold:   LegalHoldStatus(""),
 		Mode:        RetentionMode(""),
 	}
-	return DestinationInfo{
+	return DestinationOptions{
 		bucket: bucket,
 		object: object,
 		opts:   opts,
 	}, nil
 }
 
-// NewDestinationInfoWithOptions - creates a compose-object/copy-source
+// NewDestinationOptionsWithTargetInfo - creates a compose-object/copy-source
 // destination info object.
-func NewDestinationInfoWithOptions(bucket, object string, destOpts DestInfoOptions) (d DestinationInfo, err error) {
+func NewDestinationOptionsWithTargetInfo(bucket, object string, destOpts TargetObjectInfo) (d DestinationOptions, err error) {
 	// Input validation.
 	if err = s3utils.CheckValidBucketName(bucket); err != nil {
 		return d, err
@@ -138,7 +186,7 @@ func NewDestinationInfoWithOptions(bucket, object string, destOpts DestInfoOptio
 	if err != nil {
 		return d, err
 	}
-	return DestinationInfo{
+	return DestinationOptions{
 		bucket: bucket,
 		object: object,
 		opts:   destOpts,
@@ -151,7 +199,7 @@ func NewDestinationInfoWithOptions(bucket, object string, destOpts DestInfoOptio
 // withCopyDirectiveHeader to set the `x-amz-metadata-directive` to
 // `REPLACE`, so that metadata headers from the source are not copied
 // over.
-func (d *DestinationInfo) getUserMetaHeadersMap(withCopyDirectiveHeader bool) map[string]string {
+func (d *DestinationOptions) getUserMetaHeadersMap(withCopyDirectiveHeader bool) map[string]string {
 	if len(d.opts.UserMeta) == 0 {
 		return nil
 	}
@@ -169,9 +217,9 @@ func (d *DestinationInfo) getUserMetaHeadersMap(withCopyDirectiveHeader bool) ma
 	return r
 }
 
-// SourceInfo - represents a source object to be copied, using
+// SourceOptions - represents a source object to be copied, using
 // server-side copying APIs.
-type SourceInfo struct {
+type SourceOptions struct {
 	bucket, object string
 	start, end     int64
 	encryption     encrypt.ServerSide
@@ -180,14 +228,14 @@ type SourceInfo struct {
 	Headers http.Header
 }
 
-// NewSourceInfo - create a compose-object/copy-object source info
+// NewSourceOptions - create a compose-object/copy-object source options
 // object.
 //
 // `decryptSSEC` is the decryption key using server-side-encryption
 // with customer provided key. It may be nil if the source is not
 // encrypted.
-func NewSourceInfo(bucket, object string, sse encrypt.ServerSide) SourceInfo {
-	r := SourceInfo{
+func NewSourceOptions(bucket, object string, sse encrypt.ServerSide) SourceOptions {
+	r := SourceOptions{
 		bucket:     bucket,
 		object:     object,
 		start:      -1, // range is unspecified by default
@@ -203,7 +251,7 @@ func NewSourceInfo(bucket, object string, sse encrypt.ServerSide) SourceInfo {
 // SetRange - Set the start and end offset of the source object to be
 // copied. If this method is not called, the whole source object is
 // copied.
-func (s *SourceInfo) SetRange(start, end int64) error {
+func (s *SourceOptions) SetRange(start, end int64) error {
 	if start > end || start < 0 {
 		return ErrInvalidArgument("start must be non-negative, and start must be at most end.")
 	}
@@ -214,7 +262,7 @@ func (s *SourceInfo) SetRange(start, end int64) error {
 
 // SetMatchETagCond - Set ETag match condition. The object is copied
 // only if the etag of the source matches the value given here.
-func (s *SourceInfo) SetMatchETagCond(etag string) error {
+func (s *SourceOptions) SetMatchETagCond(etag string) error {
 	if etag == "" {
 		return ErrInvalidArgument("ETag cannot be empty.")
 	}
@@ -225,7 +273,7 @@ func (s *SourceInfo) SetMatchETagCond(etag string) error {
 // SetMatchETagExceptCond - Set the ETag match exception
 // condition. The object is copied only if the etag of the source is
 // not the value given here.
-func (s *SourceInfo) SetMatchETagExceptCond(etag string) error {
+func (s *SourceOptions) SetMatchETagExceptCond(etag string) error {
 	if etag == "" {
 		return ErrInvalidArgument("ETag cannot be empty.")
 	}
@@ -234,7 +282,7 @@ func (s *SourceInfo) SetMatchETagExceptCond(etag string) error {
 }
 
 // SetModifiedSinceCond - Set the modified since condition.
-func (s *SourceInfo) SetModifiedSinceCond(modTime time.Time) error {
+func (s *SourceOptions) SetModifiedSinceCond(modTime time.Time) error {
 	if modTime.IsZero() {
 		return ErrInvalidArgument("Input time cannot be 0.")
 	}
@@ -243,7 +291,7 @@ func (s *SourceInfo) SetModifiedSinceCond(modTime time.Time) error {
 }
 
 // SetUnmodifiedSinceCond - Set the unmodified since condition.
-func (s *SourceInfo) SetUnmodifiedSinceCond(modTime time.Time) error {
+func (s *SourceOptions) SetUnmodifiedSinceCond(modTime time.Time) error {
 	if modTime.IsZero() {
 		return ErrInvalidArgument("Input time cannot be 0.")
 	}
@@ -252,7 +300,7 @@ func (s *SourceInfo) SetUnmodifiedSinceCond(modTime time.Time) error {
 }
 
 // Helper to fetch size and etag of an object using a StatObject call.
-func (s *SourceInfo) getProps(c Client) (size int64, etag string, userMeta map[string]string, err error) {
+func (s *SourceOptions) getProps(c Client) (size int64, etag string, userMeta map[string]string, err error) {
 	// Get object info - need size and etag here. Also, decryption
 	// headers are added to the stat request if given.
 	var objInfo ObjectInfo
@@ -409,7 +457,7 @@ func (c Client) uploadPartCopy(ctx context.Context, bucket, object, uploadID str
 }
 
 // ComposeObjectWithProgress is a wrapper for ComposeObjectWithProgressWithContext.
-func (c Client) ComposeObjectWithProgress(dst DestinationInfo, srcs []SourceInfo, progress io.Reader) error {
+func (c Client) ComposeObjectWithProgress(dst DestinationOptions, srcs []SourceOptions, progress io.Reader) error {
 	return c.ComposeObjectWithProgressWithContext(context.Background(), dst, srcs, progress)
 }
 
@@ -418,7 +466,7 @@ func (c Client) ComposeObjectWithProgress(dst DestinationInfo, srcs []SourceInfo
 // offsets) and concatenates them into a new object using only
 // server-side copying operations. Optionally takes progress reader hook
 // for applications to look at current progress.
-func (c Client) ComposeObjectWithProgressWithContext(ctx context.Context, dst DestinationInfo, srcs []SourceInfo, progress io.Reader) error {
+func (c Client) ComposeObjectWithProgressWithContext(ctx context.Context, dst DestinationOptions, srcs []SourceOptions, progress io.Reader) error {
 	if len(srcs) < 1 || len(srcs) > maxPartsCount {
 		return ErrInvalidArgument("There must be as least one and up to 10000 source objects.")
 	}
@@ -448,7 +496,7 @@ func (c Client) ComposeObjectWithProgressWithContext(ctx context.Context, dst De
 			// so only invalid case to check is:
 			if src.end >= size {
 				return ErrInvalidArgument(
-					fmt.Sprintf("SourceInfo %d has invalid segment-to-copy [%d, %d] (size is %d)",
+					fmt.Sprintf("SourceOptions %d has invalid segment-to-copy [%d, %d] (size is %d)",
 						i, src.start, src.end, size))
 			}
 			size = src.end - src.start + 1
@@ -457,7 +505,7 @@ func (c Client) ComposeObjectWithProgressWithContext(ctx context.Context, dst De
 		// Only the last source may be less than `absMinPartSize`
 		if size < absMinPartSize && i < len(srcs)-1 {
 			return ErrInvalidArgument(
-				fmt.Sprintf("SourceInfo %d is too small (%d) and it is not the last part", i, size))
+				fmt.Sprintf("SourceOptions %d is too small (%d) and it is not the last part", i, size))
 		}
 
 		// Is data to copy too large?
@@ -566,7 +614,7 @@ func (c Client) ComposeObjectWithProgressWithContext(ctx context.Context, dst De
 // existing objects. It takes a list of source objects (with optional
 // offsets) and concatenates them into a new object using only
 // server-side copying operations.
-func (c Client) ComposeObject(dst DestinationInfo, srcs []SourceInfo) error {
+func (c Client) ComposeObject(dst DestinationOptions, srcs []SourceOptions) error {
 	return c.ComposeObjectWithProgress(dst, srcs, nil)
 }
 
@@ -585,7 +633,7 @@ func partsRequired(size int64) int64 {
 // start and end index slices. Splits happen evenly to be sure that no
 // part is less than 5MiB, as that could fail the multipart request if
 // it is not the last part.
-func calculateEvenSplits(size int64, src SourceInfo) (startIndex, endIndex []int64) {
+func calculateEvenSplits(size int64, src SourceOptions) (startIndex, endIndex []int64) {
 	if size == 0 {
 		return
 	}
