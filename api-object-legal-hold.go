@@ -25,7 +25,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/minio/minio-go/v6/pkg/s3utils"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
 // objectLegalHold - object legal hold specified in
@@ -80,13 +80,8 @@ func newObjectLegalHold(status *LegalHoldStatus) (*objectLegalHold, error) {
 	return legalHold, nil
 }
 
-// PutObjectLegalHold is the wrapper for PutObjectLegalHoldWithContext.
-func (c Client) PutObjectLegalHold(bucketName, objectName string, opts PutObjectLegalHoldOptions) error {
-	return c.PutObjectLegalHoldWithContext(context.Background(), bucketName, objectName, opts)
-}
-
-// PutObjectLegalHoldWithContext : sets object legal hold for a given object and versionID.
-func (c Client) PutObjectLegalHoldWithContext(ctx context.Context, bucketName, objectName string, opts PutObjectLegalHoldOptions) error {
+// PutObjectLegalHold : sets object legal hold for a given object and versionID.
+func (c Client) PutObjectLegalHold(ctx context.Context, bucketName, objectName string, opts PutObjectLegalHoldOptions) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return err
@@ -140,7 +135,7 @@ func (c Client) PutObjectLegalHoldWithContext(ctx context.Context, bucketName, o
 }
 
 // GetObjectLegalHold gets legal-hold status of given object.
-func (c Client) GetObjectLegalHold(bucketName, objectName string, opts GetObjectLegalHoldOptions) (status *LegalHoldStatus, err error) {
+func (c Client) GetObjectLegalHold(ctx context.Context, bucketName, objectName string, opts GetObjectLegalHoldOptions) (status *LegalHoldStatus, err error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return nil, err
@@ -157,7 +152,7 @@ func (c Client) GetObjectLegalHold(bucketName, objectName string, opts GetObject
 	}
 
 	// Execute GET on bucket to list objects.
-	resp, err := c.executeMethod(context.Background(), "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
 		bucketName:       bucketName,
 		objectName:       objectName,
 		queryValues:      urlValues,

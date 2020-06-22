@@ -20,10 +20,11 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 
-	minio "github.com/minio/minio-go/v6"
+	minio "github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -46,7 +47,7 @@ func main() {
 	}
 	defer object.Close()
 
-	n, err := s3Client.PutObject("my-bucketname", "my-objectname", object, -1, minio.PutObjectOptions{})
+	n, err := s3Client.PutObject(context.Background(), "my-bucketname", "my-objectname", object, -1, minio.PutObjectOptions{})
 	if err != nil {
 		log.Fatalln(err)
 	}

@@ -1,6 +1,6 @@
 /*
  * MinIO Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2015-2017 MinIO, Inc.
+ * Copyright 2015-2020 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,19 +25,14 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/minio/minio-go/v6/pkg/s3utils"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
-// RemoveBucket is the wrapper for RemoveBucketWithContext
-func (c Client) RemoveBucket(bucketName string) error {
-	return c.RemoveBucketWithContext(context.Background(), bucketName)
-}
-
-// RemoveBucketWithContext deletes the bucket name.
+// RemoveBucket deletes the bucket name.
 //
 //  All objects (including all object versions and delete markers).
 //  in the bucket must be deleted before successfully attempting this request.
-func (c Client) RemoveBucketWithContext(ctx context.Context, bucketName string) error {
+func (c Client) RemoveBucket(ctx context.Context, bucketName string) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return err
@@ -64,8 +59,8 @@ func (c Client) RemoveBucketWithContext(ctx context.Context, bucketName string) 
 }
 
 // RemoveObject remove an object from a bucket.
-func (c Client) RemoveObject(bucketName, objectName string) error {
-	return c.RemoveObjectWithOptions(bucketName, objectName, RemoveObjectOptions{})
+func (c Client) RemoveObject(ctx context.Context, bucketName, objectName string) error {
+	return c.RemoveObjectWithOptions(ctx, bucketName, objectName, RemoveObjectOptions{})
 }
 
 // RemoveObjectOptions represents options specified by user for RemoveObject call
@@ -75,7 +70,7 @@ type RemoveObjectOptions struct {
 }
 
 // RemoveObjectWithOptions removes an object from a bucket.
-func (c Client) RemoveObjectWithOptions(bucketName, objectName string, opts RemoveObjectOptions) error {
+func (c Client) RemoveObjectWithOptions(ctx context.Context, bucketName, objectName string, opts RemoveObjectOptions) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return err
@@ -100,7 +95,7 @@ func (c Client) RemoveObjectWithOptions(bucketName, objectName string, opts Remo
 		headers.Set(amzBypassGovernance, "true")
 	}
 	// Execute DELETE on objectName.
-	resp, err := c.executeMethod(context.Background(), "DELETE", requestMetadata{
+	resp, err := c.executeMethod(ctx, "DELETE", requestMetadata{
 		bucketName:       bucketName,
 		objectName:       objectName,
 		contentSHA256Hex: emptySHA256Hex,
@@ -163,8 +158,10 @@ func processRemoveMultiObjectsResponse(body io.Reader, objects []string, errorCh
 	}
 }
 
-// RemoveObjectsWithContext - Identical to RemoveObjects call, but accepts context to facilitate request cancellation.
-func (c Client) RemoveObjectsWithContext(ctx context.Context, bucketName string, objectsCh <-chan string) <-chan RemoveObjectError {
+// RemoveObjects removes multiple objects from a bucket.
+// The list of objects to remove are received from objectsCh.
+// Remove failures are sent back via error channel.
+func (c Client) RemoveObjects(ctx context.Context, bucketName string, objectsCh <-chan string) <-chan RemoveObjectError {
 	errorCh := make(chan RemoveObjectError, 1)
 
 	// Validate if bucket name is valid.
@@ -261,13 +258,6 @@ func (c Client) removeObjects(ctx context.Context, bucketName string, objectsCh 
 	}
 }
 
-// RemoveObjects removes multiple objects from a bucket.
-// The list of objects to remove are received from objectsCh.
-// Remove failures are sent back via error channel.
-func (c Client) RemoveObjects(bucketName string, objectsCh <-chan string) <-chan RemoveObjectError {
-	return c.RemoveObjectsWithContext(context.Background(), bucketName, objectsCh)
-}
-
 // RemoveObjectsOptions represents options specified by user for RemoveObjects call
 type RemoveObjectsOptions struct {
 	GovernanceBypass bool
@@ -276,13 +266,7 @@ type RemoveObjectsOptions struct {
 // RemoveObjectsWithOptions removes multiple objects from a bucket.
 // The list of objects to remove are received from objectsCh.
 // Remove failures are sent back via error channel.
-func (c Client) RemoveObjectsWithOptions(bucketName string, objectsCh <-chan string, opts RemoveObjectsOptions) <-chan RemoveObjectError {
-	return c.RemoveObjectsWithOptionsContext(context.Background(), bucketName, objectsCh, opts)
-}
-
-// RemoveObjectsWithOptionsContext - Identical to RemoveObjects call, but accepts context to
-// facilitate request cancellation and options to bypass governance retention
-func (c Client) RemoveObjectsWithOptionsContext(ctx context.Context, bucketName string, objectsCh <-chan string, opts RemoveObjectsOptions) <-chan RemoveObjectError {
+func (c Client) RemoveObjectsWithOptions(ctx context.Context, bucketName string, objectsCh <-chan string, opts RemoveObjectsOptions) <-chan RemoveObjectError {
 	errorCh := make(chan RemoveObjectError, 1)
 
 	// Validate if bucket name is valid.
@@ -306,13 +290,8 @@ func (c Client) RemoveObjectsWithOptionsContext(ctx context.Context, bucketName 
 	return errorCh
 }
 
-// RemoveIncompleteUpload is a wrapper for RemoveIncompleteUploadWithContext
-func (c Client) RemoveIncompleteUpload(bucketName, objectName string) error {
-	return c.RemoveIncompleteUploadWithContext(context.Background(), bucketName, objectName)
-}
-
-// RemoveIncompleteUploadWithContext aborts an partially uploaded object.
-func (c Client) RemoveIncompleteUploadWithContext(ctx context.Context, bucketName, objectName string) error {
+// RemoveIncompleteUpload aborts an partially uploaded object.
+func (c Client) RemoveIncompleteUpload(ctx context.Context, bucketName, objectName string) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return err

@@ -20,9 +20,10 @@
 package main
 
 import (
+	"context"
 	"log"
 
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -39,7 +40,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	if err := s3Client.FGetObject("my-bucketname", "my-objectname", "my-filename.csv", minio.GetObjectOptions{}); err != nil {
+	if err := s3Client.FGetObject(context.Background(), "my-bucketname", "my-objectname", "my-filename.csv", minio.GetObjectOptions{}); err != nil {
 		log.Fatalln(err)
 	}
 	log.Println("Successfully saved my-filename.csv")

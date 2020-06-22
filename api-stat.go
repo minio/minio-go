@@ -21,17 +21,12 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/minio/minio-go/v6/pkg/s3utils"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
-// BucketExists verify if bucket exists and you have permission to access it.
-func (c Client) BucketExists(bucketName string) (bool, error) {
-	return c.BucketExistsWithContext(context.Background(), bucketName)
-}
-
-// BucketExistsWithContext verify if bucket exists and you have permission to access it. Allows for a Context to
+// BucketExists verifies if bucket exists and you have permission to access it. Allows for a Context to
 // control cancellations and timeouts.
-func (c Client) BucketExistsWithContext(ctx context.Context, bucketName string) (bool, error) {
+func (c Client) BucketExists(ctx context.Context, bucketName string) (bool, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return false, err
@@ -62,13 +57,7 @@ func (c Client) BucketExistsWithContext(ctx context.Context, bucketName string) 
 }
 
 // StatObject verifies if object exists and you have permission to access.
-func (c Client) StatObject(bucketName, objectName string, opts StatObjectOptions) (ObjectInfo, error) {
-	return c.StatObjectWithContext(context.Background(), bucketName, objectName, opts)
-}
-
-// StatObjectWithContext verifies if object exists and you have permission to access with a context to control
-// cancellations and timeouts.
-func (c Client) StatObjectWithContext(ctx context.Context, bucketName, objectName string, opts StatObjectOptions) (ObjectInfo, error) {
+func (c Client) StatObject(ctx context.Context, bucketName, objectName string, opts StatObjectOptions) (ObjectInfo, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return ObjectInfo{}, err

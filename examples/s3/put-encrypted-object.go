@@ -20,11 +20,12 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 
-	"github.com/minio/minio-go/v6"
-	"github.com/minio/minio-go/v6/pkg/encrypt"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/encrypt"
 )
 
 func main() {
@@ -64,7 +65,7 @@ func main() {
 	encryption := encrypt.DefaultPBKDF([]byte(password), []byte(bucketname+objectName))
 
 	// Encrypt file content and upload to the server
-	n, err := s3Client.PutObject(bucketname, objectName, file, fstat.Size(), minio.PutObjectOptions{ServerSideEncryption: encryption})
+	n, err := s3Client.PutObject(context.Background(), bucketname, objectName, file, fstat.Size(), minio.PutObjectOptions{ServerSideEncryption: encryption})
 	if err != nil {
 		log.Fatalln(err)
 	}

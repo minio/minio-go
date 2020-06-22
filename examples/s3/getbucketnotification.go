@@ -20,9 +20,10 @@
 package main
 
 import (
+	"context"
 	"log"
 
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -41,7 +42,7 @@ func main() {
 
 	// s3Client.TraceOn(os.Stderr)
 
-	notifications, err := s3Client.GetBucketNotification("my-bucketname")
+	notifications, err := s3Client.GetBucketNotification(context.Background(), "my-bucketname")
 	if err != nil {
 		log.Fatalln(err)
 	}

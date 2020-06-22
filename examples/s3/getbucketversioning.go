@@ -20,10 +20,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -44,7 +45,7 @@ func main() {
 
 	// Get versioning configuration set on an S3 bucket,
 	// and print out the versioning configuration.
-	versioningConfig, err := s3Client.GetBucketVersioning("my-bucketname")
+	versioningConfig, err := s3Client.GetBucketVersioning(context.Background(), "my-bucketname")
 	if err != nil {
 		log.Fatalln(err)
 	}

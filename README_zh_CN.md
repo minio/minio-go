@@ -2,7 +2,7 @@
 
 MinIO Go Client SDK提供了简单的API来访问任何与Amazon S3兼容的对象存储服务。
 
-**支持的云存储:** 
+**支持的云存储:**
 
 - AWS Signature Version 4
    - Amazon S3
@@ -26,10 +26,10 @@ go get -u github.com/minio/minio-go
 ## 初始化MinIO Client
 MinIO client需要以下4个参数来连接与Amazon S3兼容的对象存储。
 
-| 参数  | 描述| 
+| 参数  | 描述|
 | :---         |     :---     |
-| endpoint   | 对象存储服务的URL   | 
-| accessKeyID | Access key是唯一标识你的账户的用户ID。 |   
+| endpoint   | 对象存储服务的URL   |
+| accessKeyID | Access key是唯一标识你的账户的用户ID。 |
 | secretAccessKey | Secret key是你账户的密码。 |
 | secure | true代表使用HTTPS |
 
@@ -38,7 +38,7 @@ MinIO client需要以下4个参数来连接与Amazon S3兼容的对象存储。
 package main
 
 import (
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 	"log"
 )
 
@@ -68,7 +68,7 @@ func main() {
 package main
 
 import (
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 	"log"
 )
 
@@ -118,7 +118,7 @@ func main() {
 ### 运行FileUploader
 ```sh
 go run file-uploader.go
-2016/08/13 17:03:28 Successfully created mymusic 
+2016/08/13 17:03:28 Successfully created mymusic
 2016/08/13 17:03:40 Successfully uploaded golden-oldies.zip of size 16253413
 
 mc ls play/mymusic/
@@ -151,14 +151,10 @@ mc ls play/mymusic/
 ### API文档 : 操作文件对象
 * [`FPutObject`](https://docs.min.io/docs/golang-client-api-reference#FPutObject)
 * [`FGetObject`](https://docs.min.io/docs/golang-client-api-reference#FPutObject)
-* [`FPutObjectWithContext`](https://docs.min.io/docs/golang-client-api-reference#FPutObjectWithContext)
-* [`FGetObjectWithContext`](https://docs.min.io/docs/golang-client-api-reference#FGetObjectWithContext)
 
 ### API文档 : 操作对象
 * [`GetObject`](https://docs.min.io/docs/golang-client-api-reference#GetObject)
 * [`PutObject`](https://docs.min.io/docs/golang-client-api-reference#PutObject)
-* [`GetObjectWithContext`](https://docs.min.io/docs/golang-client-api-reference#GetObjectWithContext)
-* [`PutObjectWithContext`](https://docs.min.io/docs/golang-client-api-reference#PutObjectWithContext)
 * [`PutObjectStreaming`](https://docs.min.io/docs/golang-client-api-reference#PutObjectStreaming)
 * [`StatObject`](https://docs.min.io/docs/golang-client-api-reference#StatObject)
 * [`CopyObject`](https://docs.min.io/docs/golang-client-api-reference#CopyObject)
@@ -197,7 +193,7 @@ mc ls play/mymusic/
 * [setbucketpolicy.go](https://github.com/minio/minio-go/blob/master/examples/s3/setbucketpolicy.go)
 * [getbucketpolicy.go](https://github.com/minio/minio-go/blob/master/examples/s3/getbucketpolicy.go)
 * [listbucketpolicies.go](https://github.com/minio/minio-go/blob/master/examples/s3/listbucketpolicies.go)
- 
+
 ### 完整示例 : 存储桶通知
 * [setbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/s3/setbucketnotification.go)
 * [getbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/s3/getbucketnotification.go)
@@ -238,7 +234,3 @@ mc ls play/mymusic/
 
 ## 贡献
 [贡献指南](https://github.com/minio/minio-go/blob/master/docs/zh_CN/CONTRIBUTING.md)
-
-[![Build Status](https://travis-ci.org/minio/minio-go.svg)](https://travis-ci.org/minio/minio-go)
-[![Build status](https://ci.appveyor.com/api/projects/status/1d05e6nvxcelmrak?svg=true)](https://ci.appveyor.com/project/harshavardhana/minio-go)
-

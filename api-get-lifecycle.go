@@ -23,16 +23,11 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/minio/minio-go/v6/pkg/s3utils"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
-// GetBucketLifecycle is a wrapper for GetBucketLifecycleWithContext.
-func (c Client) GetBucketLifecycle(bucketName string) (string, error) {
-	return c.GetBucketLifecycleWithContext(context.Background(), bucketName)
-}
-
-// GetBucketLifecycleWithContext - get bucket lifecycle.
-func (c Client) GetBucketLifecycleWithContext(ctx context.Context, bucketName string) (string, error) {
+// GetBucketLifecycle fetch bucket lifecycle configuration
+func (c Client) GetBucketLifecycle(ctx context.Context, bucketName string) (string, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return "", err

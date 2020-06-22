@@ -20,9 +20,10 @@
 package main
 
 import (
+	"context"
 	"log"
 
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -39,7 +40,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	if _, err := s3Client.FPutObject("my-bucketname", "my-objectname", "my-filename.csv", minio.PutObjectOptions{
+	if _, err := s3Client.FPutObject(context.Background(), "my-bucketname", "my-objectname", "my-filename.csv", minio.PutObjectOptions{
 		ContentType: "application/csv",
 	}); err != nil {
 		log.Fatalln(err)

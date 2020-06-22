@@ -23,23 +23,19 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/minio/minio-go/v6/pkg/s3utils"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
 // BucketVersioningConfiguration is the versioning configuration structure
 type BucketVersioningConfiguration struct {
 	XMLName   xml.Name `xml:"VersioningConfiguration"`
 	Status    string   `xml:"Status"`
-	MfaDelete string   `xml:"MfaDelete,omitempty"`
+	MFADelete string   `xml:"MfaDelete,omitempty"`
 }
 
-// GetBucketVersioning - get versioning configuration for a bucket.
-func (c Client) GetBucketVersioning(bucketName string) (BucketVersioningConfiguration, error) {
-	return c.GetBucketVersioningWithContext(context.Background(), bucketName)
-}
-
-// GetBucketVersioningWithContext gets the versioning configuration on an existing bucket with a context to control cancellations and timeouts.
-func (c Client) GetBucketVersioningWithContext(ctx context.Context, bucketName string) (BucketVersioningConfiguration, error) {
+// GetBucketVersioning gets the versioning configuration on
+// an existing bucket with a context to control cancellations and timeouts.
+func (c Client) GetBucketVersioning(ctx context.Context, bucketName string) (BucketVersioningConfiguration, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return BucketVersioningConfiguration{}, err

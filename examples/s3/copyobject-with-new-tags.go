@@ -20,10 +20,11 @@
 package main
 
 import (
+	"context"
 	"log"
 	"time"
 
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -73,7 +74,7 @@ func main() {
 		log.Fatalln(err)
 	}
 	// Initiate copy object.
-	err = s3Client.CopyObject(dst, src)
+	err = s3Client.CopyObject(context.Background(), dst, src)
 	if err != nil {
 		log.Fatalln(err)
 	}
