@@ -26,7 +26,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/minio/minio-go/v6/pkg/s3utils"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
 // RetentionMode - object retention mode.
@@ -138,13 +138,8 @@ func newObjectLockConfig(mode *RetentionMode, validity *uint, unit *ValidityUnit
 	return nil, fmt.Errorf("all of retention mode, validity and validity unit must be passed")
 }
 
-// SetBucketObjectLockConfig is a wrapper for SetBucketObjectLockConfigWithContext.
-func (c Client) SetBucketObjectLockConfig(bucketName string, mode *RetentionMode, validity *uint, unit *ValidityUnit) error {
-	return c.SetBucketObjectLockConfigWithContext(context.Background(), bucketName, mode, validity, unit)
-}
-
-// SetBucketObjectLockConfigWithContext sets object lock configuration in given bucket. mode, validity and unit are either all set or all nil.
-func (c Client) SetBucketObjectLockConfigWithContext(ctx context.Context, bucketName string, mode *RetentionMode, validity *uint, unit *ValidityUnit) error {
+// SetBucketObjectLockConfig sets object lock configuration in given bucket. mode, validity and unit are either all set or all nil.
+func (c Client) SetBucketObjectLockConfig(ctx context.Context, bucketName string, mode *RetentionMode, validity *uint, unit *ValidityUnit) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return err
@@ -188,13 +183,8 @@ func (c Client) SetBucketObjectLockConfigWithContext(ctx context.Context, bucket
 	return nil
 }
 
-// GetObjectLockConfig is a wrapper for GetObjectLockConfigWithContext
-func (c Client) GetObjectLockConfig(bucketName string) (objectLock string, mode *RetentionMode, validity *uint, unit *ValidityUnit, err error) {
-	return c.GetObjectLockConfigWithContext(context.Background(), bucketName)
-}
-
-// GetObjectLockConfigWithContext gets object lock configuration of given bucket.
-func (c Client) GetObjectLockConfigWithContext(ctx context.Context, bucketName string) (objectLock string, mode *RetentionMode, validity *uint, unit *ValidityUnit, err error) {
+// GetObjectLockConfig gets object lock configuration of given bucket.
+func (c Client) GetObjectLockConfig(ctx context.Context, bucketName string) (objectLock string, mode *RetentionMode, validity *uint, unit *ValidityUnit, err error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return "", nil, nil, nil, err
@@ -240,18 +230,12 @@ func (c Client) GetObjectLockConfigWithContext(ctx context.Context, bucketName s
 }
 
 // GetBucketObjectLockConfig gets object lock configuration of given bucket.
-func (c Client) GetBucketObjectLockConfig(bucketName string) (
-	mode *RetentionMode, validity *uint, unit *ValidityUnit, err error) {
-	return c.GetBucketObjectLockConfigWithContext(context.Background(), bucketName)
-}
-
-// GetBucketObjectLockConfigWithContext gets object lock configuration of given bucket.
-func (c Client) GetBucketObjectLockConfigWithContext(ctx context.Context, bucketName string) (mode *RetentionMode, validity *uint, unit *ValidityUnit, err error) {
-	_, mode, validity, unit, err = c.GetObjectLockConfigWithContext(ctx, bucketName)
+func (c Client) GetBucketObjectLockConfig(ctx context.Context, bucketName string) (mode *RetentionMode, validity *uint, unit *ValidityUnit, err error) {
+	_, mode, validity, unit, err = c.GetObjectLockConfig(ctx, bucketName)
 	return mode, validity, unit, err
 }
 
 // SetObjectLockConfig sets object lock configuration in given bucket. mode, validity and unit are either all set or all nil.
-func (c Client) SetObjectLockConfig(bucketName string, mode *RetentionMode, validity *uint, unit *ValidityUnit) error {
-	return c.SetBucketObjectLockConfig(bucketName, mode, validity, unit)
+func (c Client) SetObjectLockConfig(ctx context.Context, bucketName string, mode *RetentionMode, validity *uint, unit *ValidityUnit) error {
+	return c.SetBucketObjectLockConfig(ctx, bucketName, mode, validity, unit)
 }

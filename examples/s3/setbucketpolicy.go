@@ -20,9 +20,10 @@
 package main
 
 import (
+	"context"
 	"log"
 
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -44,7 +45,7 @@ func main() {
 	// Create policy
 	policy := `{"Version": "2012-10-17","Statement": [{"Action": ["s3:GetObject"],"Effect": "Allow","Principal": {"AWS": ["*"]},"Resource": ["arn:aws:s3:::my-bucketname/*"],"Sid": ""}]}`
 
-	err = s3Client.SetBucketPolicy("my-bucketname", policy)
+	err = s3Client.SetBucketPolicy(context.Background(), "my-bucketname", policy)
 	if err != nil {
 		log.Fatalln(err)
 	}

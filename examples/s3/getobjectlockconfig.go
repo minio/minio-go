@@ -20,11 +20,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
-	"os"
 
-	minio "github.com/minio/minio-go/v6"
+	minio "github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -44,7 +44,7 @@ func main() {
 	// s3Client.TraceOn(os.Stderr)
 
 	// Get object lock configuration.
-	enabled, mode, validity, unit, err := s3Client.GetObjectLockConfig("tbucket13a")
+	enabled, mode, validity, unit, err := s3Client.GetObjectLockConfig(context.Background(), "tbucket13a")
 	if err != nil {
 		log.Fatalln(err)
 	}

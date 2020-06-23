@@ -23,16 +23,12 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/minio/minio-go/v6/pkg/s3utils"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
-// GetBucketEncryption - get default encryption configuration for a bucket.
-func (c Client) GetBucketEncryption(bucketName string) (ServerSideEncryptionConfiguration, error) {
-	return c.GetBucketEncryptionWithContext(context.Background(), bucketName)
-}
-
-// GetBucketEncryptionWithContext gets the default encryption configuration on an existing bucket with a context to control cancellations and timeouts.
-func (c Client) GetBucketEncryptionWithContext(ctx context.Context, bucketName string) (ServerSideEncryptionConfiguration, error) {
+// GetBucketEncryption gets the default encryption configuration
+// on an existing bucket with a context to control cancellations and timeouts.
+func (c Client) GetBucketEncryption(ctx context.Context, bucketName string) (ServerSideEncryptionConfiguration, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return ServerSideEncryptionConfiguration{}, err

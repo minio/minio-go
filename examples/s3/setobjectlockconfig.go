@@ -20,9 +20,10 @@
 package main
 
 import (
+	"context"
 	"log"
 
-	minio "github.com/minio/minio-go/v6"
+	minio "github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -46,7 +47,7 @@ func main() {
 	validity := uint(30)
 	unit := minio.Days
 
-	err = s3Client.SetObjectLockConfig("my-bucketname", &mode, &validity, &unit)
+	err = s3Client.SetObjectLockConfig(context.Background(), "my-bucketname", &mode, &validity, &unit)
 	if err != nil {
 		log.Fatalln(err)
 	}

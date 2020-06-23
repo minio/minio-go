@@ -20,9 +20,10 @@
 package main
 
 import (
+	"context"
 	"log"
 
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -43,7 +44,7 @@ func main() {
 
 	// Set lifecycle on a bucket
 	lifecycle := `<LifecycleConfiguration><Rule><ID>expire-bucket</ID><Prefix></Prefix><Status>Enabled</Status><Expiration><Days>365</Days></Expiration></Rule></LifecycleConfiguration>`
-	err = s3Client.SetBucketLifecycle("my-bucketname", lifecycle)
+	err = s3Client.SetBucketLifecycle(context.Background(), "my-bucketname", lifecycle)
 	if err != nil {
 		log.Fatalln(err)
 	}

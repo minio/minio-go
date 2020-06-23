@@ -27,7 +27,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/minio/minio-go/v6/pkg/s3utils"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
 // putObjectMultipartStream - upload a large object using

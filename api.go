@@ -37,9 +37,9 @@ import (
 	"time"
 
 	md5simd "github.com/minio/md5-simd"
-	"github.com/minio/minio-go/v6/pkg/credentials"
-	"github.com/minio/minio-go/v6/pkg/s3utils"
-	"github.com/minio/minio-go/v6/pkg/signer"
+	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
+	"github.com/minio/minio-go/v7/pkg/signer"
 	"golang.org/x/net/publicsuffix"
 )
 
@@ -107,7 +107,7 @@ type Options struct {
 // Global constants.
 const (
 	libraryName    = "minio-go"
-	libraryVersion = "v6.0.58"
+	libraryVersion = "v7.0.0"
 )
 
 // User Agent should always following the below style.
@@ -649,7 +649,7 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 
 		// Instantiate a new request.
 		var req *http.Request
-		req, err = c.newRequest(method, metadata)
+		req, err = c.newRequest(ctx, method, metadata)
 		if err != nil {
 			errResponse := ToErrorResponse(err)
 			if isS3CodeRetryable(errResponse.Code) {
@@ -756,7 +756,7 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 }
 
 // newRequest - instantiate a new HTTP request for a given method.
-func (c Client) newRequest(method string, metadata requestMetadata) (req *http.Request, err error) {
+func (c Client) newRequest(ctx context.Context, method string, metadata requestMetadata) (req *http.Request, err error) {
 	// If no method is supplied default to 'POST'.
 	if method == "" {
 		method = "POST"
@@ -766,7 +766,7 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 	if location == "" {
 		if metadata.bucketName != "" {
 			// Gather location only if bucketName is present.
-			location, err = c.getBucketLocation(metadata.bucketName)
+			location, err = c.getBucketLocation(ctx, metadata.bucketName)
 			if err != nil {
 				return nil, err
 			}

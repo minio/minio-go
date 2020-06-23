@@ -26,7 +26,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/minio/minio-go/v6/pkg/s3utils"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
 // objectRetention - object retention specified in
@@ -65,13 +65,8 @@ type PutObjectRetentionOptions struct {
 	VersionID        string
 }
 
-// PutObjectRetention is a wrapper for PutObjectRetentionWithContext.
-func (c Client) PutObjectRetention(bucketName, objectName string, opts PutObjectRetentionOptions) error {
-	return c.PutObjectRetentionWithContext(context.Background(), bucketName, objectName, opts)
-}
-
-// PutObjectRetentionWithContext : sets object retention for a given object and versionID.
-func (c Client) PutObjectRetentionWithContext(ctx context.Context, bucketName, objectName string, opts PutObjectRetentionOptions) error {
+// PutObjectRetention sets object retention for a given object and versionID.
+func (c Client) PutObjectRetention(ctx context.Context, bucketName, objectName string, opts PutObjectRetentionOptions) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return err
@@ -134,7 +129,7 @@ func (c Client) PutObjectRetentionWithContext(ctx context.Context, bucketName, o
 }
 
 // GetObjectRetention gets retention of given object.
-func (c Client) GetObjectRetention(bucketName, objectName, versionID string) (mode *RetentionMode, retainUntilDate *time.Time, err error) {
+func (c Client) GetObjectRetention(ctx context.Context, bucketName, objectName, versionID string) (mode *RetentionMode, retainUntilDate *time.Time, err error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return nil, nil, err
@@ -149,7 +144,7 @@ func (c Client) GetObjectRetention(bucketName, objectName, versionID string) (mo
 		urlValues.Set("versionId", versionID)
 	}
 	// Execute GET on bucket to list objects.
-	resp, err := c.executeMethod(context.Background(), "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
 		bucketName:       bucketName,
 		objectName:       objectName,
 		queryValues:      urlValues,

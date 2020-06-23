@@ -20,11 +20,10 @@
 package main
 
 import (
-	"io"
+	"context"
 	"log"
-	"os"
 
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -40,7 +39,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	m, t, err = s3Client.GetObjectRetention("my-bucket", "my-object", "")
+	m, t, err := s3Client.GetObjectRetention(context.Background(), "my-bucket", "my-object", "")
 	if err != nil {
 		log.Fatalln(err)
 	}

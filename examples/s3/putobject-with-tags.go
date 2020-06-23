@@ -20,10 +20,11 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -53,7 +54,7 @@ func main() {
 		"Tag1": "Value1",
 		"Tag2": "Value2",
 	}
-	n, err := s3Client.PutObject("my-bucketname", "my-objectname", object, objectStat.Size(), minio.PutObjectOptions{ContentType: "application/octet-stream", UserTags: tags})
+	n, err := s3Client.PutObject(context.Background(), "my-bucketname", "my-objectname", object, objectStat.Size(), minio.PutObjectOptions{ContentType: "application/octet-stream", UserTags: tags})
 	if err != nil {
 		log.Fatalln(err)
 	}

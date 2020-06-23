@@ -20,10 +20,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -47,7 +48,7 @@ func main() {
 	defer close(doneCh)
 
 	// List all multipart uploads from a bucket-name with a matching prefix.
-	for multipartObject := range s3Client.ListIncompleteUploads("my-bucketname", "my-prefixname", true, doneCh) {
+	for multipartObject := range s3Client.ListIncompleteUploads(context.Background(), "my-bucketname", "my-prefixname", true, doneCh) {
 		if multipartObject.Err != nil {
 			fmt.Println(multipartObject.Err)
 			return
