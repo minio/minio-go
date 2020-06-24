@@ -71,10 +71,10 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	err = s3Client.ComposeObject(context.Background(), dst, srcs)
+	uploadInfo, err := s3Client.ComposeObject(context.Background(), dst, srcs)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	log.Println("Composed object successfully.")
+	log.Println("Composed object successfully:", uploadInfo)
 }

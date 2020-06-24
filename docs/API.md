@@ -586,11 +586,10 @@ if err != nil {
 ```
 
 <a name="PutObject"></a>
-### PutObject(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64,opts PutObjectOptions) (n int, err error)
+### PutObject(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64,opts PutObjectOptions) (info UploadInfo, err error)
 Uploads objects that are less than 128MiB in a single PUT operation. For objects that are greater than 128MiB in size, PutObject seamlessly uploads the object as parts of 128MiB or more depending on the actual file size. The max upload size for an object is 5TB.
 
 __Parameters__
-
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
@@ -624,6 +623,14 @@ __minio.PutObjectOptions__
 | `opts.ReplicationStatus`                | _string_               | Specify replication status of object. This option is intended for internal use by MinIO server to extend the replication API implementation by AWS. This option should not be set unless the application is aware of intended use.                                                                                                             |
 
 
+__minio.UploadInfo__
+
+| Field               | Type     | Description                                                                                                                                                                        |
+|:--------------------|:---------|:-------------------------------------------|
+| `info.ETag`         | _string_ | The ETag of the new object                 |
+| `info.VersionID`    | _string_ | The version identifyer of the new object   |
+
+
 __Example__
 
 
@@ -641,19 +648,19 @@ if err != nil {
     return
 }
 
-n, err := minioClient.PutObject(context.Background(), "mybucket", "myobject", file, fileStat.Size(), minio.PutObjectOptions{ContentType:"application/octet-stream"})
+uploadInfo, err := minioClient.PutObject(context.Background(), "mybucket", "myobject", file, fileStat.Size(), minio.PutObjectOptions{ContentType:"application/octet-stream"})
 if err != nil {
     fmt.Println(err)
     return
 }
-fmt.Println("Successfully uploaded bytes: ", n)
+fmt.Println("Successfully uploaded bytes: ", uploadInfo)
 ```
 
 API methods PutObjectWithSize, PutObjectWithMetadata, PutObjectStreaming, and PutObjectWithProgress available in minio-go SDK release v3.0.3 are replaced by the new PutObject call variant that accepts a pointer to PutObjectOptions struct.
 
 
 <a name="CopyObject"></a>
-### CopyObject(ctx context.Context, dst DestinationInfo, src SourceInfo) error
+### CopyObject(ctx context.Context, dst DestinationInfo, src SourceInfo) (UploadInfo, error)
 Create or replace an object through server-side copying of an existing object. It supports conditional copying, copying a part of an object and server-side encryption of destination and decryption of source. See the `SourceInfo` and `DestinationInfo` types for further details.
 
 To copy multiple source objects into a single destination object see the `ComposeObject` API.
@@ -666,6 +673,16 @@ __Parameters__
 |`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
 |`dst`  | _minio.DestinationInfo_  |Argument describing the destination object |
 |`src` | _minio.SourceInfo_  |Argument describing the source object |
+
+
+__minio.UploadInfo__
+
+| Field               | Type     | Description                                                                                                                                                                        |
+|:--------------------|:---------|:-------------------------------------------|
+| `info.ETag`         | _string_ | The ETag of the new object                 |
+| `info.VersionID`    | _string_ | The version identifyer of the new object   |
+
+
 
 
 __Example__
@@ -684,11 +701,13 @@ if err != nil {
 }
 
 // Copy object call
-err = minioClient.CopyObject(context.Background(), dst, src)
+uploadInfo, err := minioClient.CopyObject(context.Background(), dst, src)
 if err != nil {
     fmt.Println(err)
     return
 }
+
+fmt.Println("Successfully copied object:", uploadInfo)
 ```
 
 ```go
@@ -722,15 +741,18 @@ if err != nil {
 }
 
 // Copy object call
-err = minioClient.CopyObject(context.Background(), dst, src)
+_, err = minioClient.CopyObject(context.Background(), dst, src)
 if err != nil {
     fmt.Println(err)
     return
 }
+
+fmt.Println("Successfully copied object:", uploadInfo)
+
 ```
 
 <a name="ComposeObject"></a>
-### ComposeObject(ctx context.Context, dst minio.DestinationInfo, srcs []minio.SourceInfo) error
+### ComposeObject(ctx context.Context, dst minio.DestinationInfo, srcs []minio.SourceInfo) (UploadInfo, error)
 Create an object by concatenating a list of source objects using server-side copying.
 
 __Parameters__
@@ -741,6 +763,15 @@ __Parameters__
 |`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
 |`dst`  | _minio.DestinationInfo_  |Struct with info about the object to be created. |
 |`srcs` | _[]minio.SourceInfo_  |Slice of struct with info about source objects to be concatenated in order. |
+
+
+__minio.UploadInfo__
+
+| Field               | Type     | Description                                                                                                                                                                        |
+|:--------------------|:---------|:-------------------------------------------|
+| `info.ETag`         | _string_ | The ETag of the new object                 |
+| `info.VersionID`    | _string_ | The version identifyer of the new object   |
+
 
 
 __Example__
@@ -776,13 +807,13 @@ if err != nil {
 }
 
 // Compose object call by concatenating multiple source files.
-err = minioClient.ComposeObject(context.Background(), dst, srcs)
+uploadInfo, err := minioClient.ComposeObject(context.Background(), dst, srcs)
 if err != nil {
     fmt.Println(err)
     return
 }
 
-fmt.Println("Composed object successfully.")
+fmt.Println("Composed object successfully:", uploadInfo)
 ```
 
 <a name="NewSourceInfo"></a>
@@ -831,7 +862,7 @@ if err != nil {
 }
 
 // Copy object call
-err = minioClient.CopyObject(dst, src)
+_, err = minioClient.CopyObject(dst, src)
 if err != nil {
     fmt.Println(err)
     return
@@ -863,7 +894,7 @@ if err != nil {
 }
 
 // Copy object call
-err = minioClient.CopyObject(dst, src)
+_, err = minioClient.CopyObject(dst, src)
 if err != nil {
     fmt.Println(err)
     return
@@ -882,7 +913,7 @@ if err != nil {
 }
 
 // Copy object call
-err = minioClient.CopyObject(dst, src)
+_, err = minioClient.CopyObject(dst, src)
 if err != nil {
     fmt.Println(err)
     return
@@ -931,7 +962,7 @@ if err != nil {
 }
 
 // Copy object call
-err = minioClient.CopyObject(context.Background(), dst, src)
+_, err = minioClient.CopyObject(context.Background(), dst, src)
 if err != nil {
     fmt.Println(err)
     return
@@ -956,7 +987,7 @@ if err != nil {
 }
 
 // Copy object call
-err = minioClient.CopyObject(context.Background(), dst, src)
+_, err = minioClient.CopyObject(context.Background(), dst, src)
 if err != nil {
     fmt.Println(err)
     return
@@ -964,7 +995,7 @@ if err != nil {
 ```
 
 <a name="FPutObject"></a>
-### FPutObject(ctx context.Context, bucketName, objectName, filePath, opts PutObjectOptions) (length int64, err error)
+### FPutObject(ctx context.Context, bucketName, objectName, filePath, opts PutObjectOptions) (info UploadInfo, err error)
 Uploads contents from a file to objectName.
 
 FPutObject uploads objects that are less than 128MiB in a single PUT operation. For objects that are greater than the 128MiB in size, FPutObject seamlessly uploads the object in chunks of 128MiB or more depending on the actual file size. The max upload size for an object is 5TB.
@@ -981,18 +1012,26 @@ __Parameters__
 |`opts` | _minio.PutObjectOptions_  |Pointer to struct that allows user to set optional custom metadata, content-type, content-encoding, content-disposition, content-language and cache-control headers, pass encryption module for encrypting objects, and optionally configure number of threads for multipart put operation.  |
 
 
+__minio.UploadInfo__
+
+| Field               | Type     | Description                                                                                                                                                                        |
+|:--------------------|:---------|:-------------------------------------------|
+| `info.ETag`         | _string_ | The ETag of the new object                 |
+| `info.VersionID`    | _string_ | The version identifyer of the new object   |
+
+
 __Example__
 
 
 ```go
-n, err := minioClient.FPutObject(context.Background(), "my-bucketname", "my-objectname", "my-filename.csv", minio.PutObjectOptions{
+uploadInfo, err := minioClient.FPutObject(context.Background(), "my-bucketname", "my-objectname", "my-filename.csv", minio.PutObjectOptions{
 	ContentType: "application/csv",
 });
 if err != nil {
     fmt.Println(err)
     return
 }
-fmt.Println("Successfully uploaded bytes: ", n)
+fmt.Println("Successfully uploaded object: ", uploadInfo)
 ```
 
 <a name="StatObject"></a>

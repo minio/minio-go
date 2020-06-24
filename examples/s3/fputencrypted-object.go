@@ -50,10 +50,10 @@ func main() {
 	encryption := encrypt.DefaultPBKDF([]byte(password), []byte(bucketname+objectName))
 
 	// Encrypt file content and upload to the server
-	n, err := s3Client.FPutObject(context.Background(), bucketname, objectName, filePath, minio.PutObjectOptions{ServerSideEncryption: encryption})
+	uploadedInfo, err := s3Client.FPutObject(context.Background(), bucketname, objectName, filePath, minio.PutObjectOptions{ServerSideEncryption: encryption})
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	log.Println("Uploaded", "my-objectname", " of size: ", n, "Successfully.")
+	log.Println("Uploaded", "my-objectname:", uploadedInfo)
 }

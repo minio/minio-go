@@ -68,6 +68,13 @@ type Owner struct {
 	ID          string `json:"id"`
 }
 
+// UploadInfo contains information about the
+// newly uploaded or copied object.
+type UploadInfo struct {
+	ETag      string
+	VersionID string
+}
+
 // ObjectInfo container for object metadata.
 type ObjectInfo struct {
 	// An ETag is optionally set to md5sum of an object.  In case of multipart objects,
