@@ -413,9 +413,9 @@ func (c Client) uploadPartCopy(ctx context.Context, bucket, object, uploadID str
 // and concatenates them into a new object using only server-side copying
 // operations. Optionally takes progress reader hook for applications to
 // look at current progress.
-func (c Client) ComposeObjectWithProgress(ctx context.Context, dst DestinationInfo, srcs []SourceInfo, progress io.Reader) error {
+func (c Client) ComposeObjectWithProgress(ctx context.Context, dst DestinationInfo, srcs []SourceInfo, progress io.Reader) (UploadInfo, error) {
 	if len(srcs) < 1 || len(srcs) > maxPartsCount {
-		return ErrInvalidArgument("There must be as least one and up to 10000 source objects.")
+		return UploadInfo{}, ErrInvalidArgument("There must be as least one and up to 10000 source objects.")
 	}
 	srcSizes := make([]int64, len(srcs))
 	var totalSize, size, totalParts int64
@@ -425,13 +425,13 @@ func (c Client) ComposeObjectWithProgress(ctx context.Context, dst DestinationIn
 	for i, src := range srcs {
 		size, etags[i], srcUserMeta, err = src.getProps(c)
 		if err != nil {
-			return err
+			return UploadInfo{}, err
 		}
 
 		// Error out if client side encryption is used in this source object when
 		// more than one source objects are given.
 		if len(srcs) > 1 && src.Headers.Get("x-amz-meta-x-amz-key") != "" {
-			return ErrInvalidArgument(
+			return UploadInfo{}, ErrInvalidArgument(
 				fmt.Sprintf("Client side encryption is used in source object %s/%s", src.bucket, src.object))
 		}
 
@@ -442,7 +442,7 @@ func (c Client) ComposeObjectWithProgress(ctx context.Context, dst DestinationIn
 			//    0 <= src.start <= src.end
 			// so only invalid case to check is:
 			if src.end >= size {
-				return ErrInvalidArgument(
+				return UploadInfo{}, ErrInvalidArgument(
 					fmt.Sprintf("SourceInfo %d has invalid segment-to-copy [%d, %d] (size is %d)",
 						i, src.start, src.end, size))
 			}
@@ -451,14 +451,14 @@ func (c Client) ComposeObjectWithProgress(ctx context.Context, dst DestinationIn
 
 		// Only the last source may be less than `absMinPartSize`
 		if size < absMinPartSize && i < len(srcs)-1 {
-			return ErrInvalidArgument(
+			return UploadInfo{}, ErrInvalidArgument(
 				fmt.Sprintf("SourceInfo %d is too small (%d) and it is not the last part", i, size))
 		}
 
 		// Is data to copy too large?
 		totalSize += size
 		if totalSize > maxMultipartPutObjectSize {
-			return ErrInvalidArgument(fmt.Sprintf("Cannot compose an object of size %d (> 5TiB)", totalSize))
+			return UploadInfo{}, ErrInvalidArgument(fmt.Sprintf("Cannot compose an object of size %d (> 5TiB)", totalSize))
 		}
 
 		// record source size
@@ -468,7 +468,7 @@ func (c Client) ComposeObjectWithProgress(ctx context.Context, dst DestinationIn
 		totalParts += partsRequired(size)
 		// Do we need more parts than we are allowed?
 		if totalParts > maxPartsCount {
-			return ErrInvalidArgument(fmt.Sprintf(
+			return UploadInfo{}, ErrInvalidArgument(fmt.Sprintf(
 				"Your proposed compose object requires more than %d parts", maxPartsCount))
 		}
 	}
@@ -507,7 +507,7 @@ func (c Client) ComposeObjectWithProgress(ctx context.Context, dst DestinationIn
 
 	uploadID, err := c.newUploadID(ctx, dst.bucket, dst.object, PutObjectOptions{ServerSideEncryption: dst.opts.Encryption, UserMetadata: metaHeaders})
 	if err != nil {
-		return err
+		return UploadInfo{}, err
 	}
 
 	// 3. Perform copy part uploads
@@ -538,7 +538,7 @@ func (c Client) ComposeObjectWithProgress(ctx context.Context, dst DestinationIn
 			complPart, err := c.uploadPartCopy(ctx, dst.bucket,
 				dst.object, uploadID, partIndex, h)
 			if err != nil {
-				return err
+				return UploadInfo{}, err
 			}
 			if progress != nil {
 				io.CopyN(ioutil.Discard, progress, end-start+1)
@@ -549,19 +549,15 @@ func (c Client) ComposeObjectWithProgress(ctx context.Context, dst DestinationIn
 	}
 
 	// 4. Make final complete-multipart request.
-	_, err = c.completeMultipartUpload(ctx, dst.bucket, dst.object, uploadID,
+	return c.completeMultipartUpload(ctx, dst.bucket, dst.object, uploadID,
 		completeMultipartUpload{Parts: objParts})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // ComposeObject - creates an object using server-side copying of
 // existing objects. It takes a list of source objects (with optional
 // offsets) and concatenates them into a new object using only
 // server-side copying operations.
-func (c Client) ComposeObject(ctx context.Context, dst DestinationInfo, srcs []SourceInfo) error {
+func (c Client) ComposeObject(ctx context.Context, dst DestinationInfo, srcs []SourceInfo) (UploadInfo, error) {
 	return c.ComposeObjectWithProgress(ctx, dst, srcs, nil)
 }
 

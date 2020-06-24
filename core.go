@@ -70,7 +70,7 @@ func (c Core) CopyObjectPart(ctx context.Context, srcBucket, srcObject, destBuck
 }
 
 // PutObject - Upload object. Uploads using single PUT call.
-func (c Core) PutObject(ctx context.Context, bucket, object string, data io.Reader, size int64, md5Base64, sha256Hex string, opts PutObjectOptions) (ObjectInfo, error) {
+func (c Core) PutObject(ctx context.Context, bucket, object string, data io.Reader, size int64, md5Base64, sha256Hex string, opts PutObjectOptions) (UploadInfo, error) {
 	return c.putObjectDo(ctx, bucket, object, data, md5Base64, sha256Hex, size, opts)
 }
 
