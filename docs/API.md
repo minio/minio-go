@@ -622,6 +622,8 @@ __minio.PutObjectOptions__
 | `opts.WebsiteRedirectLocation` | _string_               | Specify a redirect for the object, to another object in the same bucket or to a external URL.                                                                                      |
 | `opts.SendContentMd5`          | _bool_                 | Specify if you'd like to send `content-md5` header with PutObject operation. Note that setting this flag will cause higher memory usage because of in-memory `md5sum` calculation. |
 | `opts.PartSize`                | _uint64_               | Specify a custom part size used for uploading the object                                                                                                                           |
+| `opts.ReplicationVersionID`                | _string_               | Specify VersionID of object to replicate.This option is intended for internal use by MinIO server to extend the replication API implementation by AWS. This option should not be set unless the application is aware of intended use.                                                                                              |
+| `opts.ReplicationStatus`                | _string_               | Specify replication status of object. This option is intended for internal use by MinIO server to extend the replication API implementation by AWS. This option should not be set unless the application is aware of intended use.                                                                                                             |
 
 
 __Example__
