@@ -20,11 +20,12 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"path"
 
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 	"github.com/minio/sio"
 	"golang.org/x/crypto/argon2"
 )
@@ -67,7 +68,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	_, err = s3Client.PutObject("my-bucketname", "my-objectname", encrypted, int64(encSize), minio.PutObjectOptions{})
+	_, err = s3Client.PutObject(context.Background(), "my-bucketname", "my-objectname", encrypted, int64(encSize), minio.PutObjectOptions{})
 	if err != nil {
 		log.Fatalln(err)
 	}

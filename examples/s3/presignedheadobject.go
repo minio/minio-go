@@ -20,11 +20,12 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/url"
 	"time"
 
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -46,7 +47,7 @@ func main() {
 	reqParams.Set("response-content-disposition", "attachment; filename=\"your-filename.txt\"")
 
 	// Gernerate presigned get object url.
-	presignedURL, err := s3Client.PresignedHeadObject("my-bucketname", "my-objectname", time.Duration(1000)*time.Second, reqParams)
+	presignedURL, err := s3Client.PresignedHeadObject(context.Background(), "my-bucketname", "my-objectname", time.Duration(1000)*time.Second, reqParams)
 	if err != nil {
 		log.Fatalln(err)
 	}

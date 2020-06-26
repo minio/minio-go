@@ -20,9 +20,10 @@
 package main
 
 import (
+	"context"
 	"log"
 
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -38,7 +39,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	stat, err := s3Client.StatObject("my-bucketname", "my-objectname", minio.StatObjectOptions{})
+	stat, err := s3Client.StatObject(context.Background(), "my-bucketname", "my-objectname", minio.StatObjectOptions{})
 	if err != nil {
 		log.Fatalln(err)
 	}

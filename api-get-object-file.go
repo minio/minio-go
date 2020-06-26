@@ -23,22 +23,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/minio/minio-go/v6/pkg/s3utils"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
-// FGetObjectWithContext - download contents of an object to a local file.
-// The options can be used to specify the GET request further.
-func (c Client) FGetObjectWithContext(ctx context.Context, bucketName, objectName, filePath string, opts GetObjectOptions) error {
-	return c.fGetObjectWithContext(ctx, bucketName, objectName, filePath, opts)
-}
-
 // FGetObject - download contents of an object to a local file.
-func (c Client) FGetObject(bucketName, objectName, filePath string, opts GetObjectOptions) error {
-	return c.fGetObjectWithContext(context.Background(), bucketName, objectName, filePath, opts)
-}
-
-// fGetObjectWithContext - fgetObject wrapper function with context
-func (c Client) fGetObjectWithContext(ctx context.Context, bucketName, objectName, filePath string, opts GetObjectOptions) error {
+// The options can be used to specify the GET request further.
+func (c Client) FGetObject(ctx context.Context, bucketName, objectName, filePath string, opts GetObjectOptions) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return err
@@ -73,7 +63,7 @@ func (c Client) fGetObjectWithContext(ctx context.Context, bucketName, objectNam
 	}
 
 	// Gather md5sum.
-	objectStat, err := c.StatObject(bucketName, objectName, StatObjectOptions{opts})
+	objectStat, err := c.StatObject(ctx, bucketName, objectName, StatObjectOptions{opts})
 	if err != nil {
 		return err
 	}

@@ -20,9 +20,10 @@
 package main
 
 import (
+	"context"
 	"log"
 
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -38,7 +39,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = s3Client.RemoveObjectTagging("my-bucketname", "my-objectname")
+	err = s3Client.RemoveObjectTagging(context.Background(), "my-bucketname", "my-objectname")
 	if err != nil {
 		log.Fatalln(err)
 	}

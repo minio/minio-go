@@ -20,9 +20,10 @@
 package main
 
 import (
+	"context"
 	"log"
 
-	minio "github.com/minio/minio-go/v6"
+	minio "github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -39,7 +40,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	err = s3Client.DisableVersioning("my-bucketname")
+	err = s3Client.DisableVersioning(context.Background(), "my-bucketname")
 	if err != nil {
 		log.Fatalln(err)
 	}

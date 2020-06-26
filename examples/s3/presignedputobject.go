@@ -20,10 +20,11 @@
 package main
 
 import (
+	"context"
 	"log"
 	"time"
 
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -40,7 +41,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	presignedURL, err := s3Client.PresignedPutObject("my-bucketname", "my-objectname", time.Duration(1000)*time.Second)
+	presignedURL, err := s3Client.PresignedPutObject(context.Background(), "my-bucketname", "my-objectname", time.Duration(1000)*time.Second)
 	if err != nil {
 		log.Fatalln(err)
 	}

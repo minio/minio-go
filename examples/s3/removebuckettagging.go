@@ -20,9 +20,10 @@
 package main
 
 import (
+	"context"
 	"log"
 
-	minio "github.com/minio/minio-go/v6"
+	minio "github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -38,7 +39,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = s3Client.DeleteBucketTagging("my-bucketname")
+	err = s3Client.DeleteBucketTagging(context.Background(), "my-bucketname")
 	if err != nil {
 		log.Fatalln(err)
 	}

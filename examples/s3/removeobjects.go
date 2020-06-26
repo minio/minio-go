@@ -20,9 +20,10 @@
 package main
 
 import (
+	"context"
 	"log"
 
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -51,7 +52,7 @@ func main() {
 		defer close(doneCh)
 
 		// List all objects from a bucket-name with a matching prefix.
-		for object := range s3Client.ListObjects("my-bucketname", "my-prefixname", true, doneCh) {
+		for object := range s3Client.ListObjects(context.Background(), "my-bucketname", "my-prefixname", true, doneCh) {
 			if object.Err != nil {
 				log.Fatalln(object.Err)
 			}
@@ -60,7 +61,7 @@ func main() {
 	}()
 
 	// Call RemoveObjects API
-	errorCh := s3Client.RemoveObjects("my-bucketname", objectsCh)
+	errorCh := s3Client.RemoveObjects(context.Background(), "my-bucketname", objectsCh)
 
 	// Print errors received from RemoveObjects API
 	for e := range errorCh {

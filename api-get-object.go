@@ -25,16 +25,11 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/minio/minio-go/v6/pkg/s3utils"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
-// GetObject - returns an seekable, readable object.
-func (c Client) GetObject(bucketName, objectName string, opts GetObjectOptions) (*Object, error) {
-	return c.getObjectWithContext(context.Background(), bucketName, objectName, opts)
-}
-
 // GetObject wrapper function that accepts a request context
-func (c Client) getObjectWithContext(ctx context.Context, bucketName, objectName string, opts GetObjectOptions) (*Object, error) {
+func (c Client) GetObject(ctx context.Context, bucketName, objectName string, opts GetObjectOptions) (*Object, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return nil, err

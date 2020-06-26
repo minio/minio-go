@@ -23,11 +23,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/minio/minio-go/v6/pkg/s3utils"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
-// FPutObjectWithContext - Create an object in a bucket, with contents from file at filePath. Allows request cancellation.
-func (c Client) FPutObjectWithContext(ctx context.Context, bucketName, objectName, filePath string, opts PutObjectOptions) (n int64, err error) {
+// FPutObject - Create an object in a bucket, with contents from file at filePath. Allows request cancellation.
+func (c Client) FPutObject(ctx context.Context, bucketName, objectName, filePath string, opts PutObjectOptions) (n int64, err error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return 0, err
@@ -60,5 +60,5 @@ func (c Client) FPutObjectWithContext(ctx context.Context, bucketName, objectNam
 			opts.ContentType = "application/octet-stream"
 		}
 	}
-	return c.PutObjectWithContext(ctx, bucketName, objectName, fileReader, fileSize, opts)
+	return c.PutObject(ctx, bucketName, objectName, fileReader, fileSize, opts)
 }

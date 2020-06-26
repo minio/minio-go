@@ -25,16 +25,11 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/minio/minio-go/v6/pkg/s3utils"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
-// GetBucketNotification is a wrapper for GetBucketNotificationWithContext
-func (c Client) GetBucketNotification(bucketName string) (bucketNotification BucketNotification, err error) {
-	return c.GetBucketNotificationWithContext(context.Background(), bucketName)
-}
-
-// GetBucketNotificationWithContext - get bucket notification at a given path.
-func (c Client) GetBucketNotificationWithContext(ctx context.Context, bucketName string) (bucketNotification BucketNotification, err error) {
+// GetBucketNotification returns current bucket notification configuration
+func (c Client) GetBucketNotification(ctx context.Context, bucketName string) (bucketNotification BucketNotification, err error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return BucketNotification{}, err
@@ -140,13 +135,8 @@ type NotificationInfo struct {
 	Err     error
 }
 
-// ListenBucketNotification is a wrapper for ListenBucketNotificationWithContext.
-func (c Client) ListenBucketNotification(bucketName, prefix, suffix string, events []string, doneCh <-chan struct{}) <-chan NotificationInfo {
-	return c.ListenBucketNotificationWithContext(context.Background(), bucketName, prefix, suffix, events, doneCh)
-}
-
-// ListenBucketNotificationWithContext - listen on bucket notifications.
-func (c Client) ListenBucketNotificationWithContext(ctx context.Context, bucketName, prefix, suffix string, events []string, doneCh <-chan struct{}) <-chan NotificationInfo {
+// ListenBucketNotification listen for bucket events, this is a MinIO specific API
+func (c Client) ListenBucketNotification(ctx context.Context, bucketName, prefix, suffix string, events []string, doneCh <-chan struct{}) <-chan NotificationInfo {
 	notificationInfoCh := make(chan NotificationInfo, 1)
 	const notificationCapacity = 1024 * 1024
 	notificationEventBuffer := make([]byte, notificationCapacity)

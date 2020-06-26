@@ -20,10 +20,11 @@
 package main
 
 import (
+	"context"
 	"log"
 
-	minio "github.com/minio/minio-go/v6"
-	"github.com/minio/minio-go/v6/pkg/encrypt"
+	minio "github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/encrypt"
 )
 
 func main() {
@@ -70,7 +71,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	err = s3Client.ComposeObject(dst, srcs)
+	err = s3Client.ComposeObject(context.Background(), dst, srcs)
 	if err != nil {
 		log.Fatalln(err)
 	}

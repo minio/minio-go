@@ -8,7 +8,7 @@ This document assumes that you have a working [Go development environment](https
 
 ## Download from Github
 ```sh
-GO111MODULE=on go get github.com/minio/minio-go/v6
+GO111MODULE=on go get github.com/minio/minio-go/v7
 ```
 
 ## Initialize MinIO Client
@@ -17,7 +17,7 @@ MinIO client requires the following four parameters specified to connect to an A
 | Parameter  | Description|
 | :---         |     :---     |
 | endpoint   | URL to object storage service.   |
-| accessKeyID | Access key is the user ID that uniquely identifies your account. |   
+| accessKeyID | Access key is the user ID that uniquely identifies your account. |
 | secretAccessKey | Secret key is the password to your account. |
 | secure | Set this value to 'true' to enable secure (HTTPS) access. |
 
@@ -26,7 +26,7 @@ MinIO client requires the following four parameters specified to connect to an A
 package main
 
 import (
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 	"log"
 )
 
@@ -56,7 +56,7 @@ We will use the MinIO server running at [https://play.min.io](https://play.min.i
 package main
 
 import (
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 	"log"
 )
 
@@ -141,14 +141,10 @@ The full API Reference is available here.
 ### API Reference : File Object Operations
 * [`FPutObject`](https://docs.min.io/docs/golang-client-api-reference#FPutObject)
 * [`FGetObject`](https://docs.min.io/docs/golang-client-api-reference#FGetObject)
-* [`FPutObjectWithContext`](https://docs.min.io/docs/golang-client-api-reference#FPutObjectWithContext)
-* [`FGetObjectWithContext`](https://docs.min.io/docs/golang-client-api-reference#FGetObjectWithContext)
 
 ### API Reference : Object Operations
 * [`GetObject`](https://docs.min.io/docs/golang-client-api-reference#GetObject)
 * [`PutObject`](https://docs.min.io/docs/golang-client-api-reference#PutObject)
-* [`GetObjectWithContext`](https://docs.min.io/docs/golang-client-api-reference#GetObjectWithContext)
-* [`PutObjectWithContext`](https://docs.min.io/docs/golang-client-api-reference#PutObjectWithContext)
 * [`PutObjectStreaming`](https://docs.min.io/docs/golang-client-api-reference#PutObjectStreaming)
 * [`StatObject`](https://docs.min.io/docs/golang-client-api-reference#StatObject)
 * [`CopyObject`](https://docs.min.io/docs/golang-client-api-reference#CopyObject)

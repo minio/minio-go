@@ -20,10 +20,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
-	minio "github.com/minio/minio-go/v6"
+	minio "github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -39,7 +40,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	tags, err := s3Client.GetBucketTagging("my-bucketname")
+	tags, err := s3Client.GetBucketTagging(context.Background(), "my-bucketname")
 	if err != nil {
 		log.Fatalln(err)
 	}

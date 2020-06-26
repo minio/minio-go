@@ -20,11 +20,12 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"path"
 
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 	"github.com/minio/sio"
 	"golang.org/x/crypto/argon2"
 )
@@ -43,7 +44,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	obj, err := s3Client.GetObject("my-bucketname", "my-objectname", minio.GetObjectOptions{})
+	obj, err := s3Client.GetObject(context.Background(), "my-bucketname", "my-objectname", minio.GetObjectOptions{})
 	if err != nil {
 		log.Fatalln(err)
 	}

@@ -20,10 +20,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -44,7 +45,7 @@ func main() {
 
 	// Get default encryption configuration set on an S3 bucket,
 	// and print out the encryption configuration.
-	encryptionConfig, err := s3Client.GetBucketEncryption("my-bucketname")
+	encryptionConfig, err := s3Client.GetBucketEncryption(context.Background(), "my-bucketname")
 	if err != nil {
 		log.Fatalln(err)
 	}

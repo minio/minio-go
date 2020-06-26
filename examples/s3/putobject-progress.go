@@ -20,10 +20,11 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"github.com/cheggaaa/pb"
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
 )
 
 func main() {
@@ -40,7 +41,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	reader, err := s3Client.GetObject("my-bucketname", "my-objectname", minio.GetObjectOptions{})
+	reader, err := s3Client.GetObject(context.Background(), "my-bucketname", "my-objectname", minio.GetObjectOptions{})
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -55,7 +56,7 @@ func main() {
 	// the Reads inside.
 	progress := pb.New64(objectInfo.Size)
 	progress.Start()
-	n, err := s3Client.PutObject("my-bucketname", "my-objectname-progress", reader, objectInfo.Size, minio.PutObjectOptions{ContentType: "application/octet-stream", Progress: progress})
+	n, err := s3Client.PutObject(context.Background(), "my-bucketname", "my-objectname-progress", reader, objectInfo.Size, minio.PutObjectOptions{ContentType: "application/octet-stream", Progress: progress})
 
 	if err != nil {
 		log.Fatalln(err)

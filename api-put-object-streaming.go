@@ -24,10 +24,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 
-	"github.com/minio/minio-go/v6/pkg/s3utils"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
 // putObjectMultipartStream - upload a large object using
@@ -437,7 +438,11 @@ func (c Client) putObjectDo(ctx context.Context, bucketName, objectName string, 
 		contentMD5Base64: md5Base64,
 		contentSHA256Hex: sha256Hex,
 	}
-
+	if opts.ReplicationVersionID != "" {
+		urlValues := make(url.Values)
+		urlValues.Set("versionId", opts.ReplicationVersionID)
+		reqMetadata.queryValues = urlValues
+	}
 	// Execute PUT an objectName.
 	resp, err := c.executeMethod(ctx, "PUT", reqMetadata)
 	defer closeResponse(resp)

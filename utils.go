@@ -35,7 +35,7 @@ import (
 	"time"
 
 	md5simd "github.com/minio/md5-simd"
-	"github.com/minio/minio-go/v6/pkg/s3utils"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
 	"github.com/minio/sha256-simd"
 )
 
@@ -332,6 +332,7 @@ var supportedHeaders = []string{
 	"x-amz-metadata-directive",
 	"x-amz-object-lock-retain-until-date",
 	"expires",
+	"x-amz-replication-status",
 	// Add more supported headers here.
 }
 

@@ -23,16 +23,11 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/minio/minio-go/v6/pkg/s3utils"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
-// GetBucketPolicy is a wrapper for GetBucketPolicyWithContext
-func (c Client) GetBucketPolicy(bucketName string) (string, error) {
-	return c.GetBucketPolicyWithContext(context.Background(), bucketName)
-}
-
-// GetBucketPolicyWithContext - get bucket policy at a given path.
-func (c Client) GetBucketPolicyWithContext(ctx context.Context, bucketName string) (string, error) {
+// GetBucketPolicy returns the current policy
+func (c Client) GetBucketPolicy(ctx context.Context, bucketName string) (string, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return "", err
