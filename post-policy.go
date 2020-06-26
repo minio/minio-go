@@ -187,6 +187,24 @@ func (p *PostPolicy) SetContentLengthRange(min, max int64) error {
 	return nil
 }
 
+// SetSuccessActionRedirect - Sets the redirect success url of the object for this policy
+// based upload.
+func (p *PostPolicy) SetSuccessActionRedirect(redirect string) error {
+	if strings.TrimSpace(redirect) == "" || redirect == "" {
+		return ErrInvalidArgument("Redirect is empty")
+	}
+	policyCond := policyCondition{
+		matchType: "eq",
+		condition: "$success_action_redirect",
+		value:     redirect,
+	}
+	if err := p.addNewPolicy(policyCond); err != nil {
+		return err
+	}
+	p.formData["success_action_redirect"] = redirect
+	return nil
+}
+
 // SetSuccessStatusAction - Sets the status success code of the object for this policy
 // based upload.
 func (p *PostPolicy) SetSuccessStatusAction(status string) error {
