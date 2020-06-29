@@ -262,6 +262,7 @@ var resourceList = []string{
 	"notification",
 	"partNumber",
 	"policy",
+	"replication",
 	"requestPayment",
 	"response-cache-control",
 	"response-content-disposition",

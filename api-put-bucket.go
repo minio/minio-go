@@ -26,6 +26,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/minio/minio-go/v7/pkg/replication"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
@@ -473,4 +474,93 @@ func (c Client) EnableVersioning(ctx context.Context, bucketName string) error {
 // DisableVersioning - Disable object versioning in given bucket.
 func (c Client) DisableVersioning(ctx context.Context, bucketName string) error {
 	return c.setVersioning(ctx, bucketName, versionDisableConfig, versionDisableConfigLen, versionDisableConfigMD5Sum, versionDisableConfigSHA256)
+}
+
+// ReplicationReqOptions represents options specified by user for Replication call. Options may be added in the future.
+type ReplicationReqOptions struct{}
+
+// RemoveBucketReplication removes a replication config on an existing bucket.
+func (c Client) RemoveBucketReplication(ctx context.Context, bucketName string, opts ReplicationReqOptions) error {
+	return c.removeBucketReplication(ctx, bucketName)
+}
+
+// SetBucketReplication sets a replication config on an existing bucket.
+func (c Client) SetBucketReplication(ctx context.Context, bucketName string, cfg replication.Config, opts ReplicationReqOptions) error {
+	// Input validation.
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		return err
+	}
+
+	// If replication is empty then delete it.
+	if cfg.Empty() {
+		return c.removeBucketReplication(ctx, bucketName)
+	}
+	// Save the updated replication.
+	return c.putBucketReplication(ctx, bucketName, cfg)
+}
+
+// Saves a new bucket replication.
+func (c Client) putBucketReplication(ctx context.Context, bucketName string, cfg replication.Config) error {
+	// Input validation.
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		return err
+	}
+
+	// Get resources properly escaped and lined up before
+	// using them in http request.
+	urlValues := make(url.Values)
+	urlValues.Set("replication", "")
+	replication, err := xml.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	// Content-length is mandatory for put replication request
+	replicationReader := bytes.NewReader(replication)
+	b, err := ioutil.ReadAll(replicationReader)
+	if err != nil {
+		return err
+	}
+	reqMetadata := requestMetadata{
+		bucketName:       bucketName,
+		queryValues:      urlValues,
+		contentBody:      replicationReader,
+		contentLength:    int64(len(b)),
+		contentMD5Base64: sumMD5Base64(b),
+	}
+	// Execute PUT to upload a new bucket replication config.
+	resp, err := c.executeMethod(ctx, http.MethodPut, reqMetadata)
+	defer closeResponse(resp)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return httpRespToErrorResponse(resp, bucketName, "")
+	}
+
+	return nil
+}
+
+// Remove replication from a bucket.
+func (c Client) removeBucketReplication(ctx context.Context, bucketName string) error {
+	// Input validation.
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		return err
+	}
+	// Get resources properly escaped and lined up before
+	// using them in http request.
+	urlValues := make(url.Values)
+	urlValues.Set("replication", "")
+
+	// Execute DELETE on objectName.
+	resp, err := c.executeMethod(ctx, http.MethodDelete, requestMetadata{
+		bucketName:       bucketName,
+		queryValues:      urlValues,
+		contentSHA256Hex: emptySHA256Hex,
+	})
+	defer closeResponse(resp)
+	if err != nil {
+		return err
+	}
+	return nil
 }
