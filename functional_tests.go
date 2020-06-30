@@ -10279,7 +10279,7 @@ func testRemoveObjectsWithOptions() {
 		GovernanceBypass: true,
 	}
 
-	for rErr := range c.RemoveObjectsWithOptions(context.Background(), bucketName, objectsCh1, opts1) {
+	for rErr := range c.RemoveObjects(context.Background(), bucketName, objectsCh1, opts1) {
 		// Error is not expected here because Retention is set on the object
 		// and RemoveObjects is called with Bypass Governance
 		logError(testName, function, args, startTime, "", "Error detected during deletion", rErr.Err)

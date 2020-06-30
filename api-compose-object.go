@@ -88,45 +88,7 @@ func filterCustomMeta(userMeta map[string]string) (map[string]string, error) {
 
 // NewDestinationInfo - creates a compose-object/copy-source
 // destination info object.
-//
-// `sse` is the key info for server-side-encryption with customer
-// provided key. If it is nil, no encryption is performed.
-//
-// `userMeta` is the user-metadata key-value pairs to be set on the
-// destination. The keys are automatically prefixed with `x-amz-meta-`
-// if needed. If nil is passed, and if only a single source (of any
-// size) is provided in the ComposeObject call, then metadata from the
-// source is copied to the destination.
-func NewDestinationInfo(bucket, object string, sse encrypt.ServerSide, userMeta map[string]string) (d DestinationInfo, err error) {
-	// Input validation.
-	if err = s3utils.CheckValidBucketName(bucket); err != nil {
-		return d, err
-	}
-	if err = s3utils.CheckValidObjectName(object); err != nil {
-		return d, err
-	}
-	m, err := filterCustomMeta(userMeta)
-	if err != nil {
-		return d, err
-	}
-	opts := DestInfoOptions{
-		Encryption:  sse,
-		UserMeta:    m,
-		UserTags:    nil,
-		ReplaceTags: false,
-		LegalHold:   LegalHoldStatus(""),
-		Mode:        RetentionMode(""),
-	}
-	return DestinationInfo{
-		bucket: bucket,
-		object: object,
-		opts:   opts,
-	}, nil
-}
-
-// NewDestinationInfoWithOptions - creates a compose-object/copy-source
-// destination info object.
-func NewDestinationInfoWithOptions(bucket, object string, destOpts DestInfoOptions) (d DestinationInfo, err error) {
+func NewDestinationInfo(bucket, object string, destOpts DestInfoOptions) (d DestinationInfo, err error) {
 	// Input validation.
 	if err = s3utils.CheckValidBucketName(bucket); err != nil {
 		return d, err
