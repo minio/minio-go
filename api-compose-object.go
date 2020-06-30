@@ -79,7 +79,7 @@ func filterCustomMeta(userMeta map[string]string) (map[string]string, error) {
 			k = k[len("x-amz-meta-"):]
 		}
 		if _, ok := m[k]; ok {
-			return nil, ErrInvalidArgument(fmt.Sprintf("Cannot add both %s and x-amz-meta-%s keys as custom metadata", k, k))
+			return nil, errInvalidArgument(fmt.Sprintf("Cannot add both %s and x-amz-meta-%s keys as custom metadata", k, k))
 		}
 		m[k] = v
 	}
@@ -205,7 +205,7 @@ func NewSourceInfo(bucket, object string, sse encrypt.ServerSide) SourceInfo {
 // copied.
 func (s *SourceInfo) SetRange(start, end int64) error {
 	if start > end || start < 0 {
-		return ErrInvalidArgument("start must be non-negative, and start must be at most end.")
+		return errInvalidArgument("start must be non-negative, and start must be at most end.")
 	}
 	// Note that 0 <= start <= end
 	s.start, s.end = start, end
@@ -216,7 +216,7 @@ func (s *SourceInfo) SetRange(start, end int64) error {
 // only if the etag of the source matches the value given here.
 func (s *SourceInfo) SetMatchETagCond(etag string) error {
 	if etag == "" {
-		return ErrInvalidArgument("ETag cannot be empty.")
+		return errInvalidArgument("ETag cannot be empty.")
 	}
 	s.Headers.Set("x-amz-copy-source-if-match", etag)
 	return nil
@@ -227,7 +227,7 @@ func (s *SourceInfo) SetMatchETagCond(etag string) error {
 // not the value given here.
 func (s *SourceInfo) SetMatchETagExceptCond(etag string) error {
 	if etag == "" {
-		return ErrInvalidArgument("ETag cannot be empty.")
+		return errInvalidArgument("ETag cannot be empty.")
 	}
 	s.Headers.Set("x-amz-copy-source-if-none-match", etag)
 	return nil
@@ -236,7 +236,7 @@ func (s *SourceInfo) SetMatchETagExceptCond(etag string) error {
 // SetModifiedSinceCond - Set the modified since condition.
 func (s *SourceInfo) SetModifiedSinceCond(modTime time.Time) error {
 	if modTime.IsZero() {
-		return ErrInvalidArgument("Input time cannot be 0.")
+		return errInvalidArgument("Input time cannot be 0.")
 	}
 	s.Headers.Set("x-amz-copy-source-if-modified-since", modTime.Format(http.TimeFormat))
 	return nil
@@ -245,7 +245,7 @@ func (s *SourceInfo) SetModifiedSinceCond(modTime time.Time) error {
 // SetUnmodifiedSinceCond - Set the unmodified since condition.
 func (s *SourceInfo) SetUnmodifiedSinceCond(modTime time.Time) error {
 	if modTime.IsZero() {
-		return ErrInvalidArgument("Input time cannot be 0.")
+		return errInvalidArgument("Input time cannot be 0.")
 	}
 	s.Headers.Set("x-amz-copy-source-if-unmodified-since", modTime.Format(http.TimeFormat))
 	return nil
@@ -259,7 +259,7 @@ func (s *SourceInfo) getProps(c Client) (size int64, etag string, userMeta map[s
 	opts := StatObjectOptions{GetObjectOptions{ServerSideEncryption: encrypt.SSE(s.encryption)}}
 	objInfo, err = c.statObject(context.Background(), s.bucket, s.object, opts)
 	if err != nil {
-		err = ErrInvalidArgument(fmt.Sprintf("Could not stat object - %s/%s: %v", s.bucket, s.object, err))
+		err = errInvalidArgument(fmt.Sprintf("Could not stat object - %s/%s: %v", s.bucket, s.object, err))
 	} else {
 		size = objInfo.Size
 		etag = objInfo.ETag
@@ -329,7 +329,7 @@ func (c Client) copyObjectPartDo(ctx context.Context, srcBucket, srcObject, dest
 	headers.Set("x-amz-copy-source", s3utils.EncodePath(srcBucket+"/"+srcObject))
 
 	if startOffset < 0 {
-		return p, ErrInvalidArgument("startOffset must be non-negative")
+		return p, errInvalidArgument("startOffset must be non-negative")
 	}
 
 	if length >= 0 {
@@ -415,7 +415,7 @@ func (c Client) uploadPartCopy(ctx context.Context, bucket, object, uploadID str
 // look at current progress.
 func (c Client) ComposeObjectWithProgress(ctx context.Context, dst DestinationInfo, srcs []SourceInfo, progress io.Reader) error {
 	if len(srcs) < 1 || len(srcs) > maxPartsCount {
-		return ErrInvalidArgument("There must be as least one and up to 10000 source objects.")
+		return errInvalidArgument("There must be as least one and up to 10000 source objects.")
 	}
 	srcSizes := make([]int64, len(srcs))
 	var totalSize, size, totalParts int64
@@ -431,7 +431,7 @@ func (c Client) ComposeObjectWithProgress(ctx context.Context, dst DestinationIn
 		// Error out if client side encryption is used in this source object when
 		// more than one source objects are given.
 		if len(srcs) > 1 && src.Headers.Get("x-amz-meta-x-amz-key") != "" {
-			return ErrInvalidArgument(
+			return errInvalidArgument(
 				fmt.Sprintf("Client side encryption is used in source object %s/%s", src.bucket, src.object))
 		}
 
@@ -442,7 +442,7 @@ func (c Client) ComposeObjectWithProgress(ctx context.Context, dst DestinationIn
 			//    0 <= src.start <= src.end
 			// so only invalid case to check is:
 			if src.end >= size {
-				return ErrInvalidArgument(
+				return errInvalidArgument(
 					fmt.Sprintf("SourceInfo %d has invalid segment-to-copy [%d, %d] (size is %d)",
 						i, src.start, src.end, size))
 			}
@@ -451,14 +451,14 @@ func (c Client) ComposeObjectWithProgress(ctx context.Context, dst DestinationIn
 
 		// Only the last source may be less than `absMinPartSize`
 		if size < absMinPartSize && i < len(srcs)-1 {
-			return ErrInvalidArgument(
+			return errInvalidArgument(
 				fmt.Sprintf("SourceInfo %d is too small (%d) and it is not the last part", i, size))
 		}
 
 		// Is data to copy too large?
 		totalSize += size
 		if totalSize > maxMultipartPutObjectSize {
-			return ErrInvalidArgument(fmt.Sprintf("Cannot compose an object of size %d (> 5TiB)", totalSize))
+			return errInvalidArgument(fmt.Sprintf("Cannot compose an object of size %d (> 5TiB)", totalSize))
 		}
 
 		// record source size
@@ -468,7 +468,7 @@ func (c Client) ComposeObjectWithProgress(ctx context.Context, dst DestinationIn
 		totalParts += partsRequired(size)
 		// Do we need more parts than we are allowed?
 		if totalParts > maxPartsCount {
-			return ErrInvalidArgument(fmt.Sprintf(
+			return errInvalidArgument(fmt.Sprintf(
 				"Your proposed compose object requires more than %d parts", maxPartsCount))
 		}
 	}

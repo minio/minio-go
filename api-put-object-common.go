@@ -77,31 +77,31 @@ func optimalPartInfo(objectSize int64, configuredPartSize uint64) (totalPartsCou
 
 	// object size is larger than supported maximum.
 	if objectSize > maxMultipartPutObjectSize {
-		err = ErrEntityTooLarge(objectSize, maxMultipartPutObjectSize, "", "")
+		err = errEntityTooLarge(objectSize, maxMultipartPutObjectSize, "", "")
 		return
 	}
 
 	var partSizeFlt float64
 	if configuredPartSize > 0 {
 		if int64(configuredPartSize) > objectSize {
-			err = ErrEntityTooLarge(int64(configuredPartSize), objectSize, "", "")
+			err = errEntityTooLarge(int64(configuredPartSize), objectSize, "", "")
 			return
 		}
 
 		if !unknownSize {
 			if objectSize > (int64(configuredPartSize) * maxPartsCount) {
-				err = ErrInvalidArgument("Part size * max_parts(10000) is lesser than input objectSize.")
+				err = errInvalidArgument("Part size * max_parts(10000) is lesser than input objectSize.")
 				return
 			}
 		}
 
 		if configuredPartSize < absMinPartSize {
-			err = ErrInvalidArgument("Input part size is smaller than allowed minimum of 5MiB.")
+			err = errInvalidArgument("Input part size is smaller than allowed minimum of 5MiB.")
 			return
 		}
 
 		if configuredPartSize > maxPartSize {
-			err = ErrInvalidArgument("Input part size is bigger than allowed maximum of 5GiB.")
+			err = errInvalidArgument("Input part size is bigger than allowed maximum of 5GiB.")
 			return
 		}
 

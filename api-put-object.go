@@ -132,19 +132,19 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 func (opts PutObjectOptions) validate() (err error) {
 	for k, v := range opts.UserMetadata {
 		if !httpguts.ValidHeaderFieldName(k) || isStandardHeader(k) || isSSEHeader(k) || isStorageClassHeader(k) {
-			return ErrInvalidArgument(k + " unsupported user defined metadata name")
+			return errInvalidArgument(k + " unsupported user defined metadata name")
 		}
 		if !httpguts.ValidHeaderFieldValue(v) {
-			return ErrInvalidArgument(v + " unsupported user defined metadata value")
+			return errInvalidArgument(v + " unsupported user defined metadata value")
 		}
 	}
 	if opts.Mode != nil {
 		if !opts.Mode.IsValid() {
-			return ErrInvalidArgument(opts.Mode.String() + " unsupported retention mode")
+			return errInvalidArgument(opts.Mode.String() + " unsupported retention mode")
 		}
 	}
 	if opts.LegalHold != "" && !opts.LegalHold.IsValid() {
-		return ErrInvalidArgument(opts.LegalHold.String() + " unsupported legal-hold status")
+		return errInvalidArgument(opts.LegalHold.String() + " unsupported legal-hold status")
 	}
 	return nil
 }
@@ -185,7 +185,7 @@ func (c Client) PutObject(ctx context.Context, bucketName, objectName string, re
 func (c Client) putObjectCommon(ctx context.Context, bucketName, objectName string, reader io.Reader, size int64, opts PutObjectOptions) (n int64, err error) {
 	// Check for largest object size allowed.
 	if size > int64(maxMultipartPutObjectSize) {
-		return 0, ErrEntityTooLarge(size, maxMultipartPutObjectSize, bucketName, objectName)
+		return 0, errEntityTooLarge(size, maxMultipartPutObjectSize, bucketName, objectName)
 	}
 
 	// NOTE: Streaming signature is not supported by GCS.
@@ -307,7 +307,7 @@ func (c Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketName
 	for i := 1; i < partNumber; i++ {
 		part, ok := partsInfo[i]
 		if !ok {
-			return 0, ErrInvalidArgument(fmt.Sprintf("Missing part number %d", i))
+			return 0, errInvalidArgument(fmt.Sprintf("Missing part number %d", i))
 		}
 		complMultipartUpload.Parts = append(complMultipartUpload.Parts, CompletePart{
 			ETag:       part.ETag,

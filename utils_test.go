@@ -73,11 +73,11 @@ func TestGetEndpointURL(t *testing.T) {
 		{"192.168.1.1:9000", false, "http://192.168.1.1:9000", nil, true},
 		{"192.168.1.1:9000", true, "https://192.168.1.1:9000", nil, true},
 		{"s3.amazonaws.com:443", true, "https://s3.amazonaws.com:443", nil, true},
-		{"13333.123123.-", true, "", ErrInvalidArgument(fmt.Sprintf("Endpoint: %s does not follow ip address or domain name standards.", "13333.123123.-")), false},
-		{"13333.123123.-", true, "", ErrInvalidArgument(fmt.Sprintf("Endpoint: %s does not follow ip address or domain name standards.", "13333.123123.-")), false},
-		{"storage.googleapis.com:4000", true, "", ErrInvalidArgument("Google Cloud Storage endpoint should be 'storage.googleapis.com'."), false},
-		{"s3.aamzza.-", true, "", ErrInvalidArgument(fmt.Sprintf("Endpoint: %s does not follow ip address or domain name standards.", "s3.aamzza.-")), false},
-		{"", true, "", ErrInvalidArgument("Endpoint:  does not follow ip address or domain name standards."), false},
+		{"13333.123123.-", true, "", errInvalidArgument(fmt.Sprintf("Endpoint: %s does not follow ip address or domain name standards.", "13333.123123.-")), false},
+		{"13333.123123.-", true, "", errInvalidArgument(fmt.Sprintf("Endpoint: %s does not follow ip address or domain name standards.", "13333.123123.-")), false},
+		{"storage.googleapis.com:4000", true, "", errInvalidArgument("Google Cloud Storage endpoint should be 'storage.googleapis.com'."), false},
+		{"s3.aamzza.-", true, "", errInvalidArgument(fmt.Sprintf("Endpoint: %s does not follow ip address or domain name standards.", "s3.aamzza.-")), false},
+		{"", true, "", errInvalidArgument("Endpoint:  does not follow ip address or domain name standards."), false},
 	}
 
 	for i, testCase := range testCases {
@@ -112,7 +112,7 @@ func TestIsValidEndpointURL(t *testing.T) {
 		// Flag indicating whether the test is expected to pass or not.
 		shouldPass bool
 	}{
-		{"", ErrInvalidArgument("Endpoint url cannot be empty."), false},
+		{"", errInvalidArgument("Endpoint url cannot be empty."), false},
 		{"/", nil, true},
 		{"https://s3.amazonaws.com", nil, true},
 		{"https://s3.cn-north-1.amazonaws.com.cn", nil, true},
@@ -122,10 +122,10 @@ func TestIsValidEndpointURL(t *testing.T) {
 		{"https://storage.googleapis.com/", nil, true},
 		{"https://z3.amazonaws.com", nil, true},
 		{"https://mybalancer.us-east-1.elb.amazonaws.com", nil, true},
-		{"192.168.1.1", ErrInvalidArgument("Endpoint url cannot have fully qualified paths."), false},
-		{"https://amazon.googleapis.com/", ErrInvalidArgument("Google Cloud Storage endpoint should be 'storage.googleapis.com'."), false},
-		{"https://storage.googleapis.com/bucket/", ErrInvalidArgument("Endpoint url cannot have fully qualified paths."), false},
-		{"https://s3.amazonaws.com/bucket/object", ErrInvalidArgument("Endpoint url cannot have fully qualified paths."), false},
+		{"192.168.1.1", errInvalidArgument("Endpoint url cannot have fully qualified paths."), false},
+		{"https://amazon.googleapis.com/", errInvalidArgument("Google Cloud Storage endpoint should be 'storage.googleapis.com'."), false},
+		{"https://storage.googleapis.com/bucket/", errInvalidArgument("Endpoint url cannot have fully qualified paths."), false},
+		{"https://s3.amazonaws.com/bucket/object", errInvalidArgument("Endpoint url cannot have fully qualified paths."), false},
 	}
 
 	for i, testCase := range testCases {
@@ -218,9 +218,9 @@ func TestIsValidExpiry(t *testing.T) {
 		// Flag to indicate whether the test should pass.
 		shouldPass bool
 	}{
-		{100 * time.Millisecond, ErrInvalidArgument("Expires cannot be lesser than 1 second."), false},
-		{604801 * time.Second, ErrInvalidArgument("Expires cannot be greater than 7 days."), false},
-		{0 * time.Second, ErrInvalidArgument("Expires cannot be lesser than 1 second."), false},
+		{100 * time.Millisecond, errInvalidArgument("Expires cannot be lesser than 1 second."), false},
+		{604801 * time.Second, errInvalidArgument("Expires cannot be greater than 7 days."), false},
+		{0 * time.Second, errInvalidArgument("Expires cannot be lesser than 1 second."), false},
 		{1 * time.Second, nil, true},
 		{10000 * time.Second, nil, true},
 		{999 * time.Second, nil, true},
@@ -254,12 +254,12 @@ func TestIsValidBucketName(t *testing.T) {
 		// Flag to indicate whether test should Pass.
 		shouldPass bool
 	}{
-		{".mybucket", ErrInvalidBucketName("Bucket name contains invalid characters"), false},
-		{"mybucket.", ErrInvalidBucketName("Bucket name contains invalid characters"), false},
-		{"mybucket-", ErrInvalidBucketName("Bucket name contains invalid characters"), false},
-		{"my", ErrInvalidBucketName("Bucket name cannot be shorter than 3 characters"), false},
-		{"", ErrInvalidBucketName("Bucket name cannot be empty"), false},
-		{"my..bucket", ErrInvalidBucketName("Bucket name contains invalid characters"), false},
+		{".mybucket", errInvalidBucketName("Bucket name contains invalid characters"), false},
+		{"mybucket.", errInvalidBucketName("Bucket name contains invalid characters"), false},
+		{"mybucket-", errInvalidBucketName("Bucket name contains invalid characters"), false},
+		{"my", errInvalidBucketName("Bucket name cannot be shorter than 3 characters"), false},
+		{"", errInvalidBucketName("Bucket name cannot be empty"), false},
+		{"my..bucket", errInvalidBucketName("Bucket name contains invalid characters"), false},
 		{"my.bucket.com", nil, true},
 		{"my-bucket", nil, true},
 		{"123my-bucket", nil, true},

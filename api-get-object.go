@@ -317,7 +317,7 @@ func (o *Object) setOffset(bytesRead int64) error {
 // io.EOF upon end of file.
 func (o *Object) Read(b []byte) (n int, err error) {
 	if o == nil {
-		return 0, ErrInvalidArgument("Object is nil")
+		return 0, errInvalidArgument("Object is nil")
 	}
 
 	// Locking.
@@ -371,7 +371,7 @@ func (o *Object) Read(b []byte) (n int, err error) {
 // Stat returns the ObjectInfo structure describing Object.
 func (o *Object) Stat() (ObjectInfo, error) {
 	if o == nil {
-		return ObjectInfo{}, ErrInvalidArgument("Object is nil")
+		return ObjectInfo{}, errInvalidArgument("Object is nil")
 	}
 	// Locking.
 	o.mutex.Lock()
@@ -403,7 +403,7 @@ func (o *Object) Stat() (ObjectInfo, error) {
 // file, that error is io.EOF.
 func (o *Object) ReadAt(b []byte, offset int64) (n int, err error) {
 	if o == nil {
-		return 0, ErrInvalidArgument("Object is nil")
+		return 0, errInvalidArgument("Object is nil")
 	}
 
 	// Locking.
@@ -480,7 +480,7 @@ func (o *Object) ReadAt(b []byte, offset int64) (n int, err error) {
 // underlying object is not closed.
 func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 	if o == nil {
-		return 0, ErrInvalidArgument("Object is nil")
+		return 0, errInvalidArgument("Object is nil")
 	}
 
 	// Locking.
@@ -494,7 +494,7 @@ func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 
 	// Negative offset is valid for whence of '2'.
 	if offset < 0 && whence != 2 {
-		return 0, ErrInvalidArgument(fmt.Sprintf("Negative position not allowed for %d", whence))
+		return 0, errInvalidArgument(fmt.Sprintf("Negative position not allowed for %d", whence))
 	}
 
 	// This is the first request. So before anything else
@@ -518,7 +518,7 @@ func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 	// Switch through whence.
 	switch whence {
 	default:
-		return 0, ErrInvalidArgument(fmt.Sprintf("Invalid whence %d", whence))
+		return 0, errInvalidArgument(fmt.Sprintf("Invalid whence %d", whence))
 	case 0:
 		if o.objectInfo.Size > -1 && offset > o.objectInfo.Size {
 			return 0, io.EOF
@@ -532,7 +532,7 @@ func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 	case 2:
 		// If we don't know the object size return an error for io.SeekEnd
 		if o.objectInfo.Size < 0 {
-			return 0, ErrInvalidArgument("Whence END is not supported when the object size is unknown")
+			return 0, errInvalidArgument("Whence END is not supported when the object size is unknown")
 		}
 		// Seeking to positive offset is valid for whence '2', but
 		// since we are backing a Reader we have reached 'EOF' if
@@ -542,7 +542,7 @@ func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 		}
 		// Seeking to negative position not allowed for whence.
 		if o.objectInfo.Size+offset < 0 {
-			return 0, ErrInvalidArgument(fmt.Sprintf("Seeking at negative offset not allowed for %d", whence))
+			return 0, errInvalidArgument(fmt.Sprintf("Seeking at negative offset not allowed for %d", whence))
 		}
 		o.currOffset = o.objectInfo.Size + offset
 	}
@@ -563,7 +563,7 @@ func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 // for subsequent Close() calls.
 func (o *Object) Close() (err error) {
 	if o == nil {
-		return ErrInvalidArgument("Object is nil")
+		return errInvalidArgument("Object is nil")
 	}
 	// Locking.
 	o.mutex.Lock()
