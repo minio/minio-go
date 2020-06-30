@@ -188,7 +188,8 @@ func cleanupVersionedBucket(bucketName string, c *minio.Client) error {
 			return obj.Err
 		}
 		if obj.Key != "" {
-			err := c.RemoveObjectWithOptions(context.Background(), bucketName, obj.Key, minio.RemoveObjectOptions{VersionID: obj.VersionID})
+			err := c.RemoveObjectWithOptions(context.Background(), bucketName, obj.Key,
+				minio.RemoveObjectOptions{VersionID: obj.VersionID, GovernanceBypass: true})
 			if err != nil {
 				return err
 			}
@@ -865,7 +866,7 @@ func testStatObjectWithVersioning() {
 			logError(testName, function, args, startTime, "", "error during HEAD object, unexpected ETag", err)
 			return
 		}
-		if statInfo.LastModified != results[i].LastModified {
+		if statInfo.LastModified.Unix() != results[i].LastModified.Unix() {
 			logError(testName, function, args, startTime, "", "error during HEAD object, unexpected Last-Modified", err)
 			return
 		}
@@ -999,7 +1000,7 @@ func testGetObjectWithVersioning() {
 			logError(testName, function, args, startTime, "", "error during HEAD object, unexpected ETag", err)
 			return
 		}
-		if statInfo.LastModified != results[i].LastModified {
+		if statInfo.LastModified.Unix() != results[i].LastModified.Unix() {
 			logError(testName, function, args, startTime, "", "error during HEAD object, unexpected Last-Modified", err)
 			return
 		}
@@ -11404,7 +11405,7 @@ func testRemoveObjectsWithOptions() {
 	}
 
 	// Delete all objects and buckets
-	if err = cleanupBucket(bucketName, c); err != nil {
+	if err = cleanupVersionedBucket(bucketName, c); err != nil {
 		logError(testName, function, args, startTime, "", "Cleanup failed", err)
 		return
 	}
