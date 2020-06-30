@@ -79,7 +79,7 @@ func filterCustomMeta(userMeta map[string]string) (map[string]string, error) {
 			k = k[len("x-amz-meta-"):]
 		}
 		if _, ok := m[k]; ok {
-			return nil, errInvalidArgument(fmt.Sprintf("Cannot add both %s and x-amz-meta-%s keys as custom metadata", k, k))
+			continue
 		}
 		m[k] = v
 	}
