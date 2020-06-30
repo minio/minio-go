@@ -1,6 +1,6 @@
 /*
  * MinIO Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2019 MinIO, Inc.
+ * Copyright 2019-2020 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,26 +34,23 @@ import (
 type objectRetention struct {
 	XMLNS           string        `xml:"xmlns,attr,omitempty"`
 	XMLName         xml.Name      `xml:"Retention"`
-	Mode            RetentionMode `xml:"Mode"`
-	RetainUntilDate time.Time     `type:"timestamp" timestampFormat:"iso8601" xml:"RetainUntilDate"`
+	Mode            RetentionMode `xml:"Mode,omitempty"`
+	RetainUntilDate *time.Time    `type:"timestamp" timestampFormat:"iso8601" xml:"RetainUntilDate,omitempty"`
 }
 
 func newObjectRetention(mode *RetentionMode, date *time.Time) (*objectRetention, error) {
-	if mode == nil {
-		return nil, fmt.Errorf("Mode not set")
+	objectRetention := &objectRetention{}
+
+	if date != nil && !date.IsZero() {
+		objectRetention.RetainUntilDate = date
+	}
+	if mode != nil {
+		if !mode.IsValid() {
+			return nil, fmt.Errorf("invalid retention mode `%v`", mode)
+		}
+		objectRetention.Mode = *mode
 	}
 
-	if date == nil {
-		return nil, fmt.Errorf("RetainUntilDate not set")
-	}
-
-	if !mode.IsValid() {
-		return nil, fmt.Errorf("invalid retention mode `%v`", mode)
-	}
-	objectRetention := &objectRetention{
-		Mode:            *mode,
-		RetainUntilDate: *date,
-	}
 	return objectRetention, nil
 }
 
@@ -164,5 +161,5 @@ func (c Client) GetObjectRetention(ctx context.Context, bucketName, objectName, 
 		return nil, nil, err
 	}
 
-	return &retention.Mode, &retention.RetainUntilDate, nil
+	return &retention.Mode, retention.RetainUntilDate, nil
 }
