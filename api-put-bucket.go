@@ -468,12 +468,27 @@ func (c Client) setVersioning(ctx context.Context, bucketName string, config []b
 	return nil
 }
 
-// EnableVersioning - Enable object versioning in given bucket.
-func (c Client) EnableVersioning(ctx context.Context, bucketName string) error {
-	return c.setVersioning(ctx, bucketName, versionEnableConfig, versionEnableConfigLen, versionEnableConfigMD5Sum, versionEnableConfigSHA256)
-}
+type VersioningStatus int
 
-// DisableVersioning - Disable object versioning in given bucket.
-func (c Client) DisableVersioning(ctx context.Context, bucketName string) error {
-	return c.setVersioning(ctx, bucketName, versionDisableConfig, versionDisableConfigLen, versionDisableConfigMD5Sum, versionDisableConfigSHA256)
+const (
+	VersioningEnabled = iota
+	VersioningSuspended
+)
+
+type VersioningOpts int
+
+const (
+	VersioningMFA = iota
+)
+
+// SetBucketVersioning - Enable/Suspend object versioning in given bucket.
+func (c Client) SetBucketVersioning(ctx context.Context, bucketName string, status VersioningStatus, opts ...VersioningOpts) error {
+	switch status {
+	case VersioningEnabled:
+		return c.setVersioning(ctx, bucketName, versionEnableConfig, versionEnableConfigLen, versionEnableConfigMD5Sum, versionEnableConfigSHA256)
+	case VersioningSuspended:
+		return c.setVersioning(ctx, bucketName, versionDisableConfig, versionDisableConfigLen, versionDisableConfigMD5Sum, versionDisableConfigSHA256)
+	}
+
+	return ErrInvalidArgument("invalid versioning status")
 }
