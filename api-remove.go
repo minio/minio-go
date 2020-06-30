@@ -58,19 +58,14 @@ func (c Client) RemoveBucket(ctx context.Context, bucketName string) error {
 	return nil
 }
 
-// RemoveObject remove an object from a bucket.
-func (c Client) RemoveObject(ctx context.Context, bucketName, objectName string) error {
-	return c.RemoveObjectWithOptions(ctx, bucketName, objectName, RemoveObjectOptions{})
-}
-
 // RemoveObjectOptions represents options specified by user for RemoveObject call
 type RemoveObjectOptions struct {
 	GovernanceBypass bool
 	VersionID        string
 }
 
-// RemoveObjectWithOptions removes an object from a bucket.
-func (c Client) RemoveObjectWithOptions(ctx context.Context, bucketName, objectName string, opts RemoveObjectOptions) error {
+// RemoveObject removes an object from a bucket.
+func (c Client) RemoveObject(ctx context.Context, bucketName, objectName string, opts RemoveObjectOptions) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return err
@@ -157,22 +152,6 @@ func processRemoveMultiObjectsResponse(body io.Reader, objects []ObjectVersion, 
 			},
 		}
 	}
-}
-
-// RemoveObjects removes multiple objects from a bucket.
-// The list of objects to remove are received from objectsCh.
-// Remove failures are sent back via error channel.
-func (c Client) RemoveObjects(ctx context.Context, bucketName string, objectsCh <-chan string) <-chan RemoveObjectError {
-	objectsVersionsCh := make(chan ObjectVersion)
-	go func() {
-		defer close(objectsVersionsCh)
-		for obj := range objectsCh {
-			objectsVersionsCh <- ObjectVersion{
-				Key: obj,
-			}
-		}
-	}()
-	return c.RemoveObjectsWithVersions(ctx, bucketName, objectsVersionsCh, RemoveObjectsOptions{})
 }
 
 // ObjectVersion points to a specific object version
@@ -290,29 +269,10 @@ type RemoveObjectsOptions struct {
 	GovernanceBypass bool
 }
 
-// RemoveObjectsWithOptions removes multiple objects from a bucket.
+// RemoveObjects removes multiple objects from a bucket.
 // The list of objects to remove are received from objectsCh.
 // Remove failures are sent back via error channel.
-func (c Client) RemoveObjectsWithOptions(ctx context.Context, bucketName string, objectsCh <-chan string, opts RemoveObjectsOptions) <-chan RemoveObjectError {
-	errorCh := make(chan RemoveObjectError, 1)
-
-	// Validate if bucket name is valid.
-	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
-		defer close(errorCh)
-		errorCh <- RemoveObjectError{
-			Err: err,
-		}
-		return errorCh
-	}
-	// Validate objects channel to be properly allocated.
-	if objectsCh == nil {
-		defer close(errorCh)
-		errorCh <- RemoveObjectError{
-			Err: errInvalidArgument("Objects channel cannot be nil"),
-		}
-		return errorCh
-	}
-
+func (c Client) RemoveObjects(ctx context.Context, bucketName string, objectsCh <-chan string, opts RemoveObjectsOptions) <-chan RemoveObjectError {
 	objectsVersionsCh := make(chan ObjectVersion)
 	go func() {
 		defer close(objectsVersionsCh)

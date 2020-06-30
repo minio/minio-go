@@ -67,7 +67,7 @@ func main() {
 	}
 
 	// Destination object
-	dst, err := minio.NewDestinationInfoWithOptions("my-bucketname", "my-objectname", minio.DestInfoOptions{
+	dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", minio.DestInfoOptions{
 		UserTags: tags, ReplaceTags: true,
 	})
 	if err != nil {

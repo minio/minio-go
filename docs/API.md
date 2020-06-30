@@ -64,8 +64,6 @@ func main() {
 | [`GetBucketTagging`](#GetBucketTagging)                 | [`ComposeObject`](#ComposeObject)                                     |                                                   |                                               | [`GetObjectLockConfig`](#GetObjectLockConfig)                 |                                                       |
 | [`DeleteBucketTagging`](#DeleteBucketTagging)           | [`NewSourceInfo`](#NewSourceInfo)                                     |                                                   |                                               | [`EnableVersioning`](#EnableVersioning)                       |                                                       |
 |                                                         | [`NewDestinationInfo`](#NewDestinationInfo)                           |                                                   |                                               | [`DisableVersioning`](#DisableVersioning)                     |                                                       |
-|                                                         | [`RemoveObjectsWithOptions`](#RemoveObjectsWithOptions)               |                                                   |                                               | [`GetBucketVersioning`](#GetBucketVersioning)                 |                                                       |
-|                                                         | [`RemoveObjectWithOptions`](#RemoveObjectWithOptions)                 |                                                   |                                               | [`SetBucketEncryption`](#SetBucketEncryption)                 |                                                       |
 |                                                         | [`PutObjectRetention`](#PutObjectRetention)                           |                                                   |                                               | [`GetBucketEncryption`](#GetBucketEncryption)                 |                                                       |
 |                                                         | [`GetObjectRetention`](#GetObjectRetention)                           |                                                   |                                               | [`DeleteBucketEncryption`](#DeleteBucketEncryption)           |                                                       |
 |                                                         | [`PutObjectLegalHold`](#PutObjectLegalHold)                           |                                                   |                                               |                                                               |                                                       |
@@ -891,8 +889,8 @@ if err != nil {
 }
 ```
 
-<a name="NewDestinationInfoWithOptions"></a>
-### NewDestinationInfoWithOptions(bucket, object string, destOpts DestInfoOptions) (DestinationInfo, error)
+<a name="NewDestinationInfo"></a>
+### NewDestinationInfo(bucket, object string, destOpts DestInfoOptions) (DestinationInfo, error)
 Construct a `DestinationInfo` object that can be used as the destination object for server-side copying operations like `CopyObject` and `ComposeObject`.
 
 __Parameters__
@@ -924,7 +922,7 @@ tags := map[string]string{
     "Tag1": "Value1",
     "Tag2": "Value2",
 }
-dst, err := minio.NewDestinationInfoWithOptions("bucket", "object", minio.DestInfoOptions{
+dst, err := minio.NewDestinationInfo("bucket", "object", minio.DestInfoOptions{
     UserTags: tags, ReplaceTags: true,
 })
 if err != nil {
@@ -949,7 +947,7 @@ tags := map[string]string{
     "Tag1": "Value1",
     "Tag2": "Value2",
 }
-dst, err := minio.NewDestinationInfoWithOptions("bucket", "object", minio.DestInfoOptions{
+dst, err := minio.NewDestinationInfo("bucket", "object", minio.DestInfoOptions{
     Encryption: sseDst, UserTags: tags, ReplaceTags: true,
 })
 if err != nil {
@@ -1042,70 +1040,8 @@ fmt.Println(objInfo)
 ```
 
 <a name="RemoveObject"></a>
-### RemoveObject(ctx context.Context, bucketName, objectName string) error
-Removes an object.
-
-__Parameters__
-
-
-|Param   |Type   |Description   |
-|:---|:---| :---|
-|`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
-|`bucketName`  | _string_  |Name of the bucket  |
-|`objectName` | _string_  |Name of the object |
-
-
-```go
-err = minioClient.RemoveObject(context.Background(), "mybucket", "myobject")
-if err != nil {
-    fmt.Println(err)
-    return
-}
-```
-
-<a name="RemoveObjects"></a>
-### RemoveObjects(ctx context.Context, bucketName string, objectsCh chan string) (errorCh <-chan RemoveObjectError)
-Removes a list of objects obtained from an input channel. The call sends a delete request to the server up to 1000 objects at a time. The errors observed are sent over the error channel.
-
-__Parameters__
-
-|Param   |Type   |Description   |
-|:---|:---| :---|
-|`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
-|`bucketName`  | _string_  |Name of the bucket  |
-|`objectsCh` | _chan string_  | Channel of objects to be removed   |
-
-
-__Return Values__
-
-|Param   |Type   |Description   |
-|:---|:---| :---|
-|`errorCh` | _<-chan minio.RemoveObjectError_  | Receive-only channel of errors observed during deletion.  |
-
-
-```go
-objectsCh := make(chan string)
-
-// Send object names that are needed to be removed to objectsCh
-go func() {
-	defer close(objectsCh)
-	// List all objects from a bucket-name with a matching prefix.
-	for object := range minioClient.ListObjects(context.Background(), "my-bucketname", "my-prefixname", true, nil) {
-		if object.Err != nil {
-			log.Fatalln(object.Err)
-		}
-		objectsCh <- object.Key
-	}
-}()
-
-for rErr := range minioClient.RemoveObjects(context.Background(), "mybucket", objectsCh) {
-    fmt.Println("Error detected during deletion: ", rErr)
-}
-```
-
-<a name="RemoveObjectWithOptions"></a>
-### RemoveObjectWithOptions(ctx context.Context, bucketName, objectName string, opts minio.RemoveObjectOptions) error
-Removes an object with more specified options
+### RemoveObject(ctx context.Context, bucketName, objectName string, opts minio.RemoveObjectOptions) error
+Removes an object with some specified options
 
 __Parameters__
 
@@ -1130,7 +1066,7 @@ opts := minio.RemoveObjectOptions {
 		GovernanceBypass: true,
 		VersionID: "myversionid",
 		}
-err = minioClient.RemoveObjectWithOptions(context.Background(), "mybucket", "myobject", opts)
+err = minioClient.RemoveObject(context.Background(), "mybucket", "myobject", opts)
 if err != nil {
     fmt.Println(err)
     return
@@ -1150,9 +1086,9 @@ __Parameters__
 |`objectName` | _string_  |Name of the object |
 |`opts`	|_minio.PutObjectRetentionOptions_ |Allows user to set options like retention mode, expiry date and version id |
 
-<a name="RemoveObjectsWithOptions"></a>
-### RemoveObjectsWithOptions(ctx context.Context, bucketName string, objectsCh <-chan string, opts RemoveObjectsOptions) <-chan RemoveObjectError
-*Identical to RemoveObjects operation, but accepts opts for bypassing Governance mode.*
+<a name="RemoveObjects"></a>
+### RemoveObjects(ctx context.Context, bucketName string, objectsCh <-chan string, opts RemoveObjectsOptions) <-chan RemoveObjectError
+Removes a list of objects obtained from an input channel. The call sends a delete request to the server up to 1000 objects at a time. The errors observed are sent over the error channel.
 
 Parameters
 
@@ -1194,7 +1130,7 @@ opts := minio.RemoveObjectsOptions{
 	GovernanceBypass: true,
 }
     
-for rErr := range minioClient.RemoveObjectsWithOptions(context.Background(), "my-bucketname", objectsCh, opts) {
+for rErr := range minioClient.RemoveObjects(context.Background(), "my-bucketname", objectsCh, opts) {
     fmt.Println("Error detected during deletion: ", rErr)
 }
 ```

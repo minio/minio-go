@@ -245,7 +245,7 @@ func TestGetObjectCore(t *testing.T) {
 		t.Fatalf("Error: Content Length in response header %v, not equal to set content length %v\n", contentLengthValue, contentLength)
 	}
 
-	err = c.RemoveObject(context.Background(), bucketName, objectName)
+	err = c.RemoveObject(context.Background(), bucketName, objectName, RemoveObjectOptions{})
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
@@ -323,7 +323,7 @@ func TestGetObjectContentEncoding(t *testing.T) {
 		t.Fatalf("Unexpected content-encoding found, want gzip, got %v", value)
 	}
 
-	err = c.RemoveObject(context.Background(), bucketName, objectName)
+	err = c.RemoveObject(context.Background(), bucketName, objectName, RemoveObjectOptions{})
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
@@ -496,12 +496,12 @@ func TestCoreCopyObject(t *testing.T) {
 		t.Fatal("Error: object is already closed, should return error")
 	}
 
-	err = c.RemoveObject(context.Background(), bucketName, objectName)
+	err = c.RemoveObject(context.Background(), bucketName, objectName, RemoveObjectOptions{})
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
 
-	err = c.RemoveObject(context.Background(), destBucketName, destObjectName)
+	err = c.RemoveObject(context.Background(), destBucketName, destObjectName, RemoveObjectOptions{})
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
@@ -647,11 +647,11 @@ func TestCoreCopyObjectPart(t *testing.T) {
 		t.Fatal("Got unexpected data in last byte of copied object!")
 	}
 
-	if err := c.RemoveObject(context.Background(), destBucketName, destObjectName); err != nil {
+	if err := c.RemoveObject(context.Background(), destBucketName, destObjectName, RemoveObjectOptions{}); err != nil {
 		t.Fatal("Error: ", err)
 	}
 
-	if err := c.RemoveObject(context.Background(), bucketName, objectName); err != nil {
+	if err := c.RemoveObject(context.Background(), bucketName, objectName, RemoveObjectOptions{}); err != nil {
 		t.Fatal("Error: ", err)
 	}
 
@@ -751,7 +751,7 @@ func TestCorePutObject(t *testing.T) {
 		t.Fatal("Error: object is already closed, should return error")
 	}
 
-	err = c.RemoveObject(context.Background(), bucketName, objectName)
+	err = c.RemoveObject(context.Background(), bucketName, objectName, RemoveObjectOptions{})
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
@@ -808,7 +808,7 @@ func TestCoreGetObjectMetadata(t *testing.T) {
 		log.Fatalln("Expected metadata to be available but wasn't")
 	}
 
-	err = core.RemoveObject(context.Background(), bucketName, "my-objectname")
+	err = core.RemoveObject(context.Background(), bucketName, "my-objectname", RemoveObjectOptions{})
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
