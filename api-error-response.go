@@ -249,26 +249,11 @@ func errInvalidObjectName(message string) error {
 	}
 }
 
-// errInvalidObjectPrefix - Invalid object prefix response is
-// similar to object name response.
-var errInvalidObjectPrefix = errInvalidObjectName
-
 // errInvalidArgument - Invalid argument response.
 func errInvalidArgument(message string) error {
 	return ErrorResponse{
 		StatusCode: http.StatusBadRequest,
 		Code:       "InvalidArgument",
-		Message:    message,
-		RequestID:  "minio",
-	}
-}
-
-// errNoSuchBucketPolicy - No Such Bucket Policy response
-// The specified bucket does not have a bucket policy.
-func errNoSuchBucketPolicy(message string) error {
-	return ErrorResponse{
-		StatusCode: http.StatusNotFound,
-		Code:       "NoSuchBucketPolicy",
 		Message:    message,
 		RequestID:  "minio",
 	}
