@@ -46,7 +46,7 @@ func (c Client) putObjectMultipart(ctx context.Context, bucketName, objectName s
 		if errResp.Code == "AccessDenied" && strings.Contains(errResp.Message, "Access Denied") {
 			// Verify if size of reader is greater than '5GiB'.
 			if size > maxSinglePutObjectSize {
-				return 0, ErrEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
+				return 0, errEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
 			}
 			// Fall back to uploading as single PutObject operation.
 			return c.putObject(ctx, bucketName, objectName, reader, size, opts)
@@ -163,7 +163,7 @@ func (c Client) putObjectMultipartNoStream(ctx context.Context, bucketName, obje
 	for i := 1; i < partNumber; i++ {
 		part, ok := partsInfo[i]
 		if !ok {
-			return 0, ErrInvalidArgument(fmt.Sprintf("Missing part number %d", i))
+			return 0, errInvalidArgument(fmt.Sprintf("Missing part number %d", i))
 		}
 		complMultipartUpload.Parts = append(complMultipartUpload.Parts, CompletePart{
 			ETag:       part.ETag,
@@ -236,16 +236,16 @@ func (c Client) uploadPart(ctx context.Context, bucketName, objectName, uploadID
 		return ObjectPart{}, err
 	}
 	if size > maxPartSize {
-		return ObjectPart{}, ErrEntityTooLarge(size, maxPartSize, bucketName, objectName)
+		return ObjectPart{}, errEntityTooLarge(size, maxPartSize, bucketName, objectName)
 	}
 	if size <= -1 {
-		return ObjectPart{}, ErrEntityTooSmall(size, bucketName, objectName)
+		return ObjectPart{}, errEntityTooSmall(size, bucketName, objectName)
 	}
 	if partNumber <= 0 {
-		return ObjectPart{}, ErrInvalidArgument("Part number cannot be negative or equal to zero.")
+		return ObjectPart{}, errInvalidArgument("Part number cannot be negative or equal to zero.")
 	}
 	if uploadID == "" {
-		return ObjectPart{}, ErrInvalidArgument("UploadID cannot be empty.")
+		return ObjectPart{}, errInvalidArgument("UploadID cannot be empty.")
 	}
 
 	// Get resources properly escaped and lined up before using them in http request.

@@ -159,7 +159,7 @@ func (c Client) ListenBucketNotification(ctx context.Context, bucketName, prefix
 		if s3utils.IsAmazonEndpoint(*c.endpointURL) || s3utils.IsGoogleEndpoint(*c.endpointURL) {
 			select {
 			case notificationInfoCh <- NotificationInfo{
-				Err: ErrAPINotSupported("Listening for bucket notification is specific only to `minio` server endpoints"),
+				Err: errAPINotSupported("Listening for bucket notification is specific only to `minio` server endpoints"),
 			}:
 			case <-doneCh:
 			}

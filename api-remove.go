@@ -176,7 +176,7 @@ func (c Client) RemoveObjects(ctx context.Context, bucketName string, objectsCh 
 	if objectsCh == nil {
 		defer close(errorCh)
 		errorCh <- RemoveObjectError{
-			Err: ErrInvalidArgument("Objects channel cannot be nil"),
+			Err: errInvalidArgument("Objects channel cannot be nil"),
 		}
 		return errorCh
 	}
@@ -281,7 +281,7 @@ func (c Client) RemoveObjectsWithOptions(ctx context.Context, bucketName string,
 	if objectsCh == nil {
 		defer close(errorCh)
 		errorCh <- RemoveObjectError{
-			Err: ErrInvalidArgument("Objects channel cannot be nil"),
+			Err: errInvalidArgument("Objects channel cannot be nil"),
 		}
 		return errorCh
 	}

@@ -567,7 +567,7 @@ func (c Client) do(req *http.Request) (*http.Response, error) {
 	// Response cannot be non-nil, report error if thats the case.
 	if resp == nil {
 		msg := "Response is empty. " + reportIssue
-		return nil, ErrInvalidArgument(msg)
+		return nil, errInvalidArgument(msg)
 	}
 
 	// If trace is enabled, dump http request and response,
@@ -822,7 +822,7 @@ func (c Client) newRequest(ctx context.Context, method string, metadata requestM
 	// Generate presign url if needed, return right here.
 	if metadata.expires != 0 && metadata.presignURL {
 		if signerType.IsAnonymous() {
-			return nil, ErrInvalidArgument("Presigned URLs cannot be generated with anonymous credentials.")
+			return nil, errInvalidArgument("Presigned URLs cannot be generated with anonymous credentials.")
 		}
 		if signerType.IsV2() {
 			// Presign URL with signature v2.
@@ -912,7 +912,7 @@ func (c Client) makeTargetURL(bucketName, objectName, bucketLocation string, isV
 			// http://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html
 			// Disable transfer acceleration for non-compliant bucket names.
 			if strings.Contains(bucketName, ".") {
-				return nil, ErrTransferAccelerationBucket(bucketName)
+				return nil, errTransferAccelerationBucket(bucketName)
 			}
 			// If transfer acceleration is requested set new host.
 			// For more details about enabling transfer acceleration read here.

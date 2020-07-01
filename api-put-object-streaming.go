@@ -56,7 +56,7 @@ func (c Client) putObjectMultipartStream(ctx context.Context, bucketName, object
 		if errResp.Code == "AccessDenied" && strings.Contains(errResp.Message, "Access Denied") {
 			// Verify if size of reader is greater than '5GiB'.
 			if size > maxSinglePutObjectSize {
-				return 0, ErrEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
+				return 0, errEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
 			}
 			// Fall back to uploading as single PutObject operation.
 			return c.putObject(ctx, bucketName, objectName, reader, size, opts)
@@ -209,7 +209,7 @@ func (c Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketNa
 
 	// Verify if we uploaded all the data.
 	if totalUploadedSize != size {
-		return totalUploadedSize, ErrUnexpectedEOF(totalUploadedSize, size, bucketName, objectName)
+		return totalUploadedSize, errUnexpectedEOF(totalUploadedSize, size, bucketName, objectName)
 	}
 
 	// Sort all completed parts.
@@ -316,7 +316,7 @@ func (c Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, bu
 	// Verify if we uploaded all the data.
 	if size > 0 {
 		if totalUploadedSize != size {
-			return totalUploadedSize, ErrUnexpectedEOF(totalUploadedSize, size, bucketName, objectName)
+			return totalUploadedSize, errUnexpectedEOF(totalUploadedSize, size, bucketName, objectName)
 		}
 	}
 
@@ -328,7 +328,7 @@ func (c Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, bu
 	for i := 1; i < partNumber; i++ {
 		part, ok := partsInfo[i]
 		if !ok {
-			return 0, ErrInvalidArgument(fmt.Sprintf("Missing part number %d", i))
+			return 0, errInvalidArgument(fmt.Sprintf("Missing part number %d", i))
 		}
 		complMultipartUpload.Parts = append(complMultipartUpload.Parts, CompletePart{
 			ETag:       part.ETag,
@@ -361,11 +361,11 @@ func (c Client) putObject(ctx context.Context, bucketName, objectName string, re
 	// Size -1 is only supported on Google Cloud Storage, we error
 	// out in all other situations.
 	if size < 0 && !s3utils.IsGoogleEndpoint(*c.endpointURL) {
-		return 0, ErrEntityTooSmall(size, bucketName, objectName)
+		return 0, errEntityTooSmall(size, bucketName, objectName)
 	}
 
 	if opts.SendContentMd5 && s3utils.IsGoogleEndpoint(*c.endpointURL) && size < 0 {
-		return 0, ErrInvalidArgument("MD5Sum cannot be calculated with size '-1'")
+		return 0, errInvalidArgument("MD5Sum cannot be calculated with size '-1'")
 	}
 
 	if size > 0 {
@@ -374,7 +374,7 @@ func (c Client) putObject(ctx context.Context, bucketName, objectName string, re
 			if ok {
 				offset, err := seeker.Seek(0, io.SeekCurrent)
 				if err != nil {
-					return 0, ErrInvalidArgument(err.Error())
+					return 0, errInvalidArgument(err.Error())
 				}
 				reader = io.NewSectionReader(reader.(io.ReaderAt), offset, size)
 			}
@@ -410,7 +410,7 @@ func (c Client) putObject(ctx context.Context, bucketName, objectName string, re
 		return 0, err
 	}
 	if st.Size != size {
-		return 0, ErrUnexpectedEOF(st.Size, size, bucketName, objectName)
+		return 0, errUnexpectedEOF(st.Size, size, bucketName, objectName)
 	}
 	return size, nil
 }
