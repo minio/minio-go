@@ -150,7 +150,7 @@ func cleanupBucket(bucketName string, c *minio.Client) error {
 	// Exit cleanly upon return.
 	defer close(doneCh)
 	// Iterate over all objects in the bucket via listObjectsV2 and delete
-	for objCh := range c.ListObjectsV2(context.Background(), bucketName, "", true, doneCh) {
+	for objCh := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{Recursive: true}) {
 		if objCh.Err != nil {
 			return objCh.Err
 		}
@@ -183,7 +183,7 @@ func cleanupBucket(bucketName string, c *minio.Client) error {
 func cleanupVersionedBucket(bucketName string, c *minio.Client) error {
 	doneCh := make(chan struct{})
 	defer close(doneCh)
-	for obj := range c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh) {
+	for obj := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{WithVersions: true, Recursive: true}) {
 		if obj.Err != nil {
 			return obj.Err
 		}
@@ -703,9 +703,7 @@ func testListObjectVersions() {
 
 	var deleteMarkers, versions int
 
-	doneCh := make(chan struct{})
-	objectsInfo := c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh)
-
+	objectsInfo := c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{WithVersions: true, Recursive: true})
 	for info := range objectsInfo {
 		if info.Err != nil {
 			logError(testName, function, args, startTime, "", "Unexpected error during listing objects", err)
@@ -817,10 +815,9 @@ func testStatObjectWithVersioning() {
 	}
 	reader.Close()
 
-	doneCh := make(chan struct{})
-	objectsInfo := c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh)
+	objectsInfo := c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{WithVersions: true, Recursive: true})
 
-	var results []minio.ObjectVersionInfo
+	var results []minio.ObjectInfo
 	for info := range objectsInfo {
 		if info.Err != nil {
 			logError(testName, function, args, startTime, "", "Unexpected error during listing objects", err)
@@ -933,10 +930,9 @@ func testGetObjectWithVersioning() {
 		buffers = append(buffers, buf)
 	}
 
-	doneCh := make(chan struct{})
-	objectsInfo := c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh)
+	objectsInfo := c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{WithVersions: true, Recursive: true})
 
-	var results []minio.ObjectVersionInfo
+	var results []minio.ObjectInfo
 	for info := range objectsInfo {
 		if info.Err != nil {
 			logError(testName, function, args, startTime, "", "Unexpected error during listing objects", err)
@@ -1070,11 +1066,9 @@ func testCopyObjectWithVersioning() {
 		}
 	}
 
-	doneCh := make(chan struct{})
-	objectsVersionsInfo := c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh)
-
-	var infos []minio.ObjectVersionInfo
-	for info := range objectsVersionsInfo {
+	objectsInfo := c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{WithVersions: true, Recursive: true})
+	var infos []minio.ObjectInfo
+	for info := range objectsInfo {
 		if info.Err != nil {
 			logError(testName, function, args, startTime, "", "Unexpected error during listing objects", err)
 			return
@@ -1213,10 +1207,9 @@ func testComposeObjectWithVersioning() {
 		testFilesBytes = append(testFilesBytes, buf)
 	}
 
-	doneCh := make(chan struct{})
-	objectsInfo := c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh)
+	objectsInfo := c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{WithVersions: true, Recursive: true})
 
-	var results []minio.ObjectVersionInfo
+	var results []minio.ObjectInfo
 	for info := range objectsInfo {
 		if info.Err != nil {
 			logError(testName, function, args, startTime, "", "Unexpected error during listing objects", err)
@@ -1339,9 +1332,8 @@ func testRemoveObjectWithVersioning() {
 		return
 	}
 
-	doneCh := make(chan struct{})
-	objectsInfo := c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh)
-	var version minio.ObjectVersionInfo
+	objectsInfo := c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{WithVersions: true, Recursive: true})
+	var version minio.ObjectInfo
 	for info := range objectsInfo {
 		if info.Err != nil {
 			logError(testName, function, args, startTime, "", "Unexpected error during listing objects", err)
@@ -1357,8 +1349,7 @@ func testRemoveObjectWithVersioning() {
 		return
 	}
 
-	doneCh = make(chan struct{})
-	objectsInfo = c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh)
+	objectsInfo = c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{WithVersions: true, Recursive: true})
 	for range objectsInfo {
 		logError(testName, function, args, startTime, "", "Unexpected versioning info, should not have any one ", err)
 		return
@@ -1429,8 +1420,7 @@ func testRemoveObjectsWithVersioning() {
 
 	objectsVersions := make(chan minio.ObjectVersion)
 	go func() {
-		doneCh := make(chan struct{})
-		objectsVersionsInfo := c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh)
+		objectsVersionsInfo := c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{WithVersions: true, Recursive: true})
 		for info := range objectsVersionsInfo {
 			if info.Err != nil {
 				logError(testName, function, args, startTime, "", "Unexpected error during listing objects", err)
@@ -1457,8 +1447,7 @@ func testRemoveObjectsWithVersioning() {
 		}
 	}
 
-	doneCh := make(chan struct{})
-	objectsVersionsInfo := c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh)
+	objectsVersionsInfo := c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{WithVersions: true, Recursive: true})
 	for range objectsVersionsInfo {
 		logError(testName, function, args, startTime, "", "Unexpected versioning info, should not have any one ", err)
 		return
@@ -1529,10 +1518,9 @@ func testObjectTaggingWithVersioning() {
 		}
 	}
 
-	doneCh := make(chan struct{})
-	versionsInfo := c.ListObjectVersions(context.Background(), bucketName, "", true, doneCh)
+	versionsInfo := c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{WithVersions: true, Recursive: true})
 
-	var versions []minio.ObjectVersionInfo
+	var versions []minio.ObjectInfo
 	for info := range versionsInfo {
 		if info.Err != nil {
 			logError(testName, function, args, startTime, "", "Unexpected error during listing objects", err)
@@ -5376,7 +5364,7 @@ func testFunctional() {
 		"isRecursive": isRecursive,
 	}
 
-	for obj := range c.ListObjects(context.Background(), bucketName, objectName, isRecursive, doneCh) {
+	for obj := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{ForceV1: true, Prefix: objectName, Recursive: true}) {
 		if obj.Key == objectName {
 			objFound = true
 			break
@@ -5389,7 +5377,7 @@ func testFunctional() {
 
 	objFound = false
 	isRecursive = true // Recursive is true.
-	function = "ListObjectsV2(bucketName, objectName, isRecursive, doneCh)"
+	function = "ListObjects()"
 	functionAll += ", " + function
 	args = map[string]interface{}{
 		"bucketName":  bucketName,
@@ -5397,7 +5385,7 @@ func testFunctional() {
 		"isRecursive": isRecursive,
 	}
 
-	for obj := range c.ListObjectsV2(context.Background(), bucketName, objectName, isRecursive, doneCh) {
+	for obj := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{Prefix: objectName, Recursive: isRecursive}) {
 		if obj.Key == objectName {
 			objFound = true
 			break
@@ -10174,7 +10162,7 @@ func testFunctionalV2() {
 		"objectName":  objectName,
 		"isRecursive": isRecursive,
 	}
-	for obj := range c.ListObjects(context.Background(), bucketName, objectName, isRecursive, doneCh) {
+	for obj := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{ForceV1: true, Prefix: objectName, Recursive: isRecursive}) {
 		if obj.Key == objectName {
 			objFound = true
 			break
@@ -11154,16 +11142,11 @@ func testListObjects() {
 		}
 	}
 
-	testList := func(listFn func(context.Context, string, string, bool, <-chan struct{}) <-chan minio.ObjectInfo, bucket string) {
-		// Create a done channel to control 'ListObjects' go routine.
-		doneCh := make(chan struct{})
-		// Exit cleanly upon return.
-		defer close(doneCh)
-
+	testList := func(listFn func(context.Context, string, minio.ListObjectsOptions) <-chan minio.ObjectInfo, bucket string, opts minio.ListObjectsOptions) {
 		var objCursor int
 
 		// check for object name and storage-class from listing object result
-		for objInfo := range listFn(context.Background(), bucket, "", true, doneCh) {
+		for objInfo := range listFn(context.Background(), bucket, opts) {
 			if objInfo.Err != nil {
 				logError(testName, function, args, startTime, "", "ListObjects failed unexpectedly", err)
 				return
@@ -11183,8 +11166,8 @@ func testListObjects() {
 		}
 	}
 
-	testList(c.ListObjects, bucketName)
-	testList(c.ListObjectsV2, bucketName)
+	testList(c.ListObjects, bucketName, minio.ListObjectsOptions{Recursive: true, ForceV1: true})
+	testList(c.ListObjects, bucketName, minio.ListObjectsOptions{Recursive: true})
 
 	// Delete all objects and buckets
 	if err = cleanupBucket(bucketName, c); err != nil {
@@ -11267,7 +11250,7 @@ func testRemoveObjectsWithOptions() {
 	go func() {
 		defer close(objectsCh)
 		// List all objects from a bucket-name with a matching prefix.
-		for object := range c.ListObjects(context.Background(), bucketName, "", true, nil) {
+		for object := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{ForceV1: true, Recursive: true}) {
 			if object.Err != nil {
 				log.Fatalln(object.Err)
 			}
@@ -11290,7 +11273,7 @@ func testRemoveObjectsWithOptions() {
 	go func() {
 		defer close(objectsCh1)
 		// List all objects from a bucket-name with a matching prefix.
-		for object := range c.ListObjects(context.Background(), bucketName, "", true, nil) {
+		for object := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{ForceV1: true, Recursive: true}) {
 			if object.Err != nil {
 				log.Fatalln(object.Err)
 			}

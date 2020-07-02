@@ -123,28 +123,6 @@ type ObjectInfo struct {
 	Err error `json:"-"`
 }
 
-// ObjectVersionInfo container for object version result.
-type ObjectVersionInfo struct {
-	ETag string // ETag of the current version
-
-	Key          string    // Name of the object
-	LastModified time.Time // Date and time of the current object version
-	Size         int64     // Size in bytes of the current object version.
-
-	Owner Owner // Owner name
-
-	// The class of storage used to store the object.
-	StorageClass string
-
-	// Versioning related information
-	IsLatest       bool
-	IsDeleteMarker bool
-	VersionID      string
-
-	// Error
-	Err error
-}
-
 // ObjectMultipartInfo container for multipart object metadata.
 type ObjectMultipartInfo struct {
 	// Date and time at which the multipart upload was initiated.
