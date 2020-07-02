@@ -137,10 +137,15 @@ func (c Client) PresignedPostPolicy(p *PostPolicy) (u *url.URL, formData map[str
 	}
 
 	bucketName := p.formData["bucket"]
-	// Fetch the bucket location.
-	location, err := c.getBucketLocation(bucketName)
-	if err != nil {
-		return nil, nil, err
+
+	// Fetch the bucket location, we only need this value for AWS.
+	location := ""
+	if s3utils.IsAmazonEndpoint(*c.endpointURL) {
+		var err error
+		location, err = c.getBucketLocation(bucketName)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	isVirtualHost := c.isVirtualHostStyleRequest(*c.endpointURL, bucketName)
