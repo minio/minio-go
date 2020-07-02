@@ -191,7 +191,7 @@ func (p *PostPolicy) SetContentLengthRange(min, max int64) error {
 // based upload.
 func (p *PostPolicy) SetSuccessActionRedirect(redirect string) error {
 	if strings.TrimSpace(redirect) == "" || redirect == "" {
-		return ErrInvalidArgument("Redirect is empty")
+		return errInvalidArgument("Redirect is empty")
 	}
 	policyCond := policyCondition{
 		matchType: "eq",

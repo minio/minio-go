@@ -260,7 +260,7 @@ func TestErrInvalidObjectName(t *testing.T) {
 	}
 }
 
-// Test validates 'ErrInvalidArgument' response.
+// Test validates 'errInvalidArgument' response.
 func TestErrInvalidArgument(t *testing.T) {
 	expectedResult := ErrorResponse{
 		StatusCode: http.StatusBadRequest,
