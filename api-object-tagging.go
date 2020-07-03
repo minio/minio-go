@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -77,7 +76,7 @@ func (c Client) PutObjectTagging(ctx context.Context, bucketName, objectName str
 
 // GetObjectTagging fetches object tag(s) with a context to control cancellations
 // and timeouts.
-func (c Client) GetObjectTagging(ctx context.Context, bucketName, objectName string) (string, error) {
+func (c Client) GetObjectTagging(ctx context.Context, bucketName, objectName string) (map[string]string, error) {
 	// Get resources properly escaped and lined up before
 	// using them in http request.
 	urlValues := make(url.Values)
@@ -92,21 +91,21 @@ func (c Client) GetObjectTagging(ctx context.Context, bucketName, objectName str
 
 	defer closeResponse(resp)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return "", httpRespToErrorResponse(resp, bucketName, objectName)
+			return nil, httpRespToErrorResponse(resp, bucketName, objectName)
 		}
 	}
 
-	tagBuf, err := ioutil.ReadAll(resp.Body)
+	tags, err := tags.ParseObjectXML(resp.Body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return string(tagBuf), err
+	return tags.ToMap(), err
 }
 
 // RemoveObjectTagging removes object tag(s) with a context to control cancellations
