@@ -50,16 +50,16 @@ type ServerSideEncryptionConfiguration struct {
 
 /// Bucket operations
 
-func (c Client) makeBucket(ctx context.Context, bucketName string, location string, objectLockEnabled bool) (err error) {
+func (c Client) makeBucket(ctx context.Context, bucketName string, opts MakeBucketOptions) (err error) {
 	// Validate the input arguments.
 	if err := s3utils.CheckValidBucketNameStrict(bucketName); err != nil {
 		return err
 	}
 
-	err = c.doMakeBucket(ctx, bucketName, location, objectLockEnabled)
-	if err != nil && (location == "" || location == "us-east-1") {
+	err = c.doMakeBucket(ctx, bucketName, opts.Region, opts.ObjectLocking)
+	if err != nil && (opts.Region == "" || opts.Region == "us-east-1") {
 		if resp, ok := err.(ErrorResponse); ok && resp.Code == "AuthorizationHeaderMalformed" && resp.Region != "" {
-			err = c.doMakeBucket(ctx, bucketName, resp.Region, objectLockEnabled)
+			err = c.doMakeBucket(ctx, bucketName, resp.Region, opts.ObjectLocking)
 		}
 	}
 	return err
@@ -142,7 +142,7 @@ type MakeBucketOptions struct {
 // For Amazon S3 for more supported regions - http://docs.aws.amazon.com/general/latest/gr/rande.html
 // For Google Cloud Storage for more supported regions - https://cloud.google.com/storage/docs/bucket-locations
 func (c Client) MakeBucket(ctx context.Context, bucketName string, opts MakeBucketOptions) (err error) {
-	return c.makeBucket(ctx, bucketName, opts.Region, opts.ObjectLocking)
+	return c.makeBucket(ctx, bucketName, opts)
 }
 
 // SetBucketPolicy sets the access permissions on an existing bucket.
