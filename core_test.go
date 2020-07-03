@@ -93,7 +93,7 @@ func TestGetObjectCore(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 
 	// Make a new bucket.
-	err = c.MakeBucket(context.Background(), bucketName, "us-east-1")
+	err = c.MakeBucket(context.Background(), bucketName, MakeBucketOptions{Region: "us-east-1"})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -286,7 +286,7 @@ func TestGetObjectContentEncoding(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 
 	// Make a new bucket.
-	err = c.MakeBucket(context.Background(), bucketName, "us-east-1")
+	err = c.MakeBucket(context.Background(), bucketName, MakeBucketOptions{Region: "us-east-1"})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -363,7 +363,7 @@ func TestGetBucketPolicy(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 
 	// Make a new bucket.
-	err = c.MakeBucket(context.Background(), bucketName, "us-east-1")
+	err = c.MakeBucket(context.Background(), bucketName, MakeBucketOptions{Region: "us-east-1"})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -426,7 +426,7 @@ func TestCoreCopyObject(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 
 	// Make a new bucket.
-	err = c.MakeBucket(context.Background(), bucketName, "us-east-1")
+	err = c.MakeBucket(context.Background(), bucketName, MakeBucketOptions{Region: "us-east-1"})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -544,7 +544,7 @@ func TestCoreCopyObjectPart(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 
 	// Make a new bucket.
-	err = c.MakeBucket(context.Background(), bucketName, "us-east-1")
+	err = c.MakeBucket(context.Background(), bucketName, MakeBucketOptions{Region: "us-east-1"})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -693,7 +693,7 @@ func TestCorePutObject(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 
 	// Make a new bucket.
-	err = c.MakeBucket(context.Background(), bucketName, "us-east-1")
+	err = c.MakeBucket(context.Background(), bucketName, MakeBucketOptions{Region: "us-east-1"})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -780,7 +780,7 @@ func TestCoreGetObjectMetadata(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 
 	// Make a new bucket.
-	err = core.MakeBucket(context.Background(), bucketName, "us-east-1")
+	err = core.MakeBucket(context.Background(), bucketName, MakeBucketOptions{Region: "us-east-1"})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}

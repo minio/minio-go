@@ -50,16 +50,16 @@ type ServerSideEncryptionConfiguration struct {
 
 /// Bucket operations
 
-func (c Client) makeBucket(ctx context.Context, bucketName string, location string, objectLockEnabled bool) (err error) {
+func (c Client) makeBucket(ctx context.Context, bucketName string, opts MakeBucketOptions) (err error) {
 	// Validate the input arguments.
 	if err := s3utils.CheckValidBucketNameStrict(bucketName); err != nil {
 		return err
 	}
 
-	err = c.doMakeBucket(ctx, bucketName, location, objectLockEnabled)
-	if err != nil && (location == "" || location == "us-east-1") {
+	err = c.doMakeBucket(ctx, bucketName, opts.Region, opts.ObjectLocking)
+	if err != nil && (opts.Region == "" || opts.Region == "us-east-1") {
 		if resp, ok := err.(ErrorResponse); ok && resp.Code == "AuthorizationHeaderMalformed" && resp.Region != "" {
-			err = c.doMakeBucket(ctx, bucketName, resp.Region, objectLockEnabled)
+			err = c.doMakeBucket(ctx, bucketName, resp.Region, opts.ObjectLocking)
 		}
 	}
 	return err
@@ -126,6 +126,14 @@ func (c Client) doMakeBucket(ctx context.Context, bucketName string, location st
 	return nil
 }
 
+// MakeBucketOptions holds all options to tweak bucket creation
+type MakeBucketOptions struct {
+	// Bucket location
+	Region string
+	// Enable object locking
+	ObjectLocking bool
+}
+
 // MakeBucket creates a new bucket with bucketName with a context to control cancellations and timeouts.
 //
 // Location is an optional argument, by default all buckets are
@@ -133,19 +141,8 @@ func (c Client) doMakeBucket(ctx context.Context, bucketName string, location st
 //
 // For Amazon S3 for more supported regions - http://docs.aws.amazon.com/general/latest/gr/rande.html
 // For Google Cloud Storage for more supported regions - https://cloud.google.com/storage/docs/bucket-locations
-func (c Client) MakeBucket(ctx context.Context, bucketName string, location string) (err error) {
-	return c.makeBucket(ctx, bucketName, location, false)
-}
-
-// MakeBucketWithObjectLock creates a object lock enabled new bucket with bucketName.
-//
-// Location is an optional argument, by default all buckets are
-// created in US Standard Region.
-//
-// For Amazon S3 for more supported regions - http://docs.aws.amazon.com/general/latest/gr/rande.html
-// For Google Cloud Storage for more supported regions - https://cloud.google.com/storage/docs/bucket-locations
-func (c Client) MakeBucketWithObjectLock(ctx context.Context, bucketName string, location string) (err error) {
-	return c.makeBucket(ctx, bucketName, location, true)
+func (c Client) MakeBucket(ctx context.Context, bucketName string, opts MakeBucketOptions) (err error) {
+	return c.makeBucket(ctx, bucketName, opts)
 }
 
 // SetBucketPolicy sets the access permissions on an existing bucket.
