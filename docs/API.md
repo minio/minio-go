@@ -1354,7 +1354,7 @@ if err != nil {
 ```
 
 <a name="GetObjectTagging"></a>
-### GetObjectTagging(ctx context.Context, bucketName, objectName string) (string, error)
+### GetObjectTagging(ctx context.Context, bucketName, objectName string) (_map[string]string_, error)
 Fetch Object Tags from the given object
 
 __Parameters__
@@ -1375,7 +1375,7 @@ if err != nil {
     fmt.Println(err)
     return
 }
-fmt.Printf("Fetched Tags: %s", tags)
+fmt.Printf("Fetched Tags: %v", tags)
 ```
 
 <a name="RemoveObjectTagging"></a>
