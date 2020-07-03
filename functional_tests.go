@@ -22,7 +22,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -1547,67 +1546,36 @@ func testObjectTaggingWithVersioning() {
 		return
 	}
 
-	type Tag struct {
-		Key   string
-		Value string
-	}
-
-	type TagSet struct {
-		Tag []Tag
-	}
-
-	type GetObjectTaggingOutput struct {
-		TagSet TagSet
-	}
-
-	tagsEqual := func(tags map[string]string, getObjectTagging GetObjectTaggingOutput) bool {
-		for k, v := range tags {
-			found := false
-			for _, t := range getObjectTagging.TagSet.Tag {
-				if k+"="+v == t.Key+"="+t.Value {
-					found = true
-					break
+	tagsEqual := func(tags1, tags2 map[string]string) bool {
+		for k1, v1 := range tags1 {
+			v2, found := tags2[k1]
+			if found {
+				if v1 != v2 {
+					return false
 				}
-			}
-			if !found {
-				return false
 			}
 		}
 		return true
 	}
 
-	tagsV1XML, err := c.GetObjectTagging(context.Background(), bucketName, objectName, minio.GetObjectTaggingOptions{VersionID: versions[0].VersionID})
+	gotTagsV1, err := c.GetObjectTagging(context.Background(), bucketName, objectName, minio.GetObjectTaggingOptions{VersionID: versions[0].VersionID})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObjectTaggingWithOptions failed", err)
 		return
 	}
 
-	var getObjectTaggingV1 GetObjectTaggingOutput
-	err = xml.Unmarshal([]byte(tagsV1XML), &getObjectTaggingV1)
-	if err != nil {
-		logError(testName, function, args, startTime, "", "Unexpected error during XML unmarshal (1)", err)
-		return
-	}
-
-	if !tagsEqual(tagsV1, getObjectTaggingV1) {
+	if !tagsEqual(tagsV1, gotTagsV1) {
 		logError(testName, function, args, startTime, "", "Unexpected tags content (1)", err)
 		return
 	}
 
-	tagsV2XML, err := c.GetObjectTagging(context.Background(), bucketName, objectName, minio.GetObjectTaggingOptions{})
+	gotTagsV2, err := c.GetObjectTagging(context.Background(), bucketName, objectName, minio.GetObjectTaggingOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObjectTaggingWithContext failed", err)
 		return
 	}
 
-	var getObjectTaggingV2 GetObjectTaggingOutput
-	err = xml.Unmarshal([]byte(tagsV2XML), &getObjectTaggingV2)
-	if err != nil {
-		logError(testName, function, args, startTime, "", "Unexpected error during XML unmarshal (2)", err)
-		return
-	}
-
-	if !tagsEqual(tagsV2, getObjectTaggingV2) {
+	if !tagsEqual(tagsV2, gotTagsV2) {
 		logError(testName, function, args, startTime, "", "Unexpected tags content (2)", err)
 		return
 	}
@@ -1618,21 +1586,14 @@ func testObjectTaggingWithVersioning() {
 		return
 	}
 
-	emptyTagsXML, err := c.GetObjectTagging(context.Background(), bucketName, objectName,
+	emptyTags, err := c.GetObjectTagging(context.Background(), bucketName, objectName,
 		minio.GetObjectTaggingOptions{VersionID: versions[0].VersionID})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObjectTaggingWithOptions failed", err)
 		return
 	}
 
-	var getObjectExpectedEmptyTagging GetObjectTaggingOutput
-	err = xml.Unmarshal([]byte(emptyTagsXML), &getObjectExpectedEmptyTagging)
-	if err != nil {
-		logError(testName, function, args, startTime, "", "Unexpected error during XML unmarshal (3)", err)
-		return
-	}
-
-	if len(getObjectExpectedEmptyTagging.TagSet.Tag) != 0 {
+	if len(emptyTags) != 0 {
 		logError(testName, function, args, startTime, "", "Unexpected tags content (2)", err)
 		return
 	}

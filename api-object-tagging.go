@@ -92,7 +92,7 @@ type GetObjectTaggingOptions struct {
 
 // GetObjectTagging fetches object tag(s) with options to target
 // a specific object version in a versioned bucket.
-func (c Client) GetObjectTagging(ctx context.Context, bucketName, objectName string, opts GetObjectTaggingOptions) (string, error) {
+func (c Client) GetObjectTagging(ctx context.Context, bucketName, objectName string, opts GetObjectTaggingOptions) (map[string]string, error) {
 	// Get resources properly escaped and lined up before
 	// using them in http request.
 	urlValues := make(url.Values)
