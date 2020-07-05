@@ -1,12 +1,17 @@
+GOPATH := $(shell go env GOPATH)
+
 all: checks
 
 .PHONY: examples docs
 
-checks: diff vet test examples functional-test
+checks: lint vet test examples functional-test
 
-diff:
-	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b . v1.21.0
-	@./golangci-lint run --timeout=5m --config ./.golangci.yml
+lint:
+	@mkdir -p ${GOPATH}/bin
+	@which golangci-lint 1>/dev/null || (echo "Installing golangci-lint" && curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.27.0)
+	@echo "Running $@ check"
+	@GO111MODULE=on ${GOPATH}/bin/golangci-lint cache clean
+	@GO111MODULE=on ${GOPATH}/bin/golangci-lint run --timeout=5m --config ./.golangci.yml
 
 vet:
 	@GO111MODULE=on go vet ./...
