@@ -659,7 +659,7 @@ func testListObjectVersions() {
 	args["bucketName"] = bucketName
 
 	// Make a new bucket.
-	err = c.MakeBucketWithObjectLock(context.Background(), bucketName, "us-east-1")
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1", ObjectLocking: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "Make bucket failed", err)
 		return
@@ -779,7 +779,7 @@ func testStatObjectWithVersioning() {
 	args["bucketName"] = bucketName
 
 	// Make a new bucket.
-	err = c.MakeBucketWithObjectLock(context.Background(), bucketName, "us-east-1")
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1", ObjectLocking: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "Make bucket failed", err)
 		return
@@ -893,7 +893,7 @@ func testGetObjectWithVersioning() {
 	args["bucketName"] = bucketName
 
 	// Make a new bucket.
-	err = c.MakeBucketWithObjectLock(context.Background(), bucketName, "us-east-1")
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1", ObjectLocking: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "Make bucket failed", err)
 		return
@@ -1034,7 +1034,7 @@ func testCopyObjectWithVersioning() {
 	args["bucketName"] = bucketName
 
 	// Make a new bucket.
-	err = c.MakeBucketWithObjectLock(context.Background(), bucketName, "us-east-1")
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1", ObjectLocking: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "Make bucket failed", err)
 		return
@@ -1171,7 +1171,7 @@ func testComposeObjectWithVersioning() {
 	args["bucketName"] = bucketName
 
 	// Make a new bucket.
-	err = c.MakeBucketWithObjectLock(context.Background(), bucketName, "us-east-1")
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1", ObjectLocking: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "Make bucket failed", err)
 		return
@@ -1310,7 +1310,7 @@ func testRemoveObjectWithVersioning() {
 	args["bucketName"] = bucketName
 
 	// Make a new bucket.
-	err = c.MakeBucketWithObjectLock(context.Background(), bucketName, "us-east-1")
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1", ObjectLocking: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "Make bucket failed", err)
 		return
@@ -1396,7 +1396,7 @@ func testRemoveObjectsWithVersioning() {
 	args["bucketName"] = bucketName
 
 	// Make a new bucket.
-	err = c.MakeBucketWithObjectLock(context.Background(), bucketName, "us-east-1")
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1", ObjectLocking: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "Make bucket failed", err)
 		return
@@ -1494,7 +1494,7 @@ func testObjectTaggingWithVersioning() {
 	args["bucketName"] = bucketName
 
 	// Make a new bucket.
-	err = c.MakeBucketWithObjectLock(context.Background(), bucketName, "us-east-1")
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1", ObjectLocking: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "Make bucket failed", err)
 		return
