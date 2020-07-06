@@ -525,8 +525,14 @@ func (c Client) ComposeObjectWithProgress(ctx context.Context, dst DestinationIn
 	}
 
 	// 4. Make final complete-multipart request.
-	return c.completeMultipartUpload(ctx, dst.bucket, dst.object, uploadID,
+	uploadInfo, err := c.completeMultipartUpload(ctx, dst.bucket, dst.object, uploadID,
 		completeMultipartUpload{Parts: objParts})
+	if err != nil {
+		return UploadInfo{}, err
+	}
+
+	uploadInfo.Size = totalSize
+	return uploadInfo, nil
 }
 
 // ComposeObject - creates an object using server-side copying of

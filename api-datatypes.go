@@ -73,6 +73,7 @@ type Owner struct {
 type UploadInfo struct {
 	ETag      string
 	VersionID string
+	Size      int64
 }
 
 // ObjectInfo container for object metadata.

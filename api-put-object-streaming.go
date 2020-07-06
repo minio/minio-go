@@ -215,7 +215,13 @@ func (c Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketNa
 	// Sort all completed parts.
 	sort.Sort(completedParts(complMultipartUpload.Parts))
 
-	return c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload)
+	uploadInfo, err := c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload)
+	if err != nil {
+		return UploadInfo{}, err
+	}
+
+	uploadInfo.Size = totalUploadedSize
+	return uploadInfo, nil
 }
 
 func (c Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, bucketName, objectName string,
@@ -334,7 +340,13 @@ func (c Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, bu
 	// Sort all completed parts.
 	sort.Sort(completedParts(complMultipartUpload.Parts))
 
-	return c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload)
+	uploadInfo, err := c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload)
+	if err != nil {
+		return UploadInfo{}, err
+	}
+
+	uploadInfo.Size = totalUploadedSize
+	return uploadInfo, nil
 }
 
 // putObject special function used Google Cloud Storage. This special function
@@ -441,5 +453,6 @@ func (c Client) putObjectDo(ctx context.Context, bucketName, objectName string, 
 	return UploadInfo{
 		ETag:      trimEtag(resp.Header.Get("ETag")),
 		VersionID: resp.Header.Get("x-amz-version-id"),
+		Size:      size,
 	}, nil
 }

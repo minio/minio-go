@@ -174,7 +174,13 @@ func (c Client) putObjectMultipartNoStream(ctx context.Context, bucketName, obje
 	// Sort all completed parts.
 	sort.Sort(completedParts(complMultipartUpload.Parts))
 
-	return c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload)
+	uploadInfo, err := c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload)
+	if err != nil {
+		return UploadInfo{}, err
+	}
+
+	uploadInfo.Size = totalUploadedSize
+	return uploadInfo, nil
 }
 
 // initiateMultipartUpload - Initiates a multipart upload and returns an upload ID.

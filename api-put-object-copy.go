@@ -96,6 +96,7 @@ func (c Client) CopyObjectWithProgress(ctx context.Context, dst DestinationInfo,
 
 	return UploadInfo{
 		VersionID: resp.Header.Get("x-amz-version-id"),
+		Size:      size,
 		ETag:      trimEtag(resp.Header.Get("ETag")),
 	}, nil
 }

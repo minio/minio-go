@@ -1840,11 +1840,17 @@ func testPutObjectStreaming() {
 
 	for _, size := range sizes {
 		data := bytes.Repeat([]byte("a"), int(size))
-		_, err = c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(data), int64(size), minio.PutObjectOptions{})
+		ui, err := c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(data), int64(size), minio.PutObjectOptions{})
 		if err != nil {
 			logError(testName, function, args, startTime, "", "PutObjectStreaming failed", err)
 			return
 		}
+
+		if ui.Size != size {
+			logError(testName, function, args, startTime, "", "PutObjectStreaming result has unexpected size", nil)
+			return
+		}
+
 		objInfo, err := c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{})
 		if err != nil {
 			logError(testName, function, args, startTime, "", "StatObject failed", err)
@@ -2453,10 +2459,14 @@ func testFPutObject() {
 	args["opts"] = minio.PutObjectOptions{ContentType: "application/octet-stream"}
 
 	// Perform standard FPutObject with contentType provided (Expecting application/octet-stream)
-	_, err = c.FPutObject(context.Background(), bucketName, objectName+"-standard", fName, minio.PutObjectOptions{ContentType: "application/octet-stream"})
-
+	ui, err := c.FPutObject(context.Background(), bucketName, objectName+"-standard", fName, minio.PutObjectOptions{ContentType: "application/octet-stream"})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "FPutObject failed", err)
+		return
+	}
+
+	if ui.Size != int64(dataFileMap["datafile-129-MB"]) {
+		logError(testName, function, args, startTime, "", "FPutObject returned an unexpected upload size", err)
 		return
 	}
 
@@ -3643,9 +3653,14 @@ func testCopyObject() {
 	}
 
 	// Perform the Copy
-	_, err = c.CopyObject(context.Background(), dst, src)
+	ui, err := c.CopyObject(context.Background(), dst, src)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "CopyObject failed", err)
+		return
+	}
+
+	if ui.Size != 0 {
+		logError(testName, function, args, startTime, "", "CopyObject returned unexpeced size", nil)
 		return
 	}
 
@@ -6983,9 +6998,14 @@ func testComposeMultipleSources(c *minio.Client) {
 		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
 		return
 	}
-	_, err = c.ComposeObject(context.Background(), dst, srcs)
+	ui, err := c.ComposeObject(context.Background(), dst, srcs)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "ComposeObject failed", err)
+		return
+	}
+
+	if ui.Size != 9*srcSize+1 {
+		logError(testName, function, args, startTime, "", "ComposeObject returned unexpected size", err)
 		return
 	}
 
@@ -9795,12 +9815,17 @@ func testPutObjectsUnknownV2() {
 		objectName := fmt.Sprintf("%sunique%d", bucketName, i)
 		args["objectName"] = objectName
 
-		n, err := c.PutObject(context.Background(), bucketName, objectName, rpipe, -1, minio.PutObjectOptions{})
+		ui, err := c.PutObject(context.Background(), bucketName, objectName, rpipe, -1, minio.PutObjectOptions{})
 		if err != nil {
 			logError(testName, function, args, startTime, "", "PutObjectStreaming failed", err)
 			return
 		}
-		args["size"] = n
+
+		if ui.Size != 4 {
+			logError(testName, function, args, startTime, "", "Expected upload object size "+string(4)+" got "+string(ui.Size), nil)
+			return
+		}
+
 		st, err := c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{})
 		if err != nil {
 			logError(testName, function, args, startTime, "", "StatObjectStreaming failed", err)
