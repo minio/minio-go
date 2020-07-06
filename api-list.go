@@ -516,28 +516,22 @@ func (c Client) listObjectsQuery(ctx context.Context, bucketName, objectPrefix, 
 // objectPrefix from the specified bucket. If recursion is enabled
 // it would list all subdirectories and all its contents.
 //
-// Your input parameters are just bucketName, objectPrefix, recursive
-// and a done channel to pro-actively close the internal go routine.
+// Your input parameters are just bucketName, objectPrefix, recursive.
 // If you enable recursive as 'true' this function will return back all
 // the multipart objects in a given bucket name.
 //
 //   api := client.New(....)
-//   // Create a done channel.
-//   doneCh := make(chan struct{})
-//   defer close(doneCh)
 //   // Recurively list all objects in 'mytestbucket'
 //   recursive := true
-//   for message := range api.ListIncompleteUploads("mytestbucket", "starthere", recursive) {
+//   for message := range api.ListIncompleteUploads(context.Background(), "mytestbucket", "starthere", recursive) {
 //       fmt.Println(message)
 //   }
-
-// ListIncompleteUploads is a wrapper for ListIncompleteUploadsWithContent
-func (c Client) ListIncompleteUploads(ctx context.Context, bucketName, objectPrefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectMultipartInfo {
-	return c.listIncompleteUploads(ctx, bucketName, objectPrefix, recursive, doneCh)
+func (c Client) ListIncompleteUploads(ctx context.Context, bucketName, objectPrefix string, recursive bool) <-chan ObjectMultipartInfo {
+	return c.listIncompleteUploads(ctx, bucketName, objectPrefix, recursive)
 }
 
 // listIncompleteUploads lists all incomplete uploads.
-func (c Client) listIncompleteUploads(ctx context.Context, bucketName, objectPrefix string, recursive bool, doneCh <-chan struct{}) <-chan ObjectMultipartInfo {
+func (c Client) listIncompleteUploads(ctx context.Context, bucketName, objectPrefix string, recursive bool) <-chan ObjectMultipartInfo {
 	// Allocate channel for multipart uploads.
 	objectMultipartStatCh := make(chan ObjectMultipartInfo, 1)
 	// Delimiter is set to "/" by default.
@@ -585,8 +579,8 @@ func (c Client) listIncompleteUploads(ctx context.Context, bucketName, objectPre
 				select {
 				// Send individual uploads here.
 				case objectMultipartStatCh <- obj:
-				// If done channel return here.
-				case <-doneCh:
+				// If the context is canceled
+				case <-ctx.Done():
 					return
 				}
 			}
@@ -596,8 +590,8 @@ func (c Client) listIncompleteUploads(ctx context.Context, bucketName, objectPre
 				select {
 				// Send delimited prefixes here.
 				case objectMultipartStatCh <- ObjectMultipartInfo{Key: obj.Prefix, Size: 0}:
-				// If done channel return here.
-				case <-doneCh:
+				// If context is canceled.
+				case <-ctx.Done():
 					return
 				}
 			}
@@ -735,11 +729,8 @@ func (c Client) findUploadIDs(ctx context.Context, bucketName, objectName string
 	var uploadIDs []string
 	// Make list incomplete uploads recursive.
 	isRecursive := true
-	// Create done channel to cleanup the routine.
-	doneCh := make(chan struct{})
-	defer close(doneCh)
 	// List all incomplete uploads.
-	for mpUpload := range c.listIncompleteUploads(ctx, bucketName, objectName, isRecursive, doneCh) {
+	for mpUpload := range c.listIncompleteUploads(ctx, bucketName, objectName, isRecursive) {
 		if mpUpload.Err != nil {
 			return nil, mpUpload.Err
 		}

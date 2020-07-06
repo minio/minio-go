@@ -382,7 +382,7 @@ for object := range objectCh {
 ```
 
 <a name="ListIncompleteUploads"></a>
-### ListIncompleteUploads(ctx context.Context, bucketName, prefix string, recursive bool, doneCh chan struct{}) <- chan ObjectMultipartInfo
+### ListIncompleteUploads(ctx context.Context, bucketName, prefix string, recursive bool) <- chan ObjectMultipartInfo
 Lists partially uploaded objects in a bucket.
 
 
@@ -395,7 +395,6 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket |
 | `prefix` |_string_   | Prefix of objects that are partially uploaded |
 | `recursive`  | _bool_  |`true` indicates recursive style listing and `false` indicates directory style listing delimited by '/'.  |
-|`doneCh`  | _chan struct{}_ | A message on this channel ends the ListenIncompleteUploads iterator.  |
 
 
 __Return Value__
@@ -416,14 +415,8 @@ __Example__
 
 
 ```go
-// Create a done channel to control 'ListObjects' go routine.
-doneCh := make(chan struct{})
-
-// Indicate to our routine to exit cleanly upon return.
-defer close(doneCh)
-
 isRecursive := true // Recursively list everything at 'myprefix'
-multiPartObjectCh := minioClient.ListIncompleteUploads(context.Background(), "mybucket", "myprefix", isRecursive, doneCh)
+multiPartObjectCh := minioClient.ListIncompleteUploads(context.Background(), "mybucket", "myprefix", isRecursive)
 for multiPartObject := range multiPartObjectCh {
     if multiPartObject.Err != nil {
         fmt.Println(multiPartObject.Err)
@@ -1732,7 +1725,7 @@ if err != nil {
 ```
 
 <a name="ListenBucketNotification"></a>
-### ListenBucketNotification(context context.Context, bucketName, prefix, suffix string, events []string, doneCh <-chan struct{}) <-chan NotificationInfo
+### ListenBucketNotification(context context.Context, bucketName, prefix, suffix string, events []string) <-chan NotificationInfo
 ListenBucketNotification API receives bucket notification events through the notification channel. The returned notification channel has two fields 'Records' and 'Err'.
 
 - 'Records' holds the notifications received from the server.
@@ -1749,7 +1742,6 @@ __Parameters__
 |`prefix`  | _string_ | Object key prefix to filter notifications for  |
 |`suffix`  | _string_ | Object key suffix to filter notifications for  |
 |`events`  | _[]string_ | Enables notifications for specific event types |
-|`doneCh`  | _chan struct{}_ | A message on this channel ends the ListenBucketNotification iterator  |
 
 __Return Values__
 
@@ -1768,18 +1760,12 @@ __Example__
 
 
 ```go
-// Create a done channel to control 'ListenBucketNotification' go routine.
-doneCh := make(chan struct{})
-
-// Indicate a background go-routine to exit cleanly upon return.
-defer close(doneCh)
-
 // Listen for bucket notifications on "mybucket" filtered by prefix, suffix and events.
 for notificationInfo := range minioClient.ListenBucketNotification(context.Background(), "mybucket", "myprefix/", ".mysuffix", []string{
     "s3:ObjectCreated:*",
     "s3:ObjectAccessed:*",
     "s3:ObjectRemoved:*",
-    }, doneCh) {
+    }) {
     if notificationInfo.Err != nil {
         fmt.Println(notificationInfo.Err)
     }
