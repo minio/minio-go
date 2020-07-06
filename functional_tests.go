@@ -159,7 +159,7 @@ func cleanupBucket(bucketName string, c *minio.Client) error {
 			}
 		}
 	}
-	for objPartInfo := range c.ListIncompleteUploads(context.Background(), bucketName, "", true, doneCh) {
+	for objPartInfo := range c.ListIncompleteUploads(context.Background(), bucketName, "", true) {
 		if objPartInfo.Err != nil {
 			return objPartInfo.Err
 		}
@@ -4445,7 +4445,7 @@ func testFunctional() {
 		"isRecursive": isRecursive,
 	}
 
-	for objIncompl := range c.ListIncompleteUploads(context.Background(), bucketName, objectName, isRecursive, doneCh) {
+	for objIncompl := range c.ListIncompleteUploads(context.Background(), bucketName, objectName, isRecursive) {
 		if objIncompl.Key != "" {
 			incompObjNotFound = false
 			break
@@ -9170,7 +9170,7 @@ func testFunctionalV2() {
 		"objectName":  objectName,
 		"isRecursive": isRecursive,
 	}
-	for objIncompl := range c.ListIncompleteUploads(context.Background(), bucketName, objectName, isRecursive, doneCh) {
+	for objIncompl := range c.ListIncompleteUploads(context.Background(), bucketName, objectName, isRecursive) {
 		if objIncompl.Key != "" {
 			incompObjNotFound = false
 			break

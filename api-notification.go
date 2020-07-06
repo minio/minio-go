@@ -136,7 +136,7 @@ type NotificationInfo struct {
 }
 
 // ListenBucketNotification listen for bucket events, this is a MinIO specific API
-func (c Client) ListenBucketNotification(ctx context.Context, bucketName, prefix, suffix string, events []string, doneCh <-chan struct{}) <-chan NotificationInfo {
+func (c Client) ListenBucketNotification(ctx context.Context, bucketName, prefix, suffix string, events []string) <-chan NotificationInfo {
 	notificationInfoCh := make(chan NotificationInfo, 1)
 	const notificationCapacity = 1024 * 1024
 	notificationEventBuffer := make([]byte, notificationCapacity)
@@ -150,7 +150,7 @@ func (c Client) ListenBucketNotification(ctx context.Context, bucketName, prefix
 			case notificationInfoCh <- NotificationInfo{
 				Err: err,
 			}:
-			case <-doneCh:
+			case <-ctx.Done():
 			}
 			return
 		}
@@ -161,7 +161,7 @@ func (c Client) ListenBucketNotification(ctx context.Context, bucketName, prefix
 			case notificationInfoCh <- NotificationInfo{
 				Err: errAPINotSupported("Listening for bucket notification is specific only to `minio` server endpoints"),
 			}:
-			case <-doneCh:
+			case <-ctx.Done():
 			}
 			return
 		}
@@ -192,7 +192,7 @@ func (c Client) ListenBucketNotification(ctx context.Context, bucketName, prefix
 				case notificationInfoCh <- NotificationInfo{
 					Err: err,
 				}:
-				case <-doneCh:
+				case <-ctx.Done():
 				}
 				return
 			}
@@ -204,7 +204,7 @@ func (c Client) ListenBucketNotification(ctx context.Context, bucketName, prefix
 				case notificationInfoCh <- NotificationInfo{
 					Err: errResponse,
 				}:
-				case <-doneCh:
+				case <-ctx.Done():
 				}
 				return
 			}
@@ -227,7 +227,7 @@ func (c Client) ListenBucketNotification(ctx context.Context, bucketName, prefix
 					case notificationInfoCh <- NotificationInfo{
 						Err: err,
 					}:
-					case <-doneCh:
+					case <-ctx.Done():
 						return
 					}
 					closeResponse(resp)
@@ -236,7 +236,7 @@ func (c Client) ListenBucketNotification(ctx context.Context, bucketName, prefix
 				// Send notificationInfo
 				select {
 				case notificationInfoCh <- notificationInfo:
-				case <-doneCh:
+				case <-ctx.Done():
 					closeResponse(resp)
 					return
 				}
@@ -247,7 +247,7 @@ func (c Client) ListenBucketNotification(ctx context.Context, bucketName, prefix
 				case notificationInfoCh <- NotificationInfo{
 					Err: err,
 				}:
-				case <-doneCh:
+				case <-ctx.Done():
 					return
 				}
 			}
