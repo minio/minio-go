@@ -2695,7 +2695,7 @@ func testCopyObject() {
 	}
 
 	// Perform the Copy
-	err = c.CopyObject(context.Background(), dst, src)
+	err = c.CopyObject(context.Background(), dst, src, minio.CopyObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "CopyObject failed", err)
 		return
@@ -2748,7 +2748,7 @@ func testCopyObject() {
 	}
 
 	// Perform the Copy which should fail
-	err = c.CopyObject(context.Background(), dst, src)
+	err = c.CopyObject(context.Background(), dst, src, minio.CopyObjectOptions{})
 	if err == nil {
 		logError(testName, function, args, startTime, "", "CopyObject did not fail for invalid conditions", err)
 		return
@@ -2766,7 +2766,7 @@ func testCopyObject() {
 		return
 	}
 
-	err = c.CopyObject(context.Background(), dst, src)
+	err = c.CopyObject(context.Background(), dst, src, minio.CopyObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "CopyObject shouldn't fail", err)
 		return
@@ -5860,7 +5860,7 @@ func testCopyObjectV2() {
 	}
 
 	// Perform the Copy
-	err = c.CopyObject(context.Background(), dst, src)
+	err = c.CopyObject(context.Background(), dst, src, minio.CopyObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "CopyObject failed", err)
 		return
@@ -5912,7 +5912,7 @@ func testCopyObjectV2() {
 	}
 
 	// Perform the Copy which should fail
-	err = c.CopyObject(context.Background(), dst, src)
+	err = c.CopyObject(context.Background(), dst, src, minio.CopyObjectOptions{})
 	if err == nil {
 		logError(testName, function, args, startTime, "", "CopyObject did not fail for invalid conditions", err)
 		return
@@ -5962,7 +5962,7 @@ func testComposeObjectErrorCasesWrapper(c *minio.Client) {
 	// Just explain about srcArr in args["sourceList"]
 	// to stop having 10,001 null headers logged
 	args["sourceList"] = "source array of 10,001 elements"
-	if err := c.ComposeObject(context.Background(), dst, srcSlice); err == nil {
+	if err := c.ComposeObject(context.Background(), dst, srcSlice, minio.ComposeObjectOptions{}); err == nil {
 		logError(testName, function, args, startTime, "", "Expected error in ComposeObject", err)
 		return
 	} else if err.Error() != "There must be as least one and up to 10000 source objects." {
@@ -5989,7 +5989,7 @@ func testComposeObjectErrorCasesWrapper(c *minio.Client) {
 		return
 	}
 	// 3. ComposeObject call should fail.
-	if err := c.ComposeObject(context.Background(), dst, []minio.SourceInfo{badSrc}); err == nil {
+	if err := c.ComposeObject(context.Background(), dst, []minio.SourceInfo{badSrc}, minio.ComposeObjectOptions{}); err == nil {
 		logError(testName, function, args, startTime, "", "ComposeObject expected to fail", err)
 		return
 	} else if !strings.Contains(err.Error(), "has invalid segment-to-copy") {
@@ -6077,7 +6077,7 @@ func testComposeMultipleSources(c *minio.Client) {
 		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
 		return
 	}
-	err = c.ComposeObject(context.Background(), dst, srcs)
+	err = c.ComposeObject(context.Background(), dst, srcs, minio.ComposeObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "ComposeObject failed", err)
 		return
@@ -6174,7 +6174,7 @@ func testEncryptedEmptyObject() {
 		return
 	}
 	srcInfo := minio.NewSourceInfo(bucketName, "object", sse)
-	if err = c.CopyObject(context.Background(), dstInfo, srcInfo); err != nil {
+	if err = c.CopyObject(context.Background(), dstInfo, srcInfo, minio.CopyObjectOptions{}); err != nil {
 		function = "CopyObject(dstInfo, srcInfo)"
 		logError(testName, function, map[string]interface{}{}, startTime, "", "CopyObject failed", err)
 		return
@@ -6191,7 +6191,7 @@ func testEncryptedEmptyObject() {
 	}
 
 	srcInfo = minio.NewSourceInfo(bucketName, "new-object", sse)
-	if err = c.CopyObject(context.Background(), dstInfo, srcInfo); err != nil {
+	if err = c.CopyObject(context.Background(), dstInfo, srcInfo, minio.CopyObjectOptions{}); err != nil {
 		function = "CopyObject(dstInfo, srcInfo)"
 		logError(testName, function, map[string]interface{}{}, startTime, "", "CopyObject with key rotation failed", err)
 		return
@@ -6264,7 +6264,7 @@ func testEncryptedCopyObjectWrapper(c *minio.Client, bucketName string, sseSrc, 
 	}
 	args["destination"] = dst
 
-	err = c.CopyObject(context.Background(), dst, src)
+	err = c.CopyObject(context.Background(), dst, src, minio.CopyObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "CopyObject failed", err)
 		return
@@ -6308,7 +6308,7 @@ func testEncryptedCopyObjectWrapper(c *minio.Client, bucketName string, sseSrc, 
 		}
 		args["destination"] = dst
 
-		err = c.CopyObject(context.Background(), dst, src)
+		err = c.CopyObject(context.Background(), dst, src, minio.CopyObjectOptions{})
 		if err != nil {
 			logError(testName, function, args, startTime, "", "CopyObject failed", err)
 			return
@@ -6341,7 +6341,7 @@ func testEncryptedCopyObjectWrapper(c *minio.Client, bucketName string, sseSrc, 
 
 		src = minio.NewSourceInfo(bucketName, "srcObject", newSSE)
 		args["source"] = src
-		err = c.CopyObject(context.Background(), dst, src)
+		err = c.CopyObject(context.Background(), dst, src, minio.CopyObjectOptions{})
 		if err != nil {
 			logError(testName, function, args, startTime, "", "CopyObject Key rotation failed", err)
 			return
@@ -6697,7 +6697,7 @@ func testDecryptedCopyObject() {
 	}
 	args["destination"] = dst
 
-	if err = c.CopyObject(context.Background(), dst, src); err != nil {
+	if err = c.CopyObject(context.Background(), dst, src, minio.CopyObjectOptions{}); err != nil {
 		logError(testName, function, args, startTime, "", "CopyObject failed", err)
 		return
 	}
@@ -8340,7 +8340,7 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 	// the headers on the copy.
 	args["source"] = src
 	args["destination"] = dst1
-	err = c.CopyObject(context.Background(), dst1, src)
+	err = c.CopyObject(context.Background(), dst1, src, minio.CopyObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "CopyObject failed", err)
 		return
@@ -8365,7 +8365,7 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 	// copies metadata.
 	args["source"] = src
 	args["destination"] = dst2
-	err = c.CopyObject(context.Background(), dst2, src)
+	err = c.CopyObject(context.Background(), dst2, src, minio.CopyObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "CopyObject failed", err)
 		return
@@ -8391,7 +8391,7 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 	function = "ComposeObject(destination, sources)"
 	args["source"] = srcs
 	args["destination"] = dst3
-	err = c.ComposeObject(context.Background(), dst3, srcs)
+	err = c.ComposeObject(context.Background(), dst3, srcs, minio.ComposeObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "ComposeObject failed", err)
 		return
@@ -8417,7 +8417,7 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 	function = "ComposeObject(destination, sources)"
 	args["source"] = srcs
 	args["destination"] = dst4
-	err = c.ComposeObject(context.Background(), dst4, srcs)
+	err = c.ComposeObject(context.Background(), dst4, srcs, minio.ComposeObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "ComposeObject failed", err)
 		return
@@ -8664,7 +8664,7 @@ func testStorageClassMetadataCopyObject() {
 	// Make server side copy of object uploaded in previous step
 	src := minio.NewSourceInfo(bucketName, "srcObjectRRSClass", nil)
 	dst, err := minio.NewDestinationInfo(bucketName, "srcObjectRRSClassCopy", nil, nil)
-	if err = c.CopyObject(context.Background(), dst, src); err != nil {
+	if err = c.CopyObject(context.Background(), dst, src, minio.CopyObjectOptions{}); err != nil {
 		logError(testName, function, args, startTime, "", "CopyObject failed on RRS", err)
 	}
 
@@ -8691,7 +8691,7 @@ func testStorageClassMetadataCopyObject() {
 	// Make server side copy of object uploaded in previous step
 	src = minio.NewSourceInfo(bucketName, "srcObjectSSClass", nil)
 	dst, err = minio.NewDestinationInfo(bucketName, "srcObjectSSClassCopy", nil, nil)
-	if err = c.CopyObject(context.Background(), dst, src); err != nil {
+	if err = c.CopyObject(context.Background(), dst, src, minio.CopyObjectOptions{}); err != nil {
 		logError(testName, function, args, startTime, "", "CopyObject failed on SS", err)
 	}
 	// Fetch the meta data of copied object
