@@ -2,7 +2,7 @@
 
 /*
  * MinIO Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2015-2017 MinIO, Inc.
+ * Copyright 2020 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,32 +45,31 @@ func main() {
 	// s3Client.TraceOn(os.Stderr)
 
 	// Source object
-	src := minio.NewSourceInfo("my-sourcebucketname", "my-sourceobjectname", nil)
-
-	// All following conditions are allowed and can be combined together.
-
-	// Set modified condition, copy object modified since 2014 April.
-	src.SetModifiedSinceCond(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
-
-	// Set unmodified condition, copy object unmodified since 2014 April.
-	// src.SetUnmodifiedSinceCond(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
-
-	// Set matching ETag condition, copy object which matches the following ETag.
-	// src.SetMatchETagCond("31624deb84149d2f8ef9c385918b653a")
-
-	// Set matching ETag except condition, copy object which does not match the following ETag.
-	// src.SetMatchETagExceptCond("31624deb84149d2f8ef9c385918b653a")
+	src := minio.CopySrcOptions{
+		Bucket: "my-sourcebucketname",
+		Object: "my-sourceobjectname",
+		// All following conditions are allowed and can be combined together.
+		// Set modified condition, copy object modified since 2014 April.
+		MatchModifiedSince: time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC),
+		// Set unmodified condition, copy object unmodified since 2014 April.
+		// MatchUnmodifiedSince: time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC),
+		// Set matching ETag condition, copy object which matches the following ETag.
+		// MatchETag: "31624deb84149d2f8ef9c385918b653a",
+		// Set matching ETag copy object which does not match the following ETag.
+		// NoMatchETag: "31624deb84149d2f8ef9c385918b653a",
+	}
 
 	// Destination object
-	dst, err := minio.NewDestinationInfo("my-bucketname", "my-objectname", minio.DestInfoOptions{})
-	if err != nil {
-		log.Fatalln(err)
+	dst := minio.CopyDestOptions{
+		Bucket: "my-bucketname",
+		Object: "my-objectname",
 	}
 
 	// Initiate copy object.
-	_, err = s3Client.CopyObject(context.Background(), dst, src)
+	ui, err = s3Client.CopyObject(context.Background(), dst, src)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Println("Copied source object /my-sourcebucketname/my-sourceobjectname to destination /my-bucketname/my-objectname Successfully.")
+
+	log.Printf("Copied %s, successfully to %s - UploadInfo %v\n", dst, src, ui)
 }

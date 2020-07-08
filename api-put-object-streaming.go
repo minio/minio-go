@@ -451,8 +451,10 @@ func (c Client) putObjectDo(ctx context.Context, bucketName, objectName string, 
 	}
 
 	return UploadInfo{
+		Bucket:    bucketName,
+		Key:       objectName,
 		ETag:      trimEtag(resp.Header.Get("ETag")),
-		VersionID: resp.Header.Get("x-amz-version-id"),
 		Size:      size,
+		VersionID: resp.Header.Get("x-amz-version-id"),
 	}, nil
 }

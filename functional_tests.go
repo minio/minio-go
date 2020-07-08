@@ -194,7 +194,7 @@ func cleanupVersionedBucket(bucketName string, c *minio.Client) error {
 			}
 		}
 	}
-	for objPartInfo := range c.ListIncompleteUploads(context.Background(), bucketName, "", true, doneCh) {
+	for objPartInfo := range c.ListIncompleteUploads(context.Background(), bucketName, "", true) {
 		if objPartInfo.Err != nil {
 			return objPartInfo.Err
 		}
@@ -986,7 +986,6 @@ func testGetObjectWithVersioning() {
 		}
 
 		if !bytes.Equal(tmpBuffer.Bytes(), buffers[i]) {
-			fmt.Println(len(tmpBuffer.Bytes()), len(buffers[i]))
 			logError(testName, function, args, startTime, "", "unexpected content of GetObject()", err)
 			return
 		}
@@ -1092,20 +1091,21 @@ func testCopyObjectWithVersioning() {
 	}
 
 	// Copy Source
-	src := minio.NewSourceInfo(bucketName, objectName, nil)
-	src.SetVersionID(infos[0].VersionID)
-	args["src"] = src
-
-	dst, err := minio.NewDestinationInfo(bucketName, objectName+"-copy", minio.DestInfoOptions{})
-	args["dst"] = dst
-	if err != nil {
-		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
-		return
+	srcOpts := minio.CopySrcOptions{
+		Bucket:    bucketName,
+		Object:    objectName,
+		VersionID: infos[0].VersionID,
 	}
+	args["src"] = srcOpts
+
+	dstOpts := minio.CopyDestOptions{
+		Bucket: bucketName,
+		Object: objectName + "-copy",
+	}
+	args["dst"] = dstOpts
 
 	// Perform the Copy
-	_, err = c.CopyObject(context.Background(), dst, src)
-	if err != nil {
+	if _, err = c.CopyObject(context.Background(), dstOpts, srcOpts); err != nil {
 		logError(testName, function, args, startTime, "", "CopyObject failed", err)
 		return
 	}
@@ -1223,22 +1223,24 @@ func testComposeObjectWithVersioning() {
 
 	// Source objects to concatenate. We also specify decryption
 	// key for each
-	src1 := minio.NewSourceInfo(bucketName, objectName, nil)
-	src1.SetVersionID(results[0].VersionID)
-	src2 := minio.NewSourceInfo(bucketName, objectName, nil)
-	src2.SetVersionID(results[1].VersionID)
-
-	// Create slice of sources.
-	srcs := []minio.SourceInfo{src1, src2}
-
-	// Create destination info
-	dst, err := minio.NewDestinationInfo(bucketName, objectName+"-copy", minio.DestInfoOptions{})
-	if err != nil {
-		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
-		return
+	src1 := minio.CopySrcOptions{
+		Bucket:    bucketName,
+		Object:    objectName,
+		VersionID: results[0].VersionID,
 	}
 
-	_, err = c.ComposeObject(context.Background(), dst, srcs)
+	src2 := minio.CopySrcOptions{
+		Bucket:    bucketName,
+		Object:    objectName,
+		VersionID: results[1].VersionID,
+	}
+
+	dst := minio.CopyDestOptions{
+		Bucket: bucketName,
+		Object: objectName + "-copy",
+	}
+
+	_, err = c.ComposeObject(context.Background(), dst, src1, src2)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "ComposeObject failed", err)
 		return
@@ -1535,14 +1537,14 @@ func testObjectTaggingWithVersioning() {
 	tagsV1 := map[string]string{"key1": "val1"}
 	err = c.PutObjectTagging(context.Background(), bucketName, objectName, tagsV1, minio.PutObjectTaggingOptions{VersionID: versions[0].VersionID})
 	if err != nil {
-		logError(testName, function, args, startTime, "", "PutObjectTaggingWithOptions (1) failed", err)
+		logError(testName, function, args, startTime, "", "PutObjectTagging (1) failed", err)
 		return
 	}
 
 	tagsV2 := map[string]string{"key2": "val2"}
 	err = c.PutObjectTagging(context.Background(), bucketName, objectName, tagsV2, minio.PutObjectTaggingOptions{VersionID: versions[1].VersionID})
 	if err != nil {
-		logError(testName, function, args, startTime, "", "PutObjectTaggingWithOptions (2) failed", err)
+		logError(testName, function, args, startTime, "", "PutObjectTagging (2) failed", err)
 		return
 	}
 
@@ -1560,7 +1562,7 @@ func testObjectTaggingWithVersioning() {
 
 	gotTagsV1, err := c.GetObjectTagging(context.Background(), bucketName, objectName, minio.GetObjectTaggingOptions{VersionID: versions[0].VersionID})
 	if err != nil {
-		logError(testName, function, args, startTime, "", "GetObjectTaggingWithOptions failed", err)
+		logError(testName, function, args, startTime, "", "GetObjectTagging failed", err)
 		return
 	}
 
@@ -1571,7 +1573,7 @@ func testObjectTaggingWithVersioning() {
 
 	gotTagsV2, err := c.GetObjectTagging(context.Background(), bucketName, objectName, minio.GetObjectTaggingOptions{})
 	if err != nil {
-		logError(testName, function, args, startTime, "", "GetObjectTaggingWithContext failed", err)
+		logError(testName, function, args, startTime, "", "GetObjectTaggingContext failed", err)
 		return
 	}
 
@@ -1582,14 +1584,14 @@ func testObjectTaggingWithVersioning() {
 
 	err = c.RemoveObjectTagging(context.Background(), bucketName, objectName, minio.RemoveObjectTaggingOptions{VersionID: versions[0].VersionID})
 	if err != nil {
-		logError(testName, function, args, startTime, "", "PutObjectTaggingWithOptions (2) failed", err)
+		logError(testName, function, args, startTime, "", "PutObjectTagging (2) failed", err)
 		return
 	}
 
 	emptyTags, err := c.GetObjectTagging(context.Background(), bucketName, objectName,
 		minio.GetObjectTaggingOptions{VersionID: versions[0].VersionID})
 	if err != nil {
-		logError(testName, function, args, startTime, "", "GetObjectTaggingWithOptions failed", err)
+		logError(testName, function, args, startTime, "", "GetObjectTagging failed", err)
 		return
 	}
 
@@ -2089,7 +2091,7 @@ func testGetObjectClosedTwice() {
 }
 
 // Test RemoveObjects request where context cancels after timeout
-func testRemoveObjectsWithContext() {
+func testRemoveObjectsContext() {
 	// Initialize logging params.
 	startTime := time.Now()
 	testName := getFuncName()
@@ -2554,7 +2556,7 @@ func testFPutObject() {
 }
 
 // Tests FPutObject request when context cancels after timeout
-func testFPutObjectWithContext() {
+func testFPutObjectContext() {
 	// initialize logging params
 	startTime := time.Now()
 	testName := getFuncName()
@@ -2602,7 +2604,7 @@ func testFPutObjectWithContext() {
 	var fName = getMintDataDirFilePath("datafile-1-MB")
 	if fName == "" {
 		// Make a temp file with 1 MiB bytes of data.
-		file, err := ioutil.TempFile(os.TempDir(), "FPutObjectWithContextTest")
+		file, err := ioutil.TempFile(os.TempDir(), "FPutObjectContextTest")
 		if err != nil {
 			logError(testName, function, args, startTime, "", "TempFile creation failed", err)
 			return
@@ -2623,7 +2625,7 @@ func testFPutObjectWithContext() {
 	}
 
 	// Set base object name
-	objectName := bucketName + "FPutObjectWithContext"
+	objectName := bucketName + "FPutObjectContext"
 	args["objectName"] = objectName
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	args["ctx"] = ctx
@@ -2661,11 +2663,11 @@ func testFPutObjectWithContext() {
 }
 
 // Tests FPutObject request when context cancels after timeout
-func testFPutObjectWithContextV2() {
+func testFPutObjectContextV2() {
 	// initialize logging params
 	startTime := time.Now()
 	testName := getFuncName()
-	function := "FPutObjectWithContext(ctx, bucketName, objectName, fileName, opts)"
+	function := "FPutObjectContext(ctx, bucketName, objectName, fileName, opts)"
 	args := map[string]interface{}{
 		"bucketName": "",
 		"objectName": "",
@@ -2708,7 +2710,7 @@ func testFPutObjectWithContextV2() {
 	var fName = getMintDataDirFilePath("datafile-1-MB")
 	if fName == "" {
 		// Make a temp file with 1 MiB bytes of data.
-		file, err := ioutil.TempFile(os.TempDir(), "FPutObjectWithContextTest")
+		file, err := ioutil.TempFile(os.TempDir(), "FPutObjectContextTest")
 		if err != nil {
 			logError(testName, function, args, startTime, "", "Temp file creation failed", err)
 			return
@@ -2730,7 +2732,7 @@ func testFPutObjectWithContextV2() {
 	}
 
 	// Set base object name
-	objectName := bucketName + "FPutObjectWithContext"
+	objectName := bucketName + "FPutObjectContext"
 	args["objectName"] = objectName
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
@@ -2769,7 +2771,7 @@ func testFPutObjectWithContextV2() {
 }
 
 // Test validates putObject with context to see if request cancellation is honored.
-func testPutObjectWithContext() {
+func testPutObjectContext() {
 	// initialize logging params
 	startTime := time.Now()
 	testName := getFuncName()
@@ -3607,60 +3609,23 @@ func testCopyObject() {
 	}
 
 	// Copy Source
-	src := minio.NewSourceInfo(bucketName, objectName, nil)
+	src := minio.CopySrcOptions{
+		Bucket: bucketName,
+		Object: objectName,
+		// Set copy conditions.
+		MatchETag:          objInfo.ETag,
+		MatchModifiedSince: time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC),
+	}
 	args["src"] = src
 
-	// Set copy conditions.
-
-	// All invalid conditions first.
-	err = src.SetModifiedSinceCond(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC))
-	if err == nil {
-		logError(testName, function, args, startTime, "", "SetModifiedSinceCond did not fail for invalid conditions", err)
-		return
-	}
-	err = src.SetUnmodifiedSinceCond(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC))
-	if err == nil {
-		logError(testName, function, args, startTime, "", "SetUnmodifiedSinceCond did not fail for invalid conditions", err)
-		return
-	}
-	err = src.SetMatchETagCond("")
-	if err == nil {
-		logError(testName, function, args, startTime, "", "SetMatchETagCond did not fail for invalid conditions", err)
-		return
-	}
-	err = src.SetMatchETagExceptCond("")
-	if err == nil {
-		logError(testName, function, args, startTime, "", "SetMatchETagExceptCond did not fail for invalid conditions", err)
-		return
-	}
-
-	err = src.SetModifiedSinceCond(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
-	if err != nil {
-		logError(testName, function, args, startTime, "", "SetModifiedSinceCond failed", err)
-		return
-	}
-	err = src.SetMatchETagCond(objInfo.ETag)
-	if err != nil {
-		logError(testName, function, args, startTime, "", "SetMatchETagCond failed", err)
-		return
-	}
-
-	dst, err := minio.NewDestinationInfo(bucketName+"-copy", objectName+"-copy", minio.DestInfoOptions{})
-	args["dst"] = dst
-	if err != nil {
-		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
-		return
+	dst := minio.CopyDestOptions{
+		Bucket: bucketName + "-copy",
+		Object: objectName + "-copy",
 	}
 
 	// Perform the Copy
-	ui, err := c.CopyObject(context.Background(), dst, src)
-	if err != nil {
+	if _, err = c.CopyObject(context.Background(), dst, src); err != nil {
 		logError(testName, function, args, startTime, "", "CopyObject failed", err)
-		return
-	}
-
-	if ui.Size != 0 {
-		logError(testName, function, args, startTime, "", "CopyObject returned unexpeced size", nil)
 		return
 	}
 
@@ -3677,6 +3642,7 @@ func testCopyObject() {
 		logError(testName, function, args, startTime, "", "GetObject failed", err)
 		return
 	}
+
 	// Check the various fields of source object against destination object.
 	objInfo, err = r.Stat()
 	if err != nil {
@@ -3698,16 +3664,11 @@ func testCopyObject() {
 	readerCopy.Close()
 
 	// CopyObject again but with wrong conditions
-	src = minio.NewSourceInfo(bucketName, objectName, nil)
-	err = src.SetUnmodifiedSinceCond(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
-	if err != nil {
-		logError(testName, function, args, startTime, "", "SetUnmodifiedSinceCond failed", err)
-		return
-	}
-	err = src.SetMatchETagExceptCond(objInfo.ETag)
-	if err != nil {
-		logError(testName, function, args, startTime, "", "SetMatchETagExceptCond failed", err)
-		return
+	src = minio.CopySrcOptions{
+		Bucket:               bucketName,
+		Object:               objectName,
+		MatchUnmodifiedSince: time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC),
+		NoMatchETag:          objInfo.ETag,
 	}
 
 	// Perform the Copy which should fail
@@ -3717,21 +3678,21 @@ func testCopyObject() {
 		return
 	}
 
-	// Perform the Copy which should update only metadata.
-	src = minio.NewSourceInfo(bucketName, objectName, nil)
-	dst, err = minio.NewDestinationInfo(bucketName, objectName,
-		minio.DestInfoOptions{
-			UserMeta: map[string]string{
-				"Copy": "should be same",
-			},
+	src = minio.CopySrcOptions{
+		Bucket: bucketName,
+		Object: objectName,
+	}
+
+	dst = minio.CopyDestOptions{
+		Bucket:          bucketName,
+		Object:          objectName,
+		ReplaceMetadata: true,
+		UserMetadata: map[string]string{
+			"Copy": "should be same",
 		},
-	)
+	}
 	args["dst"] = dst
 	args["src"] = src
-	if err != nil {
-		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
-		return
-	}
 
 	_, err = c.CopyObject(context.Background(), dst, src)
 	if err != nil {
@@ -5340,7 +5301,7 @@ func testFunctional() {
 		"isRecursive": isRecursive,
 	}
 
-	for obj := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{ForceV1: true, Prefix: objectName, Recursive: true}) {
+	for obj := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{UseV1: true, Prefix: objectName, Recursive: true}) {
 		if obj.Key == objectName {
 			objFound = true
 			break
@@ -6735,50 +6696,20 @@ func testCopyObjectV2() {
 	r.Close()
 
 	// Copy Source
-	src := minio.NewSourceInfo(bucketName, objectName, nil)
+	src := minio.CopySrcOptions{
+		Bucket:             bucketName,
+		Object:             objectName,
+		MatchModifiedSince: time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC),
+		MatchETag:          objInfo.ETag,
+	}
 	args["source"] = src
 
 	// Set copy conditions.
-
-	// All invalid conditions first.
-	err = src.SetModifiedSinceCond(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC))
-	if err == nil {
-		logError(testName, function, args, startTime, "", "SetModifiedSinceCond did not fail for invalid conditions", err)
-		return
+	dst := minio.CopyDestOptions{
+		Bucket: bucketName + "-copy",
+		Object: objectName + "-copy",
 	}
-	err = src.SetUnmodifiedSinceCond(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC))
-	if err == nil {
-		logError(testName, function, args, startTime, "", "SetUnmodifiedSinceCond did not fail for invalid conditions", err)
-		return
-	}
-	err = src.SetMatchETagCond("")
-	if err == nil {
-		logError(testName, function, args, startTime, "", "SetMatchETagCond did not fail for invalid conditions", err)
-		return
-	}
-	err = src.SetMatchETagExceptCond("")
-	if err == nil {
-		logError(testName, function, args, startTime, "", "SetMatchETagExceptCond did not fail for invalid conditions", err)
-		return
-	}
-
-	err = src.SetModifiedSinceCond(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
-	if err != nil {
-		logError(testName, function, args, startTime, "", "SetModifiedSinceCond failed", err)
-		return
-	}
-	err = src.SetMatchETagCond(objInfo.ETag)
-	if err != nil {
-		logError(testName, function, args, startTime, "", "SetMatchETagCond failed", err)
-		return
-	}
-
-	dst, err := minio.NewDestinationInfo(bucketName+"-copy", objectName+"-copy", minio.DestInfoOptions{})
 	args["destination"] = dst
-	if err != nil {
-		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
-		return
-	}
 
 	// Perform the Copy
 	_, err = c.CopyObject(context.Background(), dst, src)
@@ -6820,16 +6751,11 @@ func testCopyObjectV2() {
 	readerCopy.Close()
 
 	// CopyObject again but with wrong conditions
-	src = minio.NewSourceInfo(bucketName, objectName, nil)
-	err = src.SetUnmodifiedSinceCond(time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC))
-	if err != nil {
-		logError(testName, function, args, startTime, "", "SetUnmodifiedSinceCond failed", err)
-		return
-	}
-	err = src.SetMatchETagExceptCond(objInfo.ETag)
-	if err != nil {
-		logError(testName, function, args, startTime, "", "SetMatchETagExceptCond failed", err)
-		return
+	src = minio.CopySrcOptions{
+		Bucket:               bucketName,
+		Object:               objectName,
+		MatchUnmodifiedSince: time.Date(2014, time.April, 0, 0, 0, 0, 0, time.UTC),
+		NoMatchETag:          objInfo.ETag,
 	}
 
 	// Perform the Copy which should fail
@@ -6871,19 +6797,18 @@ func testComposeObjectErrorCasesWrapper(c *minio.Client) {
 
 	// Test that more than 10K source objects cannot be
 	// concatenated.
-	srcArr := [10001]minio.SourceInfo{}
+	srcArr := [10001]minio.CopySrcOptions{}
 	srcSlice := srcArr[:]
-	dst, err := minio.NewDestinationInfo(bucketName, "object", minio.DestInfoOptions{})
-	if err != nil {
-		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
-		return
+	dst := minio.CopyDestOptions{
+		Bucket: bucketName,
+		Object: "object",
 	}
 
 	args["destination"] = dst
 	// Just explain about srcArr in args["sourceList"]
 	// to stop having 10,001 null headers logged
 	args["sourceList"] = "source array of 10,001 elements"
-	if _, err := c.ComposeObject(context.Background(), dst, srcSlice); err == nil {
+	if _, err := c.ComposeObject(context.Background(), dst, srcSlice...); err == nil {
 		logError(testName, function, args, startTime, "", "Expected error in ComposeObject", err)
 		return
 	} else if err.Error() != "There must be as least one and up to 10000 source objects." {
@@ -6903,14 +6828,16 @@ func testComposeObjectErrorCasesWrapper(c *minio.Client) {
 	}
 	// 2. Set invalid range spec on the object (going beyond
 	// object size)
-	badSrc := minio.NewSourceInfo(bucketName, "badObject", nil)
-	err = badSrc.SetRange(1, badSrcSize)
-	if err != nil {
-		logError(testName, function, args, startTime, "", "Setting NewSourceInfo failed", err)
-		return
+	badSrc := minio.CopySrcOptions{
+		Bucket:     bucketName,
+		Object:     "badObject",
+		MatchRange: true,
+		Start:      1,
+		End:        badSrcSize,
 	}
+
 	// 3. ComposeObject call should fail.
-	if _, err := c.ComposeObject(context.Background(), dst, []minio.SourceInfo{badSrc}); err == nil {
+	if _, err := c.ComposeObject(context.Background(), dst, badSrc); err == nil {
 		logError(testName, function, args, startTime, "", "ComposeObject expected to fail", err)
 		return
 	} else if !strings.Contains(err.Error(), "has invalid segment-to-copy") {
@@ -6979,26 +6906,26 @@ func testComposeMultipleSources(c *minio.Client) {
 	}
 
 	// We will append 10 copies of the object.
-	srcs := []minio.SourceInfo{}
+	srcs := []minio.CopySrcOptions{}
 	for i := 0; i < 10; i++ {
-		srcs = append(srcs, minio.NewSourceInfo(bucketName, "srcObject", nil))
+		srcs = append(srcs, minio.CopySrcOptions{
+			Bucket: bucketName,
+			Object: "srcObject",
+		})
 	}
+
 	// make the last part very small
-	err = srcs[9].SetRange(0, 0)
-	if err != nil {
-		logError(testName, function, args, startTime, "", "SetRange failed", err)
-		return
-	}
+	srcs[9].MatchRange = true
+
 	args["sourceList"] = srcs
 
-	dst, err := minio.NewDestinationInfo(bucketName, "dstObject", minio.DestInfoOptions{})
+	dst := minio.CopyDestOptions{
+		Bucket: bucketName,
+		Object: "dstObject",
+	}
 	args["destination"] = dst
 
-	if err != nil {
-		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
-		return
-	}
-	ui, err := c.ComposeObject(context.Background(), dst, srcs)
+	ui, err := c.ComposeObject(context.Background(), dst, srcs...)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "ComposeObject failed", err)
 		return
@@ -7092,33 +7019,40 @@ func testEncryptedEmptyObject() {
 	}
 
 	// 2. Test CopyObject for an empty object
-	dstInfo, err := minio.NewDestinationInfo(bucketName, "new-object", minio.DestInfoOptions{Encryption: sse})
-	if err != nil {
-		args["objectName"] = "new-object"
-		function = "NewDestinationInfo(bucketName, objectName, sse, userMetadata)"
-		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
-		return
+	src := minio.CopySrcOptions{
+		Bucket:     bucketName,
+		Object:     "object",
+		Encryption: sse,
 	}
-	srcInfo := minio.NewSourceInfo(bucketName, "object", sse)
-	if _, err = c.CopyObject(context.Background(), dstInfo, srcInfo); err != nil {
-		function = "CopyObject(dstInfo, srcInfo)"
+
+	dst := minio.CopyDestOptions{
+		Bucket:     bucketName,
+		Object:     "new-object",
+		Encryption: sse,
+	}
+
+	if _, err = c.CopyObject(context.Background(), dst, src); err != nil {
+		function = "CopyObject(dst, src)"
 		logError(testName, function, map[string]interface{}{}, startTime, "", "CopyObject failed", err)
 		return
 	}
 
 	// 3. Test Key rotation
 	newSSE := encrypt.DefaultPBKDF([]byte("Don't Panic"), []byte(bucketName+"new-object"))
-	dstInfo, err = minio.NewDestinationInfo(bucketName, "new-object", minio.DestInfoOptions{Encryption: newSSE})
-	if err != nil {
-		args["objectName"] = "new-object"
-		function = "NewDestinationInfo(bucketName, objectName, encryptSSEC, userMetadata)"
-		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
-		return
+	src = minio.CopySrcOptions{
+		Bucket:     bucketName,
+		Object:     "new-object",
+		Encryption: sse,
 	}
 
-	srcInfo = minio.NewSourceInfo(bucketName, "new-object", sse)
-	if _, err = c.CopyObject(context.Background(), dstInfo, srcInfo); err != nil {
-		function = "CopyObject(dstInfo, srcInfo)"
+	dst = minio.CopyDestOptions{
+		Bucket:     bucketName,
+		Object:     "new-object",
+		Encryption: newSSE,
+	}
+
+	if _, err = c.CopyObject(context.Background(), dst, src); err != nil {
+		function = "CopyObject(dst, src)"
 		logError(testName, function, map[string]interface{}{}, startTime, "", "CopyObject with key rotation failed", err)
 		return
 	}
@@ -7181,12 +7115,17 @@ func testEncryptedCopyObjectWrapper(c *minio.Client, bucketName string, sseSrc, 
 	}
 
 	// 2. copy object and change encryption key
-	src := minio.NewSourceInfo(bucketName, "srcObject", srcEncryption)
+	src := minio.CopySrcOptions{
+		Bucket:     bucketName,
+		Object:     "srcObject",
+		Encryption: srcEncryption,
+	}
 	args["source"] = src
-	dst, err := minio.NewDestinationInfo(bucketName, "dstObject", minio.DestInfoOptions{Encryption: sseDst})
-	if err != nil {
-		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
-		return
+
+	dst := minio.CopyDestOptions{
+		Bucket:     bucketName,
+		Object:     "dstObject",
+		Encryption: sseDst,
 	}
 	args["destination"] = dst
 
@@ -7227,10 +7166,10 @@ func testEncryptedCopyObjectWrapper(c *minio.Client, bucketName string, sseSrc, 
 		newSSE = encrypt.NewSSE()
 	}
 	if newSSE != nil {
-		dst, err = minio.NewDestinationInfo(bucketName, "srcObject", minio.DestInfoOptions{Encryption: newSSE})
-		if err != nil {
-			logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
-			return
+		dst = minio.CopyDestOptions{
+			Bucket:     bucketName,
+			Object:     "srcObject",
+			Encryption: newSSE,
 		}
 		args["destination"] = dst
 
@@ -7257,15 +7196,19 @@ func testEncryptedCopyObjectWrapper(c *minio.Client, bucketName string, sseSrc, 
 			return
 		}
 		reader.Close()
+
 		// Test in-place decryption.
-		dst, err = minio.NewDestinationInfo(bucketName, "srcObject", minio.DestInfoOptions{})
-		if err != nil {
-			logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
-			return
+		dst = minio.CopyDestOptions{
+			Bucket: bucketName,
+			Object: "srcObject",
 		}
 		args["destination"] = dst
 
-		src = minio.NewSourceInfo(bucketName, "srcObject", newSSE)
+		src = minio.CopySrcOptions{
+			Bucket:     bucketName,
+			Object:     "srcObject",
+			Encryption: newSSE,
+		}
 		args["source"] = src
 		_, err = c.CopyObject(context.Background(), dst, src)
 		if err != nil {
@@ -7614,12 +7557,16 @@ func testDecryptedCopyObject() {
 		return
 	}
 
-	src := minio.NewSourceInfo(bucketName, objectName, encrypt.SSECopy(encryption))
+	src := minio.CopySrcOptions{
+		Bucket:     bucketName,
+		Object:     objectName,
+		Encryption: encrypt.SSECopy(encryption),
+	}
 	args["source"] = src
-	dst, err := minio.NewDestinationInfo(bucketName, "decrypted-"+objectName, minio.DestInfoOptions{})
-	if err != nil {
-		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
-		return
+
+	dst := minio.CopyDestOptions{
+		Bucket: bucketName,
+		Object: "decrypted-" + objectName,
 	}
 	args["destination"] = dst
 
@@ -9267,9 +9214,7 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 		h = make(http.Header)
 		for k, vs := range objInfo.Metadata {
 			if strings.HasPrefix(strings.ToLower(k), "x-amz-meta-") {
-				for _, v := range vs {
-					h.Add(k, v)
-				}
+				h.Add(k, vs[0])
 			}
 		}
 		return h
@@ -9294,12 +9239,17 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 	}
 
 	// 2. create source
-	src := minio.NewSourceInfo(bucketName, "srcObject", nil)
+	src := minio.CopySrcOptions{
+		Bucket: bucketName,
+		Object: "srcObject",
+	}
+
 	// 2.1 create destination with metadata set
-	dst1, err := minio.NewDestinationInfo(bucketName, "dstObject-1", minio.DestInfoOptions{UserMeta: map[string]string{"notmyheader": "notmyvalue"}})
-	if err != nil {
-		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
-		return
+	dst1 := minio.CopyDestOptions{
+		Bucket:          bucketName,
+		Object:          "dstObject-1",
+		UserMetadata:    map[string]string{"notmyheader": "notmyvalue"},
+		ReplaceMetadata: true,
 	}
 
 	// 3. Check that copying to an object with metadata set resets
@@ -9320,12 +9270,10 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 	}
 
 	// 4. create destination with no metadata set and same source
-	dst2, err := minio.NewDestinationInfo(bucketName, "dstObject-2", minio.DestInfoOptions{})
-	if err != nil {
-		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
-		return
+	dst2 := minio.CopyDestOptions{
+		Bucket: bucketName,
+		Object: "dstObject-2",
 	}
-	src = minio.NewSourceInfo(bucketName, "srcObject", nil)
 
 	// 5. Check that copying to an object with no metadata set,
 	// copies metadata.
@@ -9344,20 +9292,16 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 	}
 
 	// 6. Compose a pair of sources.
-	srcs := []minio.SourceInfo{
-		minio.NewSourceInfo(bucketName, "srcObject", nil),
-		minio.NewSourceInfo(bucketName, "srcObject", nil),
-	}
-	dst3, err := minio.NewDestinationInfo(bucketName, "dstObject-3", minio.DestInfoOptions{})
-	if err != nil {
-		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
-		return
+	dst3 := minio.CopyDestOptions{
+		Bucket:          bucketName,
+		Object:          "dstObject-3",
+		ReplaceMetadata: true,
 	}
 
 	function = "ComposeObject(destination, sources)"
-	args["source"] = srcs
+	args["source"] = []minio.CopySrcOptions{src, src}
 	args["destination"] = dst3
-	_, err = c.ComposeObject(context.Background(), dst3, srcs)
+	_, err = c.ComposeObject(context.Background(), dst3, src, src)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "ComposeObject failed", err)
 		return
@@ -9370,20 +9314,17 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 	}
 
 	// 7. Compose a pair of sources with dest user metadata set.
-	srcs = []minio.SourceInfo{
-		minio.NewSourceInfo(bucketName, "srcObject", nil),
-		minio.NewSourceInfo(bucketName, "srcObject", nil),
-	}
-	dst4, err := minio.NewDestinationInfo(bucketName, "dstObject-4", minio.DestInfoOptions{UserMeta: map[string]string{"notmyheader": "notmyvalue"}})
-	if err != nil {
-		logError(testName, function, args, startTime, "", "NewDestinationInfo failed", err)
-		return
+	dst4 := minio.CopyDestOptions{
+		Bucket:          bucketName,
+		Object:          "dstObject-4",
+		UserMetadata:    map[string]string{"notmyheader": "notmyvalue"},
+		ReplaceMetadata: true,
 	}
 
 	function = "ComposeObject(destination, sources)"
-	args["source"] = srcs
+	args["source"] = []minio.CopySrcOptions{src, src}
 	args["destination"] = dst4
-	_, err = c.ComposeObject(context.Background(), dst4, srcs)
+	_, err = c.ComposeObject(context.Background(), dst4, src, src)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "ComposeObject failed", err)
 		return
@@ -9628,8 +9569,14 @@ func testStorageClassMetadataCopyObject() {
 	}
 
 	// Make server side copy of object uploaded in previous step
-	src := minio.NewSourceInfo(bucketName, "srcObjectRRSClass", nil)
-	dst, err := minio.NewDestinationInfo(bucketName, "srcObjectRRSClassCopy", minio.DestInfoOptions{})
+	src := minio.CopySrcOptions{
+		Bucket: bucketName,
+		Object: "srcObjectRRSClass",
+	}
+	dst := minio.CopyDestOptions{
+		Bucket: bucketName,
+		Object: "srcObjectRRSClassCopy",
+	}
 	if _, err = c.CopyObject(context.Background(), dst, src); err != nil {
 		logError(testName, function, args, startTime, "", "CopyObject failed on RRS", err)
 	}
@@ -9655,8 +9602,14 @@ func testStorageClassMetadataCopyObject() {
 	}
 
 	// Make server side copy of object uploaded in previous step
-	src = minio.NewSourceInfo(bucketName, "srcObjectSSClass", nil)
-	dst, err = minio.NewDestinationInfo(bucketName, "srcObjectSSClassCopy", minio.DestInfoOptions{})
+	src = minio.CopySrcOptions{
+		Bucket: bucketName,
+		Object: "srcObjectSSClass",
+	}
+	dst = minio.CopyDestOptions{
+		Bucket: bucketName,
+		Object: "srcObjectSSClassCopy",
+	}
 	if _, err = c.CopyObject(context.Background(), dst, src); err != nil {
 		logError(testName, function, args, startTime, "", "CopyObject failed on SS", err)
 	}
@@ -10148,7 +10101,7 @@ func testFunctionalV2() {
 		"objectName":  objectName,
 		"isRecursive": isRecursive,
 	}
-	for obj := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{ForceV1: true, Prefix: objectName, Recursive: isRecursive}) {
+	for obj := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{UseV1: true, Prefix: objectName, Recursive: isRecursive}) {
 		if obj.Key == objectName {
 			objFound = true
 			break
@@ -10414,7 +10367,7 @@ func testFunctionalV2() {
 }
 
 // Test get object with GetObject with context
-func testGetObjectWithContext() {
+func testGetObjectContext() {
 	// initialize logging params
 	startTime := time.Now()
 	testName := getFuncName()
@@ -10521,7 +10474,7 @@ func testGetObjectWithContext() {
 }
 
 // Test get object with FGetObject with a user provided context
-func testFGetObjectWithContext() {
+func testFGetObjectContext() {
 	// initialize logging params
 	startTime := time.Now()
 	testName := getFuncName()
@@ -10613,7 +10566,7 @@ func testFGetObjectWithContext() {
 }
 
 // Test get object ACLs with GetObjectACL with custom provided context
-func testGetObjectACLWithContext() {
+func testGetObjectACLContext() {
 	// initialize logging params
 	startTime := time.Now()
 	testName := getFuncName()
@@ -10783,7 +10736,7 @@ func testGetObjectACLWithContext() {
 }
 
 // Test validates putObject with context to see if request cancellation is honored for V2.
-func testPutObjectWithContextV2() {
+func testPutObjectContextV2() {
 	// initialize logging params
 	startTime := time.Now()
 	testName := getFuncName()
@@ -10864,7 +10817,7 @@ func testPutObjectWithContextV2() {
 }
 
 // Test get object with GetObject with custom context
-func testGetObjectWithContextV2() {
+func testGetObjectContextV2() {
 	// initialize logging params
 	startTime := time.Now()
 	testName := getFuncName()
@@ -10969,7 +10922,7 @@ func testGetObjectWithContextV2() {
 }
 
 // Test get object with FGetObject with custom context
-func testFGetObjectWithContextV2() {
+func testFGetObjectContextV2() {
 	// initialize logging params
 	startTime := time.Now()
 	testName := getFuncName()
@@ -11152,7 +11105,7 @@ func testListObjects() {
 		}
 	}
 
-	testList(c.ListObjects, bucketName, minio.ListObjectsOptions{Recursive: true, ForceV1: true})
+	testList(c.ListObjects, bucketName, minio.ListObjectsOptions{Recursive: true, UseV1: true})
 	testList(c.ListObjects, bucketName, minio.ListObjectsOptions{Recursive: true})
 
 	// Delete all objects and buckets
@@ -11165,11 +11118,11 @@ func testListObjects() {
 }
 
 // Test deleting multiple objects with object retention set in Governance mode
-func testRemoveObjectsWithOptions() {
+func testRemoveObjects() {
 	// initialize logging params
 	startTime := time.Now()
 	testName := getFuncName()
-	function := "RemoveObjectsWithOptions(bucketName, objectsCh, opts)"
+	function := "RemoveObjects(bucketName, objectsCh, opts)"
 	args := map[string]interface{}{
 		"bucketName":   "",
 		"objectPrefix": "",
@@ -11236,7 +11189,7 @@ func testRemoveObjectsWithOptions() {
 	go func() {
 		defer close(objectsCh)
 		// List all objects from a bucket-name with a matching prefix.
-		for object := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{ForceV1: true, Recursive: true}) {
+		for object := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{UseV1: true, Recursive: true}) {
 			if object.Err != nil {
 				log.Fatalln(object.Err)
 			}
@@ -11259,7 +11212,7 @@ func testRemoveObjectsWithOptions() {
 	go func() {
 		defer close(objectsCh1)
 		// List all objects from a bucket-name with a matching prefix.
-		for object := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{ForceV1: true, Recursive: true}) {
+		for object := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{UseV1: true, Recursive: true}) {
 			if object.Err != nil {
 				log.Fatalln(object.Err)
 			}
@@ -11324,10 +11277,10 @@ func main() {
 		testPutObject0ByteV2()
 		testPutObjectNoLengthV2()
 		testPutObjectsUnknownV2()
-		testGetObjectWithContextV2()
-		testFPutObjectWithContextV2()
-		testFGetObjectWithContextV2()
-		testPutObjectWithContextV2()
+		testGetObjectContextV2()
+		testFPutObjectContextV2()
+		testFGetObjectContextV2()
+		testPutObjectContextV2()
 		testMakeBucketError()
 		testMakeBucketRegions()
 		testPutObjectWithMetadata()
@@ -11350,17 +11303,17 @@ func main() {
 		testFunctional()
 		testGetObjectModified()
 		testPutObjectUploadSeekedObject()
-		testGetObjectWithContext()
-		testFPutObjectWithContext()
-		testFGetObjectWithContext()
-		testGetObjectACLWithContext()
-		testPutObjectWithContext()
+		testGetObjectContext()
+		testFPutObjectContext()
+		testFGetObjectContext()
+		testGetObjectACLContext()
+		testPutObjectContext()
 		testStorageClassMetadataPutObject()
 		testStorageClassInvalidMetadataPutObject()
 		testStorageClassMetadataCopyObject()
 		testPutObjectWithContentLanguage()
 		testListObjects()
-		testRemoveObjectsWithOptions()
+		testRemoveObjects()
 		testListObjectVersions()
 		testStatObjectWithVersioning()
 		testGetObjectWithVersioning()
