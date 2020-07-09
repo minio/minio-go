@@ -369,8 +369,11 @@ func (c Client) completeMultipartUpload(ctx context.Context, bucketName, objectN
 	}
 
 	return UploadInfo{
+		Bucket:    completeMultipartUploadResult.Bucket,
+		Key:       completeMultipartUploadResult.Key,
 		ETag:      trimEtag(completeMultipartUploadResult.ETag),
 		VersionID: resp.Header.Get("x-amz-version-id"),
+		Location:  completeMultipartUploadResult.Location,
 	}, nil
 
 }

@@ -51,8 +51,8 @@ func (c Core) ListObjects(bucket, prefix, marker, delimiter string, maxKeys int)
 
 // ListObjectsV2 - Lists all the objects at a prefix, similar to ListObjects() but uses
 // continuationToken instead of marker to support iteration over the results.
-func (c Core) ListObjectsV2(bucketName, objectPrefix, continuationToken string, fetchOwner bool, delimiter string, maxkeys int, startAfter string) (ListBucketV2Result, error) {
-	return c.listObjectsV2Query(context.Background(), bucketName, objectPrefix, continuationToken, fetchOwner, false, delimiter, maxkeys, startAfter)
+func (c Core) ListObjectsV2(bucketName, objectPrefix, continuationToken string, fetchOwner bool, delimiter string, maxkeys int) (ListBucketV2Result, error) {
+	return c.listObjectsV2Query(context.Background(), bucketName, objectPrefix, continuationToken, fetchOwner, false, delimiter, maxkeys)
 }
 
 // CopyObject - copies an object from source object to destination object on server side.

@@ -43,8 +43,8 @@ type PutObjectOptions struct {
 	ContentDisposition      string
 	ContentLanguage         string
 	CacheControl            string
-	Mode                    *RetentionMode
-	RetainUntilDate         *time.Time
+	Mode                    RetentionMode
+	RetainUntilDate         time.Time
 	ServerSideEncryption    encrypt.ServerSide
 	NumThreads              uint
 	StorageClass            string
@@ -92,11 +92,11 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 		header.Set("Cache-Control", opts.CacheControl)
 	}
 
-	if opts.Mode != nil {
+	if opts.Mode != "" {
 		header.Set(amzLockMode, opts.Mode.String())
 	}
 
-	if opts.RetainUntilDate != nil {
+	if !opts.RetainUntilDate.IsZero() {
 		header.Set("X-Amz-Object-Lock-Retain-Until-Date", opts.RetainUntilDate.Format(time.RFC3339))
 	}
 
@@ -119,15 +119,16 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 	if opts.ReplicationStatus != "" {
 		header.Set(amzBucketReplicationStatus, opts.ReplicationStatus)
 	}
+
 	if len(opts.UserTags) != 0 {
 		header.Set(amzTaggingHeader, s3utils.TagEncode(opts.UserTags))
 	}
 
 	for k, v := range opts.UserMetadata {
-		if !isAmzHeader(k) && !isStandardHeader(k) && !isStorageClassHeader(k) {
-			header.Set("X-Amz-Meta-"+k, v)
-		} else {
+		if isAmzHeader(k) || isStandardHeader(k) || isStorageClassHeader(k) {
 			header.Set(k, v)
+		} else {
+			header.Set("x-amz-meta-"+k, v)
 		}
 	}
 	return
@@ -143,10 +144,8 @@ func (opts PutObjectOptions) validate() (err error) {
 			return errInvalidArgument(v + " unsupported user defined metadata value")
 		}
 	}
-	if opts.Mode != nil {
-		if !opts.Mode.IsValid() {
-			return errInvalidArgument(opts.Mode.String() + " unsupported retention mode")
-		}
+	if opts.Mode != "" && !opts.Mode.IsValid() {
+		return errInvalidArgument(opts.Mode.String() + " unsupported retention mode")
 	}
 	if opts.LegalHold != "" && !opts.LegalHold.IsValid() {
 		return errInvalidArgument(opts.LegalHold.String() + " unsupported legal-hold status")

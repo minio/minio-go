@@ -71,9 +71,14 @@ type Owner struct {
 // UploadInfo contains information about the
 // newly uploaded or copied object.
 type UploadInfo struct {
-	ETag      string
-	VersionID string
-	Size      int64
+	Bucket       string
+	Key          string
+	ETag         string
+	Size         int64
+	LastModified time.Time
+	Expiration   time.Time
+	Location     string
+	VersionID    string
 }
 
 // ObjectInfo container for object metadata.
