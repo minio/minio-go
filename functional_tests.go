@@ -831,7 +831,7 @@ func testStatObjectWithVersioning() {
 	}
 
 	for i := 0; i < len(results); i++ {
-		opts := minio.StatObjectOptions{minio.GetObjectOptions{VersionID: results[i].VersionID}}
+		opts := minio.StatObjectOptions{VersionID: results[i].VersionID}
 		statInfo, err := c.StatObject(context.Background(), bucketName, objectName, opts)
 		if err != nil {
 			logError(testName, function, args, startTime, "", "error during HEAD object", err)
@@ -7653,7 +7653,7 @@ func testSSECMultipartEncryptedToSSECCopyObjectPart() {
 	}
 
 	// Stat the object and check its length matches
-	objInfo, err := c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{minio.GetObjectOptions{ServerSideEncryption: srcencryption}})
+	objInfo, err := c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{ServerSideEncryption: srcencryption})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "StatObject call failed", err)
 	}
@@ -7705,7 +7705,7 @@ func testSSECMultipartEncryptedToSSECCopyObjectPart() {
 	}
 
 	// Stat the object and check its length matches
-	objInfo, err = c.StatObject(context.Background(), destBucketName, destObjectName, minio.StatObjectOptions{minio.GetObjectOptions{ServerSideEncryption: dstencryption}})
+	objInfo, err = c.StatObject(context.Background(), destBucketName, destObjectName, minio.StatObjectOptions{ServerSideEncryption: dstencryption})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "StatObject call failed", err)
 	}
@@ -7809,7 +7809,7 @@ func testSSECEncryptedToSSECCopyObjectPart() {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
 
-	st, err := c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{minio.GetObjectOptions{ServerSideEncryption: srcencryption}})
+	st, err := c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{ServerSideEncryption: srcencryption})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "StatObject call failed", err)
 	}
@@ -7865,7 +7865,7 @@ func testSSECEncryptedToSSECCopyObjectPart() {
 	}
 
 	// Stat the object and check its length matches
-	objInfo, err := c.StatObject(context.Background(), destBucketName, destObjectName, minio.StatObjectOptions{minio.GetObjectOptions{ServerSideEncryption: dstencryption}})
+	objInfo, err := c.StatObject(context.Background(), destBucketName, destObjectName, minio.StatObjectOptions{ServerSideEncryption: dstencryption})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "StatObject call failed", err)
 	}
@@ -7969,7 +7969,7 @@ func testSSECEncryptedToUnencryptedCopyPart() {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
 
-	st, err := c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{minio.GetObjectOptions{ServerSideEncryption: srcencryption}})
+	st, err := c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{ServerSideEncryption: srcencryption})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "StatObject call failed", err)
 	}
@@ -8024,7 +8024,7 @@ func testSSECEncryptedToUnencryptedCopyPart() {
 	}
 
 	// Stat the object and check its length matches
-	objInfo, err := c.StatObject(context.Background(), destBucketName, destObjectName, minio.StatObjectOptions{minio.GetObjectOptions{}})
+	objInfo, err := c.StatObject(context.Background(), destBucketName, destObjectName, minio.StatObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "StatObject call failed", err)
 	}
@@ -8129,7 +8129,7 @@ func testSSECEncryptedToSSES3CopyObjectPart() {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
 
-	st, err := c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{minio.GetObjectOptions{ServerSideEncryption: srcencryption}})
+	st, err := c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{ServerSideEncryption: srcencryption})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "StatObject call failed", err)
 	}
@@ -8186,7 +8186,7 @@ func testSSECEncryptedToSSES3CopyObjectPart() {
 	}
 
 	// Stat the object and check its length matches
-	objInfo, err := c.StatObject(context.Background(), destBucketName, destObjectName, minio.StatObjectOptions{minio.GetObjectOptions{}})
+	objInfo, err := c.StatObject(context.Background(), destBucketName, destObjectName, minio.StatObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "StatObject call failed", err)
 	}
@@ -8343,7 +8343,7 @@ func testUnencryptedToSSECCopyObjectPart() {
 	}
 
 	// Stat the object and check its length matches
-	objInfo, err := c.StatObject(context.Background(), destBucketName, destObjectName, minio.StatObjectOptions{minio.GetObjectOptions{ServerSideEncryption: dstencryption}})
+	objInfo, err := c.StatObject(context.Background(), destBucketName, destObjectName, minio.StatObjectOptions{ServerSideEncryption: dstencryption})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "StatObject call failed", err)
 	}
@@ -8496,7 +8496,7 @@ func testUnencryptedToUnencryptedCopyPart() {
 	}
 
 	// Stat the object and check its length matches
-	objInfo, err := c.StatObject(context.Background(), destBucketName, destObjectName, minio.StatObjectOptions{minio.GetObjectOptions{}})
+	objInfo, err := c.StatObject(context.Background(), destBucketName, destObjectName, minio.StatObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "StatObject call failed", err)
 	}
@@ -8651,7 +8651,7 @@ func testUnencryptedToSSES3CopyObjectPart() {
 	}
 
 	// Stat the object and check its length matches
-	objInfo, err := c.StatObject(context.Background(), destBucketName, destObjectName, minio.StatObjectOptions{minio.GetObjectOptions{}})
+	objInfo, err := c.StatObject(context.Background(), destBucketName, destObjectName, minio.StatObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "StatObject call failed", err)
 	}
@@ -8754,7 +8754,7 @@ func testSSES3EncryptedToSSECCopyObjectPart() {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
 
-	st, err := c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{minio.GetObjectOptions{ServerSideEncryption: srcEncryption}})
+	st, err := c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{ServerSideEncryption: srcEncryption})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "StatObject call failed", err)
 	}
@@ -8809,7 +8809,7 @@ func testSSES3EncryptedToSSECCopyObjectPart() {
 	}
 
 	// Stat the object and check its length matches
-	objInfo, err := c.StatObject(context.Background(), destBucketName, destObjectName, minio.StatObjectOptions{minio.GetObjectOptions{ServerSideEncryption: dstencryption}})
+	objInfo, err := c.StatObject(context.Background(), destBucketName, destObjectName, minio.StatObjectOptions{ServerSideEncryption: dstencryption})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "StatObject call failed", err)
 	}
@@ -8910,7 +8910,7 @@ func testSSES3EncryptedToUnencryptedCopyPart() {
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
-	st, err := c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{minio.GetObjectOptions{ServerSideEncryption: srcEncryption}})
+	st, err := c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{ServerSideEncryption: srcEncryption})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "StatObject call failed", err)
 	}
@@ -8963,7 +8963,7 @@ func testSSES3EncryptedToUnencryptedCopyPart() {
 	}
 
 	// Stat the object and check its length matches
-	objInfo, err := c.StatObject(context.Background(), destBucketName, destObjectName, minio.StatObjectOptions{minio.GetObjectOptions{}})
+	objInfo, err := c.StatObject(context.Background(), destBucketName, destObjectName, minio.StatObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "StatObject call failed", err)
 	}
@@ -9065,7 +9065,7 @@ func testSSES3EncryptedToSSES3CopyObjectPart() {
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 	}
-	st, err := c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{minio.GetObjectOptions{ServerSideEncryption: srcEncryption}})
+	st, err := c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{ServerSideEncryption: srcEncryption})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "StatObject call failed", err)
 	}
@@ -9120,7 +9120,7 @@ func testSSES3EncryptedToSSES3CopyObjectPart() {
 	}
 
 	// Stat the object and check its length matches
-	objInfo, err := c.StatObject(context.Background(), destBucketName, destObjectName, minio.StatObjectOptions{minio.GetObjectOptions{}})
+	objInfo, err := c.StatObject(context.Background(), destBucketName, destObjectName, minio.StatObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "StatObject call failed", err)
 	}
