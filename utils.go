@@ -75,12 +75,12 @@ func getEndpointURL(endpoint string, secure bool) (*url.URL, error) {
 		}
 		if !s3utils.IsValidIP(host) && !s3utils.IsValidDomain(host) {
 			msg := "Endpoint: " + endpoint + " does not follow ip address or domain name standards."
-			return nil, ErrInvalidArgument(msg)
+			return nil, errInvalidArgument(msg)
 		}
 	} else {
 		if !s3utils.IsValidIP(endpoint) && !s3utils.IsValidDomain(endpoint) {
 			msg := "Endpoint: " + endpoint + " does not follow ip address or domain name standards."
-			return nil, ErrInvalidArgument(msg)
+			return nil, errInvalidArgument(msg)
 		}
 	}
 	// If secure is false, use 'http' scheme.
@@ -134,19 +134,19 @@ var (
 // Verify if input endpoint URL is valid.
 func isValidEndpointURL(endpointURL url.URL) error {
 	if endpointURL == sentinelURL {
-		return ErrInvalidArgument("Endpoint url cannot be empty.")
+		return errInvalidArgument("Endpoint url cannot be empty.")
 	}
 	if endpointURL.Path != "/" && endpointURL.Path != "" {
-		return ErrInvalidArgument("Endpoint url cannot have fully qualified paths.")
+		return errInvalidArgument("Endpoint url cannot have fully qualified paths.")
 	}
 	if strings.Contains(endpointURL.Host, ".s3.amazonaws.com") {
 		if !s3utils.IsAmazonEndpoint(endpointURL) {
-			return ErrInvalidArgument("Amazon S3 endpoint should be 's3.amazonaws.com'.")
+			return errInvalidArgument("Amazon S3 endpoint should be 's3.amazonaws.com'.")
 		}
 	}
 	if strings.Contains(endpointURL.Host, ".googleapis.com") {
 		if !s3utils.IsGoogleEndpoint(endpointURL) {
-			return ErrInvalidArgument("Google Cloud Storage endpoint should be 'storage.googleapis.com'.")
+			return errInvalidArgument("Google Cloud Storage endpoint should be 'storage.googleapis.com'.")
 		}
 	}
 	return nil
@@ -156,10 +156,10 @@ func isValidEndpointURL(endpointURL url.URL) error {
 func isValidExpiry(expires time.Duration) error {
 	expireSeconds := int64(expires / time.Second)
 	if expireSeconds < 1 {
-		return ErrInvalidArgument("Expires cannot be lesser than 1 second.")
+		return errInvalidArgument("Expires cannot be lesser than 1 second.")
 	}
 	if expireSeconds > 604800 {
-		return ErrInvalidArgument("Expires cannot be greater than 7 days.")
+		return errInvalidArgument("Expires cannot be greater than 7 days.")
 	}
 	return nil
 }

@@ -40,9 +40,11 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
 	tags, err := s3Client.GetObjectTagging(context.Background(), "my-bucketname", "my-objectname")
 	if err != nil {
 		log.Fatalln(err)
 	}
-	fmt.Printf("Fetched Object Tags: %s", tags)
+
+	fmt.Printf("Fetched Object Tags: %v", tags)
 }

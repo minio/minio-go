@@ -41,14 +41,8 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	// Create a done channel to control 'ListObjects' go routine.
-	doneCh := make(chan struct{})
-
-	// Indicate to our routine to exit cleanly upon return.
-	defer close(doneCh)
-
 	// List all multipart uploads from a bucket-name with a matching prefix.
-	for multipartObject := range s3Client.ListIncompleteUploads(context.Background(), "my-bucketname", "my-prefixname", true, doneCh) {
+	for multipartObject := range s3Client.ListIncompleteUploads(context.Background(), "my-bucketname", "my-prefixname", true) {
 		if multipartObject.Err != nil {
 			fmt.Println(multipartObject.Err)
 			return

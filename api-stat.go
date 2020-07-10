@@ -1,6 +1,6 @@
 /*
  * MinIO Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2015-2017 MinIO, Inc.
+ * Copyright 2015-2020 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ package minio
 import (
 	"context"
 	"net/http"
+	"net/url"
 
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
@@ -78,10 +79,16 @@ func (c Client) statObject(ctx context.Context, bucketName, objectName string, o
 		return ObjectInfo{}, err
 	}
 
+	urlValues := make(url.Values)
+	if opts.VersionID != "" {
+		urlValues.Set("versionId", opts.VersionID)
+	}
+
 	// Execute HEAD on objectName.
 	resp, err := c.executeMethod(ctx, "HEAD", requestMetadata{
 		bucketName:       bucketName,
 		objectName:       objectName,
+		queryValues:      urlValues,
 		contentSHA256Hex: emptySHA256Hex,
 		customHeader:     opts.Header(),
 	})

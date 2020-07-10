@@ -51,8 +51,8 @@ func (c Core) ListObjects(bucket, prefix, marker, delimiter string, maxKeys int)
 
 // ListObjectsV2 - Lists all the objects at a prefix, similar to ListObjects() but uses
 // continuationToken instead of marker to support iteration over the results.
-func (c Core) ListObjectsV2(bucketName, objectPrefix, continuationToken string, fetchOwner bool, delimiter string, maxkeys int, startAfter string) (ListBucketV2Result, error) {
-	return c.listObjectsV2Query(context.Background(), bucketName, objectPrefix, continuationToken, fetchOwner, false, delimiter, maxkeys, startAfter)
+func (c Core) ListObjectsV2(bucketName, objectPrefix, continuationToken string, fetchOwner bool, delimiter string, maxkeys int) (ListBucketV2Result, error) {
+	return c.listObjectsV2Query(context.Background(), bucketName, objectPrefix, continuationToken, fetchOwner, false, delimiter, maxkeys)
 }
 
 // CopyObject - copies an object from source object to destination object on server side.
@@ -70,7 +70,7 @@ func (c Core) CopyObjectPart(ctx context.Context, srcBucket, srcObject, destBuck
 }
 
 // PutObject - Upload object. Uploads using single PUT call.
-func (c Core) PutObject(ctx context.Context, bucket, object string, data io.Reader, size int64, md5Base64, sha256Hex string, opts PutObjectOptions) (ObjectInfo, error) {
+func (c Core) PutObject(ctx context.Context, bucket, object string, data io.Reader, size int64, md5Base64, sha256Hex string, opts PutObjectOptions) (UploadInfo, error) {
 	return c.putObjectDo(ctx, bucket, object, data, md5Base64, sha256Hex, size, opts)
 }
 

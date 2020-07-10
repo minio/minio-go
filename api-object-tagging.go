@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -29,9 +28,15 @@ import (
 	"github.com/minio/minio-go/v7/pkg/tags"
 )
 
-// PutObjectTagging replaces or creates object tag(s) with a context to control cancellations
-// and timeouts.
-func (c Client) PutObjectTagging(ctx context.Context, bucketName, objectName string, objectTags map[string]string) error {
+// PutObjectTaggingOptions holds an object version id
+// to update tag(s) of a specific object version
+type PutObjectTaggingOptions struct {
+	VersionID string
+}
+
+// PutObjectTagging replaces or creates object tag(s) and can target
+// a specific object version in a versioned bucket.
+func (c Client) PutObjectTagging(ctx context.Context, bucketName, objectName string, objectTags map[string]string, opts PutObjectTaggingOptions) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return err
@@ -41,6 +46,10 @@ func (c Client) PutObjectTagging(ctx context.Context, bucketName, objectName str
 	// using them in http request.
 	urlValues := make(url.Values)
 	urlValues.Set("tagging", "")
+
+	if opts.VersionID != "" {
+		urlValues.Set("versionId", opts.VersionID)
+	}
 
 	tags, err := tags.NewTags(objectTags, true)
 	if err != nil {
@@ -75,13 +84,23 @@ func (c Client) PutObjectTagging(ctx context.Context, bucketName, objectName str
 	return nil
 }
 
-// GetObjectTagging fetches object tag(s) with a context to control cancellations
-// and timeouts.
-func (c Client) GetObjectTagging(ctx context.Context, bucketName, objectName string) (string, error) {
+// GetObjectTaggingOptions holds the object version ID
+// to fetch the tagging key/value pairs
+type GetObjectTaggingOptions struct {
+	VersionID string
+}
+
+// GetObjectTagging fetches object tag(s) with options to target
+// a specific object version in a versioned bucket.
+func (c Client) GetObjectTagging(ctx context.Context, bucketName, objectName string, opts GetObjectTaggingOptions) (map[string]string, error) {
 	// Get resources properly escaped and lined up before
 	// using them in http request.
 	urlValues := make(url.Values)
 	urlValues.Set("tagging", "")
+
+	if opts.VersionID != "" {
+		urlValues.Set("versionId", opts.VersionID)
+	}
 
 	// Execute GET on object to get object tag(s)
 	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
@@ -92,30 +111,39 @@ func (c Client) GetObjectTagging(ctx context.Context, bucketName, objectName str
 
 	defer closeResponse(resp)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return "", httpRespToErrorResponse(resp, bucketName, objectName)
+			return nil, httpRespToErrorResponse(resp, bucketName, objectName)
 		}
 	}
 
-	tagBuf, err := ioutil.ReadAll(resp.Body)
+	tags, err := tags.ParseObjectXML(resp.Body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return string(tagBuf), err
+	return tags.ToMap(), err
 }
 
-// RemoveObjectTagging removes object tag(s) with a context to control cancellations
-// and timeouts.
-func (c Client) RemoveObjectTagging(ctx context.Context, bucketName, objectName string) error {
+// RemoveObjectTaggingOptions holds the version id of the object to remove
+type RemoveObjectTaggingOptions struct {
+	VersionID string
+}
+
+// RemoveObjectTagging removes object tag(s) with options to control a specific object
+// version in a versioned bucket
+func (c Client) RemoveObjectTagging(ctx context.Context, bucketName, objectName string, opts RemoveObjectTaggingOptions) error {
 	// Get resources properly escaped and lined up before
 	// using them in http request.
 	urlValues := make(url.Values)
 	urlValues.Set("tagging", "")
+
+	if opts.VersionID != "" {
+		urlValues.Set("versionId", opts.VersionID)
+	}
 
 	// Execute DELETE on object to remove object tag(s)
 	resp, err := c.executeMethod(ctx, "DELETE", requestMetadata{

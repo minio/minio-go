@@ -1,6 +1,6 @@
 /*
  * MinIO Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2015-2017 MinIO, Inc.
+ * Copyright 2015-2020 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,6 +62,25 @@ func (m *StringMap) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	return nil
 }
 
+// Owner name.
+type Owner struct {
+	DisplayName string `json:"name"`
+	ID          string `json:"id"`
+}
+
+// UploadInfo contains information about the
+// newly uploaded or copied object.
+type UploadInfo struct {
+	Bucket       string
+	Key          string
+	ETag         string
+	Size         int64
+	LastModified time.Time
+	Expiration   time.Time
+	Location     string
+	VersionID    string
+}
+
 // ObjectInfo container for object metadata.
 type ObjectInfo struct {
 	// An ETag is optionally set to md5sum of an object.  In case of multipart objects,
@@ -86,10 +105,7 @@ type ObjectInfo struct {
 	UserTags map[string]string `json:"userTags"`
 
 	// Owner name.
-	Owner struct {
-		DisplayName string `json:"name"`
-		ID          string `json:"id"`
-	} `json:"owner"`
+	Owner Owner
 
 	// ACL grant.
 	Grant []struct {
@@ -103,6 +119,11 @@ type ObjectInfo struct {
 
 	// The class of storage used to store the object.
 	StorageClass string `json:"storageClass"`
+
+	// Versioning related information
+	IsLatest       bool
+	IsDeleteMarker bool
+	VersionID      string `xml:"VersionId"`
 
 	// Error
 	Err error `json:"-"`

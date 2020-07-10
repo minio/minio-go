@@ -43,5 +43,5 @@ jobs:
           chmod +x /tmp/minio
           mkdir -p /tmp/certs-dir
           cp testcerts/* /tmp/certs-dir
-          /tmp/minio server --quiet -S /tmp/certs-dir /tmp/fs &
+          /tmp/minio server --quiet -S /tmp/certs-dir /tmp/fs{1...4} &
           make

@@ -193,7 +193,7 @@ func TestErrEntityTooLarge(t *testing.T) {
 		BucketName: "minio-bucket",
 		Key:        "Asia/",
 	}
-	actualResult := ErrEntityTooLarge(1000000, 99999, "minio-bucket", "Asia/")
+	actualResult := errEntityTooLarge(1000000, 99999, "minio-bucket", "Asia/")
 	if !reflect.DeepEqual(expectedResult, actualResult) {
 		t.Errorf("Expected result to be '%#v', but instead got '%#v'", expectedResult, actualResult)
 	}
@@ -209,7 +209,7 @@ func TestErrEntityTooSmall(t *testing.T) {
 		BucketName: "minio-bucket",
 		Key:        "Asia/",
 	}
-	actualResult := ErrEntityTooSmall(-1, "minio-bucket", "Asia/")
+	actualResult := errEntityTooSmall(-1, "minio-bucket", "Asia/")
 	if !reflect.DeepEqual(expectedResult, actualResult) {
 		t.Errorf("Expected result to be '%#v', but instead got '%#v'", expectedResult, actualResult)
 	}
@@ -226,7 +226,7 @@ func TestErrUnexpectedEOF(t *testing.T) {
 		BucketName: "minio-bucket",
 		Key:        "Asia/",
 	}
-	actualResult := ErrUnexpectedEOF(100, 101, "minio-bucket", "Asia/")
+	actualResult := errUnexpectedEOF(100, 101, "minio-bucket", "Asia/")
 	if !reflect.DeepEqual(expectedResult, actualResult) {
 		t.Errorf("Expected result to be '%#v', but instead got '%#v'", expectedResult, actualResult)
 	}
@@ -240,7 +240,7 @@ func TestErrInvalidBucketName(t *testing.T) {
 		Message:    "Invalid Bucket name",
 		RequestID:  "minio",
 	}
-	actualResult := ErrInvalidBucketName("Invalid Bucket name")
+	actualResult := errInvalidBucketName("Invalid Bucket name")
 	if !reflect.DeepEqual(expectedResult, actualResult) {
 		t.Errorf("Expected result to be '%#v', but instead got '%#v'", expectedResult, actualResult)
 	}
@@ -254,13 +254,13 @@ func TestErrInvalidObjectName(t *testing.T) {
 		Message:    "Invalid Object Key",
 		RequestID:  "minio",
 	}
-	actualResult := ErrInvalidObjectName("Invalid Object Key")
+	actualResult := errInvalidObjectName("Invalid Object Key")
 	if !reflect.DeepEqual(expectedResult, actualResult) {
 		t.Errorf("Expected result to be '%#v', but instead got '%#v'", expectedResult, actualResult)
 	}
 }
 
-// Test validates 'ErrInvalidArgument' response.
+// Test validates 'errInvalidArgument' response.
 func TestErrInvalidArgument(t *testing.T) {
 	expectedResult := ErrorResponse{
 		StatusCode: http.StatusBadRequest,
@@ -268,7 +268,7 @@ func TestErrInvalidArgument(t *testing.T) {
 		Message:    "Invalid Argument",
 		RequestID:  "minio",
 	}
-	actualResult := ErrInvalidArgument("Invalid Argument")
+	actualResult := errInvalidArgument("Invalid Argument")
 	if !reflect.DeepEqual(expectedResult, actualResult) {
 		t.Errorf("Expected result to be '%#v', but instead got '%#v'", expectedResult, actualResult)
 	}

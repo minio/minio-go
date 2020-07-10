@@ -93,7 +93,7 @@ func TestGetObjectCore(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 
 	// Make a new bucket.
-	err = c.MakeBucket(context.Background(), bucketName, "us-east-1")
+	err = c.MakeBucket(context.Background(), bucketName, MakeBucketOptions{Region: "us-east-1"})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -103,15 +103,19 @@ func TestGetObjectCore(t *testing.T) {
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-	n, err := c.Client.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), PutObjectOptions{
+	_, err = c.Client.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), PutObjectOptions{
 		ContentType: "binary/octet-stream",
 	})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
 
-	if n != int64(len(buf)) {
-		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), n)
+	st, err := c.Client.StatObject(context.Background(), bucketName, objectName, StatObjectOptions{})
+	if err != nil {
+		t.Fatal("Stat error:", err, bucketName, objectName)
+	}
+	if st.Size != int64(len(buf)) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), st.Size)
 	}
 
 	offset := int64(2048)
@@ -119,7 +123,7 @@ func TestGetObjectCore(t *testing.T) {
 	// read directly
 	buf1 := make([]byte, 512)
 	buf2 := make([]byte, 512)
-	buf3 := make([]byte, n)
+	buf3 := make([]byte, st.Size)
 	buf4 := make([]byte, 1)
 
 	opts := GetObjectOptions{}
@@ -245,7 +249,7 @@ func TestGetObjectCore(t *testing.T) {
 		t.Fatalf("Error: Content Length in response header %v, not equal to set content length %v\n", contentLengthValue, contentLength)
 	}
 
-	err = c.RemoveObject(context.Background(), bucketName, objectName)
+	err = c.RemoveObject(context.Background(), bucketName, objectName, RemoveObjectOptions{})
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
@@ -286,7 +290,7 @@ func TestGetObjectContentEncoding(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 
 	// Make a new bucket.
-	err = c.MakeBucket(context.Background(), bucketName, "us-east-1")
+	err = c.MakeBucket(context.Background(), bucketName, MakeBucketOptions{Region: "us-east-1"})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -296,15 +300,11 @@ func TestGetObjectContentEncoding(t *testing.T) {
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-	n, err := c.Client.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), PutObjectOptions{
+	_, err = c.Client.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), PutObjectOptions{
 		ContentEncoding: "gzip",
 	})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
-	}
-
-	if n != int64(len(buf)) {
-		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), n)
 	}
 
 	rwc, objInfo, _, err := c.GetObject(context.Background(), bucketName, objectName, GetObjectOptions{})
@@ -312,8 +312,8 @@ func TestGetObjectContentEncoding(t *testing.T) {
 		t.Fatalf("Error: %v", err)
 	}
 	rwc.Close()
-	if objInfo.Size <= 0 {
-		t.Fatalf("Unexpected size of the object %v, expected %v", objInfo.Size, n)
+	if objInfo.Size != int64(len(buf)) {
+		t.Fatalf("Unexpected size of the object %v, expected %v", objInfo.Size, len(buf))
 	}
 	value, ok := objInfo.Metadata["Content-Encoding"]
 	if !ok {
@@ -323,7 +323,7 @@ func TestGetObjectContentEncoding(t *testing.T) {
 		t.Fatalf("Unexpected content-encoding found, want gzip, got %v", value)
 	}
 
-	err = c.RemoveObject(context.Background(), bucketName, objectName)
+	err = c.RemoveObject(context.Background(), bucketName, objectName, RemoveObjectOptions{})
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
@@ -363,7 +363,7 @@ func TestGetBucketPolicy(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 
 	// Make a new bucket.
-	err = c.MakeBucket(context.Background(), bucketName, "us-east-1")
+	err = c.MakeBucket(context.Background(), bucketName, MakeBucketOptions{Region: "us-east-1"})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -426,7 +426,7 @@ func TestCoreCopyObject(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 
 	// Make a new bucket.
-	err = c.MakeBucket(context.Background(), bucketName, "us-east-1")
+	err = c.MakeBucket(context.Background(), bucketName, MakeBucketOptions{Region: "us-east-1"})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -441,27 +441,32 @@ func TestCoreCopyObject(t *testing.T) {
 			"Content-Type": "binary/octet-stream",
 		},
 	}
-	objInfo, err := c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", putopts)
+	uploadInfo, err := c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", putopts)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
 
-	if objInfo.Size != int64(len(buf)) {
-		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), objInfo.Size)
+	st, err := c.StatObject(context.Background(), bucketName, objectName, StatObjectOptions{})
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
+
+	if st.Size != int64(len(buf)) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), st.Size)
 	}
 
 	destBucketName := bucketName
 	destObjectName := objectName + "-dest"
 
-	cobjInfo, err := c.CopyObject(context.Background(), bucketName, objectName, destBucketName, destObjectName, map[string]string{
+	cuploadInfo, err := c.CopyObject(context.Background(), bucketName, objectName, destBucketName, destObjectName, map[string]string{
 		"X-Amz-Metadata-Directive": "REPLACE",
 		"Content-Type":             "application/javascript",
 	})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName, destBucketName, destObjectName)
 	}
-	if cobjInfo.ETag != objInfo.ETag {
-		t.Fatalf("Error: expected etag to be same as source object %s, but found different etag %s", objInfo.ETag, cobjInfo.ETag)
+	if cuploadInfo.ETag != uploadInfo.ETag {
+		t.Fatalf("Error: expected etag to be same as source object %s, but found different etag %s", uploadInfo.ETag, cuploadInfo.ETag)
 	}
 
 	// Attempt to read from destBucketName and object name.
@@ -470,7 +475,7 @@ func TestCoreCopyObject(t *testing.T) {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
 
-	st, err := r.Stat()
+	st, err = r.Stat()
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
@@ -484,8 +489,8 @@ func TestCoreCopyObject(t *testing.T) {
 		t.Fatalf("Error: Content types don't match, expected: application/javascript, found: %+v\n", st.ContentType)
 	}
 
-	if st.ETag != objInfo.ETag {
-		t.Fatalf("Error: expected etag to be same as source object %s, but found different etag :%s", objInfo.ETag, st.ETag)
+	if st.ETag != uploadInfo.ETag {
+		t.Fatalf("Error: expected etag to be same as source object %s, but found different etag :%s", uploadInfo.ETag, st.ETag)
 	}
 
 	if err := r.Close(); err != nil {
@@ -496,12 +501,12 @@ func TestCoreCopyObject(t *testing.T) {
 		t.Fatal("Error: object is already closed, should return error")
 	}
 
-	err = c.RemoveObject(context.Background(), bucketName, objectName)
+	err = c.RemoveObject(context.Background(), bucketName, objectName, RemoveObjectOptions{})
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
 
-	err = c.RemoveObject(context.Background(), destBucketName, destObjectName)
+	err = c.RemoveObject(context.Background(), destBucketName, destObjectName, RemoveObjectOptions{})
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
@@ -544,7 +549,7 @@ func TestCoreCopyObjectPart(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 
 	// Make a new bucket.
-	err = c.MakeBucket(context.Background(), bucketName, "us-east-1")
+	err = c.MakeBucket(context.Background(), bucketName, MakeBucketOptions{Region: "us-east-1"})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -559,13 +564,18 @@ func TestCoreCopyObjectPart(t *testing.T) {
 	}
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-	objInfo, err := c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", putopts)
+	_, err = c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", putopts)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
 
-	if objInfo.Size != int64(len(buf)) {
-		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), objInfo.Size)
+	st, err := c.StatObject(context.Background(), bucketName, objectName, StatObjectOptions{})
+	if err != nil {
+		t.Fatal("Error:", err, bucketName, objectName)
+	}
+
+	if st.Size != int64(len(buf)) {
+		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), st.Size)
 	}
 
 	destBucketName := bucketName
@@ -605,7 +615,7 @@ func TestCoreCopyObjectPart(t *testing.T) {
 	}
 
 	// Stat the object and check its length matches
-	objInfo, err = c.StatObject(context.Background(), destBucketName, destObjectName, StatObjectOptions{})
+	objInfo, err := c.StatObject(context.Background(), destBucketName, destObjectName, StatObjectOptions{})
 	if err != nil {
 		t.Fatal("Error:", err, destBucketName, destObjectName)
 	}
@@ -647,11 +657,11 @@ func TestCoreCopyObjectPart(t *testing.T) {
 		t.Fatal("Got unexpected data in last byte of copied object!")
 	}
 
-	if err := c.RemoveObject(context.Background(), destBucketName, destObjectName); err != nil {
+	if err := c.RemoveObject(context.Background(), destBucketName, destObjectName, RemoveObjectOptions{}); err != nil {
 		t.Fatal("Error: ", err)
 	}
 
-	if err := c.RemoveObject(context.Background(), bucketName, objectName); err != nil {
+	if err := c.RemoveObject(context.Background(), bucketName, objectName, RemoveObjectOptions{}); err != nil {
 		t.Fatal("Error: ", err)
 	}
 
@@ -693,7 +703,7 @@ func TestCorePutObject(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 
 	// Make a new bucket.
-	err = c.MakeBucket(context.Background(), bucketName, "us-east-1")
+	err = c.MakeBucket(context.Background(), bucketName, MakeBucketOptions{Region: "us-east-1"})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -709,18 +719,14 @@ func TestCorePutObject(t *testing.T) {
 	putopts := PutObjectOptions{
 		UserMetadata: metadata,
 	}
-	objInfo, err := c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "1B2M2Y8AsgTpgAmY7PhCfg==", "", putopts)
+	_, err = c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "1B2M2Y8AsgTpgAmY7PhCfg==", "", putopts)
 	if err == nil {
 		t.Fatal("Error expected: error, got: nil(success)")
 	}
 
-	objInfo, err = c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", putopts)
+	_, err = c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), "", "", putopts)
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName)
-	}
-
-	if objInfo.Size != int64(len(buf)) {
-		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), objInfo.Size)
 	}
 
 	// Read the data back
@@ -751,7 +757,7 @@ func TestCorePutObject(t *testing.T) {
 		t.Fatal("Error: object is already closed, should return error")
 	}
 
-	err = c.RemoveObject(context.Background(), bucketName, objectName)
+	err = c.RemoveObject(context.Background(), bucketName, objectName, RemoveObjectOptions{})
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
@@ -780,7 +786,7 @@ func TestCoreGetObjectMetadata(t *testing.T) {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test")
 
 	// Make a new bucket.
-	err = core.MakeBucket(context.Background(), bucketName, "us-east-1")
+	err = core.MakeBucket(context.Background(), bucketName, MakeBucketOptions{Region: "us-east-1"})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName)
 	}
@@ -808,7 +814,7 @@ func TestCoreGetObjectMetadata(t *testing.T) {
 		log.Fatalln("Expected metadata to be available but wasn't")
 	}
 
-	err = core.RemoveObject(context.Background(), bucketName, "my-objectname")
+	err = core.RemoveObject(context.Background(), bucketName, "my-objectname", RemoveObjectOptions{})
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}

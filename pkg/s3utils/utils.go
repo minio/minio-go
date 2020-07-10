@@ -262,6 +262,9 @@ func TagDecode(ctag string) map[string]string {
 // addition to the percent encoding performed by urlEncodePath() used
 // here, it also percent encodes '/' (forward slash)
 func TagEncode(tags map[string]string) string {
+	if tags == nil {
+		return ""
+	}
 	values := url.Values{}
 	for k, v := range tags {
 		values[k] = []string{v}

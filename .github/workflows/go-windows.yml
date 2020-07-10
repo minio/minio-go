@@ -40,6 +40,6 @@ jobs:
           New-Item -ItemType Directory -Path "$env:temp/certs-dir"
           Copy-Item -Path testcerts\* -Destination "$env:temp/certs-dir"
           Invoke-WebRequest -Uri https://dl.minio.io/server/minio/release/windows-amd64/minio.exe -OutFile $HOME/minio.exe
-          Start-Process -NoNewWindow -FilePath "$HOME/minio.exe" -ArgumentList "-S", "$env:temp/certs-dir", "server", "$env:temp/fs"
+          Start-Process -NoNewWindow -FilePath "$HOME/minio.exe" -ArgumentList "-S", "$env:temp/certs-dir", "server", "$env:temp/fs{1...4}"
           $env:SSL_CERT_FILE = "$env:temp/certs-dir/public.crt"
           go run functional_tests.go
