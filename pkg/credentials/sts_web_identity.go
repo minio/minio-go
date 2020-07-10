@@ -174,3 +174,8 @@ func (m *STSWebIdentity) Retrieve() (Value, error) {
 		SignerType:      SignatureV4,
 	}, nil
 }
+
+// Expiration returns the expiration time of the credentials
+func (m *STSWebIdentity) Expiration() time.Time {
+	return m.expiration
+}

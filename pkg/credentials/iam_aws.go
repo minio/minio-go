@@ -104,7 +104,11 @@ func (m *IAM) Retrieve() (Value, error) {
 			},
 		}
 
-		return creds.Retrieve()
+		stsWebIdentityCreds, err := creds.Retrieve()
+		if err == nil {
+			m.SetExpiration(creds.Expiration(), DefaultExpiryWindow)
+		}
+		return stsWebIdentityCreds, err
 
 	case len(os.Getenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI")) > 0:
 		if len(endpoint) == 0 {
