@@ -63,7 +63,7 @@ func (c Client) FGetObject(ctx context.Context, bucketName, objectName, filePath
 	}
 
 	// Gather md5sum.
-	objectStat, err := c.StatObject(ctx, bucketName, objectName, StatObjectOptions{opts})
+	objectStat, err := c.StatObject(ctx, bucketName, objectName, StatObjectOptions(opts))
 	if err != nil {
 		return err
 	}

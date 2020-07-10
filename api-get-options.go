@@ -35,9 +35,7 @@ type GetObjectOptions struct {
 
 // StatObjectOptions are used to specify additional headers or options
 // during GET info/stat requests.
-type StatObjectOptions struct {
-	GetObjectOptions
-}
+type StatObjectOptions = GetObjectOptions
 
 // Header returns the http.Header representation of the GET options.
 func (o GetObjectOptions) Header() http.Header {
