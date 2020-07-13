@@ -28,6 +28,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
@@ -434,6 +435,9 @@ func (c Client) putObjectDo(ctx context.Context, bucketName, objectName string, 
 		contentSHA256Hex: sha256Hex,
 	}
 	if opts.ReplicationVersionID != "" {
+		if _, err := uuid.Parse(opts.ReplicationVersionID); err != nil {
+			return UploadInfo{}, errInvalidArgument(err.Error())
+		}
 		urlValues := make(url.Values)
 		urlValues.Set("versionId", opts.ReplicationVersionID)
 		reqMetadata.queryValues = urlValues

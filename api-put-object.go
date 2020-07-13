@@ -33,6 +33,23 @@ import (
 	"golang.org/x/net/http/httpguts"
 )
 
+// ReplicationStatus represents replication status of object
+type ReplicationStatus string
+
+const (
+	// ReplicationStatusPending indicates replication is pending
+	ReplicationStatusPending ReplicationStatus = "PENDING"
+	// ReplicationStatusComplete indicates replication completed ok
+	ReplicationStatusComplete ReplicationStatus = "COMPLETE"
+	// ReplicationStatusFailed indicates replication failed
+	ReplicationStatusFailed ReplicationStatus = "FAILED"
+)
+
+// Empty returns true if no replication status set.
+func (r ReplicationStatus) Empty() bool {
+	return r == ""
+}
+
 // PutObjectOptions represents options specified by user for PutObject call
 type PutObjectOptions struct {
 	UserMetadata            map[string]string
@@ -54,7 +71,8 @@ type PutObjectOptions struct {
 	SendContentMd5          bool
 	DisableMultipart        bool
 	ReplicationVersionID    string
-	ReplicationStatus       string
+	ReplicationStatus       ReplicationStatus
+	ReplicationMTime        time.Time
 }
 
 // getNumThreads - gets the number of threads to be used in the multipart
@@ -116,10 +134,12 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 		header.Set(amzWebsiteRedirectLocation, opts.WebsiteRedirectLocation)
 	}
 
-	if opts.ReplicationStatus != "" {
-		header.Set(amzBucketReplicationStatus, opts.ReplicationStatus)
+	if opts.ReplicationStatus.Empty() {
+		header.Set(amzBucketReplicationStatus, string(opts.ReplicationStatus))
 	}
-
+	if opts.ReplicationMTime.IsZero() {
+		header.Set(minIOBucketReplicationSourceMTime, opts.ReplicationMTime.Format(time.RFC3339))
+	}
 	if len(opts.UserTags) != 0 {
 		header.Set(amzTaggingHeader, s3utils.TagEncode(opts.UserTags))
 	}

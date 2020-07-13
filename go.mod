@@ -3,6 +3,7 @@ module github.com/minio/minio-go/v7
 go 1.12
 
 require (
+	github.com/google/uuid v1.1.1
 	github.com/json-iterator/go v1.1.10
 	github.com/minio/md5-simd v1.1.0
 	github.com/minio/sha256-simd v0.1.1

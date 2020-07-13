@@ -63,9 +63,9 @@ func main() {
 | [`SetBucketTagging`](#SetBucketTagging)                 | [`FGetObject`](#FGetObject)                         |                                    |                                               | [`SetObjectLockConfig`](#SetObjectLockConfig)                 |                                                       |
 | [`GetBucketTagging`](#GetBucketTagging)                 | [`ComposeObject`](#ComposeObject)                   |                                    |                                               | [`GetObjectLockConfig`](#GetObjectLockConfig)                 |                                                       |
 | [`DeleteBucketTagging`](#DeleteBucketTagging)           |                                                     |                                    |                                               | [`EnableVersioning`](#EnableVersioning)                       |                                                       |
-|                                                         |                                                     |                                    |                                               | [`DisableVersioning`](#DisableVersioning)                     |                                                       |
-|                                                         | [`PutObjectRetention`](#PutObjectRetention)         |                                    |                                               | [`GetBucketEncryption`](#GetBucketEncryption)                 |                                                       |
-|                                                         | [`GetObjectRetention`](#GetObjectRetention)         |                                    |                                               | [`DeleteBucketEncryption`](#DeleteBucketEncryption)           |                                                       |
+|  [`SetBucketReplication`](#SetBucketReplication)                                                         |                                                     |                                    |                                               | [`DisableVersioning`](#DisableVersioning)                     |                                                       |
+|  [`GetBucketReplication`](#GetBucketReplication)                                                         | [`PutObjectRetention`](#PutObjectRetention)         |                                    |                                               | [`GetBucketEncryption`](#GetBucketEncryption)                 |                                                       |
+|  [`RemoveBucketReplication`](#RemoveBucketReplication)                                                         | [`GetObjectRetention`](#GetObjectRetention)         |                                    |                                               | [`DeleteBucketEncryption`](#DeleteBucketEncryption)           |                                                       |
 |                                                         | [`PutObjectLegalHold`](#PutObjectLegalHold)         |                                    |                                               |                                                               |                                                       |
 |                                                         | [`GetObjectLegalHold`](#GetObjectLegalHold)         |                                    |                                               |                                                               |                                                       |
 |                                                         | [`SelectObjectContent`](#SelectObjectContent)       |                                    |                                               |                                                               |                                                       |
@@ -537,7 +537,8 @@ __minio.PutObjectOptions__
 | `opts.SendContentMd5`          | _bool_                 | Specify if you'd like to send `content-md5` header with PutObject operation. Note that setting this flag will cause higher memory usage because of in-memory `md5sum` calculation. |
 | `opts.PartSize`                | _uint64_               | Specify a custom part size used for uploading the object                                                                                                                           |
 | `opts.ReplicationVersionID`                | _string_               | Specify VersionID of object to replicate.This option is intended for internal use by MinIO server to extend the replication API implementation by AWS. This option should not be set unless the application is aware of intended use.                                                                                              |
-| `opts.ReplicationStatus`                | _string_               | Specify replication status of object. This option is intended for internal use by MinIO server to extend the replication API implementation by AWS. This option should not be set unless the application is aware of intended use.                                                                                                             |
+| `opts.ReplicationStatus`                | _minio.ReplicationStatus_ | Specify replication status of object. This option is intended for internal use by MinIO server to extend the replication API implementation by AWS. This option should not be set unless the application is aware of intended use.                                                                                                             |
+| `opts.ReplicationMTime`                | _time.Time_               | Preserve source modTime on the replicated object. This option is intended for internal use only by MinIO server to comply with AWS bucket replication implementation. This option should not be set unless the application is aware of intended use.                                                                                                |
 
 
 __minio.UploadInfo__
@@ -1836,6 +1837,133 @@ if err != nil {
     log.Fatalln(err)
 }
 fmt.Printf("%+v\n", versioningConfig)
+```
+
+<a name="SetBucketReplication"></a>
+
+### SetBucketReplication(ctx context.Context, bucketname, cfg replication.Config, opts ReplicationReqOptions) error
+Set replication configuration on a bucket. To use this API with MinIO server, ReplicationArn should be set in the replication config. Replication ARN can be obtained by first defining the replication target on MinIO
+using `mc admin bucket replication set` to associate the source and destination buckets for replication with the replication endpoint. Next, issue a `mc admin bucket remote` to fetch the replication ARN associated with this replication endpoint.
+
+__Parameters__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
+|`bucketName` | _string_  |Name of the bucket|
+|`cfg` | _replication.Config_  |Replication configuration to be set |
+|`opts` | _ReplicationReqOptions_  |Options for replication - This is currently empty.|
+
+__Return Values__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`err` | _error_  |Standard Error   |
+
+__Example__
+
+```go
+replicationStr := `<ReplicationConfiguration>
+   <ReplicationArn></ReplicationArn>
+   <Rule>
+      <DeleteMarkerReplication>
+         <Status>Disabled</Status>
+      </DeleteMarkerReplication>
+      <Destination>
+         <Bucket>string</Bucket>
+         <StorageClass>string</StorageClass>
+      </Destination>
+      <Filter>
+         <And>
+            <Prefix>string</Prefix>
+            <Tag>
+               <Key>string</Key>
+               <Value>string</Value>
+            </Tag>
+            ...
+         </And>
+         <Prefix>string</Prefix>
+         <Tag>
+            <Key>string</Key>
+            <Value>string</Value>
+         </Tag>
+      </Filter>
+      <ID>string</ID>
+      <Prefix>string</Prefix>
+      <Priority>integer</Priority>
+      <Status>string</Status>
+   </Rule>
+</ReplicationConfiguration>`
+replicationConfig := replication.Config{}
+if err := xml.Unmarshal([]byte(replicationStr), &replicationConfig); err != nil {
+    log.Fatalln(err)
+}
+// this is optional for replication with MinIO server.
+cfg.ReplicationArn := "arn:minio:s3::598361bf-3cec-49a7-b529-ce870a34d759:*"
+err = minioClient.SetBucketReplication(context.Background(), "my-bucketname", replicationConfig, ReplicationReqOptions{})
+if err != nil {
+    fmt.Println(err)
+    return
+}
+```
+
+<a name="GetBucketReplication"></a>
+
+### GetBucketReplication(ctx context.Context, bucketName string, opts ReplicationReqOptions) (replication.Config, error)
+Get current replication config on a bucket.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
+|`bucketName`  | _string_  |Name of the bucket   |
+|`opts` | _ReplicationReqOptions_ | options for replication request
+
+__Return Values__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`replication`  | _replication.Config_ |Replication config returned from the server |
+|`err` | _error_  |Standard Error  |
+
+__Example__
+
+```go
+replication, err := minioClient.GetBucketReplication(context.Background(), "my-bucketname", ReplicationReqOptions{})
+if err != nil {
+    log.Fatalln(err)
+}
+```
+
+<a name="RemoveBucketReplication"></a>
+
+### RemoveBucketReplication(ctx context.Context, bucketname string, opts ReplicationReqOptions) error
+Removes replication configuration on a bucket.
+__Parameters__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
+|`bucketName` | _string_  |Name of the bucket|
+|`opts` | _ReplicationReqOptions_ | options for replication request
+
+__Return Values__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`err` | _error_  |Standard Error   |
+
+__Example__
+
+```go
+err = minioClient.RemoveBucketReplication(context.Background(), "my-bucketname", ReplicationReqOptions{})
+if err != nil {
+    fmt.Println(err)
+    return
+}
 ```
 
 ## 7. Client custom settings
