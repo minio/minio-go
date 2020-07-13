@@ -43,6 +43,8 @@ const (
 	ReplicationStatusComplete ReplicationStatus = "COMPLETE"
 	// ReplicationStatusFailed indicates replication failed
 	ReplicationStatusFailed ReplicationStatus = "FAILED"
+	// ReplicationStatusReplica indicates object is a replica of a source
+	ReplicationStatusReplica ReplicationStatus = "REPLICA"
 )
 
 // Empty returns true if no replication status set.
