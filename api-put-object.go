@@ -136,10 +136,10 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 		header.Set(amzWebsiteRedirectLocation, opts.WebsiteRedirectLocation)
 	}
 
-	if opts.ReplicationStatus.Empty() {
+	if !opts.ReplicationStatus.Empty() {
 		header.Set(amzBucketReplicationStatus, string(opts.ReplicationStatus))
 	}
-	if opts.ReplicationMTime.IsZero() {
+	if !opts.ReplicationMTime.IsZero() {
 		header.Set(minIOBucketReplicationSourceMTime, opts.ReplicationMTime.Format(time.RFC3339))
 	}
 	if len(opts.UserTags) != 0 {
