@@ -24,6 +24,7 @@ import (
 	"log"
 
 	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/sse"
 )
 
 func main() {
@@ -43,16 +44,7 @@ func main() {
 	// s3Client.TraceOn(os.Stderr)
 
 	// Set default encryption configuration on a bucket
-	config := minio.ServerSideEncryptionConfiguration{Rules: []minio.Rule{
-		{
-			Apply: minio.ApplyServerSideEncryptionByDefault{
-				SSEAlgorithm: "AES256",
-				// KmsMasterKeyID: "my-masterkey",
-				// SSEAlgorithm:   "aws:kms",
-			},
-		},
-	}}
-	err = s3Client.SetBucketEncryption(context.Background(), "my-bucketname", config)
+	err = s3Client.SetBucketEncryption(context.Background(), "my-bucketname", sse.NewConfigurationSSES3())
 	if err != nil {
 		log.Fatalln(err)
 	}

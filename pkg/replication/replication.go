@@ -23,8 +23,8 @@ import "encoding/xml"
 type Config struct {
 	XMLName xml.Name `xml:"ReplicationConfiguration" json:"-"`
 	Rules   []Rule   `xml:"Rule" json:"Rules"`
-	// ReplicationArn is a MinIO only extension and optional for AWS
-	ReplicationArn string `xml:"ReplicationArn,omitempty" json:"ReplicationArn,omitempty"`
+	// ReplicationARN is a MinIO only extension and optional for AWS
+	ReplicationARN string `xml:"ReplicationArn,omitempty" json:"ReplicationArn,omitempty"`
 }
 
 // Empty returns true if config is not set

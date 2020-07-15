@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package minio
+package notification
 
 import (
 	"encoding/xml"
 	"testing"
 )
 
-func TestEqualNotificationEventTypeList(t *testing.T) {
+func TestEqualEventTypeList(t *testing.T) {
 	type args struct {
-		a []NotificationEventType
-		b []NotificationEventType
+		a []EventType
+		b []EventType
 	}
 	tests := []struct {
 		name string
@@ -35,31 +35,31 @@ func TestEqualNotificationEventTypeList(t *testing.T) {
 		{
 			name: "same order",
 			args: args{
-				a: []NotificationEventType{ObjectCreatedAll, ObjectAccessedAll},
-				b: []NotificationEventType{ObjectCreatedAll, ObjectAccessedAll},
+				a: []EventType{ObjectCreatedAll, ObjectAccessedAll},
+				b: []EventType{ObjectCreatedAll, ObjectAccessedAll},
 			},
 			want: true,
 		},
 		{
 			name: "different order",
 			args: args{
-				a: []NotificationEventType{ObjectCreatedAll, ObjectAccessedAll},
-				b: []NotificationEventType{ObjectAccessedAll, ObjectCreatedAll},
+				a: []EventType{ObjectCreatedAll, ObjectAccessedAll},
+				b: []EventType{ObjectAccessedAll, ObjectCreatedAll},
 			},
 			want: true,
 		},
 		{
 			name: "not equal",
 			args: args{
-				a: []NotificationEventType{ObjectCreatedAll, ObjectAccessedAll},
-				b: []NotificationEventType{ObjectRemovedAll, ObjectAccessedAll},
+				a: []EventType{ObjectCreatedAll, ObjectAccessedAll},
+				b: []EventType{ObjectRemovedAll, ObjectAccessedAll},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := EqualNotificationEventTypeList(tt.args.a, tt.args.b); got != tt.want {
-				t.Errorf("EqualNotificationEventTypeList() = %v, want %v", got, tt.want)
+			if got := EqualEventTypeList(tt.args.a, tt.args.b); got != tt.want {
+				t.Errorf("EqualEventTypeList() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -108,15 +108,15 @@ func TestEqualFilterRuleList(t *testing.T) {
 	}
 }
 
-func TestNotificationConfig_Equal(t *testing.T) {
+func TestConfig_Equal(t *testing.T) {
 	type fields struct {
 		ID     string
 		Arn    Arn
-		Events []NotificationEventType
+		Events []EventType
 		Filter *Filter
 	}
 	type args struct {
-		events []NotificationEventType
+		events []EventType
 		prefix string
 		suffix string
 	}
@@ -130,7 +130,7 @@ func TestNotificationConfig_Equal(t *testing.T) {
 			name: "same order",
 			fields: fields{
 				Arn:    NewArn("minio", "sqs", "", "1", "postgresql"),
-				Events: []NotificationEventType{ObjectCreatedAll, ObjectAccessedAll},
+				Events: []EventType{ObjectCreatedAll, ObjectAccessedAll},
 				Filter: &Filter{
 					S3Key: S3Key{
 						FilterRules: []FilterRule{{Name: "prefix", Value: "prefix1"}, {Name: "suffix", Value: "suffix1"}},
@@ -138,7 +138,7 @@ func TestNotificationConfig_Equal(t *testing.T) {
 				},
 			},
 			args: args{
-				events: []NotificationEventType{ObjectCreatedAll, ObjectAccessedAll},
+				events: []EventType{ObjectCreatedAll, ObjectAccessedAll},
 				prefix: "prefix1",
 				suffix: "suffix1",
 			},
@@ -148,7 +148,7 @@ func TestNotificationConfig_Equal(t *testing.T) {
 			name: "different order",
 			fields: fields{
 				Arn:    NewArn("minio", "sqs", "", "1", "postgresql"),
-				Events: []NotificationEventType{ObjectAccessedAll, ObjectCreatedAll},
+				Events: []EventType{ObjectAccessedAll, ObjectCreatedAll},
 				Filter: &Filter{
 					S3Key: S3Key{
 						FilterRules: []FilterRule{{Name: "suffix", Value: "suffix1"}, {Name: "prefix", Value: "prefix1"}},
@@ -156,7 +156,7 @@ func TestNotificationConfig_Equal(t *testing.T) {
 				},
 			},
 			args: args{
-				events: []NotificationEventType{ObjectCreatedAll, ObjectAccessedAll},
+				events: []EventType{ObjectCreatedAll, ObjectAccessedAll},
 				prefix: "prefix1",
 				suffix: "suffix1",
 			},
@@ -166,7 +166,7 @@ func TestNotificationConfig_Equal(t *testing.T) {
 			name: "not equal",
 			fields: fields{
 				Arn:    NewArn("minio", "sqs", "", "1", "postgresql"),
-				Events: []NotificationEventType{ObjectAccessedAll},
+				Events: []EventType{ObjectAccessedAll},
 				Filter: &Filter{
 					S3Key: S3Key{
 						FilterRules: []FilterRule{{Name: "suffix", Value: "suffix1"}, {Name: "prefix", Value: "prefix1"}},
@@ -174,7 +174,7 @@ func TestNotificationConfig_Equal(t *testing.T) {
 				},
 			},
 			args: args{
-				events: []NotificationEventType{ObjectCreatedAll, ObjectAccessedAll},
+				events: []EventType{ObjectCreatedAll, ObjectAccessedAll},
 				prefix: "prefix1",
 				suffix: "suffix1",
 			},
@@ -183,7 +183,7 @@ func TestNotificationConfig_Equal(t *testing.T) {
 		{
 			name: "different arn",
 			fields: fields{
-				Events: []NotificationEventType{ObjectAccessedAll},
+				Events: []EventType{ObjectAccessedAll},
 				Filter: &Filter{
 					S3Key: S3Key{
 						FilterRules: []FilterRule{{Name: "suffix", Value: "suffix1"}, {Name: "prefix", Value: "prefix1"}},
@@ -191,7 +191,7 @@ func TestNotificationConfig_Equal(t *testing.T) {
 				},
 			},
 			args: args{
-				events: []NotificationEventType{ObjectCreatedAll, ObjectAccessedAll},
+				events: []EventType{ObjectCreatedAll, ObjectAccessedAll},
 				prefix: "prefix1",
 				suffix: "suffix1",
 			},
@@ -200,7 +200,7 @@ func TestNotificationConfig_Equal(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			nc := &NotificationConfig{
+			nc := &Config{
 				ID:     tt.fields.ID,
 				Arn:    tt.fields.Arn,
 				Events: tt.fields.Events,
@@ -213,7 +213,7 @@ func TestNotificationConfig_Equal(t *testing.T) {
 	}
 }
 
-func TestBucketNotification_RemoveQueueByArnEventsPrefixSuffix(t *testing.T) {
+func TestConfiguration_RemoveQueueByArnEventsPrefixSuffix(t *testing.T) {
 	type fields struct {
 		XMLName       xml.Name
 		LambdaConfigs []LambdaConfig
@@ -222,7 +222,7 @@ func TestBucketNotification_RemoveQueueByArnEventsPrefixSuffix(t *testing.T) {
 	}
 	type args struct {
 		arn    Arn
-		events []NotificationEventType
+		events []EventType
 		prefix string
 		suffix string
 	}
@@ -240,7 +240,7 @@ func TestBucketNotification_RemoveQueueByArnEventsPrefixSuffix(t *testing.T) {
 				TopicConfigs:  nil,
 				QueueConfigs: []QueueConfig{
 					{
-						NotificationConfig: NotificationConfig{
+						Config: Config{
 							ID: "",
 							Arn: Arn{
 								Partition: "minio",
@@ -249,7 +249,7 @@ func TestBucketNotification_RemoveQueueByArnEventsPrefixSuffix(t *testing.T) {
 								AccountID: "1",
 								Resource:  "postgresql",
 							},
-							Events: []NotificationEventType{
+							Events: []EventType{
 								ObjectAccessedAll,
 							},
 							Filter: &Filter{
@@ -275,7 +275,7 @@ func TestBucketNotification_RemoveQueueByArnEventsPrefixSuffix(t *testing.T) {
 					AccountID: "1",
 					Resource:  "postgresql",
 				},
-				events: []NotificationEventType{
+				events: []EventType{
 					ObjectAccessedAll,
 				},
 				prefix: "x",
@@ -291,7 +291,7 @@ func TestBucketNotification_RemoveQueueByArnEventsPrefixSuffix(t *testing.T) {
 				TopicConfigs:  nil,
 				QueueConfigs: []QueueConfig{
 					{
-						NotificationConfig: NotificationConfig{
+						Config: Config{
 							ID: "",
 							Arn: Arn{
 								Partition: "minio",
@@ -300,7 +300,7 @@ func TestBucketNotification_RemoveQueueByArnEventsPrefixSuffix(t *testing.T) {
 								AccountID: "1",
 								Resource:  "postgresql",
 							},
-							Events: []NotificationEventType{
+							Events: []EventType{
 								ObjectAccessedAll,
 							},
 							Filter: &Filter{
@@ -330,7 +330,7 @@ func TestBucketNotification_RemoveQueueByArnEventsPrefixSuffix(t *testing.T) {
 					AccountID: "1",
 					Resource:  "postgresql",
 				},
-				events: []NotificationEventType{
+				events: []EventType{
 					ObjectAccessedAll,
 				},
 				prefix: "x",
@@ -346,7 +346,7 @@ func TestBucketNotification_RemoveQueueByArnEventsPrefixSuffix(t *testing.T) {
 				TopicConfigs:  nil,
 				QueueConfigs: []QueueConfig{
 					{
-						NotificationConfig: NotificationConfig{
+						Config: Config{
 							ID: "",
 							Arn: Arn{
 								Partition: "minio",
@@ -355,7 +355,7 @@ func TestBucketNotification_RemoveQueueByArnEventsPrefixSuffix(t *testing.T) {
 								AccountID: "1",
 								Resource:  "postgresql",
 							},
-							Events: []NotificationEventType{
+							Events: []EventType{
 								ObjectAccessedAll,
 							},
 							Filter: &Filter{
@@ -381,7 +381,7 @@ func TestBucketNotification_RemoveQueueByArnEventsPrefixSuffix(t *testing.T) {
 					AccountID: "1",
 					Resource:  "postgresql",
 				},
-				events: []NotificationEventType{
+				events: []EventType{
 					ObjectAccessedAll,
 				},
 				prefix: "",
@@ -392,7 +392,7 @@ func TestBucketNotification_RemoveQueueByArnEventsPrefixSuffix(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			b := &BucketNotification{
+			b := &Configuration{
 				XMLName:       tt.fields.XMLName,
 				LambdaConfigs: tt.fields.LambdaConfigs,
 				TopicConfigs:  tt.fields.TopicConfigs,
@@ -405,7 +405,7 @@ func TestBucketNotification_RemoveQueueByArnEventsPrefixSuffix(t *testing.T) {
 	}
 }
 
-func TestBucketNotification_RemoveLambdaByArnEventsPrefixSuffix(t *testing.T) {
+func TestConfiguration_RemoveLambdaByArnEventsPrefixSuffix(t *testing.T) {
 	type fields struct {
 		XMLName       xml.Name
 		LambdaConfigs []LambdaConfig
@@ -414,7 +414,7 @@ func TestBucketNotification_RemoveLambdaByArnEventsPrefixSuffix(t *testing.T) {
 	}
 	type args struct {
 		arn    Arn
-		events []NotificationEventType
+		events []EventType
 		prefix string
 		suffix string
 	}
@@ -432,7 +432,7 @@ func TestBucketNotification_RemoveLambdaByArnEventsPrefixSuffix(t *testing.T) {
 				TopicConfigs: nil,
 				LambdaConfigs: []LambdaConfig{
 					{
-						NotificationConfig: NotificationConfig{
+						Config: Config{
 							ID: "",
 							Arn: Arn{
 								Partition: "minio",
@@ -441,7 +441,7 @@ func TestBucketNotification_RemoveLambdaByArnEventsPrefixSuffix(t *testing.T) {
 								AccountID: "1",
 								Resource:  "provider",
 							},
-							Events: []NotificationEventType{
+							Events: []EventType{
 								ObjectAccessedAll,
 							},
 							Filter: &Filter{
@@ -467,7 +467,7 @@ func TestBucketNotification_RemoveLambdaByArnEventsPrefixSuffix(t *testing.T) {
 					AccountID: "1",
 					Resource:  "provider",
 				},
-				events: []NotificationEventType{
+				events: []EventType{
 					ObjectAccessedAll,
 				},
 				prefix: "x",
@@ -483,7 +483,7 @@ func TestBucketNotification_RemoveLambdaByArnEventsPrefixSuffix(t *testing.T) {
 				TopicConfigs: nil,
 				LambdaConfigs: []LambdaConfig{
 					{
-						NotificationConfig: NotificationConfig{
+						Config: Config{
 							ID: "",
 							Arn: Arn{
 								Partition: "minio",
@@ -492,7 +492,7 @@ func TestBucketNotification_RemoveLambdaByArnEventsPrefixSuffix(t *testing.T) {
 								AccountID: "1",
 								Resource:  "provider",
 							},
-							Events: []NotificationEventType{
+							Events: []EventType{
 								ObjectAccessedAll,
 							},
 							Filter: &Filter{
@@ -522,7 +522,7 @@ func TestBucketNotification_RemoveLambdaByArnEventsPrefixSuffix(t *testing.T) {
 					AccountID: "1",
 					Resource:  "provider",
 				},
-				events: []NotificationEventType{
+				events: []EventType{
 					ObjectAccessedAll,
 				},
 				prefix: "x",
@@ -538,7 +538,7 @@ func TestBucketNotification_RemoveLambdaByArnEventsPrefixSuffix(t *testing.T) {
 				TopicConfigs: nil,
 				LambdaConfigs: []LambdaConfig{
 					{
-						NotificationConfig: NotificationConfig{
+						Config: Config{
 							ID: "",
 							Arn: Arn{
 								Partition: "minio",
@@ -547,7 +547,7 @@ func TestBucketNotification_RemoveLambdaByArnEventsPrefixSuffix(t *testing.T) {
 								AccountID: "1",
 								Resource:  "provider",
 							},
-							Events: []NotificationEventType{
+							Events: []EventType{
 								ObjectAccessedAll,
 							},
 							Filter: &Filter{
@@ -573,7 +573,7 @@ func TestBucketNotification_RemoveLambdaByArnEventsPrefixSuffix(t *testing.T) {
 					AccountID: "1",
 					Resource:  "provider",
 				},
-				events: []NotificationEventType{
+				events: []EventType{
 					ObjectAccessedAll,
 				},
 				prefix: "",
@@ -589,7 +589,7 @@ func TestBucketNotification_RemoveLambdaByArnEventsPrefixSuffix(t *testing.T) {
 				TopicConfigs: nil,
 				LambdaConfigs: []LambdaConfig{
 					{
-						NotificationConfig: NotificationConfig{
+						Config: Config{
 							ID: "",
 							Arn: Arn{
 								Partition: "minio",
@@ -598,7 +598,7 @@ func TestBucketNotification_RemoveLambdaByArnEventsPrefixSuffix(t *testing.T) {
 								AccountID: "1",
 								Resource:  "provider",
 							},
-							Events: []NotificationEventType{
+							Events: []EventType{
 								ObjectAccessedAll,
 							},
 							Filter: &Filter{
@@ -625,7 +625,7 @@ func TestBucketNotification_RemoveLambdaByArnEventsPrefixSuffix(t *testing.T) {
 					AccountID: "2",
 					Resource:  "provider",
 				},
-				events: []NotificationEventType{
+				events: []EventType{
 					ObjectAccessedAll,
 				},
 				prefix: "",
@@ -636,7 +636,7 @@ func TestBucketNotification_RemoveLambdaByArnEventsPrefixSuffix(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			b := &BucketNotification{
+			b := &Configuration{
 				XMLName:       tt.fields.XMLName,
 				LambdaConfigs: tt.fields.LambdaConfigs,
 				TopicConfigs:  tt.fields.TopicConfigs,
@@ -649,7 +649,7 @@ func TestBucketNotification_RemoveLambdaByArnEventsPrefixSuffix(t *testing.T) {
 	}
 }
 
-func TestBucketNotification_RemoveTopicByArnEventsPrefixSuffix(t *testing.T) {
+func TestConfiguration_RemoveTopicByArnEventsPrefixSuffix(t *testing.T) {
 	type fields struct {
 		XMLName       xml.Name
 		LambdaConfigs []LambdaConfig
@@ -658,7 +658,7 @@ func TestBucketNotification_RemoveTopicByArnEventsPrefixSuffix(t *testing.T) {
 	}
 	type args struct {
 		arn    Arn
-		events []NotificationEventType
+		events []EventType
 		prefix string
 		suffix string
 	}
@@ -676,7 +676,7 @@ func TestBucketNotification_RemoveTopicByArnEventsPrefixSuffix(t *testing.T) {
 				LambdaConfigs: nil,
 				TopicConfigs: []TopicConfig{
 					{
-						NotificationConfig: NotificationConfig{
+						Config: Config{
 							ID: "",
 							Arn: Arn{
 								Partition: "minio",
@@ -685,7 +685,7 @@ func TestBucketNotification_RemoveTopicByArnEventsPrefixSuffix(t *testing.T) {
 								AccountID: "1",
 								Resource:  "kafka",
 							},
-							Events: []NotificationEventType{
+							Events: []EventType{
 								ObjectAccessedAll,
 							},
 							Filter: &Filter{
@@ -711,7 +711,7 @@ func TestBucketNotification_RemoveTopicByArnEventsPrefixSuffix(t *testing.T) {
 					AccountID: "1",
 					Resource:  "kafka",
 				},
-				events: []NotificationEventType{
+				events: []EventType{
 					ObjectAccessedAll,
 				},
 				prefix: "x",
@@ -727,7 +727,7 @@ func TestBucketNotification_RemoveTopicByArnEventsPrefixSuffix(t *testing.T) {
 				LambdaConfigs: nil,
 				TopicConfigs: []TopicConfig{
 					{
-						NotificationConfig: NotificationConfig{
+						Config: Config{
 							ID: "",
 							Arn: Arn{
 								Partition: "minio",
@@ -736,7 +736,7 @@ func TestBucketNotification_RemoveTopicByArnEventsPrefixSuffix(t *testing.T) {
 								AccountID: "1",
 								Resource:  "kafka",
 							},
-							Events: []NotificationEventType{
+							Events: []EventType{
 								ObjectAccessedAll,
 							},
 							Filter: &Filter{
@@ -766,7 +766,7 @@ func TestBucketNotification_RemoveTopicByArnEventsPrefixSuffix(t *testing.T) {
 					AccountID: "1",
 					Resource:  "kafka",
 				},
-				events: []NotificationEventType{
+				events: []EventType{
 					ObjectAccessedAll,
 				},
 				prefix: "x",
@@ -782,7 +782,7 @@ func TestBucketNotification_RemoveTopicByArnEventsPrefixSuffix(t *testing.T) {
 				LambdaConfigs: nil,
 				TopicConfigs: []TopicConfig{
 					{
-						NotificationConfig: NotificationConfig{
+						Config: Config{
 							ID: "",
 							Arn: Arn{
 								Partition: "minio",
@@ -791,7 +791,7 @@ func TestBucketNotification_RemoveTopicByArnEventsPrefixSuffix(t *testing.T) {
 								AccountID: "1",
 								Resource:  "kafka",
 							},
-							Events: []NotificationEventType{
+							Events: []EventType{
 								ObjectAccessedAll,
 							},
 							Filter: &Filter{
@@ -817,7 +817,7 @@ func TestBucketNotification_RemoveTopicByArnEventsPrefixSuffix(t *testing.T) {
 					AccountID: "1",
 					Resource:  "kafka",
 				},
-				events: []NotificationEventType{
+				events: []EventType{
 					ObjectAccessedAll,
 				},
 				prefix: "",
@@ -828,7 +828,7 @@ func TestBucketNotification_RemoveTopicByArnEventsPrefixSuffix(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			b := &BucketNotification{
+			b := &Configuration{
 				XMLName:       tt.fields.XMLName,
 				LambdaConfigs: tt.fields.LambdaConfigs,
 				TopicConfigs:  tt.fields.TopicConfigs,

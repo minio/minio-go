@@ -45,6 +45,7 @@ import (
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/encrypt"
+	"github.com/minio/minio-go/v7/pkg/notification"
 )
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyz01234569"
@@ -4985,51 +4986,50 @@ func testBucketNotification() {
 	bucketName := os.Getenv("NOTIFY_BUCKET")
 	args["bucketName"] = bucketName
 
-	topicArn := minio.NewArn("aws", os.Getenv("NOTIFY_SERVICE"), os.Getenv("NOTIFY_REGION"), os.Getenv("NOTIFY_ACCOUNTID"), os.Getenv("NOTIFY_RESOURCE"))
-	queueArn := minio.NewArn("aws", "dummy-service", "dummy-region", "dummy-accountid", "dummy-resource")
+	topicArn := notification.NewArn("aws", os.Getenv("NOTIFY_SERVICE"), os.Getenv("NOTIFY_REGION"), os.Getenv("NOTIFY_ACCOUNTID"), os.Getenv("NOTIFY_RESOURCE"))
+	queueArn := notification.NewArn("aws", "dummy-service", "dummy-region", "dummy-accountid", "dummy-resource")
 
-	topicConfig := minio.NewNotificationConfig(topicArn)
-
-	topicConfig.AddEvents(minio.ObjectCreatedAll, minio.ObjectRemovedAll)
+	topicConfig := notification.NewConfig(topicArn)
+	topicConfig.AddEvents(notification.ObjectCreatedAll, notification.ObjectRemovedAll)
 	topicConfig.AddFilterSuffix("jpg")
 
-	queueConfig := minio.NewNotificationConfig(queueArn)
-	queueConfig.AddEvents(minio.ObjectCreatedAll)
+	queueConfig := notification.NewConfig(queueArn)
+	queueConfig.AddEvents(notification.ObjectCreatedAll)
 	queueConfig.AddFilterPrefix("photos/")
 
-	bNotification := minio.BucketNotification{}
-	bNotification.AddTopic(topicConfig)
+	config := notification.Configuration{}
+	config.AddTopic(topicConfig)
 
 	// Add the same topicConfig again, should have no effect
 	// because it is duplicated
-	bNotification.AddTopic(topicConfig)
-	if len(bNotification.TopicConfigs) != 1 {
+	config.AddTopic(topicConfig)
+	if len(config.TopicConfigs) != 1 {
 		logError(testName, function, args, startTime, "", "Duplicate entry added", err)
 		return
 	}
 
 	// Add and remove a queue config
-	bNotification.AddQueue(queueConfig)
-	bNotification.RemoveQueueByArn(queueArn)
+	config.AddQueue(queueConfig)
+	config.RemoveQueueByArn(queueArn)
 
-	err = c.SetBucketNotification(context.Background(), bucketName, bNotification)
+	err = c.SetBucketNotification(context.Background(), bucketName, config)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "SetBucketNotification failed", err)
 		return
 	}
 
-	bNotification, err = c.GetBucketNotification(context.Background(), bucketName)
+	config, err = c.GetBucketNotification(context.Background(), bucketName)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetBucketNotification failed", err)
 		return
 	}
 
-	if len(bNotification.TopicConfigs) != 1 {
+	if len(config.TopicConfigs) != 1 {
 		logError(testName, function, args, startTime, "", "Topic config is empty", err)
 		return
 	}
 
-	if bNotification.TopicConfigs[0].Filter.S3Key.FilterRules[0].Value != "jpg" {
+	if config.TopicConfigs[0].Filter.S3Key.FilterRules[0].Value != "jpg" {
 		logError(testName, function, args, startTime, "", "Couldn't get the suffix", err)
 		return
 	}

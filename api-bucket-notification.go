@@ -19,30 +19,75 @@ package minio
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"encoding/xml"
 	"net/http"
 	"net/url"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/minio/minio-go/v7/pkg/notification"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
-// GetBucketNotification returns current bucket notification configuration
-func (c Client) GetBucketNotification(ctx context.Context, bucketName string) (bucketNotification BucketNotification, err error) {
+// SetBucketNotification saves a new bucket notification with a context to control cancellations and timeouts.
+func (c Client) SetBucketNotification(ctx context.Context, bucketName string, config notification.Configuration) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
-		return BucketNotification{}, err
+		return err
 	}
-	notification, err := c.getBucketNotification(ctx, bucketName)
+
+	// Get resources properly escaped and lined up before
+	// using them in http request.
+	urlValues := make(url.Values)
+	urlValues.Set("notification", "")
+
+	notifBytes, err := xml.Marshal(&config)
 	if err != nil {
-		return BucketNotification{}, err
+		return err
 	}
-	return notification, nil
+
+	notifBuffer := bytes.NewReader(notifBytes)
+	reqMetadata := requestMetadata{
+		bucketName:       bucketName,
+		queryValues:      urlValues,
+		contentBody:      notifBuffer,
+		contentLength:    int64(len(notifBytes)),
+		contentMD5Base64: sumMD5Base64(notifBytes),
+		contentSHA256Hex: sum256Hex(notifBytes),
+	}
+
+	// Execute PUT to upload a new bucket notification.
+	resp, err := c.executeMethod(ctx, "PUT", reqMetadata)
+	defer closeResponse(resp)
+	if err != nil {
+		return err
+	}
+	if resp != nil {
+		if resp.StatusCode != http.StatusOK {
+			return httpRespToErrorResponse(resp, bucketName, "")
+		}
+	}
+	return nil
+}
+
+// RemoveAllBucketNotification - Remove bucket notification clears all previously specified config
+func (c Client) RemoveAllBucketNotification(ctx context.Context, bucketName string) error {
+	return c.SetBucketNotification(ctx, bucketName, notification.Configuration{})
+}
+
+// GetBucketNotification returns current bucket notification configuration
+func (c Client) GetBucketNotification(ctx context.Context, bucketName string) (bucketNotification notification.Configuration, err error) {
+	// Input validation.
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		return notification.Configuration{}, err
+	}
+	return c.getBucketNotification(ctx, bucketName)
 }
 
 // Request server for notification rules.
-func (c Client) getBucketNotification(ctx context.Context, bucketName string) (BucketNotification, error) {
+func (c Client) getBucketNotification(ctx context.Context, bucketName string) (notification.Configuration, error) {
 	urlValues := make(url.Values)
 	urlValues.Set("notification", "")
 
@@ -55,99 +100,39 @@ func (c Client) getBucketNotification(ctx context.Context, bucketName string) (B
 
 	defer closeResponse(resp)
 	if err != nil {
-		return BucketNotification{}, err
+		return notification.Configuration{}, err
 	}
 	return processBucketNotificationResponse(bucketName, resp)
 
 }
 
 // processes the GetNotification http response from the server.
-func processBucketNotificationResponse(bucketName string, resp *http.Response) (BucketNotification, error) {
+func processBucketNotificationResponse(bucketName string, resp *http.Response) (notification.Configuration, error) {
 	if resp.StatusCode != http.StatusOK {
 		errResponse := httpRespToErrorResponse(resp, bucketName, "")
-		return BucketNotification{}, errResponse
+		return notification.Configuration{}, errResponse
 	}
-	var bucketNotification BucketNotification
+	var bucketNotification notification.Configuration
 	err := xmlDecoder(resp.Body, &bucketNotification)
 	if err != nil {
-		return BucketNotification{}, err
+		return notification.Configuration{}, err
 	}
 	return bucketNotification, nil
 }
 
-// Indentity represents the user id, this is a compliance field.
-type identity struct {
-	PrincipalID string `json:"principalId"`
-}
-
-// Notification event bucket metadata.
-type bucketMeta struct {
-	Name          string   `json:"name"`
-	OwnerIdentity identity `json:"ownerIdentity"`
-	ARN           string   `json:"arn"`
-}
-
-// Notification event object metadata.
-type objectMeta struct {
-	Key          string            `json:"key"`
-	Size         int64             `json:"size,omitempty"`
-	ETag         string            `json:"eTag,omitempty"`
-	ContentType  string            `json:"contentType,omitempty"`
-	UserMetadata map[string]string `json:"userMetadata,omitempty"`
-	VersionID    string            `json:"versionId,omitempty"`
-	Sequencer    string            `json:"sequencer"`
-}
-
-// Notification event server specific metadata.
-type eventMeta struct {
-	SchemaVersion   string     `json:"s3SchemaVersion"`
-	ConfigurationID string     `json:"configurationId"`
-	Bucket          bucketMeta `json:"bucket"`
-	Object          objectMeta `json:"object"`
-}
-
-// sourceInfo represents information on the client that
-// triggered the event notification.
-type sourceInfo struct {
-	Host      string `json:"host"`
-	Port      string `json:"port"`
-	UserAgent string `json:"userAgent"`
-}
-
-// NotificationEvent represents an Amazon an S3 bucket notification event.
-type NotificationEvent struct {
-	EventVersion      string            `json:"eventVersion"`
-	EventSource       string            `json:"eventSource"`
-	AwsRegion         string            `json:"awsRegion"`
-	EventTime         string            `json:"eventTime"`
-	EventName         string            `json:"eventName"`
-	UserIdentity      identity          `json:"userIdentity"`
-	RequestParameters map[string]string `json:"requestParameters"`
-	ResponseElements  map[string]string `json:"responseElements"`
-	S3                eventMeta         `json:"s3"`
-	Source            sourceInfo        `json:"source"`
-}
-
-// NotificationInfo - represents the collection of notification events, additionally
-// also reports errors if any while listening on bucket notifications.
-type NotificationInfo struct {
-	Records []NotificationEvent
-	Err     error
-}
-
 // ListenBucketNotification listen for bucket events, this is a MinIO specific API
-func (c Client) ListenBucketNotification(ctx context.Context, bucketName, prefix, suffix string, events []string) <-chan NotificationInfo {
-	notificationInfoCh := make(chan NotificationInfo, 1)
+func (c Client) ListenBucketNotification(ctx context.Context, bucketName, prefix, suffix string, events []string) <-chan notification.Info {
+	notificationInfoCh := make(chan notification.Info, 1)
 	const notificationCapacity = 1024 * 1024
 	notificationEventBuffer := make([]byte, notificationCapacity)
 	// Only success, start a routine to start reading line by line.
-	go func(notificationInfoCh chan<- NotificationInfo) {
+	go func(notificationInfoCh chan<- notification.Info) {
 		defer close(notificationInfoCh)
 
 		// Validate the bucket name.
 		if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 			select {
-			case notificationInfoCh <- NotificationInfo{
+			case notificationInfoCh <- notification.Info{
 				Err: err,
 			}:
 			case <-ctx.Done():
@@ -158,7 +143,7 @@ func (c Client) ListenBucketNotification(ctx context.Context, bucketName, prefix
 		// Check ARN partition to verify if listening bucket is supported
 		if s3utils.IsAmazonEndpoint(*c.endpointURL) || s3utils.IsGoogleEndpoint(*c.endpointURL) {
 			select {
-			case notificationInfoCh <- NotificationInfo{
+			case notificationInfoCh <- notification.Info{
 				Err: errAPINotSupported("Listening for bucket notification is specific only to `minio` server endpoints"),
 			}:
 			case <-ctx.Done():
@@ -189,7 +174,7 @@ func (c Client) ListenBucketNotification(ctx context.Context, bucketName, prefix
 			})
 			if err != nil {
 				select {
-				case notificationInfoCh <- NotificationInfo{
+				case notificationInfoCh <- notification.Info{
 					Err: err,
 				}:
 				case <-ctx.Done():
@@ -201,7 +186,7 @@ func (c Client) ListenBucketNotification(ctx context.Context, bucketName, prefix
 			if resp.StatusCode != http.StatusOK {
 				errResponse := httpRespToErrorResponse(resp, bucketName, "")
 				select {
-				case notificationInfoCh <- NotificationInfo{
+				case notificationInfoCh <- notification.Info{
 					Err: errResponse,
 				}:
 				case <-ctx.Done():
@@ -219,12 +204,12 @@ func (c Client) ListenBucketNotification(ctx context.Context, bucketName, prefix
 
 			// Unmarshal each line, returns marshaled values.
 			for bio.Scan() {
-				var notificationInfo NotificationInfo
+				var notificationInfo notification.Info
 				if err = json.Unmarshal(bio.Bytes(), &notificationInfo); err != nil {
 					// Unexpected error during json unmarshal, send
 					// the error to caller for actionable as needed.
 					select {
-					case notificationInfoCh <- NotificationInfo{
+					case notificationInfoCh <- notification.Info{
 						Err: err,
 					}:
 					case <-ctx.Done():
@@ -244,7 +229,7 @@ func (c Client) ListenBucketNotification(ctx context.Context, bucketName, prefix
 
 			if err = bio.Err(); err != nil {
 				select {
-				case notificationInfoCh <- NotificationInfo{
+				case notificationInfoCh <- notification.Info{
 					Err: err,
 				}:
 				case <-ctx.Done():

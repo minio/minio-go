@@ -24,6 +24,7 @@ import (
 	"log"
 
 	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/notification"
 )
 
 func main() {
@@ -56,30 +57,30 @@ func main() {
 	// with actual values that you receive from the S3 provider
 
 	// Here you create a new Topic notification
-	topicArn := minio.NewArn("YOUR-PROVIDER", "YOUR-SERVICE", "YOUR-REGION", "YOUR-ACCOUNT-ID", "YOUR-RESOURCE")
-	topicConfig := minio.NewNotificationConfig(topicArn)
+	topicArn := notification.NewArn("YOUR-PROVIDER", "YOUR-SERVICE", "YOUR-REGION", "YOUR-ACCOUNT-ID", "YOUR-RESOURCE")
+	topicConfig := notification.NewConfig(topicArn)
 	topicConfig.AddEvents(minio.ObjectCreatedAll, minio.ObjectRemovedAll)
 	topicConfig.AddFilterPrefix("photos/")
 	topicConfig.AddFilterSuffix(".jpg")
 
 	// Create a new Queue notification
-	queueArn := minio.NewArn("YOUR-PROVIDER", "YOUR-SERVICE", "YOUR-REGION", "YOUR-ACCOUNT-ID", "YOUR-RESOURCE")
-	queueConfig := minio.NewNotificationConfig(queueArn)
+	queueArn := notification.NewArn("YOUR-PROVIDER", "YOUR-SERVICE", "YOUR-REGION", "YOUR-ACCOUNT-ID", "YOUR-RESOURCE")
+	queueConfig := notification.NewConfig(queueArn)
 	queueConfig.AddEvents(minio.ObjectRemovedAll)
 
 	// Create a new Lambda (CloudFunction)
-	lambdaArn := minio.NewArn("YOUR-PROVIDER", "YOUR-SERVICE", "YOUR-REGION", "YOUR-ACCOUNT-ID", "YOUR-RESOURCE")
-	lambdaConfig := minio.NewNotificationConfig(lambdaArn)
+	lambdaArn := notification.NewArn("YOUR-PROVIDER", "YOUR-SERVICE", "YOUR-REGION", "YOUR-ACCOUNT-ID", "YOUR-RESOURCE")
+	lambdaConfig := notification.NewConfig(lambdaArn)
 	lambdaConfig.AddEvents(minio.ObjectRemovedAll)
 	lambdaConfig.AddFilterSuffix(".swp")
 
 	// Now, set all previously created notification configs
-	bucketNotification := minio.BucketNotification{}
-	bucketNotification.AddTopic(topicConfig)
-	bucketNotification.AddQueue(queueConfig)
-	bucketNotification.AddLambda(lambdaConfig)
+	config := &notification.Configuration{}
+	config.AddTopic(topicConfig)
+	config.AddQueue(queueConfig)
+	config.AddLambda(lambdaConfig)
 
-	err = s3Client.SetBucketNotification(context.Background(), "YOUR-BUCKET", bucketNotification)
+	err = s3Client.SetBucketNotification(context.Background(), "YOUR-BUCKET", config)
 	if err != nil {
 		log.Fatalln("Error: " + err.Error())
 	}

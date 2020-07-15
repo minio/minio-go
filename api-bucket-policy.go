@@ -1,7 +1,6 @@
 /*
  * MinIO Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2015-2017 MinIO, Inc.
- *
+ * Copyright 2020 MinIO, Inc.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -22,9 +21,74 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
+
+// SetBucketPolicy sets the access permissions on an existing bucket.
+func (c Client) SetBucketPolicy(ctx context.Context, bucketName, policy string) error {
+	// Input validation.
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		return err
+	}
+
+	// If policy is empty then delete the bucket policy.
+	if policy == "" {
+		return c.removeBucketPolicy(ctx, bucketName)
+	}
+
+	// Save the updated policies.
+	return c.putBucketPolicy(ctx, bucketName, policy)
+}
+
+// Saves a new bucket policy.
+func (c Client) putBucketPolicy(ctx context.Context, bucketName, policy string) error {
+	// Get resources properly escaped and lined up before
+	// using them in http request.
+	urlValues := make(url.Values)
+	urlValues.Set("policy", "")
+
+	reqMetadata := requestMetadata{
+		bucketName:    bucketName,
+		queryValues:   urlValues,
+		contentBody:   strings.NewReader(policy),
+		contentLength: int64(len(policy)),
+	}
+
+	// Execute PUT to upload a new bucket policy.
+	resp, err := c.executeMethod(ctx, "PUT", reqMetadata)
+	defer closeResponse(resp)
+	if err != nil {
+		return err
+	}
+	if resp != nil {
+		if resp.StatusCode != http.StatusNoContent {
+			return httpRespToErrorResponse(resp, bucketName, "")
+		}
+	}
+	return nil
+}
+
+// Removes all policies on a bucket.
+func (c Client) removeBucketPolicy(ctx context.Context, bucketName string) error {
+	// Get resources properly escaped and lined up before
+	// using them in http request.
+	urlValues := make(url.Values)
+	urlValues.Set("policy", "")
+
+	// Execute DELETE on objectName.
+	resp, err := c.executeMethod(ctx, "DELETE", requestMetadata{
+		bucketName:       bucketName,
+		queryValues:      urlValues,
+		contentSHA256Hex: emptySHA256Hex,
+	})
+	defer closeResponse(resp)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 // GetBucketPolicy returns the current policy
 func (c Client) GetBucketPolicy(ctx context.Context, bucketName string) (string, error) {

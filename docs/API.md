@@ -50,29 +50,29 @@ func main() {
 }
 ```
 
-| Bucket operations                                       | Object operations                                   | Encrypted Object operations        | Presigned operations                          | Bucket Policy/Notification Operations                         | Client custom settings                                |
-| :---                                                    | :---                                                | :---                               | :---                                          | :---                                                          | :---                                                  |
-| [`MakeBucket`](#MakeBucket)                             | [`GetObject`](#GetObject)                           | [`GetObject`](#GetObject)          | [`PresignedGetObject`](#PresignedGetObject)   | [`SetBucketPolicy`](#SetBucketPolicy)                         | [`SetAppInfo`](#SetAppInfo)                           |
-| [`PutObject`](#PutObject)                           | [`PutObject`](#PutObject)          | [`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)                         | [`SetCustomTransport`](#SetCustomTransport)           |
-| [`ListBuckets`](#ListBuckets)                           | [`CopyObject`](#CopyObject)                         | [`CopyObject`](#CopyObject)        | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`SetBucketNotification`](#SetBucketNotification)             | [`TraceOn`](#TraceOn)                                 |
-| [`BucketExists`](#BucketExists)                         | [`StatObject`](#StatObject)                         | [`StatObject`](#StatObject)        |                                               | [`GetBucketNotification`](#GetBucketNotification)             | [`TraceOff`](#TraceOff)                               |
-| [`RemoveBucket`](#RemoveBucket)                         | [`RemoveObject`](#RemoveObject)                     | [`FPutObject`](#FPutObject)        |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification) | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
-| [`ListObjects`](#ListObjects)                           | [`RemoveObjects`](#RemoveObjects)                   | [`FGetObject`](#FGetObject)        |                                               | [`ListenBucketNotification`](#ListenBucketNotification)       |                                                       |
-|                                                         | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) | [`ComposeObject`](#ComposeObjecet) |                                               | [`SetBucketLifecycle`](#SetBucketLifecycle)                   |                                                       |
-| [`ListIncompleteUploads`](#ListIncompleteUploads)       | [`FPutObject`](#FPutObject)                         |                                    |                                               | [`GetBucketLifecycle`](#GetBucketLifecycle)                   |                                                       |
-| [`SetBucketTagging`](#SetBucketTagging)                 | [`FGetObject`](#FGetObject)                         |                                    |                                               | [`SetObjectLockConfig`](#SetObjectLockConfig)                 |                                                       |
-| [`GetBucketTagging`](#GetBucketTagging)                 | [`ComposeObject`](#ComposeObject)                   |                                    |                                               | [`GetObjectLockConfig`](#GetObjectLockConfig)                 |                                                       |
-| [`DeleteBucketTagging`](#DeleteBucketTagging)           |                                                     |                                    |                                               | [`EnableVersioning`](#EnableVersioning)                       |                                                       |
-|  [`SetBucketReplication`](#SetBucketReplication)                                                         |                                                     |                                    |                                               | [`DisableVersioning`](#DisableVersioning)                     |                                                       |
-|  [`GetBucketReplication`](#GetBucketReplication)                                                         | [`PutObjectRetention`](#PutObjectRetention)         |                                    |                                               | [`GetBucketEncryption`](#GetBucketEncryption)                 |                                                       |
-|  [`RemoveBucketReplication`](#RemoveBucketReplication)                                                         | [`GetObjectRetention`](#GetObjectRetention)         |                                    |                                               | [`DeleteBucketEncryption`](#DeleteBucketEncryption)           |                                                       |
-|                                                         | [`PutObjectLegalHold`](#PutObjectLegalHold)         |                                    |                                               |                                                               |                                                       |
-|                                                         | [`GetObjectLegalHold`](#GetObjectLegalHold)         |                                    |                                               |                                                               |                                                       |
-|                                                         | [`SelectObjectContent`](#SelectObjectContent)       |                                    |                                               |                                                               |                                                       |
-|                                                         | [`PutObjectTagging`](#PutObjectTagging)             |                                    |                                               |                                                               |                                                       |
-|                                                         | [`GetObjectTagging`](#GetObjectTagging)             |                                    |                                               |                                                               |                                                       |
-|                                                         | [`RemoveObjectTagging`](#RemoveObjectTagging)       |                                    |                                               |                                                               |                                                       |
-|                                                         |                                                     |                                    |                                               |                                                               |                                                       |
+| Bucket operations                                     | Object operations                                   | Encrypted Object operations                 | Presigned operations                          | Bucket Policy/Notification Operations                         | Client custom settings                                |
+| :---                                                  | :---                                                | :---                                        | :---                                          | :---                                                          | :---                                                  |
+| [`MakeBucket`](#MakeBucket)                           | [`GetObject`](#GetObject)                           | [`GetObject`](#GetObject)                   | [`PresignedGetObject`](#PresignedGetObject)   | [`SetBucketPolicy`](#SetBucketPolicy)                         | [`SetAppInfo`](#SetAppInfo)                           |
+| [`PutObject`](#PutObject)                             | [`PutObject`](#PutObject)                           | [`PresignedPutObject`](#PresignedPutObject) | [`GetBucketPolicy`](#GetBucketPolicy)         | [`SetCustomTransport`](#SetCustomTransport)                   |                                                       |
+| [`ListBuckets`](#ListBuckets)                         | [`CopyObject`](#CopyObject)                         | [`CopyObject`](#CopyObject)                 | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`SetBucketNotification`](#SetBucketNotification)             | [`TraceOn`](#TraceOn)                                 |
+| [`BucketExists`](#BucketExists)                       | [`StatObject`](#StatObject)                         | [`StatObject`](#StatObject)                 |                                               | [`GetBucketNotification`](#GetBucketNotification)             | [`TraceOff`](#TraceOff)                               |
+| [`RemoveBucket`](#RemoveBucket)                       | [`RemoveObject`](#RemoveObject)                     | [`FPutObject`](#FPutObject)                 |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification) | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
+| [`ListObjects`](#ListObjects)                         | [`RemoveObjects`](#RemoveObjects)                   | [`FGetObject`](#FGetObject)                 |                                               | [`ListenBucketNotification`](#ListenBucketNotification)       |                                                       |
+|                                                       | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) | [`ComposeObject`](#ComposeObjecet)          |                                               | [`SetBucketLifecycle`](#SetBucketLifecycle)                   |                                                       |
+| [`ListIncompleteUploads`](#ListIncompleteUploads)     | [`FPutObject`](#FPutObject)                         |                                             |                                               | [`GetBucketLifecycle`](#GetBucketLifecycle)                   |                                                       |
+| [`SetBucketTagging`](#SetBucketTagging)               | [`FGetObject`](#FGetObject)                         |                                             |                                               | [`SetObjectLockConfig`](#SetObjectLockConfig)                 |                                                       |
+| [`GetBucketTagging`](#GetBucketTagging)               | [`ComposeObject`](#ComposeObject)                   |                                             |                                               | [`GetObjectLockConfig`](#GetObjectLockConfig)                 |                                                       |
+| [`RemoveBucketTagging`](#RemoveBucketTagging)         |                                                     |                                             |                                               | [`EnableVersioning`](#EnableVersioning)                       |                                                       |
+| [`SetBucketReplication`](#SetBucketReplication)       |                                                     |                                             |                                               | [`DisableVersioning`](#DisableVersioning)                     |                                                       |
+| [`GetBucketReplication`](#GetBucketReplication)       | [`PutObjectRetention`](#PutObjectRetention)         |                                             |                                               | [`GetBucketEncryption`](#GetBucketEncryption)                 |                                                       |
+| [`RemoveBucketReplication`](#RemoveBucketReplication) | [`GetObjectRetention`](#GetObjectRetention)         |                                             |                                               | [`RemoveBucketEncryption`](#RemoveBucketEncryption)           |                                                       |
+|                                                       | [`PutObjectLegalHold`](#PutObjectLegalHold)         |                                             |                                               |                                                               |                                                       |
+|                                                       | [`GetObjectLegalHold`](#GetObjectLegalHold)         |                                             |                                               |                                                               |                                                       |
+|                                                       | [`SelectObjectContent`](#SelectObjectContent)       |                                             |                                               |                                                               |                                                       |
+|                                                       | [`PutObjectTagging`](#PutObjectTagging)             |                                             |                                               |                                                               |                                                       |
+|                                                       | [`GetObjectTagging`](#GetObjectTagging)             |                                             |                                               |                                                               |                                                       |
+|                                                       | [`RemoveObjectTagging`](#RemoveObjectTagging)       |                                             |                                               |                                                               |                                                       |
+|                                                       |                                                     |                                             |                                               |                                                               |                                                       |
 
 ## 1. Constructor
 <a name="MinIO"></a>
@@ -404,9 +404,9 @@ if err != nil {
 fmt.Printf("Fetched Object Tags: %v\n", tags)
 ```
 
-<a name="DeleteBucketTagging"></a>
-### DeleteBucketTagging(ctx context.Context, bucketName string) error
-Deletes all tags of a bucket.
+<a name="RemoveBucketTagging"></a>
+### RemoveBucketTagging(ctx context.Context, bucketName string) error
+Removes all tags on a bucket.
 
 
 __Parameters__
@@ -417,7 +417,7 @@ __Parameters__
 
 __Example__
 ```go
-err := minioClient.DeleteBucketTagging(context.Background(), "my-bucketname")
+err := minioClient.RemoveBucketTagging(context.Background(), "my-bucketname")
 if err != nil {
 	log.Fatalln(err)
 }
@@ -1341,7 +1341,7 @@ if err != nil {
 ```
 
 <a name="GetBucketNotification"></a>
-### GetBucketNotification(ctx context.Context, bucketName string) (BucketNotification, error)
+### GetBucketNotification(ctx context.Context, bucketName string) (notification.Configuration, error)
 Get notification configuration on a bucket.
 
 __Parameters__
@@ -1357,7 +1357,7 @@ __Return Values__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`bucketNotification`  | _minio.BucketNotification_ |structure which holds all notification configurations|
+|`config`  | _notification.Configuration_ |structure which holds all notification configurations|
 |`err` | _error_  |Standard Error  |
 
 __Example__
@@ -1378,7 +1378,7 @@ for _, queueConfig := range bucketNotification.QueueConfigs {
 ```
 
 <a name="SetBucketNotification"></a>
-### SetBucketNotification(ctx context.Context, bucketName string, bucketNotification BucketNotification) error
+### SetBucketNotification(ctx context.Context, bucketName string, config notification.Configuration) error
 Set a new bucket notification on a bucket.
 
 __Parameters__
@@ -1388,7 +1388,7 @@ __Parameters__
 |:---|:---| :---|
 |`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
 |`bucketName`  | _string_  |Name of the bucket   |
-|`bucketNotification`  | _minio.BucketNotification_  |Represents the XML to be sent to the configured web service  |
+|`config`  | _notification.Configuration_  |Represents the XML to be sent to the configured web service  |
 
 __Return Values__
 
@@ -1401,17 +1401,17 @@ __Example__
 
 
 ```go
-queueArn := minio.NewArn("aws", "sqs", "us-east-1", "804605494417", "PhotoUpdate")
+queueArn := notification.NewArn("aws", "sqs", "us-east-1", "804605494417", "PhotoUpdate")
 
-queueConfig := minio.NewNotificationConfig(queueArn)
+queueConfig := notification.NewConfig(queueArn)
 queueConfig.AddEvents(minio.ObjectCreatedAll, minio.ObjectRemovedAll)
 queueConfig.AddFilterPrefix("photos/")
 queueConfig.AddFilterSuffix(".jpg")
 
-bucketNotification := minio.BucketNotification{}
-bucketNotification.AddQueue(queueConfig)
+config := notification.Configuration{}
+config.AddQueue(queueConfig)
 
-err = minioClient.SetBucketNotification(context.Background(), "mybucket", bucketNotification)
+err = minioClient.SetBucketNotification(context.Background(), "mybucket", config)
 if err != nil {
     fmt.Println("Unable to set the bucket notification: ", err)
     return
@@ -1449,7 +1449,7 @@ if err != nil {
 ```
 
 <a name="ListenBucketNotification"></a>
-### ListenBucketNotification(context context.Context, bucketName, prefix, suffix string, events []string) <-chan NotificationInfo
+### ListenBucketNotification(context context.Context, bucketName, prefix, suffix string, events []string) <-chan notification.Info
 ListenBucketNotification API receives bucket notification events through the notification channel. The returned notification channel has two fields 'Records' and 'Err'.
 
 - 'Records' holds the notifications received from the server.
@@ -1471,12 +1471,12 @@ __Return Values__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`notificationInfo` | _chan minio.NotificationInfo_ | Channel of bucket notifications |
+|`notificationInfo` | _chan notification.Info_ | Channel of bucket notifications |
 
 __minio.NotificationInfo__
 
 |Field   |Type   |Description   |
-|`notificationInfo.Records` | _[]minio.NotificationEvent_ | Collection of notification events |
+|`notificationInfo.Records` | _[]notification.Event_ | Collection of notification events |
 |`notificationInfo.Err` | _error_ | Carries any error occurred during the operation (Standard Error) |
 
 
@@ -1498,7 +1498,7 @@ for notificationInfo := range minioClient.ListenBucketNotification(context.Backg
 ```
 
 <a name="SetBucketLifecycle"></a>
-### SetBucketLifecycle(ctx context.Context, bucketname, lifecycle string) error
+### SetBucketLifecycle(ctx context.Context, bucketname, config *lifecycle.Configuration) error
 Set lifecycle on bucket or an object prefix.
 
 __Parameters__
@@ -1507,7 +1507,7 @@ __Parameters__
 |:---|:---| :---|
 |`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
 |`bucketName` | _string_  |Name of the bucket|
-|`lifecycle` | _string_  |Lifecycle to be set |
+|`config` | _lifecycle.Configuration_  |Lifecycle to be set |
 
 __Return Values__
 
@@ -1518,18 +1518,16 @@ __Return Values__
 __Example__
 
 ```go
-lifecycle := `<LifecycleConfiguration>
- <Rule>
-   <ID>expire-bucket</ID>
-   <Prefix></Prefix>
-   <Status>Enabled</Status>
-   <Expiration>
-     <Days>365</Days>
-   </Expiration>
- </Rule>
-</LifecycleConfiguration>`
+config := lifecycle.NewConfiguration()
+config.Rules = []lifecycle.Rule{
+  ID:     "expire-bucket",
+  Status: "Enabled",
+  Expiration: lifecycle.Expiration{
+     Days: 365,
+  },
+}
 
-err = minioClient.SetBucketLifecycle(context.Background(), "my-bucketname", lifecycle)
+err = minioClient.SetBucketLifecycle(context.Background(), "my-bucketname", config)
 if err != nil {
     fmt.Println(err)
     return
@@ -1537,7 +1535,7 @@ if err != nil {
 ```
 
 <a name="GetBucketLifecycle"></a>
-### GetBucketLifecycle(ctx context.Context, bucketName string) (lifecycle string, error)
+### GetBucketLifecycle(ctx context.Context, bucketName string) (*lifecycle.Configuration error)
 Get lifecycle on a bucket or a prefix.
 
 __Parameters__
@@ -1553,7 +1551,7 @@ __Return Values__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`lifecycle`  | _string_ |Lifecycle returned from the server |
+|`config`  | _lifecycle.Configuration_ |Lifecycle returned from the server |
 |`err` | _error_  |Standard Error  |
 
 __Example__
@@ -1566,7 +1564,7 @@ if err != nil {
 ```
 
 <a name="SetBucketEncryption"></a>
-### SetBucketEncryption(ctx context.Context, bucketname string, configuration ServerSideEncryptionConfiguration) error
+### SetBucketEncryption(ctx context.Context, bucketname string, config sse.Configuration) error
 Set default encryption configuration on a bucket.
 
 __Parameters__
@@ -1575,7 +1573,7 @@ __Parameters__
 |:---|:---| :---|
 |`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
 |`bucketName` | _string_  |Name of the bucket|
-|`configuration` | _minio.ServerSideEncyrptionConfiguration_  | Structure that holds default encryption configuration to be set |
+|`config` | _sse.Configuration_  | Structure that holds default encryption configuration to be set |
 
 __Return Values__
 
@@ -1591,23 +1589,15 @@ if err != nil {
     log.Fatalln(err)
 }
 
-// Initialize default encryption configuration structure
-config := minio.ServerSideEncryptionConfiguration{Rules: []minio.Rule{
-    minio.Rule{
-        Apply: minio.ApplyServerSideEncryptionByDefault{
-            SSEAlgorithm: "AES256",
-        },
-    },
-}}
 // Set default encryption configuration on an S3 bucket
-err = s3Client.SetBucketEncryption(context.Background(), "my-bucketname", config)
+err = s3Client.SetBucketEncryption(context.Background(), "my-bucketname", sse.NewConfigurationSSES3())
 if err != nil {
     log.Fatalln(err)
 }
 ```
 
 <a name="GetBucketEncryption"></a>
-### GetBucketEncryption(ctx context.Context, bucketName string) (ServerSideEncryptionConfiguration, error)
+### GetBucketEncryption(ctx context.Context, bucketName string) (*sse.Configuration, error)
 Get default encryption configuration set on a bucket.
 
 __Parameters__
@@ -1623,7 +1613,7 @@ __Return Values__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`configuration` | _minio.ServerSideEncyrptionConfiguration_ | Structure that holds default encryption configuration |
+|`config` | _sse.Configuration_ | Structure that holds default encryption configuration |
 |`err` | _error_ |Standard Error  |
 
 __Example__
@@ -1642,9 +1632,9 @@ if err != nil {
 fmt.Printf("%+v\n", encryptionConfig)
 ```
 
-<a name="DeleteBucketEncryption"></a>
-### DeleteBucketEncryption(ctx context.Context, bucketName string) (error)
-Delete/Remove default encryption configuration set on a bucket.
+<a name="RemoveBucketEncryption"></a>
+### RemoveBucketEncryption(ctx context.Context, bucketName string) (error)
+Remove default encryption configuration set on a bucket.
 
 __Parameters__
 
@@ -1664,7 +1654,7 @@ __Return Values__
 __Example__
 
 ```go
-err := s3Client.DeleteBucketEncryption(context.Background(), "my-bucketname")
+err := s3Client.RemoveBucketEncryption(context.Background(), "my-bucketname")
 if err != nil {
     log.Fatalln(err)
 }
@@ -1841,9 +1831,8 @@ fmt.Printf("%+v\n", versioningConfig)
 
 <a name="SetBucketReplication"></a>
 
-### SetBucketReplication(ctx context.Context, bucketname, cfg replication.Config, opts ReplicationReqOptions) error
-Set replication configuration on a bucket. To use this API with MinIO server, ReplicationArn should be set in the replication config. Replication ARN can be obtained by first defining the replication target on MinIO
-using `mc admin bucket replication set` to associate the source and destination buckets for replication with the replication endpoint. Next, issue a `mc admin bucket remote` to fetch the replication ARN associated with this replication endpoint.
+### SetBucketReplication(ctx context.Context, bucketname, cfg replication.Config) error
+Set replication configuration on a bucket. To use this API with MinIO server, ReplicationArn should be set in the replication config. Replication ARN can be obtained by first defining the replication target on MinIO using `mc admin bucket replication set` to associate the source and destination buckets for replication with the replication endpoint. Next, issue a `mc admin bucket remote` to fetch the replication ARN associated with this replication endpoint.
 
 __Parameters__
 
@@ -1852,7 +1841,6 @@ __Parameters__
 |`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
 |`bucketName` | _string_  |Name of the bucket|
 |`cfg` | _replication.Config_  |Replication configuration to be set |
-|`opts` | _ReplicationReqOptions_  |Options for replication - This is currently empty.|
 
 __Return Values__
 
@@ -1900,7 +1888,7 @@ if err := xml.Unmarshal([]byte(replicationStr), &replicationConfig); err != nil 
 }
 // this is optional for replication with MinIO server.
 cfg.ReplicationArn := "arn:minio:s3::598361bf-3cec-49a7-b529-ce870a34d759:*"
-err = minioClient.SetBucketReplication(context.Background(), "my-bucketname", replicationConfig, ReplicationReqOptions{})
+err = minioClient.SetBucketReplication(context.Background(), "my-bucketname", replicationConfig)
 if err != nil {
     fmt.Println(err)
     return
@@ -1908,8 +1896,7 @@ if err != nil {
 ```
 
 <a name="GetBucketReplication"></a>
-
-### GetBucketReplication(ctx context.Context, bucketName string, opts ReplicationReqOptions) (replication.Config, error)
+### GetBucketReplication(ctx context.Context, bucketName string) (replication.Config, error)
 Get current replication config on a bucket.
 
 __Parameters__
@@ -1919,7 +1906,6 @@ __Parameters__
 |:---|:---| :---|
 |`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
 |`bucketName`  | _string_  |Name of the bucket   |
-|`opts` | _ReplicationReqOptions_ | options for replication request
 
 __Return Values__
 
@@ -1939,16 +1925,15 @@ if err != nil {
 ```
 
 <a name="RemoveBucketReplication"></a>
-
-### RemoveBucketReplication(ctx context.Context, bucketname string, opts ReplicationReqOptions) error
+### RemoveBucketReplication(ctx context.Context, bucketname string) error
 Removes replication configuration on a bucket.
+
 __Parameters__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
 |`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
 |`bucketName` | _string_  |Name of the bucket|
-|`opts` | _ReplicationReqOptions_ | options for replication request
 
 __Return Values__
 
