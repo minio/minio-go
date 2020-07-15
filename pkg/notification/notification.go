@@ -1,6 +1,6 @@
 /*
  * MinIO Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2015-2020 MinIO, Inc.
+ * Copyright 2020 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package minio
+package notification
 
 import (
 	"encoding/xml"
@@ -25,24 +25,24 @@ import (
 	"github.com/minio/minio-go/v7/pkg/set"
 )
 
-// NotificationEventType is a S3 notification event associated to the bucket notification configuration
-type NotificationEventType string
+// EventType is a S3 notification event associated to the bucket notification configuration
+type EventType string
 
 // The role of all event types are described in :
 // 	http://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html#notification-how-to-event-types-and-destinations
 const (
-	ObjectCreatedAll                     NotificationEventType = "s3:ObjectCreated:*"
-	ObjectCreatedPut                                           = "s3:ObjectCreated:Put"
-	ObjectCreatedPost                                          = "s3:ObjectCreated:Post"
-	ObjectCreatedCopy                                          = "s3:ObjectCreated:Copy"
-	ObjectCreatedCompleteMultipartUpload                       = "s3:ObjectCreated:CompleteMultipartUpload"
-	ObjectAccessedGet                                          = "s3:ObjectAccessed:Get"
-	ObjectAccessedHead                                         = "s3:ObjectAccessed:Head"
-	ObjectAccessedAll                                          = "s3:ObjectAccessed:*"
-	ObjectRemovedAll                                           = "s3:ObjectRemoved:*"
-	ObjectRemovedDelete                                        = "s3:ObjectRemoved:Delete"
-	ObjectRemovedDeleteMarkerCreated                           = "s3:ObjectRemoved:DeleteMarkerCreated"
-	ObjectReducedRedundancyLostObject                          = "s3:ReducedRedundancyLostObject"
+	ObjectCreatedAll                     EventType = "s3:ObjectCreated:*"
+	ObjectCreatedPut                               = "s3:ObjectCreated:Put"
+	ObjectCreatedPost                              = "s3:ObjectCreated:Post"
+	ObjectCreatedCopy                              = "s3:ObjectCreated:Copy"
+	ObjectCreatedCompleteMultipartUpload           = "s3:ObjectCreated:CompleteMultipartUpload"
+	ObjectAccessedGet                              = "s3:ObjectAccessed:Get"
+	ObjectAccessedHead                             = "s3:ObjectAccessed:Head"
+	ObjectAccessedAll                              = "s3:ObjectAccessed:*"
+	ObjectRemovedAll                               = "s3:ObjectRemoved:*"
+	ObjectRemovedDelete                            = "s3:ObjectRemoved:Delete"
+	ObjectRemovedDeleteMarkerCreated               = "s3:ObjectRemoved:DeleteMarkerCreated"
+	ObjectReducedRedundancyLostObject              = "s3:ReducedRedundancyLostObject"
 )
 
 // FilterRule - child of S3Key, a tag in the notification xml which
@@ -88,27 +88,27 @@ func (arn Arn) String() string {
 	return "arn:" + arn.Partition + ":" + arn.Service + ":" + arn.Region + ":" + arn.AccountID + ":" + arn.Resource
 }
 
-// NotificationConfig - represents one single notification configuration
+// Config - represents one single notification configuration
 // such as topic, queue or lambda configuration.
-type NotificationConfig struct {
-	ID     string                  `xml:"Id,omitempty"`
-	Arn    Arn                     `xml:"-"`
-	Events []NotificationEventType `xml:"Event"`
-	Filter *Filter                 `xml:"Filter,omitempty"`
+type Config struct {
+	ID     string      `xml:"Id,omitempty"`
+	Arn    Arn         `xml:"-"`
+	Events []EventType `xml:"Event"`
+	Filter *Filter     `xml:"Filter,omitempty"`
 }
 
-// NewNotificationConfig creates one notification config and sets the given ARN
-func NewNotificationConfig(arn Arn) NotificationConfig {
-	return NotificationConfig{Arn: arn, Filter: &Filter{}}
+// NewConfig creates one notification config and sets the given ARN
+func NewConfig(arn Arn) Config {
+	return Config{Arn: arn, Filter: &Filter{}}
 }
 
 // AddEvents adds one event to the current notification config
-func (t *NotificationConfig) AddEvents(events ...NotificationEventType) {
+func (t *Config) AddEvents(events ...EventType) {
 	t.Events = append(t.Events, events...)
 }
 
 // AddFilterSuffix sets the suffix configuration to the current notification config
-func (t *NotificationConfig) AddFilterSuffix(suffix string) {
+func (t *Config) AddFilterSuffix(suffix string) {
 	if t.Filter == nil {
 		t.Filter = &Filter{}
 	}
@@ -124,7 +124,7 @@ func (t *NotificationConfig) AddFilterSuffix(suffix string) {
 }
 
 // AddFilterPrefix sets the prefix configuration to the current notification config
-func (t *NotificationConfig) AddFilterPrefix(prefix string) {
+func (t *Config) AddFilterPrefix(prefix string) {
 	if t.Filter == nil {
 		t.Filter = &Filter{}
 	}
@@ -139,8 +139,8 @@ func (t *NotificationConfig) AddFilterPrefix(prefix string) {
 	t.Filter.S3Key.FilterRules = append(t.Filter.S3Key.FilterRules, newFilterRule)
 }
 
-// EqualNotificationEventTypeList tells whether a and b contain the same events
-func EqualNotificationEventTypeList(a, b []NotificationEventType) bool {
+// EqualEventTypeList tells whether a and b contain the same events
+func EqualEventTypeList(a, b []EventType) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -176,10 +176,10 @@ func EqualFilterRuleList(a, b []FilterRule) bool {
 	return setA.Difference(setB).IsEmpty()
 }
 
-// Equal returns whether this `NotificationConfig` is equal to another defined by the passed parameters
-func (t *NotificationConfig) Equal(events []NotificationEventType, prefix, suffix string) bool {
+// Equal returns whether this `Config` is equal to another defined by the passed parameters
+func (t *Config) Equal(events []EventType, prefix, suffix string) bool {
 	//Compare events
-	passEvents := EqualNotificationEventTypeList(t.Events, events)
+	passEvents := EqualEventTypeList(t.Events, events)
 
 	//Compare filters
 	var newFilter []FilterRule
@@ -197,33 +197,33 @@ func (t *NotificationConfig) Equal(events []NotificationEventType, prefix, suffi
 
 // TopicConfig carries one single topic notification configuration
 type TopicConfig struct {
-	NotificationConfig
+	Config
 	Topic string `xml:"Topic"`
 }
 
 // QueueConfig carries one single queue notification configuration
 type QueueConfig struct {
-	NotificationConfig
+	Config
 	Queue string `xml:"Queue"`
 }
 
 // LambdaConfig carries one single cloudfunction notification configuration
 type LambdaConfig struct {
-	NotificationConfig
+	Config
 	Lambda string `xml:"CloudFunction"`
 }
 
-// BucketNotification - the struct that represents the whole XML to be sent to the web service
-type BucketNotification struct {
-	XMLName       xml.Name       `xml:"NotificationConfiguration"`
+// Configuration - the struct that represents the whole XML to be sent to the web service
+type Configuration struct {
+	XMLName       xml.Name       `xml:"Configuration"`
 	LambdaConfigs []LambdaConfig `xml:"CloudFunctionConfiguration"`
 	TopicConfigs  []TopicConfig  `xml:"TopicConfiguration"`
 	QueueConfigs  []QueueConfig  `xml:"QueueConfiguration"`
 }
 
 // AddTopic adds a given topic config to the general bucket notification config
-func (b *BucketNotification) AddTopic(topicConfig NotificationConfig) bool {
-	newTopicConfig := TopicConfig{NotificationConfig: topicConfig, Topic: topicConfig.Arn.String()}
+func (b *Configuration) AddTopic(topicConfig Config) bool {
+	newTopicConfig := TopicConfig{Config: topicConfig, Topic: topicConfig.Arn.String()}
 	for _, n := range b.TopicConfigs {
 		// If new config matches existing one
 		if n.Topic == newTopicConfig.Arn.String() && newTopicConfig.Filter == n.Filter {
@@ -248,8 +248,8 @@ func (b *BucketNotification) AddTopic(topicConfig NotificationConfig) bool {
 }
 
 // AddQueue adds a given queue config to the general bucket notification config
-func (b *BucketNotification) AddQueue(queueConfig NotificationConfig) bool {
-	newQueueConfig := QueueConfig{NotificationConfig: queueConfig, Queue: queueConfig.Arn.String()}
+func (b *Configuration) AddQueue(queueConfig Config) bool {
+	newQueueConfig := QueueConfig{Config: queueConfig, Queue: queueConfig.Arn.String()}
 	for _, n := range b.QueueConfigs {
 		if n.Queue == newQueueConfig.Arn.String() && newQueueConfig.Filter == n.Filter {
 
@@ -273,8 +273,8 @@ func (b *BucketNotification) AddQueue(queueConfig NotificationConfig) bool {
 }
 
 // AddLambda adds a given lambda config to the general bucket notification config
-func (b *BucketNotification) AddLambda(lambdaConfig NotificationConfig) bool {
-	newLambdaConfig := LambdaConfig{NotificationConfig: lambdaConfig, Lambda: lambdaConfig.Arn.String()}
+func (b *Configuration) AddLambda(lambdaConfig Config) bool {
+	newLambdaConfig := LambdaConfig{Config: lambdaConfig, Lambda: lambdaConfig.Arn.String()}
 	for _, n := range b.LambdaConfigs {
 		if n.Lambda == newLambdaConfig.Arn.String() && newLambdaConfig.Filter == n.Filter {
 
@@ -298,7 +298,7 @@ func (b *BucketNotification) AddLambda(lambdaConfig NotificationConfig) bool {
 }
 
 // RemoveTopicByArn removes all topic configurations that match the exact specified ARN
-func (b *BucketNotification) RemoveTopicByArn(arn Arn) {
+func (b *Configuration) RemoveTopicByArn(arn Arn) {
 	var topics []TopicConfig
 	for _, topic := range b.TopicConfigs {
 		if topic.Topic != arn.String() {
@@ -308,15 +308,15 @@ func (b *BucketNotification) RemoveTopicByArn(arn Arn) {
 	b.TopicConfigs = topics
 }
 
-// ErrNoNotificationConfigMatch is returned when a notification configuration (sqs,sns,lambda) is not found when trying to delete
-var ErrNoNotificationConfigMatch = errors.New("no notification configuration matched")
+// ErrNoConfigMatch is returned when a notification configuration (sqs,sns,lambda) is not found when trying to delete
+var ErrNoConfigMatch = errors.New("no notification configuration matched")
 
 // RemoveTopicByArnEventsPrefixSuffix removes a topic configuration that match the exact specified ARN, events, prefix and suffix
-func (b *BucketNotification) RemoveTopicByArnEventsPrefixSuffix(arn Arn, events []NotificationEventType, prefix, suffix string) error {
+func (b *Configuration) RemoveTopicByArnEventsPrefixSuffix(arn Arn, events []EventType, prefix, suffix string) error {
 	removeIndex := -1
 	for i, v := range b.TopicConfigs {
 		// if it matches events and filters, mark the index for deletion
-		if v.Topic == arn.String() && v.NotificationConfig.Equal(events, prefix, suffix) {
+		if v.Topic == arn.String() && v.Config.Equal(events, prefix, suffix) {
 			removeIndex = i
 			break // since we have at most one matching config
 		}
@@ -325,11 +325,11 @@ func (b *BucketNotification) RemoveTopicByArnEventsPrefixSuffix(arn Arn, events 
 		b.TopicConfigs = append(b.TopicConfigs[:removeIndex], b.TopicConfigs[removeIndex+1:]...)
 		return nil
 	}
-	return ErrNoNotificationConfigMatch
+	return ErrNoConfigMatch
 }
 
 // RemoveQueueByArn removes all queue configurations that match the exact specified ARN
-func (b *BucketNotification) RemoveQueueByArn(arn Arn) {
+func (b *Configuration) RemoveQueueByArn(arn Arn) {
 	var queues []QueueConfig
 	for _, queue := range b.QueueConfigs {
 		if queue.Queue != arn.String() {
@@ -340,11 +340,11 @@ func (b *BucketNotification) RemoveQueueByArn(arn Arn) {
 }
 
 // RemoveQueueByArnEventsPrefixSuffix removes a queue configuration that match the exact specified ARN, events, prefix and suffix
-func (b *BucketNotification) RemoveQueueByArnEventsPrefixSuffix(arn Arn, events []NotificationEventType, prefix, suffix string) error {
+func (b *Configuration) RemoveQueueByArnEventsPrefixSuffix(arn Arn, events []EventType, prefix, suffix string) error {
 	removeIndex := -1
 	for i, v := range b.QueueConfigs {
 		// if it matches events and filters, mark the index for deletion
-		if v.Queue == arn.String() && v.NotificationConfig.Equal(events, prefix, suffix) {
+		if v.Queue == arn.String() && v.Config.Equal(events, prefix, suffix) {
 			removeIndex = i
 			break // since we have at most one matching config
 		}
@@ -353,11 +353,11 @@ func (b *BucketNotification) RemoveQueueByArnEventsPrefixSuffix(arn Arn, events 
 		b.QueueConfigs = append(b.QueueConfigs[:removeIndex], b.QueueConfigs[removeIndex+1:]...)
 		return nil
 	}
-	return ErrNoNotificationConfigMatch
+	return ErrNoConfigMatch
 }
 
 // RemoveLambdaByArn removes all lambda configurations that match the exact specified ARN
-func (b *BucketNotification) RemoveLambdaByArn(arn Arn) {
+func (b *Configuration) RemoveLambdaByArn(arn Arn) {
 	var lambdas []LambdaConfig
 	for _, lambda := range b.LambdaConfigs {
 		if lambda.Lambda != arn.String() {
@@ -368,11 +368,11 @@ func (b *BucketNotification) RemoveLambdaByArn(arn Arn) {
 }
 
 // RemoveLambdaByArnEventsPrefixSuffix removes a topic configuration that match the exact specified ARN, events, prefix and suffix
-func (b *BucketNotification) RemoveLambdaByArnEventsPrefixSuffix(arn Arn, events []NotificationEventType, prefix, suffix string) error {
+func (b *Configuration) RemoveLambdaByArnEventsPrefixSuffix(arn Arn, events []EventType, prefix, suffix string) error {
 	removeIndex := -1
 	for i, v := range b.LambdaConfigs {
 		// if it matches events and filters, mark the index for deletion
-		if v.Lambda == arn.String() && v.NotificationConfig.Equal(events, prefix, suffix) {
+		if v.Lambda == arn.String() && v.Config.Equal(events, prefix, suffix) {
 			removeIndex = i
 			break // since we have at most one matching config
 		}
@@ -381,5 +381,5 @@ func (b *BucketNotification) RemoveLambdaByArnEventsPrefixSuffix(arn Arn, events
 		b.LambdaConfigs = append(b.LambdaConfigs[:removeIndex], b.LambdaConfigs[removeIndex+1:]...)
 		return nil
 	}
-	return ErrNoNotificationConfigMatch
+	return ErrNoConfigMatch
 }

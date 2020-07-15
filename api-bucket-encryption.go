@@ -20,19 +20,86 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
-	"errors"
-	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 
 	"github.com/minio/minio-go/v7/pkg/s3utils"
-	"github.com/minio/minio-go/v7/pkg/tags"
+	"github.com/minio/minio-go/v7/pkg/sse"
 )
 
-// GetBucketTagging fetch tagging configuration for a bucket with a
-// context to control cancellations and timeouts.
-func (c Client) GetBucketTagging(ctx context.Context, bucketName string) (*tags.Tags, error) {
+// SetBucketEncryption sets the default encryption configuration on an existing bucket.
+func (c Client) SetBucketEncryption(ctx context.Context, bucketName string, config *sse.Configuration) error {
+	// Input validation.
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		return err
+	}
+
+	if config == nil {
+		return errInvalidArgument("configuration cannot be empty")
+	}
+
+	buf, err := xml.Marshal(config)
+	if err != nil {
+		return err
+	}
+
+	// Get resources properly escaped and lined up before
+	// using them in http request.
+	urlValues := make(url.Values)
+	urlValues.Set("encryption", "")
+
+	// Content-length is mandatory to set a default encryption configuration
+	reqMetadata := requestMetadata{
+		bucketName:       bucketName,
+		queryValues:      urlValues,
+		contentBody:      bytes.NewReader(buf),
+		contentLength:    int64(len(buf)),
+		contentMD5Base64: sumMD5Base64(buf),
+	}
+
+	// Execute PUT to upload a new bucket default encryption configuration.
+	resp, err := c.executeMethod(ctx, http.MethodPut, reqMetadata)
+	defer closeResponse(resp)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return httpRespToErrorResponse(resp, bucketName, "")
+	}
+	return nil
+}
+
+// RemoveBucketEncryption removes the default encryption configuration on a bucket with a context to control cancellations and timeouts.
+func (c Client) RemoveBucketEncryption(ctx context.Context, bucketName string) error {
+	// Input validation.
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		return err
+	}
+
+	// Get resources properly escaped and lined up before
+	// using them in http request.
+	urlValues := make(url.Values)
+	urlValues.Set("encryption", "")
+
+	// DELETE default encryption configuration on a bucket.
+	resp, err := c.executeMethod(ctx, http.MethodDelete, requestMetadata{
+		bucketName:       bucketName,
+		queryValues:      urlValues,
+		contentSHA256Hex: emptySHA256Hex,
+	})
+	defer closeResponse(resp)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return httpRespToErrorResponse(resp, bucketName, "")
+	}
+	return nil
+}
+
+// GetBucketEncryption gets the default encryption configuration
+// on an existing bucket with a context to control cancellations and timeouts.
+func (c Client) GetBucketEncryption(ctx context.Context, bucketName string) (*sse.Configuration, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return nil, err
@@ -41,9 +108,9 @@ func (c Client) GetBucketTagging(ctx context.Context, bucketName string) (*tags.
 	// Get resources properly escaped and lined up before
 	// using them in http request.
 	urlValues := make(url.Values)
-	urlValues.Set("tagging", "")
+	urlValues.Set("encryption", "")
 
-	// Execute GET on bucket to get tagging configuration.
+	// Execute GET on bucket to get the default encryption configuration.
 	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
 		bucketName:  bucketName,
 		queryValues: urlValues,
@@ -58,78 +125,10 @@ func (c Client) GetBucketTagging(ctx context.Context, bucketName string) (*tags.
 		return nil, httpRespToErrorResponse(resp, bucketName, "")
 	}
 
-	defer io.Copy(ioutil.Discard, resp.Body)
-	return tags.ParseBucketXML(resp.Body)
-}
-
-// SetBucketTagging sets tagging configuration for a bucket
-// with a context to control cancellations and timeouts.
-func (c Client) SetBucketTagging(ctx context.Context, bucketName string, tags *tags.Tags) error {
-	// Input validation.
-	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
-		return err
+	encryptionConfig := &sse.Configuration{}
+	if err = xmlDecoder(resp.Body, encryptionConfig); err != nil {
+		return nil, err
 	}
 
-	if tags == nil {
-		return errors.New("nil tags passed")
-	}
-
-	buf, err := xml.Marshal(tags)
-	if err != nil {
-		return err
-	}
-
-	// Get resources properly escaped and lined up before
-	// using them in http request.
-	urlValues := make(url.Values)
-	urlValues.Set("tagging", "")
-
-	// Content-length is mandatory to set a default encryption configuration
-	reqMetadata := requestMetadata{
-		bucketName:       bucketName,
-		queryValues:      urlValues,
-		contentBody:      bytes.NewReader(buf),
-		contentLength:    int64(len(buf)),
-		contentMD5Base64: sumMD5Base64(buf),
-	}
-
-	// Execute PUT on bucket to put tagging configuration.
-	resp, err := c.executeMethod(ctx, http.MethodPut, reqMetadata)
-	defer closeResponse(resp)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		return httpRespToErrorResponse(resp, bucketName, "")
-	}
-	return nil
-}
-
-// RemoveBucketTagging removes tagging configuration for a
-// bucket with a context to control cancellations and timeouts.
-func (c Client) RemoveBucketTagging(ctx context.Context, bucketName string) error {
-	// Input validation.
-	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
-		return err
-	}
-
-	// Get resources properly escaped and lined up before
-	// using them in http request.
-	urlValues := make(url.Values)
-	urlValues.Set("tagging", "")
-
-	// Execute DELETE on bucket to remove tagging configuration.
-	resp, err := c.executeMethod(ctx, http.MethodDelete, requestMetadata{
-		bucketName:       bucketName,
-		queryValues:      urlValues,
-		contentSHA256Hex: emptySHA256Hex,
-	})
-	defer closeResponse(resp)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		return httpRespToErrorResponse(resp, bucketName, "")
-	}
-	return nil
+	return encryptionConfig, nil
 }

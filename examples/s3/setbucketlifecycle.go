@@ -24,6 +24,7 @@ import (
 	"log"
 
 	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/lifecycle"
 )
 
 func main() {
@@ -43,8 +44,15 @@ func main() {
 	// s3Client.TraceOn(os.Stderr)
 
 	// Set lifecycle on a bucket
-	lifecycle := `<LifecycleConfiguration><Rule><ID>expire-bucket</ID><Prefix></Prefix><Status>Enabled</Status><Expiration><Days>365</Days></Expiration></Rule></LifecycleConfiguration>`
-	err = s3Client.SetBucketLifecycle(context.Background(), "my-bucketname", lifecycle)
+	config := lifecycle.NewConfiguration()
+	config.Rules = []lifecycle.Rule{
+		ID:     "expire-bucket",
+		Status: "Enabled",
+		Expiration: lifecycle.Expiration{
+			Days: 365,
+		},
+	}
+	err = s3Client.SetBucketLifecycle(context.Background(), "my-bucketname", config)
 	if err != nil {
 		log.Fatalln(err)
 	}

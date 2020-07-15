@@ -41,7 +41,9 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
 	// s3Client.TraceOn(os.Stderr)
+
 	replicationStr := `<ReplicationConfiguration><Rule><ID>string</ID><Status>Enabled</Status><Priority>1</Priority><DeleteMarkerReplication><Status>Disabled</Status></DeleteMarkerReplication><Destination><Bucket>arn:aws:s3:::dest</Bucket></Destination><Filter><And><Prefix>Prefix</Prefix><Tag><Key>Tag-Key1</Key><Value>Tag-Value1</Value></Tag><Tag><Key>Tag-Key2</Key><Value>Tag-Value2</Value></Tag></And></Filter></Rule></ReplicationConfiguration>`
 	var replCfg replication.Config
 	err = xml.Unmarshal([]byte(replicationStr), &replCfg)
@@ -50,9 +52,9 @@ func main() {
 	}
 
 	// This replication ARN should have been generated for replication endpoint using `mc admin bucket remote` command
-	replCfg.replicationArn = "arn:minio:s3::dadddae7-f1d7-440f-b5d6-651aa9a8c8a7:*"
+	replCfg.ReplicationARN = "arn:minio:s3::dadddae7-f1d7-440f-b5d6-651aa9a8c8a7:*"
 	// Set replication config on a bucket
-	err = s3Client.SetBucketReplication(context.Background(), "my-bucketname", replCfg, ReplicationReqOptions{})
+	err = s3Client.SetBucketReplication(context.Background(), "my-bucketname", replCfg)
 	if err != nil {
 		log.Fatalln(err)
 	}

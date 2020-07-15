@@ -17,14 +17,64 @@
 package minio
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
+
+// SetBucketVersioning sets a bucket versioning configuration
+func (c Client) SetBucketVersioning(ctx context.Context, bucketName string, config BucketVersioningConfiguration) error {
+	// Input validation.
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		return err
+	}
+
+	buf, err := xml.Marshal(config)
+	if err != nil {
+		return err
+	}
+
+	// Get resources properly escaped and lined up before
+	// using them in http request.
+	urlValues := make(url.Values)
+	urlValues.Set("versioning", "")
+
+	reqMetadata := requestMetadata{
+		bucketName:       bucketName,
+		queryValues:      urlValues,
+		contentBody:      bytes.NewReader(buf),
+		contentLength:    int64(len(buf)),
+		contentMD5Base64: sumMD5Base64(buf),
+		contentSHA256Hex: sum256Hex(buf),
+	}
+
+	// Execute PUT to set a bucket versioning.
+	resp, err := c.executeMethod(ctx, "PUT", reqMetadata)
+	defer closeResponse(resp)
+	if err != nil {
+		return err
+	}
+	if resp != nil {
+		if resp.StatusCode != http.StatusOK {
+			return httpRespToErrorResponse(resp, bucketName, "")
+		}
+	}
+	return nil
+}
+
+// EnableVersioning - enable object versioning in given bucket.
+func (c Client) EnableVersioning(ctx context.Context, bucketName string) error {
+	return c.SetBucketVersioning(ctx, bucketName, BucketVersioningConfiguration{Status: "Enabled"})
+}
+
+// SuspendVersioning - suspend object versioning in given bucket.
+func (c Client) SuspendVersioning(ctx context.Context, bucketName string) error {
+	return c.SetBucketVersioning(ctx, bucketName, BucketVersioningConfiguration{Status: "Suspended"})
+}
 
 // BucketVersioningConfiguration is the versioning configuration structure
 type BucketVersioningConfiguration struct {
@@ -61,14 +111,10 @@ func (c Client) GetBucketVersioning(ctx context.Context, bucketName string) (Buc
 		return BucketVersioningConfiguration{}, httpRespToErrorResponse(resp, bucketName, "")
 	}
 
-	bucketVersioningBuf, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return BucketVersioningConfiguration{}, err
+	versioningConfig := BucketVersioningConfiguration{}
+	if err = xmlDecoder(resp.Body, &versioningConfig); err != nil {
+		return versioningConfig, err
 	}
 
-	versioningConfig := BucketVersioningConfiguration{}
-	if err := xml.Unmarshal(bucketVersioningBuf, &versioningConfig); err != nil {
-		return BucketVersioningConfiguration{}, err
-	}
 	return versioningConfig, nil
 }

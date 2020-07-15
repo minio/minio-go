@@ -43,7 +43,7 @@ func main() {
 	// s3Client.TraceOn(os.Stderr)
 
 	// Get default encryption configuration set on a S3 bucket
-	err = s3Client.DeleteBucketEncryption(context.Background(), "my-bucketname")
+	err = s3Client.RemoveBucketEncryption(context.Background(), "my-bucketname")
 	if err != nil {
 		log.Fatalln(err)
 	}
