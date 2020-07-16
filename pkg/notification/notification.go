@@ -215,7 +215,7 @@ type LambdaConfig struct {
 
 // Configuration - the struct that represents the whole XML to be sent to the web service
 type Configuration struct {
-	XMLName       xml.Name       `xml:"Configuration"`
+	XMLName       xml.Name       `xml:"NotificationConfiguration"`
 	LambdaConfigs []LambdaConfig `xml:"CloudFunctionConfiguration"`
 	TopicConfigs  []TopicConfig  `xml:"TopicConfiguration"`
 	QueueConfigs  []QueueConfig  `xml:"QueueConfiguration"`
