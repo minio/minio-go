@@ -46,5 +46,5 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	fmt.Printf("Fetched Object Tags: %v", tags)
+	fmt.Printf("Fetched Object Tags: %s", tags)
 }

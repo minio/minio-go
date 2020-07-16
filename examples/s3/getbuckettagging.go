@@ -40,6 +40,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
 	tags, err := s3Client.GetBucketTagging(context.Background(), "my-bucketname")
 	if err != nil {
 		log.Fatalln(err)

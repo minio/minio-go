@@ -25,8 +25,22 @@ import (
 
 // AbortIncompleteMultipartUpload structure, not supported yet on MinIO
 type AbortIncompleteMultipartUpload struct {
-	XMLName             xml.Name `xml:"AbortIncompleteMultipartUpload,omitempty"  json:"-"`
-	DaysAfterInitiation int64    `xml:"DaysAfterInitiation,omitempty" json:"DaysAfterInitiation,omitempty"`
+	XMLName             xml.Name       `xml:"AbortIncompleteMultipartUpload,omitempty"  json:"-"`
+	DaysAfterInitiation ExpirationDays `xml:"DaysAfterInitiation,omitempty" json:"DaysAfterInitiation,omitempty"`
+}
+
+// IsDaysNull returns true if days field is null
+func (n AbortIncompleteMultipartUpload) IsDaysNull() bool {
+	return n.DaysAfterInitiation == ExpirationDays(0)
+}
+
+// MarshalXML if days after initiation is set to non-zero value
+func (n AbortIncompleteMultipartUpload) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	if n.IsDaysNull() {
+		return nil
+	}
+	type abortIncompleteMultipartUploadWrapper AbortIncompleteMultipartUpload
+	return e.EncodeElement(abortIncompleteMultipartUploadWrapper(n), start)
 }
 
 // NoncurrentVersionExpiration - Specifies when noncurrent object versions expire.

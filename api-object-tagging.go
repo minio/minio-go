@@ -36,7 +36,7 @@ type PutObjectTaggingOptions struct {
 
 // PutObjectTagging replaces or creates object tag(s) and can target
 // a specific object version in a versioned bucket.
-func (c Client) PutObjectTagging(ctx context.Context, bucketName, objectName string, objectTags map[string]string, opts PutObjectTaggingOptions) error {
+func (c Client) PutObjectTagging(ctx context.Context, bucketName, objectName string, otags *tags.Tags, opts PutObjectTaggingOptions) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return err
@@ -51,12 +51,7 @@ func (c Client) PutObjectTagging(ctx context.Context, bucketName, objectName str
 		urlValues.Set("versionId", opts.VersionID)
 	}
 
-	tags, err := tags.NewTags(objectTags, true)
-	if err != nil {
-		return err
-	}
-
-	reqBytes, err := xml.Marshal(tags)
+	reqBytes, err := xml.Marshal(otags)
 	if err != nil {
 		return err
 	}
@@ -92,7 +87,7 @@ type GetObjectTaggingOptions struct {
 
 // GetObjectTagging fetches object tag(s) with options to target
 // a specific object version in a versioned bucket.
-func (c Client) GetObjectTagging(ctx context.Context, bucketName, objectName string, opts GetObjectTaggingOptions) (map[string]string, error) {
+func (c Client) GetObjectTagging(ctx context.Context, bucketName, objectName string, opts GetObjectTaggingOptions) (*tags.Tags, error) {
 	// Get resources properly escaped and lined up before
 	// using them in http request.
 	urlValues := make(url.Values)
@@ -120,12 +115,7 @@ func (c Client) GetObjectTagging(ctx context.Context, bucketName, objectName str
 		}
 	}
 
-	tags, err := tags.ParseObjectXML(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	return tags.ToMap(), err
+	return tags.ParseObjectXML(resp.Body)
 }
 
 // RemoveObjectTaggingOptions holds the version id of the object to remove
