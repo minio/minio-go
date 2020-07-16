@@ -255,6 +255,18 @@ func (tags Tags) ToMap() map[string]string {
 	return tags.TagSet.toMap()
 }
 
+// MapToObjectTags converts an input map of key and value into
+// *Tags data structure with validation.
+func MapToObjectTags(tagMap map[string]string) (*Tags, error) {
+	return NewTags(tagMap, true)
+}
+
+// MapToBucketTags converts an input map of key and value into
+// *Tags data structure with validation.
+func MapToBucketTags(tagMap map[string]string) (*Tags, error) {
+	return NewTags(tagMap, false)
+}
+
 // NewTags creates Tags from tagMap, If isObject is set, it validates for object tags.
 func NewTags(tagMap map[string]string, isObject bool) (*Tags, error) {
 	tagging := &Tags{

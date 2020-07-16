@@ -24,6 +24,7 @@ import (
 	"log"
 
 	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/tags"
 )
 
 func main() {
@@ -39,11 +40,15 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	tags := map[string]string{
+	tagMap := map[string]string{
 		"Tag1": "Value1",
 		"Tag2": "Value2",
 	}
-	err = s3Client.PutObjectTagging(context.Background(), "my-bucketname", "my-objectname", tags)
+	t, err := tags.MapToObjectTags(tagMap)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	err = s3Client.PutObjectTagging(context.Background(), "my-bucketname", "my-objectname", t)
 	if err != nil {
 		log.Fatalln(err)
 	}

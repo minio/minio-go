@@ -41,15 +41,15 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	tags, err := tags.NewTags(map[string]string{
+	t, err := tags.MapToBucketTags(map[string]string{
 		"Tag1": "Value1",
 		"Tag2": "Value2",
-	}, false)
+	})
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	err = s3Client.SetBucketTagging(context.Background(), "my-bucketname", tags)
+	err = s3Client.SetBucketTagging(context.Background(), "my-bucketname", t)
 	if err != nil {
 		log.Fatalln(err)
 	}

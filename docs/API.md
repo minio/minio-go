@@ -1046,8 +1046,8 @@ __Return Values__
 ```
 
 <a name="PutObjectTagging"></a>
-### PutObjectTagging(ctx context.Context, bucketName, objectName string, objectTags map[string]string) error
-Adds or replace Object Tags to the given object
+### PutObjectTagging(ctx context.Context, bucketName, objectName string, otags *tags.Tags) error
+set new object Tags to the given object, replaces/overwrites any existing tags.
 
 __Parameters__
 
@@ -1057,7 +1057,7 @@ __Parameters__
 |`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
 |`bucketName`  | _string_  |Name of the bucket   |
 |`objectName` | _string_  |Name of the object   |
-|`objectTags` | _map[string]string_ | Map with Object Tag's Key and Value |
+|`objectTags` | _*tags.Tags_ | Map with Object Tag's Key and Value |
 
 __Example__
 
@@ -1071,7 +1071,7 @@ if err != nil {
 ```
 
 <a name="GetObjectTagging"></a>
-### GetObjectTagging(ctx context.Context, bucketName, objectName string) (_map[string]string_, error)
+### GetObjectTagging(ctx context.Context, bucketName, objectName string) (*tags.Tags, error)
 Fetch Object Tags from the given object
 
 __Parameters__
@@ -1092,7 +1092,7 @@ if err != nil {
     fmt.Println(err)
     return
 }
-fmt.Printf("Fetched Tags: %v", tags)
+fmt.Printf("Fetched Tags: %s", tags)
 ```
 
 <a name="RemoveObjectTagging"></a>

@@ -46,6 +46,7 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/encrypt"
 	"github.com/minio/minio-go/v7/pkg/notification"
+	"github.com/minio/minio-go/v7/pkg/tags"
 )
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyz01234569"
@@ -1536,14 +1537,26 @@ func testObjectTaggingWithVersioning() {
 	})
 
 	tagsV1 := map[string]string{"key1": "val1"}
-	err = c.PutObjectTagging(context.Background(), bucketName, objectName, tagsV1, minio.PutObjectTaggingOptions{VersionID: versions[0].VersionID})
+	t1, err := tags.MapToObjectTags(tagsV1)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObjectTagging (1) failed", err)
+		return
+	}
+
+	err = c.PutObjectTagging(context.Background(), bucketName, objectName, t1, minio.PutObjectTaggingOptions{VersionID: versions[0].VersionID})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObjectTagging (1) failed", err)
 		return
 	}
 
 	tagsV2 := map[string]string{"key2": "val2"}
-	err = c.PutObjectTagging(context.Background(), bucketName, objectName, tagsV2, minio.PutObjectTaggingOptions{VersionID: versions[1].VersionID})
+	t2, err := tags.MapToObjectTags(tagsV2)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObjectTagging (1) failed", err)
+		return
+	}
+
+	err = c.PutObjectTagging(context.Background(), bucketName, objectName, t2, minio.PutObjectTaggingOptions{VersionID: versions[1].VersionID})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObjectTagging (2) failed", err)
 		return
@@ -1567,7 +1580,7 @@ func testObjectTaggingWithVersioning() {
 		return
 	}
 
-	if !tagsEqual(tagsV1, gotTagsV1) {
+	if !tagsEqual(t1.ToMap(), gotTagsV1.ToMap()) {
 		logError(testName, function, args, startTime, "", "Unexpected tags content (1)", err)
 		return
 	}
@@ -1578,7 +1591,7 @@ func testObjectTaggingWithVersioning() {
 		return
 	}
 
-	if !tagsEqual(tagsV2, gotTagsV2) {
+	if !tagsEqual(t2.ToMap(), gotTagsV2.ToMap()) {
 		logError(testName, function, args, startTime, "", "Unexpected tags content (2)", err)
 		return
 	}
@@ -1596,7 +1609,7 @@ func testObjectTaggingWithVersioning() {
 		return
 	}
 
-	if len(emptyTags) != 0 {
+	if len(emptyTags.ToMap()) != 0 {
 		logError(testName, function, args, startTime, "", "Unexpected tags content (2)", err)
 		return
 	}
