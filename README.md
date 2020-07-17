@@ -26,8 +26,10 @@ MinIO client requires the following four parameters specified to connect to an A
 package main
 
 import (
-	"github.com/minio/minio-go/v7"
 	"log"
+
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 func main() {
@@ -37,7 +39,10 @@ func main() {
 	useSSL := true
 
 	// Initialize minio client object.
-	minioClient, err := minio.New(endpoint, accessKeyID, secretAccessKey, useSSL)
+	minioClient, err := minio.New(endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
+		Secure: useSSL,
+	})
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -56,8 +61,11 @@ We will use the MinIO server running at [https://play.min.io](https://play.min.i
 package main
 
 import (
-	"github.com/minio/minio-go/v7"
+	"context"
 	"log"
+
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 func main() {
@@ -67,7 +75,10 @@ func main() {
 	useSSL := true
 
 	// Initialize minio client object.
-	minioClient, err := minio.New(endpoint, accessKeyID, secretAccessKey, useSSL)
+	minioClient, err := minio.New(endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
+		Secure: useSSL,
+	})
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -76,7 +87,7 @@ func main() {
 	bucketName := "mymusic"
 	location := "us-east-1"
 
-	err = minioClient.MakeBucket(bucketName, location)
+	err = minioClient.MakeBucket(context.Background(), bucketName, MakeBucketOptions{Region: location})
 	if err != nil {
 		// Check to see if we already own this bucket (which happens if you run this twice)
 		exists, errBucketExists := minioClient.BucketExists(bucketName)
@@ -95,7 +106,7 @@ func main() {
 	contentType := "application/zip"
 
 	// Upload the zip file with FPutObject
-	n, err := minioClient.FPutObject(bucketName, objectName, filePath, minio.PutObjectOptions{ContentType:contentType})
+	n, err := minioClient.FPutObject(context.Background(), bucketName, objectName, filePath, minio.PutObjectOptions{ContentType: contentType})
 	if err != nil {
 		log.Fatalln(err)
 	}
