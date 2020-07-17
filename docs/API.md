@@ -1497,6 +1497,56 @@ for notificationInfo := range minioClient.ListenBucketNotification(context.Backg
 }
 ```
 
+<a name="ListenNotification"></a>
+### ListenNotification(context context.Context, prefix, suffix string, events []string) <-chan notification.Info
+ListenNotification API receives bucket and object notification events through the notification channel. The returned notification channel has two fields 'Records' and 'Err'.
+
+- 'Records' holds the notifications received from the server.
+- 'Err' indicates any error while processing the received notifications.
+
+NOTE: Notification channel is closed at the first occurrence of an error.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`bucketName`  | _string_  | Bucket to listen notifications on   |
+|`prefix`  | _string_ | Object key prefix to filter notifications for  |
+|`suffix`  | _string_ | Object key suffix to filter notifications for  |
+|`events`  | _[]string_ | Enables notifications for specific event types |
+
+__Return Values__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`notificationInfo` | _chan notification.Info_ | Read channel for all notifications |
+
+__minio.NotificationInfo__
+
+|Field   |Type   |Description   |
+|`notificationInfo.Records` | _[]notification.Event_ | Collection of notification events |
+|`notificationInfo.Err` | _error_ | Carries any error occurred during the operation (Standard Error) |
+
+__Example__
+
+
+```go
+// Listen for bucket notifications on "mybucket" filtered by prefix, suffix and events.
+for notificationInfo := range minioClient.ListenNotification(context.Background(), "myprefix/", ".mysuffix", []string{
+    "s3:BucketCreated:*",
+    "s3:BucketRemoved:*",
+    "s3:ObjectCreated:*",
+    "s3:ObjectAccessed:*",
+    "s3:ObjectRemoved:*",
+    }) {
+    if notificationInfo.Err != nil {
+        fmt.Println(notificationInfo.Err)
+    }
+    fmt.Println(notificationInfo)
+}
+```
+
 <a name="SetBucketLifecycle"></a>
 ### SetBucketLifecycle(ctx context.Context, bucketname, config *lifecycle.Configuration) error
 Set lifecycle on bucket or an object prefix.
