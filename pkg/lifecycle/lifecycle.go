@@ -99,15 +99,34 @@ func (tag Tag) IsEmpty() bool {
 
 // Transition structure - transition details of lifecycle configuration
 type Transition struct {
-	XMLName          xml.Name   `xml:"Transition" json:"-"`
-	TransitionDate   *time.Time `xml:"Date,omitempty" json:"Date,omitempty"`
-	StorageClass     string     `xml:"StorageClass,omitempty" json:"StorageClass,omitempty"`
-	TransitionInDays int        `xml:"Days,omitempty" json:"Days,omitempty"`
+	XMLName      xml.Name       `xml:"Transition" json:"-"`
+	Date         ExpirationDate `xml:"Date,omitempty" json:"Date,omitempty"`
+	StorageClass string         `xml:"StorageClass,omitempty" json:"StorageClass,omitempty"`
+	Days         ExpirationDays `xml:"Days,omitempty" json:"Days,omitempty"`
 }
 
-// IsSet is transition set
-func (t Transition) IsSet() bool {
-	return t.TransitionDate != nil && !t.TransitionDate.IsZero() || t.TransitionInDays > 0
+// IsDaysNull returns true if days field is null
+func (t Transition) IsDaysNull() bool {
+	return t.Days == ExpirationDays(0)
+}
+
+// IsDateNull returns true if date field is null
+func (t Transition) IsDateNull() bool {
+	return t.Date.Time.IsZero()
+}
+
+// IsNull returns true if both date and days fields are null
+func (t Transition) IsNull() bool {
+	return t.IsDaysNull() && t.IsDateNull()
+}
+
+// MarshalXML is transition is non null
+func (t Transition) MarshalXML(en *xml.Encoder, startElement xml.StartElement) error {
+	if t.IsNull() {
+		return nil
+	}
+	type transitionWrapper Transition
+	return en.EncodeElement(transitionWrapper(t), startElement)
 }
 
 // And And Rule for LifecycleTag, to be used in LifecycleRuleFilter
@@ -216,6 +235,15 @@ func (e Expiration) IsDateNull() bool {
 // IsNull returns true if both date and days fields are null
 func (e Expiration) IsNull() bool {
 	return e.IsDaysNull() && e.IsDateNull()
+}
+
+// MarshalXML is expiration is non null
+func (e Expiration) MarshalXML(en *xml.Encoder, startElement xml.StartElement) error {
+	if e.IsNull() {
+		return nil
+	}
+	type expirationWrapper Expiration
+	return en.EncodeElement(expirationWrapper(e), startElement)
 }
 
 // Rule represents a single rule in lifecycle configuration
