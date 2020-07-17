@@ -29,6 +29,8 @@ import (
 	"time"
 
 	"math/rand"
+
+	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 const (
@@ -75,10 +77,10 @@ func TestGetObjectCore(t *testing.T) {
 	// Instantiate new minio core client object.
 	c, err := NewCore(
 		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableSecurity)),
-	)
+		&Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableSecurity)),
+		})
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -272,10 +274,10 @@ func TestGetObjectContentEncoding(t *testing.T) {
 	// Instantiate new minio core client object.
 	c, err := NewCore(
 		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableSecurity)),
-	)
+		&Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableSecurity)),
+		})
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -345,10 +347,10 @@ func TestGetBucketPolicy(t *testing.T) {
 	// Instantiate new minio client object.
 	c, err := NewCore(
 		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableSecurity)),
-	)
+		&Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableSecurity)),
+		})
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -408,10 +410,10 @@ func TestCoreCopyObject(t *testing.T) {
 	// Instantiate new minio client object.
 	c, err := NewCore(
 		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableSecurity)),
-	)
+		&Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableSecurity)),
+		})
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -531,10 +533,10 @@ func TestCoreCopyObjectPart(t *testing.T) {
 	// Instantiate new minio client object.
 	c, err := NewCore(
 		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableSecurity)),
-	)
+		&Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableSecurity)),
+		})
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -684,13 +686,12 @@ func TestCorePutObject(t *testing.T) {
 	// Instantiate new minio client object.
 	c, err := NewCore(
 		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableSecurity)),
-	)
+		&Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableSecurity)),
+		})
 	if err != nil {
-		t.Error("Error:", err)
-		return
+		t.Fatal("Error:", err)
 	}
 
 	// Enable tracing, write to stderr.
@@ -775,11 +776,12 @@ func TestCoreGetObjectMetadata(t *testing.T) {
 
 	core, err := NewCore(
 		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableSecurity)))
+		&Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableSecurity)),
+		})
 	if err != nil {
-		log.Fatalln(err)
+		t.Fatal(err)
 	}
 
 	// Generate a new random bucket name.

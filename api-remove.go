@@ -122,18 +122,21 @@ type RemoveObjectError struct {
 }
 
 // generateRemoveMultiObjects - generate the XML request for remove multi objects request
-func generateRemoveMultiObjectsRequest(objects []ObjectVersion) []byte {
-	rmObjects := []deleteObject{}
+func generateRemoveMultiObjectsRequest(objects []ObjectInfo) []byte {
+	delObjects := []deleteObject{}
 	for _, obj := range objects {
-		rmObjects = append(rmObjects, deleteObject(obj))
+		delObjects = append(delObjects, deleteObject{
+			Key:       obj.Key,
+			VersionID: obj.VersionID,
+		})
 	}
-	xmlBytes, _ := xml.Marshal(deleteMultiObjects{Objects: rmObjects, Quiet: true})
+	xmlBytes, _ := xml.Marshal(deleteMultiObjects{Objects: delObjects, Quiet: true})
 	return xmlBytes
 }
 
 // processRemoveMultiObjectsResponse - parse the remove multi objects web service
 // and return the success/failure result status for each object
-func processRemoveMultiObjectsResponse(body io.Reader, objects []ObjectVersion, errorCh chan<- RemoveObjectError) {
+func processRemoveMultiObjectsResponse(body io.Reader, objects []ObjectInfo, errorCh chan<- RemoveObjectError) {
 	// Parse multi delete XML response
 	rmResult := &deleteMultiObjectsResult{}
 	err := xmlDecoder(body, rmResult)
@@ -154,16 +157,15 @@ func processRemoveMultiObjectsResponse(body io.Reader, objects []ObjectVersion, 
 	}
 }
 
-// ObjectVersion points to a specific object version
-type ObjectVersion struct {
-	Key       string
-	VersionID string
+// RemoveObjectsOptions represents options specified by user for RemoveObjects call
+type RemoveObjectsOptions struct {
+	GovernanceBypass bool
 }
 
-// RemoveObjectsWithVersions removes multiple objects from a bucket while
+// RemoveObjects removes multiple objects from a bucket while
 // it is possible to specify objects versions which are received from
 // objectsCh. Remove failures are sent back via error channel.
-func (c Client) RemoveObjectsWithVersions(ctx context.Context, bucketName string, objectsCh <-chan ObjectVersion, opts RemoveObjectsOptions) <-chan RemoveObjectError {
+func (c Client) RemoveObjects(ctx context.Context, bucketName string, objectsCh <-chan ObjectInfo, opts RemoveObjectsOptions) <-chan RemoveObjectError {
 	errorCh := make(chan RemoveObjectError, 1)
 
 	// Validate if bucket name is valid.
@@ -188,7 +190,7 @@ func (c Client) RemoveObjectsWithVersions(ctx context.Context, bucketName string
 }
 
 // Generate and call MultiDelete S3 requests based on entries received from objectsCh
-func (c Client) removeObjects(ctx context.Context, bucketName string, objectsCh <-chan ObjectVersion, errorCh chan<- RemoveObjectError, opts RemoveObjectsOptions) {
+func (c Client) removeObjects(ctx context.Context, bucketName string, objectsCh <-chan ObjectInfo, errorCh chan<- RemoveObjectError, opts RemoveObjectsOptions) {
 	maxEntries := 1000
 	finish := false
 	urlValues := make(url.Values)
@@ -203,7 +205,7 @@ func (c Client) removeObjects(ctx context.Context, bucketName string, objectsCh 
 			break
 		}
 		count := 0
-		var batch []ObjectVersion
+		var batch []ObjectInfo
 
 		// Try to gather 1000 entries
 		for object := range objectsCh {
@@ -262,27 +264,6 @@ func (c Client) removeObjects(ctx context.Context, bucketName string, objectsCh 
 
 		closeResponse(resp)
 	}
-}
-
-// RemoveObjectsOptions represents options specified by user for RemoveObjects call
-type RemoveObjectsOptions struct {
-	GovernanceBypass bool
-}
-
-// RemoveObjects removes multiple objects from a bucket.
-// The list of objects to remove are received from objectsCh.
-// Remove failures are sent back via error channel.
-func (c Client) RemoveObjects(ctx context.Context, bucketName string, objectsCh <-chan string, opts RemoveObjectsOptions) <-chan RemoveObjectError {
-	objectsVersionsCh := make(chan ObjectVersion)
-	go func() {
-		defer close(objectsVersionsCh)
-		for obj := range objectsCh {
-			objectsVersionsCh <- ObjectVersion{
-				Key: obj,
-			}
-		}
-	}()
-	return c.RemoveObjectsWithVersions(ctx, bucketName, objectsVersionsCh, opts)
 }
 
 // RemoveIncompleteUpload aborts an partially uploaded object.
