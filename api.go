@@ -96,7 +96,7 @@ type Client struct {
 type Options struct {
 	Creds        *credentials.Credentials
 	Secure       bool
-	Transport    *http.Transport
+	Transport    http.RoundTripper
 	Region       string
 	BucketLookup BucketLookupType
 
