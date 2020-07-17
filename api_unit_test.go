@@ -200,7 +200,10 @@ func TestMakeTargetURL(t *testing.T) {
 
 	for i, testCase := range testCases {
 		// Initialize a MinIO client
-		c, _ := New(testCase.addr, "foo", "bar", testCase.secure)
+		c, _ := New(testCase.addr, &Options{
+			Creds:  credentials.NewStaticV4("foo", "bar", ""),
+			Secure: testCase.secure,
+		})
 		isVirtualHost := c.isVirtualHostStyleRequest(*c.endpointURL, testCase.bucketName)
 		u, err := c.makeTargetURL(testCase.bucketName, testCase.objectName, testCase.bucketLocation, isVirtualHost, testCase.queryValues)
 		// Check the returned error

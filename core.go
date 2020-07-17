@@ -33,9 +33,9 @@ type Core struct {
 // NewCore - Returns new initialized a Core client, this CoreClient should be
 // only used under special conditions such as need to access lower primitives
 // and being able to use them to write your own wrappers.
-func NewCore(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*Core, error) {
+func NewCore(endpoint string, opts *Options) (*Core, error) {
 	var s3Client Core
-	client, err := NewV4(endpoint, accessKeyID, secretAccessKey, secure)
+	client, err := New(endpoint, opts)
 	if err != nil {
 		return nil, err
 	}

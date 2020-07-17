@@ -41,7 +41,7 @@ func mustGetSystemCertPool() *x509.CertPool {
 // DefaultTransport - this default transport is similar to
 // http.DefaultTransport but with additional param  DisableCompression
 // is set to true to avoid decompressing content with 'gzip' encoding.
-var DefaultTransport = func(secure bool) (http.RoundTripper, error) {
+var DefaultTransport = func(secure bool) (*http.Transport, error) {
 	tr := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{

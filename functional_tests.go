@@ -44,6 +44,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/minio/minio-go/v7/pkg/encrypt"
 	"github.com/minio/minio-go/v7/pkg/notification"
 	"github.com/minio/minio-go/v7/pkg/tags"
@@ -337,12 +338,11 @@ func testMakeBucketError() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client creation failed", err)
 		return
@@ -393,12 +393,11 @@ func testMetadataSizeLimit() {
 	rand.Seed(startTime.Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client creation failed", err)
 		return
@@ -473,12 +472,11 @@ func testMakeBucketRegions() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client creation failed", err)
 		return
@@ -540,12 +538,11 @@ func testPutObjectReadAt() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -639,12 +636,11 @@ func testListObjectVersions() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -759,12 +755,11 @@ func testStatObjectWithVersioning() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -873,12 +868,11 @@ func testGetObjectWithVersioning() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -1013,12 +1007,11 @@ func testCopyObjectWithVersioning() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -1151,12 +1144,11 @@ func testComposeObjectWithVersioning() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -1292,12 +1284,11 @@ func testRemoveObjectWithVersioning() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -1378,12 +1369,11 @@ func testRemoveObjectsWithVersioning() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -1421,23 +1411,21 @@ func testRemoveObjectsWithVersioning() {
 		return
 	}
 
-	objectsVersions := make(chan minio.ObjectVersion)
+	objectsVersions := make(chan minio.ObjectInfo)
 	go func() {
-		objectsVersionsInfo := c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{WithVersions: true, Recursive: true})
+		objectsVersionsInfo := c.ListObjects(context.Background(), bucketName,
+			minio.ListObjectsOptions{WithVersions: true, Recursive: true})
 		for info := range objectsVersionsInfo {
 			if info.Err != nil {
 				logError(testName, function, args, startTime, "", "Unexpected error during listing objects", err)
 				return
 			}
-			objectsVersions <- minio.ObjectVersion{
-				Key:       info.Key,
-				VersionID: info.VersionID,
-			}
+			objectsVersions <- info
 		}
 		close(objectsVersions)
 	}()
 
-	removeErrors := c.RemoveObjectsWithVersions(context.Background(), bucketName, objectsVersions, minio.RemoveObjectsOptions{})
+	removeErrors := c.RemoveObjects(context.Background(), bucketName, objectsVersions, minio.RemoveObjectsOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "DeleteObjects call failed", err)
 		return
@@ -1476,12 +1464,11 @@ func testObjectTaggingWithVersioning() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -1644,12 +1631,11 @@ func testPutObjectWithMetadata() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -1750,12 +1736,11 @@ func testPutObjectWithContentLanguage() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -1824,12 +1809,11 @@ func testPutObjectStreaming() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -1900,12 +1884,11 @@ func testGetObjectSeekEnd() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -2027,12 +2010,11 @@ func testGetObjectClosedTwice() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -2118,12 +2100,11 @@ func testRemoveObjectsContext() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -2149,17 +2130,21 @@ func testRemoveObjectsContext() {
 
 	// Multi remove of 20 objects.
 	nrObjects := 20
-	objectsCh := make(chan string)
+	objectsCh := make(chan minio.ObjectInfo)
 	go func() {
 		defer close(objectsCh)
 		for i := 0; i < nrObjects; i++ {
 			objectName := "sample" + strconv.Itoa(i) + ".txt"
-			_, err = c.PutObject(context.Background(), bucketName, objectName, r, 8, minio.PutObjectOptions{ContentType: "application/octet-stream"})
+			info, err := c.PutObject(context.Background(), bucketName, objectName, r, 8,
+				minio.PutObjectOptions{ContentType: "application/octet-stream"})
 			if err != nil {
 				logError(testName, function, args, startTime, "", "PutObject failed", err)
 				continue
 			}
-			objectsCh <- objectName
+			objectsCh <- minio.ObjectInfo{
+				Key:       info.Key,
+				VersionID: info.VersionID,
+			}
 		}
 	}()
 	// Set context to cancel in 1 nanosecond.
@@ -2213,13 +2198,11 @@ func testRemoveMultipleObjects() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
-
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -2247,19 +2230,23 @@ func testRemoveMultipleObjects() {
 	// Multi remove of 1100 objects
 	nrObjects := 200
 
-	objectsCh := make(chan string)
+	objectsCh := make(chan minio.ObjectInfo)
 
 	go func() {
 		defer close(objectsCh)
 		// Upload objects and send them to objectsCh
 		for i := 0; i < nrObjects; i++ {
 			objectName := "sample" + strconv.Itoa(i) + ".txt"
-			_, err = c.PutObject(context.Background(), bucketName, objectName, r, 8, minio.PutObjectOptions{ContentType: "application/octet-stream"})
+			info, err := c.PutObject(context.Background(), bucketName, objectName, r, 8,
+				minio.PutObjectOptions{ContentType: "application/octet-stream"})
 			if err != nil {
 				logError(testName, function, args, startTime, "", "PutObject failed", err)
 				continue
 			}
-			objectsCh <- objectName
+			objectsCh <- minio.ObjectInfo{
+				Key:       info.Key,
+				VersionID: info.VersionID,
+			}
 		}
 	}()
 
@@ -2301,12 +2288,11 @@ func testFPutObjectMultipart() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -2411,12 +2397,11 @@ func testFPutObject() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -2585,12 +2570,11 @@ func testFPutObjectContext() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -2691,12 +2675,11 @@ func testFPutObjectContextV2() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.NewV2(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV2(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -2796,13 +2779,13 @@ func testPutObjectContext() {
 		"objectName": "",
 		"opts":       "",
 	}
+
 	// Instantiate new minio client object.
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -2874,12 +2857,11 @@ func testGetObjectReadSeekFunctional() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -3044,12 +3026,11 @@ func testGetObjectReadAtFunctional() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -3224,12 +3205,11 @@ func testGetObjectReadAtWhenEOFWasReached() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -3348,12 +3328,11 @@ func testPresignedPostPolicy() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -3564,12 +3543,11 @@ func testCopyObject() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -3757,12 +3735,11 @@ func testSSECEncryptedGetObjectReadSeekFunctional() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -3940,12 +3917,11 @@ func testSSES3EncryptedGetObjectReadSeekFunctional() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -4121,12 +4097,11 @@ func testSSECEncryptedGetObjectReadAtFunctional() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -4307,12 +4282,11 @@ func testSSES3EncryptedGetObjectReadAtFunctional() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -4494,12 +4468,11 @@ func testSSECEncryptionPutGet() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -4608,12 +4581,11 @@ func testSSECEncryptionFPut() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -4735,12 +4707,11 @@ func testSSES3EncryptionPutGet() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -4847,12 +4818,11 @@ func testSSES3EncryptionFPut() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -4979,12 +4949,11 @@ func testBucketNotification() {
 	// Seed random based on current time.
 	rand.Seed(time.Now().Unix())
 
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -5074,12 +5043,11 @@ func testFunctional() {
 	// Seed random based on current time.
 	rand.Seed(time.Now().Unix())
 
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, nil, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -5700,13 +5668,11 @@ func testGetObjectModified() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object.
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
-
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -5801,12 +5767,11 @@ func testPutObjectUploadSeekedObject() {
 	}
 
 	// Instantiate new minio client object.
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -5935,12 +5900,11 @@ func testMakeBucketErrorV2() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.NewV2(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV2(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -5996,12 +5960,11 @@ func testGetObjectClosedTwiceV2() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.NewV2(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV2(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -6091,12 +6054,11 @@ func testFPutObjectV2() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.NewV2(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV2(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -6261,12 +6223,11 @@ func testMakeBucketRegionsV2() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.NewV2(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV2(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -6324,12 +6285,11 @@ func testGetObjectReadSeekFunctionalV2() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.NewV2(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV2(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -6483,12 +6443,11 @@ func testGetObjectReadAtFunctionalV2() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.NewV2(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV2(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -6648,12 +6607,11 @@ func testCopyObjectV2() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object
-	c, err := minio.NewV2(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV2(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -6876,12 +6834,11 @@ func testComposeObjectErrorCasesV2() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	c, err := minio.NewV2(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV2(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -6976,12 +6933,11 @@ func testCompose10KSourcesV2() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	c, err := minio.NewV2(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV2(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -6998,12 +6954,11 @@ func testEncryptedEmptyObject() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v4 client object creation failed", err)
 		return
@@ -7266,12 +7221,11 @@ func testUnencryptedToSSECCopyObject() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -7294,12 +7248,11 @@ func testUnencryptedToSSES3CopyObject() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -7322,12 +7275,11 @@ func testUnencryptedToUnencryptedCopyObject() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -7349,12 +7301,11 @@ func testEncryptedSSECToSSECCopyObject() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -7377,12 +7328,11 @@ func testEncryptedSSECToSSES3CopyObject() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -7405,12 +7355,11 @@ func testEncryptedSSECToUnencryptedCopyObject() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -7433,12 +7382,11 @@ func testEncryptedSSES3ToSSECCopyObject() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -7461,12 +7409,11 @@ func testEncryptedSSES3ToSSES3CopyObject() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -7489,12 +7436,11 @@ func testEncryptedSSES3ToUnencryptedCopyObject() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -7517,12 +7463,11 @@ func testEncryptedCopyObjectV2() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	c, err := minio.NewV2(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV2(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -7544,12 +7489,11 @@ func testDecryptedCopyObject() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -7602,12 +7546,11 @@ func testSSECMultipartEncryptedToSSECCopyObjectPart() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	client, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	client, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v4 client object creation failed", err)
 		return
@@ -7774,12 +7717,11 @@ func testSSECEncryptedToSSECCopyObjectPart() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	client, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	client, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v4 client object creation failed", err)
 		return
@@ -7934,12 +7876,11 @@ func testSSECEncryptedToUnencryptedCopyPart() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	client, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	client, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v4 client object creation failed", err)
 		return
@@ -8093,12 +8034,11 @@ func testSSECEncryptedToSSES3CopyObjectPart() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	client, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	client, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v4 client object creation failed", err)
 		return
@@ -8255,12 +8195,11 @@ func testUnencryptedToSSECCopyObjectPart() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	client, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	client, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v4 client object creation failed", err)
 		return
@@ -8412,12 +8351,11 @@ func testUnencryptedToUnencryptedCopyPart() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	client, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	client, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v4 client object creation failed", err)
 		return
@@ -8565,12 +8503,11 @@ func testUnencryptedToSSES3CopyObjectPart() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	client, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	client, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v4 client object creation failed", err)
 		return
@@ -8720,12 +8657,11 @@ func testSSES3EncryptedToSSECCopyObjectPart() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	client, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	client, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v4 client object creation failed", err)
 		return
@@ -8878,12 +8814,11 @@ func testSSES3EncryptedToUnencryptedCopyPart() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	client, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	client, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v4 client object creation failed", err)
 		return
@@ -9032,12 +8967,11 @@ func testSSES3EncryptedToSSES3CopyObjectPart() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	client, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	client, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v4 client object creation failed", err)
 		return
@@ -9187,12 +9121,11 @@ func testUserMetadataCopying() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -9368,12 +9301,11 @@ func testUserMetadataCopyingV2() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	c, err := minio.NewV2(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV2(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client v2 object creation failed", err)
 		return
@@ -9391,12 +9323,11 @@ func testStorageClassMetadataPutObject() {
 	testName := getFuncName()
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v4 client object creation failed", err)
 		return
@@ -9481,12 +9412,11 @@ func testStorageClassInvalidMetadataPutObject() {
 	testName := getFuncName()
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v4 client object creation failed", err)
 		return
@@ -9526,12 +9456,11 @@ func testStorageClassMetadataCopyObject() {
 	testName := getFuncName()
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v4 client object creation failed", err)
 		return
@@ -9656,12 +9585,11 @@ func testPutObjectNoLengthV2() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.NewV2(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV2(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client v2 object creation failed", err)
 		return
@@ -9736,12 +9664,11 @@ func testPutObjectsUnknownV2() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.NewV2(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV2(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client v2 object creation failed", err)
 		return
@@ -9831,12 +9758,11 @@ func testPutObject0ByteV2() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.NewV2(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV2(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client v2 object creation failed", err)
 		return
@@ -9897,12 +9823,11 @@ func testComposeObjectErrorCases() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -9920,12 +9845,11 @@ func testCompose10KSources() {
 	args := map[string]interface{}{}
 
 	// Instantiate new minio client object
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -9946,12 +9870,11 @@ func testFunctionalV2() {
 	// Seed random based on current time.
 	rand.Seed(time.Now().Unix())
 
-	c, err := minio.NewV2(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV2(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client v2 object creation failed", err)
 		return
@@ -10394,12 +10317,11 @@ func testGetObjectContext() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client v4 object creation failed", err)
 		return
@@ -10502,12 +10424,11 @@ func testFGetObjectContext() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client v4 object creation failed", err)
 		return
@@ -10599,12 +10520,11 @@ func testGetObjectACLContext() {
 	}
 
 	// Instantiate new minio client object.
-	c, err := minio.NewV4(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client v4 object creation failed", err)
 		return
@@ -10762,12 +10682,11 @@ func testPutObjectContextV2() {
 		"opts":       "",
 	}
 	// Instantiate new minio client object.
-	c, err := minio.NewV2(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV2(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client v2 object creation failed", err)
 		return
@@ -10844,12 +10763,11 @@ func testGetObjectContextV2() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.NewV2(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV2(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client v2 object creation failed", err)
 		return
@@ -10950,12 +10868,11 @@ func testFGetObjectContextV2() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.NewV2(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV2(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client v2 object creation failed", err)
 		return
@@ -11043,12 +10960,11 @@ func testListObjects() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client v4 object creation failed", err)
 		return
@@ -11145,12 +11061,11 @@ func testRemoveObjects() {
 	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
-	c, err := minio.New(
-		os.Getenv(serverEndpoint),
-		os.Getenv(accessKey),
-		os.Getenv(secretKey),
-		mustParseBool(os.Getenv(enableHTTPS)),
-	)
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client v4 object creation failed", err)
 		return
@@ -11197,7 +11112,7 @@ func testRemoveObjects() {
 		log.Fatalln(err)
 	}
 
-	objectsCh := make(chan string)
+	objectsCh := make(chan minio.ObjectInfo)
 	// Send object names that are needed to be removed to objectsCh
 	go func() {
 		defer close(objectsCh)
@@ -11206,7 +11121,7 @@ func testRemoveObjects() {
 			if object.Err != nil {
 				log.Fatalln(object.Err)
 			}
-			objectsCh <- object.Key
+			objectsCh <- object
 		}
 	}()
 
@@ -11219,7 +11134,7 @@ func testRemoveObjects() {
 		}
 	}
 
-	objectsCh1 := make(chan string)
+	objectsCh1 := make(chan minio.ObjectInfo)
 
 	// Send object names that are needed to be removed to objectsCh
 	go func() {
@@ -11229,7 +11144,7 @@ func testRemoveObjects() {
 			if object.Err != nil {
 				log.Fatalln(object.Err)
 			}
-			objectsCh1 <- object.Key
+			objectsCh1 <- object
 		}
 	}()
 
