@@ -78,7 +78,7 @@ func TestGetBucketLocationRequest(t *testing.T) {
 		targetURL.RawQuery = urlValues.Encode()
 
 		// Get a new HTTP request for the method.
-		req, err := http.NewRequest("GET", targetURL.String(), nil)
+		req, err := http.NewRequest(http.MethodGet, targetURL.String(), nil)
 		if err != nil {
 			return nil, err
 		}

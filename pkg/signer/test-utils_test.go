@@ -43,7 +43,7 @@ import (
 //
 // The Request.Proto is always HTTP/1.1.
 //
-// An empty method means "GET".
+// An empty method means http.MethodGet.
 //
 // The provided body may be nil. If the body is of type *bytes.Reader,
 // *strings.Reader, or *bytes.Buffer, the Request.ContentLength is
@@ -53,7 +53,7 @@ import (
 // panic is acceptable.
 func NewRequest(method, target string, body io.Reader) *http.Request {
 	if method == "" {
-		method = "GET"
+		method = http.MethodGet
 	}
 	req, err := http.ReadRequest(bufio.NewReader(strings.NewReader(method + " " + target + " HTTP/1.0\r\n\r\n")))
 	if err != nil {

@@ -679,7 +679,7 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 func (c Client) newRequest(ctx context.Context, method string, metadata requestMetadata) (req *http.Request, err error) {
 	// If no method is supplied default to 'POST'.
 	if method == "" {
-		method = "POST"
+		method = http.MethodPost
 	}
 
 	location := metadata.bucketLocation
@@ -699,7 +699,7 @@ func (c Client) newRequest(ctx context.Context, method string, metadata requestM
 	// Look if target url supports virtual host.
 	// We explicitly disallow MakeBucket calls to not use virtual DNS style,
 	// since the resolution may fail.
-	isMakeBucket := (metadata.objectName == "" && method == "PUT" && len(metadata.queryValues) == 0)
+	isMakeBucket := (metadata.objectName == "" && method == http.MethodPut && len(metadata.queryValues) == 0)
 	isVirtualHost := c.isVirtualHostStyleRequest(*c.endpointURL, metadata.bucketName) && !isMakeBucket
 
 	// Construct a new target URL.
@@ -793,7 +793,7 @@ func (c Client) newRequest(ctx context.Context, method string, metadata requestM
 	case signerType.IsV2():
 		// Add signature version '2' authorization header.
 		req = signer.SignV2(*req, accessKeyID, secretAccessKey, isVirtualHost)
-	case metadata.objectName != "" && metadata.queryValues == nil && method == "PUT" && metadata.customHeader.Get("X-Amz-Copy-Source") == "" && !c.secure:
+	case metadata.objectName != "" && metadata.queryValues == nil && method == http.MethodPut && metadata.customHeader.Get("X-Amz-Copy-Source") == "" && !c.secure:
 		// Streaming signature is used by default for a PUT object request. Additionally we also
 		// look if the initialized client is secure, if yes then we don't need to perform
 		// streaming signature.

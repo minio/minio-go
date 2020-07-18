@@ -190,7 +190,7 @@ func getIAMRoleURL(endpoint string) (*url.URL, error) {
 // or there is an error making or receiving the request.
 // http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html
 func listRoleNames(client *http.Client, u *url.URL) ([]string, error) {
-	req, err := http.NewRequest("GET", u.String(), nil)
+	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +217,7 @@ func listRoleNames(client *http.Client, u *url.URL) ([]string, error) {
 }
 
 func getEcsTaskCredentials(client *http.Client, endpoint string) (ec2RoleCredRespBody, error) {
-	req, err := http.NewRequest("GET", endpoint, nil)
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return ec2RoleCredRespBody{}, err
 	}
@@ -273,7 +273,7 @@ func getCredentials(client *http.Client, endpoint string) (ec2RoleCredRespBody, 
 	//    $ curl http://169.254.169.254/latest/meta-data/iam/security-credentials/s3access
 	//
 	u.Path = path.Join(u.Path, roleName)
-	req, err := http.NewRequest("GET", u.String(), nil)
+	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
 		return ec2RoleCredRespBody{}, err
 	}

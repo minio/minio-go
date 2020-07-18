@@ -121,7 +121,7 @@ func (c Client) PutObjectLegalHold(ctx context.Context, bucketName, objectName s
 	}
 
 	// Execute PUT Object Legal Hold.
-	resp, err := c.executeMethod(ctx, "PUT", reqMetadata)
+	resp, err := c.executeMethod(ctx, http.MethodPut, reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
 		return err
@@ -152,7 +152,7 @@ func (c Client) GetObjectLegalHold(ctx context.Context, bucketName, objectName s
 	}
 
 	// Execute GET on bucket to list objects.
-	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
 		bucketName:       bucketName,
 		objectName:       objectName,
 		queryValues:      urlValues,

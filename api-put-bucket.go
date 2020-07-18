@@ -87,7 +87,7 @@ func (c Client) doMakeBucket(ctx context.Context, bucketName string, location st
 	}
 
 	// Execute PUT to create a new bucket.
-	resp, err := c.executeMethod(ctx, "PUT", reqMetadata)
+	resp, err := c.executeMethod(ctx, http.MethodPut, reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
 		return err

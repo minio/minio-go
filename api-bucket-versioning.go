@@ -53,7 +53,7 @@ func (c Client) SetBucketVersioning(ctx context.Context, bucketName string, conf
 	}
 
 	// Execute PUT to set a bucket versioning.
-	resp, err := c.executeMethod(ctx, "PUT", reqMetadata)
+	resp, err := c.executeMethod(ctx, http.MethodPut, reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
 		return err

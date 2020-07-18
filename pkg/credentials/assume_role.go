@@ -170,7 +170,7 @@ func getAssumeRoleCredentials(clnt *http.Client, endpoint string, opts STSAssume
 	}
 	postBody.Seek(0, 0)
 
-	req, err := http.NewRequest("POST", u.String(), postBody)
+	req, err := http.NewRequest(http.MethodPost, u.String(), postBody)
 	if err != nil {
 		return AssumeRoleResponse{}, err
 	}

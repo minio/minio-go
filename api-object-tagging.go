@@ -66,7 +66,7 @@ func (c Client) PutObjectTagging(ctx context.Context, bucketName, objectName str
 	}
 
 	// Execute PUT to set a object tagging.
-	resp, err := c.executeMethod(ctx, "PUT", reqMetadata)
+	resp, err := c.executeMethod(ctx, http.MethodPut, reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
 		return err
@@ -98,7 +98,7 @@ func (c Client) GetObjectTagging(ctx context.Context, bucketName, objectName str
 	}
 
 	// Execute GET on object to get object tag(s)
-	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
 		bucketName:  bucketName,
 		objectName:  objectName,
 		queryValues: urlValues,
@@ -136,7 +136,7 @@ func (c Client) RemoveObjectTagging(ctx context.Context, bucketName, objectName 
 	}
 
 	// Execute DELETE on object to remove object tag(s)
-	resp, err := c.executeMethod(ctx, "DELETE", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodDelete, requestMetadata{
 		bucketName:  bucketName,
 		objectName:  objectName,
 		queryValues: urlValues,

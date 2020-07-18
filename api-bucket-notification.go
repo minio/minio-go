@@ -59,7 +59,7 @@ func (c Client) SetBucketNotification(ctx context.Context, bucketName string, co
 	}
 
 	// Execute PUT to upload a new bucket notification.
-	resp, err := c.executeMethod(ctx, "PUT", reqMetadata)
+	resp, err := c.executeMethod(ctx, http.MethodPut, reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
 		return err
@@ -92,7 +92,7 @@ func (c Client) getBucketNotification(ctx context.Context, bucketName string) (n
 	urlValues.Set("notification", "")
 
 	// Execute GET on bucket to list objects.
-	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
 		bucketName:       bucketName,
 		queryValues:      urlValues,
 		contentSHA256Hex: emptySHA256Hex,

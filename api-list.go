@@ -38,7 +38,7 @@ import (
 //
 func (c Client) ListBuckets(ctx context.Context) ([]BucketInfo, error) {
 	// Execute GET on service.
-	resp, err := c.executeMethod(ctx, "GET", requestMetadata{contentSHA256Hex: emptySHA256Hex})
+	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{contentSHA256Hex: emptySHA256Hex})
 	defer closeResponse(resp)
 	if err != nil {
 		return nil, err
@@ -198,7 +198,7 @@ func (c Client) listObjectsV2Query(ctx context.Context, bucketName, objectPrefix
 	}
 
 	// Execute GET on bucket to list objects.
-	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
 		bucketName:       bucketName,
 		queryValues:      urlValues,
 		contentSHA256Hex: emptySHA256Hex,
@@ -479,7 +479,7 @@ func (c Client) listObjectVersionsQuery(ctx context.Context, bucketName, prefix,
 	urlValues.Set("encoding-type", "url")
 
 	// Execute GET on bucket to list objects.
-	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
 		bucketName:       bucketName,
 		queryValues:      urlValues,
 		contentSHA256Hex: emptySHA256Hex,
@@ -567,7 +567,7 @@ func (c Client) listObjectsQuery(ctx context.Context, bucketName, objectPrefix, 
 	urlValues.Set("encoding-type", "url")
 
 	// Execute GET on bucket to list objects.
-	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
 		bucketName:       bucketName,
 		queryValues:      urlValues,
 		contentSHA256Hex: emptySHA256Hex,
@@ -795,7 +795,7 @@ func (c Client) listMultipartUploadsQuery(ctx context.Context, bucketName, keyMa
 	}
 
 	// Execute GET on bucketName to list multipart uploads.
-	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
 		bucketName:       bucketName,
 		queryValues:      urlValues,
 		contentSHA256Hex: emptySHA256Hex,
@@ -915,7 +915,7 @@ func (c Client) listObjectPartsQuery(ctx context.Context, bucketName, objectName
 	}
 
 	// Execute GET on objectName to get list of parts.
-	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
 		bucketName:       bucketName,
 		objectName:       objectName,
 		queryValues:      urlValues,
