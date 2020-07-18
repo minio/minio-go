@@ -148,6 +148,7 @@ The full API Reference is available here.
 * [`GetBucketNotification`](https://docs.min.io/docs/golang-client-api-reference#GetBucketNotification)
 * [`RemoveAllBucketNotification`](https://docs.min.io/docs/golang-client-api-reference#RemoveAllBucketNotification)
 * [`ListenBucketNotification`](https://docs.min.io/docs/golang-client-api-reference#ListenBucketNotification) (MinIO Extension)
+* [`ListenNotification`](https://docs.min.io/docs/golang-client-api-reference#ListenNotification) (MinIO Extension)
 
 ### API Reference : File Object Operations
 * [`FPutObject`](https://docs.min.io/docs/golang-client-api-reference#FPutObject)
@@ -212,6 +213,7 @@ The full API Reference is available here.
 * [getbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/s3/getbucketnotification.go)
 * [removeallbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/s3/removeallbucketnotification.go)
 * [listenbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/minio/listenbucketnotification.go) (MinIO Extension)
+* [listennotification.go](https://github.com/minio/minio-go/blob/master/examples/minio/listen-notification.go) (MinIO Extension)
 
 ### Full Examples : File Object Operations
 * [fputobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/fputobject.go)
