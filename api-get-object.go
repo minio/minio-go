@@ -619,7 +619,7 @@ func (c Client) getObject(ctx context.Context, bucketName, objectName string, op
 	}
 
 	// Execute GET on objectName.
-	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
 		bucketName:       bucketName,
 		objectName:       objectName,
 		queryValues:      urlValues,

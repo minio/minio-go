@@ -127,7 +127,7 @@ func (c Client) getBucketReplication(ctx context.Context, bucketName string) (cf
 	urlValues.Set("replication", "")
 
 	// Execute GET on bucket to get replication config.
-	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
 		bucketName:  bucketName,
 		queryValues: urlValues,
 	})

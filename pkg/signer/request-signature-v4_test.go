@@ -38,7 +38,7 @@ func TestRequestHost(t *testing.T) {
 func buildRequest(serviceName, region, body string) (*http.Request, io.ReadSeeker) {
 	endpoint := "https://" + serviceName + "." + region + ".amazonaws.com"
 	reader := strings.NewReader(body)
-	req, _ := http.NewRequest("POST", endpoint, reader)
+	req, _ := http.NewRequest(http.MethodPost, endpoint, reader)
 	req.URL.Opaque = "//example.org/bucket/key-._~,!@#$%^&*()"
 	req.Header.Add("X-Amz-Target", "prefix.Operation")
 	req.Header.Add("Content-Type", "application/x-amz-json-1.0")

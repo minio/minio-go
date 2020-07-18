@@ -208,7 +208,7 @@ func (c Client) initiateMultipartUpload(ctx context.Context, bucketName, objectN
 	}
 
 	// Execute POST on an objectName to initiate multipart upload.
-	resp, err := c.executeMethod(ctx, "POST", reqMetadata)
+	resp, err := c.executeMethod(ctx, http.MethodPost, reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
 		return initiateMultipartUploadResult{}, err
@@ -279,7 +279,7 @@ func (c Client) uploadPart(ctx context.Context, bucketName, objectName, uploadID
 	}
 
 	// Execute PUT on each part.
-	resp, err := c.executeMethod(ctx, "PUT", reqMetadata)
+	resp, err := c.executeMethod(ctx, http.MethodPut, reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
 		return ObjectPart{}, err
@@ -330,7 +330,7 @@ func (c Client) completeMultipartUpload(ctx context.Context, bucketName, objectN
 	}
 
 	// Execute POST to complete multipart upload for an objectName.
-	resp, err := c.executeMethod(ctx, "POST", reqMetadata)
+	resp, err := c.executeMethod(ctx, http.MethodPost, reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
 		return UploadInfo{}, err

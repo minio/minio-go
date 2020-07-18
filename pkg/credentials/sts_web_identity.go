@@ -133,7 +133,7 @@ func getWebIdentityCredentials(clnt *http.Client, endpoint, roleARN, roleSession
 
 	u.RawQuery = v.Encode()
 
-	req, err := http.NewRequest("POST", u.String(), nil)
+	req, err := http.NewRequest(http.MethodPost, u.String(), nil)
 	if err != nil {
 		return AssumeRoleWithWebIdentityResponse{}, err
 	}

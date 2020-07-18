@@ -38,7 +38,7 @@ func (c Client) RemoveBucket(ctx context.Context, bucketName string) error {
 		return err
 	}
 	// Execute DELETE on bucket.
-	resp, err := c.executeMethod(ctx, "DELETE", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodDelete, requestMetadata{
 		bucketName:       bucketName,
 		contentSHA256Hex: emptySHA256Hex,
 	})
@@ -90,7 +90,7 @@ func (c Client) RemoveObject(ctx context.Context, bucketName, objectName string,
 		headers.Set(amzBypassGovernance, "true")
 	}
 	// Execute DELETE on objectName.
-	resp, err := c.executeMethod(ctx, "DELETE", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodDelete, requestMetadata{
 		bucketName:       bucketName,
 		objectName:       objectName,
 		contentSHA256Hex: emptySHA256Hex,
@@ -308,7 +308,7 @@ func (c Client) abortMultipartUpload(ctx context.Context, bucketName, objectName
 	urlValues.Set("uploadId", uploadID)
 
 	// Execute DELETE on multipart upload.
-	resp, err := c.executeMethod(ctx, "DELETE", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodDelete, requestMetadata{
 		bucketName:       bucketName,
 		objectName:       objectName,
 		queryValues:      urlValues,

@@ -37,7 +37,7 @@ func (c Client) SetBucketLifecycle(ctx context.Context, bucketName string, confi
 	}
 
 	// If lifecycle is empty then delete it.
-	if config == nil {
+	if config.Empty() {
 		return c.removeBucketLifecycle(ctx, bucketName)
 	}
 
@@ -67,7 +67,7 @@ func (c Client) putBucketLifecycle(ctx context.Context, bucketName string, buf [
 	}
 
 	// Execute PUT to upload a new bucket lifecycle.
-	resp, err := c.executeMethod(ctx, "PUT", reqMetadata)
+	resp, err := c.executeMethod(ctx, http.MethodPut, reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
 		return err
@@ -88,7 +88,7 @@ func (c Client) removeBucketLifecycle(ctx context.Context, bucketName string) er
 	urlValues.Set("lifecycle", "")
 
 	// Execute DELETE on objectName.
-	resp, err := c.executeMethod(ctx, "DELETE", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodDelete, requestMetadata{
 		bucketName:       bucketName,
 		queryValues:      urlValues,
 		contentSHA256Hex: emptySHA256Hex,
@@ -127,7 +127,7 @@ func (c Client) getBucketLifecycle(ctx context.Context, bucketName string) ([]by
 	urlValues.Set("lifecycle", "")
 
 	// Execute GET on bucket to get lifecycle.
-	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
 		bucketName:  bucketName,
 		queryValues: urlValues,
 	})

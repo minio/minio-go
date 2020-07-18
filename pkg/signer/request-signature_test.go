@@ -25,7 +25,7 @@ import (
 
 // Tests signature calculation.
 func TestSignatureCalculationV4(t *testing.T) {
-	req, err := http.NewRequest("GET", "https://s3.amazonaws.com", nil)
+	req, err := http.NewRequest(http.MethodGet, "https://s3.amazonaws.com", nil)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -61,7 +61,7 @@ func TestSignatureCalculationV2(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		req, err := http.NewRequest("GET", testCase.endpointURL, nil)
+		req, err := http.NewRequest(http.MethodGet, testCase.endpointURL, nil)
 		if err != nil {
 			t.Fatalf("Test %d, Error: %v", i+1, err)
 		}

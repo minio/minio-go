@@ -20,6 +20,7 @@ package signer
 import (
 	"bytes"
 	"io/ioutil"
+	"net/http"
 	"testing"
 	"time"
 )
@@ -31,7 +32,7 @@ func TestGetSeedSignature(t *testing.T) {
 	data := bytes.Repeat([]byte("a"), dataLen)
 	body := ioutil.NopCloser(bytes.NewReader(data))
 
-	req := NewRequest("PUT", "/examplebucket/chunkObject.txt", body)
+	req := NewRequest(http.MethodPut, "/examplebucket/chunkObject.txt", body)
 	req.Header.Set("x-amz-storage-class", "REDUCED_REDUNDANCY")
 	req.Host = "s3.amazonaws.com"
 
@@ -67,7 +68,7 @@ func TestSetStreamingAuthorization(t *testing.T) {
 	secretAccessKeyID := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 	accessKeyID := "AKIAIOSFODNN7EXAMPLE"
 
-	req := NewRequest("PUT", "/examplebucket/chunkObject.txt", nil)
+	req := NewRequest(http.MethodPut, "/examplebucket/chunkObject.txt", nil)
 	req.Header.Set("x-amz-storage-class", "REDUCED_REDUNDANCY")
 	req.Host = ""
 	req.URL.Host = "s3.amazonaws.com"
@@ -91,7 +92,7 @@ func TestStreamingReader(t *testing.T) {
 	accessKeyID := "AKIAIOSFODNN7EXAMPLE"
 	dataLen := int64(65 * 1024)
 
-	req := NewRequest("PUT", "/examplebucket/chunkObject.txt", nil)
+	req := NewRequest(http.MethodPut, "/examplebucket/chunkObject.txt", nil)
 	req.Header.Set("x-amz-storage-class", "REDUCED_REDUNDANCY")
 	req.ContentLength = 65 * 1024
 	req.Host = ""

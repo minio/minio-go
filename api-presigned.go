@@ -69,7 +69,7 @@ func (c Client) PresignedGetObject(ctx context.Context, bucketName string, objec
 	if err = s3utils.CheckValidObjectName(objectName); err != nil {
 		return nil, err
 	}
-	return c.presignURL(ctx, "GET", bucketName, objectName, expires, reqParams)
+	return c.presignURL(ctx, http.MethodGet, bucketName, objectName, expires, reqParams)
 }
 
 // PresignedHeadObject - Returns a presigned URL to access
@@ -80,7 +80,7 @@ func (c Client) PresignedHeadObject(ctx context.Context, bucketName string, obje
 	if err = s3utils.CheckValidObjectName(objectName); err != nil {
 		return nil, err
 	}
-	return c.presignURL(ctx, "HEAD", bucketName, objectName, expires, reqParams)
+	return c.presignURL(ctx, http.MethodHead, bucketName, objectName, expires, reqParams)
 }
 
 // PresignedPutObject - Returns a presigned URL to upload an object
@@ -90,7 +90,7 @@ func (c Client) PresignedPutObject(ctx context.Context, bucketName string, objec
 	if err = s3utils.CheckValidObjectName(objectName); err != nil {
 		return nil, err
 	}
-	return c.presignURL(ctx, "PUT", bucketName, objectName, expires, nil)
+	return c.presignURL(ctx, http.MethodPut, bucketName, objectName, expires, nil)
 }
 
 // Presign - returns a presigned URL for any http method of your choice

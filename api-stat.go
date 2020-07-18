@@ -34,7 +34,7 @@ func (c Client) BucketExists(ctx context.Context, bucketName string) (bool, erro
 	}
 
 	// Execute HEAD on bucketName.
-	resp, err := c.executeMethod(ctx, "HEAD", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodHead, requestMetadata{
 		bucketName:       bucketName,
 		contentSHA256Hex: emptySHA256Hex,
 	})
@@ -85,7 +85,7 @@ func (c Client) statObject(ctx context.Context, bucketName, objectName string, o
 	}
 
 	// Execute HEAD on objectName.
-	resp, err := c.executeMethod(ctx, "HEAD", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodHead, requestMetadata{
 		bucketName:       bucketName,
 		objectName:       objectName,
 		queryValues:      urlValues,

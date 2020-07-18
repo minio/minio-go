@@ -198,7 +198,7 @@ func (c Client) getBucketLocationRequest(bucketName string) (*http.Request, erro
 	}
 
 	// Get a new HTTP request for the method.
-	req, err := http.NewRequest("GET", urlStr, nil)
+	req, err := http.NewRequest(http.MethodGet, urlStr, nil)
 	if err != nil {
 		return nil, err
 	}

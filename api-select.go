@@ -450,7 +450,7 @@ func (c Client) SelectObjectContent(ctx context.Context, bucketName, objectName 
 	urlValues.Set("select-type", "2")
 
 	// Execute POST on bucket/object.
-	resp, err := c.executeMethod(ctx, "POST", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodPost, requestMetadata{
 		bucketName:       bucketName,
 		objectName:       objectName,
 		queryValues:      urlValues,

@@ -443,7 +443,7 @@ func (c Client) putObjectDo(ctx context.Context, bucketName, objectName string, 
 		reqMetadata.queryValues = urlValues
 	}
 	// Execute PUT an objectName.
-	resp, err := c.executeMethod(ctx, "PUT", reqMetadata)
+	resp, err := c.executeMethod(ctx, http.MethodPut, reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
 		return UploadInfo{}, err

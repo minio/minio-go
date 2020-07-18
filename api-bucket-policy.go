@@ -57,7 +57,7 @@ func (c Client) putBucketPolicy(ctx context.Context, bucketName, policy string) 
 	}
 
 	// Execute PUT to upload a new bucket policy.
-	resp, err := c.executeMethod(ctx, "PUT", reqMetadata)
+	resp, err := c.executeMethod(ctx, http.MethodPut, reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
 		return err
@@ -78,7 +78,7 @@ func (c Client) removeBucketPolicy(ctx context.Context, bucketName string) error
 	urlValues.Set("policy", "")
 
 	// Execute DELETE on objectName.
-	resp, err := c.executeMethod(ctx, "DELETE", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodDelete, requestMetadata{
 		bucketName:       bucketName,
 		queryValues:      urlValues,
 		contentSHA256Hex: emptySHA256Hex,
@@ -115,7 +115,7 @@ func (c Client) getBucketPolicy(ctx context.Context, bucketName string) (string,
 	urlValues.Set("policy", "")
 
 	// Execute GET on bucket to list objects.
-	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
 		bucketName:       bucketName,
 		queryValues:      urlValues,
 		contentSHA256Hex: emptySHA256Hex,

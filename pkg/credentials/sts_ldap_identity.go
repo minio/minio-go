@@ -85,7 +85,7 @@ func (k *LDAPIdentity) Retrieve() (value Value, err error) {
 
 	u.RawQuery = v.Encode()
 
-	req, kerr := http.NewRequest("POST", u.String(), nil)
+	req, kerr := http.NewRequest(http.MethodPost, u.String(), nil)
 	if kerr != nil {
 		err = kerr
 		return

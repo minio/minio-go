@@ -266,6 +266,14 @@ type Configuration struct {
 	Rules   []Rule   `xml:"Rule"`
 }
 
+// Empty check if lifecycle configuration is empty
+func (c *Configuration) Empty() bool {
+	if c == nil {
+		return true
+	}
+	return len(c.Rules) == 0
+}
+
 // NewConfiguration initializes a fresh lifecycle configuration
 // for manipulation, such as setting and removing lifecycle rules
 // and filters.

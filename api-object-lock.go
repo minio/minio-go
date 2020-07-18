@@ -170,7 +170,7 @@ func (c Client) SetBucketObjectLockConfig(ctx context.Context, bucketName string
 	}
 
 	// Execute PUT bucket object lock configuration.
-	resp, err := c.executeMethod(ctx, "PUT", reqMetadata)
+	resp, err := c.executeMethod(ctx, http.MethodPut, reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
 		return err
@@ -194,7 +194,7 @@ func (c Client) GetObjectLockConfig(ctx context.Context, bucketName string) (obj
 	urlValues.Set("object-lock", "")
 
 	// Execute GET on bucket to list objects.
-	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
 		bucketName:       bucketName,
 		queryValues:      urlValues,
 		contentSHA256Hex: emptySHA256Hex,

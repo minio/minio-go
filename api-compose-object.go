@@ -215,7 +215,7 @@ func (c Client) copyObjectDo(ctx context.Context, srcBucket, srcObject, destBuck
 	headers.Set("x-amz-copy-source", s3utils.EncodePath(srcBucket+"/"+srcObject))
 
 	// Send upload-part-copy request
-	resp, err := c.executeMethod(ctx, "PUT", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodPut, requestMetadata{
 		bucketName:   destBucket,
 		objectName:   destObject,
 		customHeader: headers,
@@ -268,7 +268,7 @@ func (c Client) copyObjectPartDo(ctx context.Context, srcBucket, srcObject, dest
 	queryValues.Set("partNumber", strconv.Itoa(partID))
 	queryValues.Set("uploadId", uploadID)
 
-	resp, err := c.executeMethod(ctx, "PUT", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodPut, requestMetadata{
 		bucketName:   destBucket,
 		objectName:   destObject,
 		customHeader: headers,
@@ -306,7 +306,7 @@ func (c Client) uploadPartCopy(ctx context.Context, bucket, object, uploadID str
 	urlValues.Set("uploadId", uploadID)
 
 	// Send upload-part-copy request
-	resp, err := c.executeMethod(ctx, "PUT", requestMetadata{
+	resp, err := c.executeMethod(ctx, http.MethodPut, requestMetadata{
 		bucketName:   bucket,
 		objectName:   object,
 		customHeader: headers,
