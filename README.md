@@ -17,9 +17,7 @@ MinIO client requires the following four parameters specified to connect to an A
 | Parameter  | Description|
 | :---         |     :---     |
 | endpoint   | URL to object storage service.   |
-| accessKeyID | Access key is the user ID that uniquely identifies your account. |
-| secretAccessKey | Secret key is the password to your account. |
-| secure | Set this value to 'true' to enable secure (HTTPS) access. |
+| _minio.Options_ | All the options such as credentials, custom transport etc. |
 
 
 ```go

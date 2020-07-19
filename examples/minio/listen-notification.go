@@ -24,6 +24,7 @@ import (
 	"log"
 
 	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 func main() {
@@ -35,7 +36,10 @@ func main() {
 
 	// New returns an Amazon S3 compatible client object. API compatibility (v2 or v4) is automatically
 	// determined based on the Endpoint value.
-	minioClient, err := minio.New("play.min.io", "YOUR-ACCESS", "YOUR-SECRET", true)
+	minioClient, err := minio.New("play.min.io", &minio.Options{
+		Creds:  credentials.NewStaticV4("YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", ""),
+		Secure: true,
+	})
 	if err != nil {
 		log.Fatalln(err)
 	}

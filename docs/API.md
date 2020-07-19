@@ -8,21 +8,28 @@
 package main
 
 import (
-    "fmt"
+	"log"
 
-    "github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 func main() {
-        // Use a secure connection.
-        ssl := true
+	endpoint := "play.min.io"
+	accessKeyID := "Q3AM3UQ867SPQQA43P2F"
+	secretAccessKey := "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG"
+	useSSL := true
 
-        // Initialize minio client object.
-        minioClient, err := minio.New("play.min.io", "Q3AM3UQ867SPQQA43P2F", "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG", ssl)
-        if err != nil {
-                fmt.Println(err)
-                return
-        }
+	// Initialize minio client object.
+	minioClient, err := minio.New(endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
+		Secure: useSSL,
+	})
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	log.Printf("%#v\n", minioClient) // minioClient is now setup
 }
 ```
 
@@ -35,14 +42,15 @@ import (
     "fmt"
 
     "github.com/minio/minio-go/v7"
+    "github.com/minio/minio-go/v7/credentials"
 )
 
 func main() {
-        // Use a secure connection.
-        ssl := true
-
         // Initialize minio client object.
-        s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", ssl)
+        s3Client, err := minio.New("s3.amazonaws.com", &minio.Options{
+   	        Creds:  credentials.NewStaticV4("YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", ""),
+	        Secure: true,
+        })
         if err != nil {
                 fmt.Println(err)
                 return
@@ -1010,10 +1018,10 @@ __Return Values__
 
 ```go
 	// Initialize minio client object.
-	minioClient, err := minio.New(endpoint, accessKeyID, secretAccessKey, useSSL)
-	if err != nil {
-		log.Fatalln(err)
-	}
+	minioClient, err := minio.New(endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
+		Secure: useSSL,
+	})
 
 	opts := minio.SelectObjectOptions{
 		Expression:     "select count(*) from s3object",
@@ -1634,7 +1642,10 @@ __Return Values__
 __Example__
 
 ```go
-s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", true)
+s3Client, err := minio.New("s3.amazonaws.com", &minio.Options{
+	Creds:  credentials.NewStaticV4("YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", ""),
+	Secure: true,
+})
 if err != nil {
     log.Fatalln(err)
 }
@@ -1669,7 +1680,10 @@ __Return Values__
 __Example__
 
 ```go
-s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", true)
+s3Client, err := minio.New("s3.amazonaws.com", &minio.Options{
+	Creds:  credentials.NewStaticV4("YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", ""),
+	Secure: true,
+})
 if err != nil {
     log.Fatalln(err)
 }
@@ -1866,7 +1880,10 @@ __Return Values__
 __Example__
 
 ```go
-s3Client, err := minio.New("s3.amazonaws.com", "YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", true)
+s3Client, err := minio.New("s3.amazonaws.com", &minio.Options{
+	Creds:  credentials.NewStaticV4("YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", ""),
+	Secure: true,
+})
 if err != nil {
     log.Fatalln(err)
 }
