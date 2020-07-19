@@ -61,7 +61,6 @@ const (
 	accessKey      = "ACCESS_KEY"
 	secretKey      = "SECRET_KEY"
 	enableHTTPS    = "ENABLE_HTTPS"
-	enableKMS      = "ENABLE_KMS"
 )
 
 type mintJSONFormatter struct {
@@ -11188,7 +11187,6 @@ func main() {
 	log.SetLevel(log.InfoLevel)
 
 	tls := mustParseBool(os.Getenv(enableHTTPS))
-	kmsEnabled := mustParseBool(os.Getenv(enableKMS))
 	// execute tests
 	if isFullMode() {
 		testMakeBucketErrorV2()
@@ -11269,23 +11267,23 @@ func main() {
 			testSSECEncryptedToUnencryptedCopyPart()
 			testUnencryptedToSSECCopyObjectPart()
 			testUnencryptedToUnencryptedCopyPart()
-			if kmsEnabled {
-				testSSES3EncryptionPutGet()
-				testSSES3EncryptionFPut()
-				testSSES3EncryptedGetObjectReadAtFunctional()
-				testSSES3EncryptedGetObjectReadSeekFunctional()
-				testEncryptedSSECToSSES3CopyObject()
-				testEncryptedSSES3ToSSECCopyObject()
-				testEncryptedSSES3ToSSES3CopyObject()
-				testEncryptedSSES3ToUnencryptedCopyObject()
-				testUnencryptedToSSES3CopyObject()
-				testSSECEncryptedToSSES3CopyObjectPart()
-				testUnencryptedToSSES3CopyObjectPart()
-				testSSES3EncryptedToSSECCopyObjectPart()
-				testSSES3EncryptedToUnencryptedCopyPart()
-				testSSES3EncryptedToSSES3CopyObjectPart()
-			}
+			testEncryptedSSECToSSES3CopyObject()
+			testEncryptedSSES3ToSSECCopyObject()
+			testSSECEncryptedToSSES3CopyObjectPart()
+			testSSES3EncryptedToSSECCopyObjectPart()
 		}
+
+		// KMS tests
+		testSSES3EncryptionPutGet()
+		testSSES3EncryptionFPut()
+		testSSES3EncryptedGetObjectReadAtFunctional()
+		testSSES3EncryptedGetObjectReadSeekFunctional()
+		testEncryptedSSES3ToSSES3CopyObject()
+		testEncryptedSSES3ToUnencryptedCopyObject()
+		testUnencryptedToSSES3CopyObject()
+		testUnencryptedToSSES3CopyObjectPart()
+		testSSES3EncryptedToUnencryptedCopyPart()
+		testSSES3EncryptedToSSES3CopyObjectPart()
 	} else {
 		testFunctional()
 		testFunctionalV2()
