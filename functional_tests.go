@@ -309,7 +309,11 @@ func isFullMode() bool {
 }
 
 func getFuncName() string {
-	pc, _, _, _ := runtime.Caller(1)
+	return getFuncNameLoc(2)
+}
+
+func getFuncNameLoc(caller int) string {
+	pc, _, _, _ := runtime.Caller(caller)
 	return strings.TrimPrefix(runtime.FuncForPC(pc).Name(), "main.")
 }
 
@@ -7054,7 +7058,7 @@ func testEncryptedEmptyObject() {
 func testEncryptedCopyObjectWrapper(c *minio.Client, bucketName string, sseSrc, sseDst encrypt.ServerSide) {
 	// initialize logging params
 	startTime := time.Now()
-	testName := getFuncName()
+	testName := getFuncNameLoc(2)
 	function := "CopyObject(destination, source)"
 	args := map[string]interface{}{}
 	var srcEncryption, dstEncryption encrypt.ServerSide
@@ -7232,10 +7236,9 @@ func testUnencryptedToSSECCopyObject() {
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
 
-	var sseSrc encrypt.ServerSide
 	sseDst := encrypt.DefaultPBKDF([]byte("correct horse battery staple"), []byte(bucketName+"dstObject"))
 	// c.TraceOn(os.Stderr)
-	testEncryptedCopyObjectWrapper(c, bucketName, sseSrc, sseDst)
+	testEncryptedCopyObjectWrapper(c, bucketName, nil, sseDst)
 }
 
 // Test encrypted copy object
