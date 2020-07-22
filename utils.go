@@ -272,6 +272,7 @@ func ToObjectInfo(bucketName string, objectName string, h http.Header) (ObjectIn
 		LastModified: date,
 		ContentType:  contentType,
 		Expires:      expTime,
+		VersionID:    h.Get(amzVersionID),
 		// Extract only the relevant header keys describing the object.
 		// following function filters out a list of standard set of keys
 		// which are not part of object metadata.
