@@ -40,7 +40,7 @@ jobs:
           SSL_CERT_FILE: /tmp/certs-dir/public.crt
         run: |
           sudo apt-get install devscripts
-          wget -O /tmp/minio https://dl.minio.io/server/minio/release/linux-amd64/archive/minio.RELEASE.2020-07-14T19-14-30Z
+          wget -O /tmp/minio https://dl.minio.io/server/minio/release/linux-amd64/minio
           chmod +x /tmp/minio
           mkdir -p /tmp/certs-dir
           cp testcerts/* /tmp/certs-dir

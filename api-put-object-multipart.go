@@ -368,12 +368,17 @@ func (c Client) completeMultipartUpload(ctx context.Context, bucketName, objectN
 		return UploadInfo{}, completeMultipartUploadErr
 	}
 
+	// extract lifecycle expiry date and rule ID
+	expTime, ruleID := amzExpirationToExpiryDateRuleID(resp.Header.Get(amzExpiration))
+
 	return UploadInfo{
-		Bucket:    completeMultipartUploadResult.Bucket,
-		Key:       completeMultipartUploadResult.Key,
-		ETag:      trimEtag(completeMultipartUploadResult.ETag),
-		VersionID: resp.Header.Get("x-amz-version-id"),
-		Location:  completeMultipartUploadResult.Location,
+		Bucket:           completeMultipartUploadResult.Bucket,
+		Key:              completeMultipartUploadResult.Key,
+		ETag:             trimEtag(completeMultipartUploadResult.ETag),
+		VersionID:        resp.Header.Get(amzVersionID),
+		Location:         completeMultipartUploadResult.Location,
+		Expiration:       expTime,
+		ExpirationRuleID: ruleID,
 	}, nil
 
 }

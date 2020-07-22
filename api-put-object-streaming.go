@@ -454,11 +454,16 @@ func (c Client) putObjectDo(ctx context.Context, bucketName, objectName string, 
 		}
 	}
 
+	// extract lifecycle expiry date and rule ID
+	expTime, ruleID := amzExpirationToExpiryDateRuleID(resp.Header.Get(amzExpiration))
+
 	return UploadInfo{
-		Bucket:    bucketName,
-		Key:       objectName,
-		ETag:      trimEtag(resp.Header.Get("ETag")),
-		Size:      size,
-		VersionID: resp.Header.Get("x-amz-version-id"),
+		Bucket:           bucketName,
+		Key:              objectName,
+		ETag:             trimEtag(resp.Header.Get("ETag")),
+		VersionID:        resp.Header.Get(amzVersionID),
+		Size:             size,
+		Expiration:       expTime,
+		ExpirationRuleID: ruleID,
 	}, nil
 }

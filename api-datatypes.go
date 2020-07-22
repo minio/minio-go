@@ -76,9 +76,13 @@ type UploadInfo struct {
 	ETag         string
 	Size         int64
 	LastModified time.Time
-	Expiration   time.Time
 	Location     string
 	VersionID    string
+
+	// Lifecycle expiry-date and ruleID associated with the expiry
+	// not to be confused with `Expires` HTTP header.
+	Expiration       time.Time
+	ExpirationRuleID string
 }
 
 // ObjectInfo container for object metadata.
@@ -104,6 +108,9 @@ type ObjectInfo struct {
 	// x-amz-tagging values in their k/v values.
 	UserTags map[string]string `json:"userTags"`
 
+	// x-amz-tagging-count value
+	UserTagCount int
+
 	// Owner name.
 	Owner Owner
 
@@ -124,6 +131,18 @@ type ObjectInfo struct {
 	IsLatest       bool
 	IsDeleteMarker bool
 	VersionID      string `xml:"VersionId"`
+
+	// x-amz-replication-status value is either in one of the following states
+	// - COMPLETE
+	// - PENDING
+	// - FAILED
+	// - REPLICA (on the destination)
+	ReplicationStatus string `xml:"ReplicationStatus"`
+
+	// Lifecycle expiry-date and ruleID associated with the expiry
+	// not to be confused with `Expires` HTTP header.
+	Expiration       time.Time
+	ExpirationRuleID string
 
 	// Error
 	Err error `json:"-"`
