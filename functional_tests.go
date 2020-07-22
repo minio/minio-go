@@ -837,6 +837,10 @@ func testStatObjectWithVersioning() {
 			logError(testName, function, args, startTime, "", "error during HEAD object", err)
 			return
 		}
+		if statInfo.VersionID == "" || statInfo.VersionID != results[i].VersionID {
+			logError(testName, function, args, startTime, "", "error during HEAD object, unexpected version id", err)
+			return
+		}
 		if statInfo.ETag != results[i].ETag {
 			logError(testName, function, args, startTime, "", "error during HEAD object, unexpected ETag", err)
 			return
