@@ -180,11 +180,11 @@ type ExpirationDays int
 
 // MarshalXML encodes number of days to expire if it is non-zero and
 // encodes empty string otherwise
-func (eDays *ExpirationDays) MarshalXML(e *xml.Encoder, startElement xml.StartElement) error {
-	if *eDays == ExpirationDays(0) {
+func (eDays ExpirationDays) MarshalXML(e *xml.Encoder, startElement xml.StartElement) error {
+	if eDays == 0 {
 		return nil
 	}
-	return e.EncodeElement(int(*eDays), startElement)
+	return e.EncodeElement(int(eDays), startElement)
 }
 
 // ExpirationDate is a embedded type containing time.Time to unmarshal
@@ -195,8 +195,8 @@ type ExpirationDate struct {
 
 // MarshalXML encodes expiration date if it is non-zero and encodes
 // empty string otherwise
-func (eDate *ExpirationDate) MarshalXML(e *xml.Encoder, startElement xml.StartElement) error {
-	if *eDate == (ExpirationDate{time.Time{}}) {
+func (eDate ExpirationDate) MarshalXML(e *xml.Encoder, startElement xml.StartElement) error {
+	if eDate.Time.IsZero() {
 		return nil
 	}
 	return e.EncodeElement(eDate.Format(time.RFC3339), startElement)

@@ -1578,10 +1578,12 @@ __Example__
 ```go
 config := lifecycle.NewConfiguration()
 config.Rules = []lifecycle.Rule{
-  ID:     "expire-bucket",
-  Status: "Enabled",
-  Expiration: lifecycle.Expiration{
-     Days: 365,
+  {
+    ID:     "expire-bucket",
+    Status: "Enabled",
+    Expiration: lifecycle.Expiration{
+       Days: 365,
+    },
   },
 }
 
