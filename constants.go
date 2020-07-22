@@ -66,7 +66,10 @@ const (
 	amzTaggingHeader          = "X-Amz-Tagging"
 	amzTaggingHeaderDirective = "X-Amz-Tagging-Directive"
 
-	amzVersionID = "X-Amz-Version-Id"
+	amzVersionID         = "X-Amz-Version-Id"
+	amzTaggingCount      = "X-Amz-Tagging-Count"
+	amzExpiration        = "X-Amz-Expiration"
+	amzReplicationStatus = "X-Amz-Replication-Status"
 
 	// Object legal hold header
 	amzLegalHoldHeader = "X-Amz-Object-Lock-Legal-Hold"

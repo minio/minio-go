@@ -62,11 +62,16 @@ func (c Client) CopyObject(ctx context.Context, dst CopyDestOptions, src CopySrc
 		return UploadInfo{}, err
 	}
 
+	// extract lifecycle expiry date and rule ID
+	expTime, ruleID := amzExpirationToExpiryDateRuleID(resp.Header.Get(amzExpiration))
+
 	return UploadInfo{
-		Bucket:       dst.Bucket,
-		Key:          dst.Object,
-		LastModified: cpObjRes.LastModified,
-		VersionID:    resp.Header.Get("x-amz-version-id"),
-		ETag:         trimEtag(resp.Header.Get("ETag")),
+		Bucket:           dst.Bucket,
+		Key:              dst.Object,
+		LastModified:     cpObjRes.LastModified,
+		ETag:             trimEtag(resp.Header.Get("ETag")),
+		VersionID:        resp.Header.Get(amzVersionID),
+		Expiration:       expTime,
+		ExpirationRuleID: ruleID,
 	}, nil
 }

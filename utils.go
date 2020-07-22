@@ -22,6 +22,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/xml"
+	"fmt"
 	"hash"
 	"io"
 	"io/ioutil"
@@ -42,6 +43,19 @@ import (
 func trimEtag(etag string) string {
 	etag = strings.TrimPrefix(etag, "\"")
 	return strings.TrimSuffix(etag, "\"")
+}
+
+var expirationRegex = regexp.MustCompile(`expiry-date="(.*?)", rule-id="(.*?)"`)
+
+func amzExpirationToExpiryDateRuleID(expiration string) (time.Time, string) {
+	if matches := expirationRegex.FindStringSubmatch(expiration); len(matches) == 3 {
+		expTime, err := time.Parse(http.TimeFormat, matches[1])
+		if err != nil {
+			return time.Time{}, ""
+		}
+		return expTime, matches[2]
+	}
+	return time.Time{}, ""
 }
 
 // xmlDecoder provide decoded value in xml.
@@ -219,7 +233,7 @@ func ToObjectInfo(bucketName string, objectName string, h http.Header) (ObjectIn
 			// Content-Length is not valid
 			return ObjectInfo{}, ErrorResponse{
 				Code:       "InternalError",
-				Message:    "Content-Length is invalid. " + reportIssue,
+				Message:    fmt.Sprintf("Content-Length is not an integer, failed with %v", err),
 				BucketName: bucketName,
 				Key:        objectName,
 				RequestID:  h.Get("x-amz-request-id"),
@@ -234,7 +248,7 @@ func ToObjectInfo(bucketName string, objectName string, h http.Header) (ObjectIn
 	if err != nil {
 		return ObjectInfo{}, ErrorResponse{
 			Code:       "InternalError",
-			Message:    "Last-Modified time format is invalid. " + reportIssue,
+			Message:    fmt.Sprintf("Last-Modified time format is invalid, failed with %v", err),
 			BucketName: bucketName,
 			Key:        objectName,
 			RequestID:  h.Get("x-amz-request-id"),
@@ -250,9 +264,9 @@ func ToObjectInfo(bucketName string, objectName string, h http.Header) (ObjectIn
 	}
 
 	expiryStr := h.Get("Expires")
-	var expTime time.Time
-	if t, err := time.Parse(http.TimeFormat, expiryStr); err == nil {
-		expTime = t.UTC()
+	var expiry time.Time
+	if expiryStr != "" {
+		expiry, _ = time.Parse(http.TimeFormat, expiryStr)
 	}
 
 	metadata := extractObjMetadata(h)
@@ -264,21 +278,44 @@ func ToObjectInfo(bucketName string, objectName string, h http.Header) (ObjectIn
 	}
 	userTags := s3utils.TagDecode(h.Get(amzTaggingHeader))
 
+	var tagCount int
+	if count := h.Get(amzTaggingCount); count != "" {
+		tagCount, err = strconv.Atoi(count)
+		if err != nil {
+			return ObjectInfo{}, ErrorResponse{
+				Code:       "InternalError",
+				Message:    fmt.Sprintf("x-amz-tagging-count is not an integer, failed with %v", err),
+				BucketName: bucketName,
+				Key:        objectName,
+				RequestID:  h.Get("x-amz-request-id"),
+				HostID:     h.Get("x-amz-id-2"),
+				Region:     h.Get("x-amz-bucket-region"),
+			}
+		}
+	}
+
+	// extract lifecycle expiry date and rule ID
+	expTime, ruleID := amzExpirationToExpiryDateRuleID(h.Get(amzExpiration))
+
 	// Save object metadata info.
 	return ObjectInfo{
-		ETag:         etag,
-		Key:          objectName,
-		Size:         size,
-		LastModified: date,
-		ContentType:  contentType,
-		Expires:      expTime,
-		VersionID:    h.Get(amzVersionID),
+		ETag:              etag,
+		Key:               objectName,
+		Size:              size,
+		LastModified:      date,
+		ContentType:       contentType,
+		Expires:           expiry,
+		VersionID:         h.Get(amzVersionID),
+		ReplicationStatus: h.Get(amzReplicationStatus),
+		Expiration:        expTime,
+		ExpirationRuleID:  ruleID,
 		// Extract only the relevant header keys describing the object.
 		// following function filters out a list of standard set of keys
 		// which are not part of object metadata.
 		Metadata:     metadata,
 		UserMetadata: userMetadata,
 		UserTags:     userTags,
+		UserTagCount: tagCount,
 	}, nil
 }
 
