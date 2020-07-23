@@ -50,10 +50,12 @@ func main() {
 	// Set lifecycle on a bucket
 	config := lifecycle.NewConfiguration()
 	config.Rules = []lifecycle.Rule{
-		ID:     "expire-bucket",
-		Status: "Enabled",
-		Expiration: lifecycle.Expiration{
-			Days: 365,
+		{
+			ID:     "expire-bucket",
+			Status: "Enabled",
+			Expiration: lifecycle.Expiration{
+				Days: 365,
+			},
 		},
 	}
 	err = s3Client.SetBucketLifecycle(context.Background(), "my-bucketname", config)
