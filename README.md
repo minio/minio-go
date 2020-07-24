@@ -85,7 +85,7 @@ func main() {
 	bucketName := "mymusic"
 	location := "us-east-1"
 
-	err = minioClient.MakeBucket(context.Background(), bucketName, MakeBucketOptions{Region: location})
+	err = minioClient.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: location})
 	if err != nil {
 		// Check to see if we already own this bucket (which happens if you run this twice)
 		exists, errBucketExists := minioClient.BucketExists(bucketName)
