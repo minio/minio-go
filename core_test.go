@@ -20,7 +20,6 @@ package minio
 import (
 	"bytes"
 	"context"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -134,7 +133,7 @@ func TestGetObjectCore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, err := io.ReadFull(reader, buf1)
+	m, err := readFull(reader, buf1)
 	reader.Close()
 	if err != nil {
 		t.Fatal(err)
@@ -154,7 +153,7 @@ func TestGetObjectCore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m, err = io.ReadFull(reader, buf2)
+	m, err = readFull(reader, buf2)
 	reader.Close()
 	if err != nil {
 		t.Fatal(err)
@@ -173,7 +172,7 @@ func TestGetObjectCore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m, err = io.ReadFull(reader, buf3)
+	m, err = readFull(reader, buf3)
 	if err != nil {
 		reader.Close()
 		t.Fatal(err)
@@ -204,7 +203,7 @@ func TestGetObjectCore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m, err = io.ReadFull(reader, buf3)
+	m, err = readFull(reader, buf3)
 	reader.Close()
 	if err != nil {
 		t.Fatal(err)
@@ -224,7 +223,7 @@ func TestGetObjectCore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m, err = io.ReadFull(reader, buf4)
+	m, err = readFull(reader, buf4)
 	reader.Close()
 	if err != nil {
 		t.Fatal(err)
@@ -634,7 +633,7 @@ func TestCoreCopyObjectPart(t *testing.T) {
 		t.Fatal("Error:", err, destBucketName, destObjectName)
 	}
 	getBuf := make([]byte, 5*1024*1024)
-	_, err = io.ReadFull(r, getBuf)
+	_, err = readFull(r, getBuf)
 	if err != nil {
 		t.Fatal("Error:", err, destBucketName, destObjectName)
 	}
@@ -648,7 +647,7 @@ func TestCoreCopyObjectPart(t *testing.T) {
 		t.Fatal("Error:", err, destBucketName, destObjectName)
 	}
 	getBuf = make([]byte, 5*1024*1024+1)
-	_, err = io.ReadFull(r, getBuf)
+	_, err = readFull(r, getBuf)
 	if err != nil {
 		t.Fatal("Error:", err, destBucketName, destObjectName)
 	}
