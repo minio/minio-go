@@ -279,13 +279,15 @@ func (c Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, bu
 		}
 
 		if opts.SendContentMd5 {
-			length, rerr := io.ReadFull(reader, buf)
+			length, rerr := readFull(reader, buf)
 			if rerr == io.EOF && partNumber > 1 {
 				break
 			}
-			if rerr != nil && rerr != io.ErrUnexpectedEOF && rerr != io.EOF {
+
+			if rerr != nil && rerr != io.ErrUnexpectedEOF && err != io.EOF {
 				return UploadInfo{}, rerr
 			}
+
 			// Calculate md5sum.
 			hash := c.md5Hasher()
 			hash.Write(buf[:length])
@@ -389,8 +391,8 @@ func (c Client) putObject(ctx context.Context, bucketName, objectName string, re
 		// Create a buffer.
 		buf := make([]byte, size)
 
-		length, rErr := io.ReadFull(reader, buf)
-		if rErr != nil && rErr != io.ErrUnexpectedEOF {
+		length, rErr := readFull(reader, buf)
+		if rErr != nil && rErr != io.ErrUnexpectedEOF && rErr != io.EOF {
 			return UploadInfo{}, rErr
 		}
 
