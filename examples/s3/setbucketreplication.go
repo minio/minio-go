@@ -56,7 +56,7 @@ func main() {
 	}
 
 	// This replication ARN should have been generated for replication endpoint using `mc admin bucket remote` command
-	replCfg.ReplicationARN = "arn:minio:s3::dadddae7-f1d7-440f-b5d6-651aa9a8c8a7:*"
+	replCfg.ReplicationARN = "arn:minio:replica::dadddae7-f1d7-440f-b5d6-651aa9a8c8a7:dest"
 	// Set replication config on a bucket
 	err = s3Client.SetBucketReplication(context.Background(), "my-bucketname", replCfg)
 	if err != nil {
