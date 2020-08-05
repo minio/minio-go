@@ -35,6 +35,9 @@ type OptionType string
 const (
 	// AddOption specifies addition of rule to config
 	AddOption OptionType = "Add"
+	// SetOption specifies modification of existing rule to config
+	SetOption OptionType = "Set"
+
 	// RemoveOption specifies rule options are for removing a rule
 	RemoveOption OptionType = "Remove"
 	// ImportOption is for getting current config
@@ -46,7 +49,7 @@ type Options struct {
 	Op           OptionType
 	ID           string
 	Prefix       string
-	Disable      bool
+	RuleStatus   string
 	Priority     string
 	TagString    string
 	StorageClass string
@@ -104,8 +107,12 @@ func (c *Config) AddRule(opts Options) error {
 	if opts.ID == "" {
 		opts.ID = xid.New().String()
 	}
-	status := Enabled
-	if opts.Disable {
+	var status Status
+	// toggle rule status for edit option
+	switch opts.RuleStatus {
+	case "enable":
+		status = Enabled
+	case "disable":
 		status = Disabled
 	}
 	arnStr := opts.Arn
@@ -150,6 +157,9 @@ func (c *Config) AddRule(opts Options) error {
 			// inherit priority from existing rule, required field on server
 			newRule.Priority = rule.Priority
 		}
+		if opts.RuleStatus == "" {
+			newRule.Status = rule.Status
+		}
 		c.Rules[i] = newRule
 		ruleFound = true
 		break
@@ -158,7 +168,9 @@ func (c *Config) AddRule(opts Options) error {
 	if err := newRule.Validate(); err != nil {
 		return err
 	}
-
+	if !ruleFound && opts.Op == SetOption {
+		return fmt.Errorf("Rule with ID %s not found in replication configuration", opts.ID)
+	}
 	if !ruleFound {
 		c.Rules = append(c.Rules, newRule)
 	}
