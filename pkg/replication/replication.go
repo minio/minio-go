@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -46,7 +47,7 @@ type Options struct {
 	ID           string
 	Prefix       string
 	Disable      bool
-	Priority     int
+	Priority     string
 	TagString    string
 	StorageClass string
 	Arn          string
@@ -74,8 +75,7 @@ func (opts Options) Tags() []Tag {
 type Config struct {
 	XMLName xml.Name `xml:"ReplicationConfiguration" json:"-"`
 	Rules   []Rule   `xml:"Rule" json:"Rules"`
-	// ReplicationARN is a MinIO only extension and optional for AWS
-	ReplicationARN string `xml:"ReplicationArn,omitempty" json:"ReplicationArn,omitempty"`
+	Role    string   `xml:"Role" json:"Role"`
 }
 
 // Empty returns true if config is not set
@@ -108,16 +108,24 @@ func (c *Config) AddRule(opts Options) error {
 	if opts.Disable {
 		status = Disabled
 	}
-	tokens := strings.Split(opts.Arn, ":")
+	arnStr := opts.Arn
+	if opts.Arn == "" {
+		arnStr = c.Role
+	}
+	tokens := strings.Split(arnStr, ":")
 	if len(tokens) != 6 {
 		return fmt.Errorf("invalid format for replication Arn")
 	}
-	if c.ReplicationARN == "" { // for new configurations
-		c.ReplicationARN = opts.Arn
+	if c.Role == "" { // for new configurations
+		c.Role = opts.Arn
+	}
+	priority, err := strconv.Atoi(opts.Priority)
+	if err != nil {
+		return err
 	}
 	newRule := Rule{
 		ID:       opts.ID,
-		Priority: opts.Priority,
+		Priority: priority,
 		Status:   status,
 		Filter:   filter,
 		Destination: Destination{
@@ -138,7 +146,7 @@ func (c *Config) AddRule(opts Options) error {
 		if rule.ID != newRule.ID {
 			continue
 		}
-		if newRule.Status == Disabled && rule.ID == newRule.ID {
+		if opts.Priority == "" && rule.ID == newRule.ID {
 			// inherit priority from existing rule, required field on server
 			newRule.Priority = rule.Priority
 		}
@@ -197,7 +205,7 @@ func (r Rule) Validate() error {
 		return err
 	}
 
-	if r.Priority <= 0 && r.Status == Enabled {
+	if r.Priority < 0 && r.Status == Enabled {
 		return fmt.Errorf("Priority must be set for the rule")
 	}
 
