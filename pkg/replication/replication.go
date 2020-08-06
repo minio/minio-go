@@ -75,8 +75,7 @@ func (opts Options) Tags() []Tag {
 type Config struct {
 	XMLName xml.Name `xml:"ReplicationConfiguration" json:"-"`
 	Rules   []Rule   `xml:"Rule" json:"Rules"`
-	// ReplicationARN is a MinIO only extension and optional for AWS
-	ReplicationARN string `xml:"ReplicationArn,omitempty" json:"ReplicationArn,omitempty"`
+	Role    string   `xml:"Role" json:"Role"`
 }
 
 // Empty returns true if config is not set
@@ -111,14 +110,14 @@ func (c *Config) AddRule(opts Options) error {
 	}
 	arnStr := opts.Arn
 	if opts.Arn == "" {
-		arnStr = c.ReplicationARN
+		arnStr = c.Role
 	}
 	tokens := strings.Split(arnStr, ":")
 	if len(tokens) != 6 {
 		return fmt.Errorf("invalid format for replication Arn")
 	}
-	if c.ReplicationARN == "" { // for new configurations
-		c.ReplicationARN = opts.Arn
+	if c.Role == "" { // for new configurations
+		c.Role = opts.Arn
 	}
 	priority, err := strconv.Atoi(opts.Priority)
 	if err != nil {

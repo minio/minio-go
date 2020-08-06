@@ -1901,7 +1901,7 @@ fmt.Printf("%+v\n", versioningConfig)
 <a name="SetBucketReplication"></a>
 
 ### SetBucketReplication(ctx context.Context, bucketname, cfg replication.Config) error
-Set replication configuration on a bucket. To use this API with MinIO server, ReplicationArn should be set in the replication config. Replication ARN can be obtained by first defining the replication target on MinIO using `mc admin bucket replication set` to associate the source and destination buckets for replication with the replication endpoint. Next, issue a `mc admin bucket remote` to fetch the replication ARN associated with this replication endpoint.
+Set replication configuration on a bucket. Role can be obtained by first defining the replication target on MinIO using `mc admin bucket remote set` to associate the source and destination buckets for replication with the replication endpoint.
 
 __Parameters__
 
@@ -1921,7 +1921,7 @@ __Example__
 
 ```go
 replicationStr := `<ReplicationConfiguration>
-   <ReplicationArn></ReplicationArn>
+   <Role></Role>
    <Rule>
       <DeleteMarkerReplication>
          <Status>Disabled</Status>
@@ -1955,8 +1955,7 @@ replicationConfig := replication.Config{}
 if err := xml.Unmarshal([]byte(replicationStr), &replicationConfig); err != nil {
     log.Fatalln(err)
 }
-// this is optional for replication with MinIO server.
-cfg.ReplicationArn := "arn:minio:s3::598361bf-3cec-49a7-b529-ce870a34d759:*"
+cfg.Role := "arn:minio:s3::598361bf-3cec-49a7-b529-ce870a34d759:*"
 err = minioClient.SetBucketReplication(context.Background(), "my-bucketname", replicationConfig)
 if err != nil {
     fmt.Println(err)
