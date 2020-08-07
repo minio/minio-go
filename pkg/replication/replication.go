@@ -168,12 +168,74 @@ func (c *Config) AddRule(opts Options) error {
 	if err := newRule.Validate(); err != nil {
 		return err
 	}
-	if !ruleFound && opts.Op == SetOption {
-		return fmt.Errorf("Rule with ID %s not found in replication configuration", opts.ID)
-	}
 	if !ruleFound {
 		c.Rules = append(c.Rules, newRule)
 	}
+	return nil
+}
+
+// EditRule modifies an existing rule in replication config
+func (c *Config) EditRule(opts Options) error {
+	if opts.ID == "" {
+		return fmt.Errorf("Rule ID missing")
+	}
+	rIdx := -1
+	var newRule Rule
+	for i, rule := range c.Rules {
+		if rule.ID == opts.ID {
+			rIdx = i
+			newRule = rule
+			break
+		}
+	}
+	if rIdx < 0 {
+		return fmt.Errorf("Rule with ID %s not found in replication configuration", opts.ID)
+	}
+
+	tags := opts.Tags()
+	andVal := And{
+		Tags: opts.Tags(),
+	}
+	filter := Filter{Prefix: opts.Prefix}
+	// only a single tag is set.
+	if opts.Prefix == "" && len(tags) == 1 {
+		filter.Tag = tags[0]
+	}
+	// both prefix and tag are present
+	if len(andVal.Tags) > 1 || opts.Prefix != "" {
+		filter.And = andVal
+		filter.And.Prefix = opts.Prefix
+		filter.Prefix = ""
+	}
+
+	if opts.TagString != "" {
+		newRule.Filter = filter
+	}
+
+	// toggle rule status for edit option
+	switch opts.RuleStatus {
+	case "enable":
+		newRule.Status = Enabled
+	case "disable":
+		newRule.Status = Disabled
+	}
+
+	if opts.StorageClass != "" {
+		newRule.Destination.StorageClass = opts.StorageClass
+	}
+	if opts.Priority != "" {
+		priority, err := strconv.Atoi(opts.Priority)
+		if err != nil {
+			return err
+		}
+		newRule.Priority = priority
+	}
+
+	// validate rule after overlaying priority for pre-existing rule being disabled.
+	if err := newRule.Validate(); err != nil {
+		return err
+	}
+	c.Rules[rIdx] = newRule
 	return nil
 }
 
