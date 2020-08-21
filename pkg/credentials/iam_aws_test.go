@@ -172,7 +172,7 @@ func TestIAM(t *testing.T) {
 
 	p := &IAM{
 		Client:   http.DefaultClient,
-		endpoint: server.URL,
+		Endpoint: server.URL,
 	}
 
 	creds, err := p.Retrieve()
@@ -203,7 +203,7 @@ func TestIAMFailAssume(t *testing.T) {
 
 	p := &IAM{
 		Client:   http.DefaultClient,
-		endpoint: server.URL,
+		Endpoint: server.URL,
 	}
 
 	_, err := p.Retrieve()
@@ -221,7 +221,7 @@ func TestIAMIsExpired(t *testing.T) {
 
 	p := &IAM{
 		Client:   http.DefaultClient,
-		endpoint: server.URL,
+		Endpoint: server.URL,
 	}
 	p.CurrentTime = func() time.Time {
 		return time.Date(2014, 12, 15, 21, 26, 0, 0, time.UTC)
@@ -254,7 +254,7 @@ func TestEcsTask(t *testing.T) {
 	defer server.Close()
 	p := &IAM{
 		Client:   http.DefaultClient,
-		endpoint: server.URL,
+		Endpoint: server.URL,
 	}
 	os.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "/v2/credentials?id=task_credential_id")
 	creds, err := p.Retrieve()
@@ -314,7 +314,7 @@ func TestSts(t *testing.T) {
 	defer server.Close()
 	p := &IAM{
 		Client:   http.DefaultClient,
-		endpoint: server.URL,
+		Endpoint: server.URL,
 	}
 
 	f, err := ioutil.TempFile("", "minio-go")
