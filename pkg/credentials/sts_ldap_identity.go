@@ -52,25 +52,25 @@ type LDAPIdentityResult struct {
 type LDAPIdentity struct {
 	Expiry
 
-	stsEndpoint string
+	STSEndpoint string
 
-	ldapUsername, ldapPassword string
+	LDAPUsername, LDAPPassword string
 }
 
 // NewLDAPIdentity returns new credentials object that uses LDAP
 // Identity.
 func NewLDAPIdentity(stsEndpoint, ldapUsername, ldapPassword string) (*Credentials, error) {
 	return New(&LDAPIdentity{
-		stsEndpoint:  stsEndpoint,
-		ldapUsername: ldapUsername,
-		ldapPassword: ldapPassword,
+		STSEndpoint:  stsEndpoint,
+		LDAPUsername: ldapUsername,
+		LDAPPassword: ldapPassword,
 	}), nil
 }
 
 // Retrieve gets the credential by calling the MinIO STS API for
 // LDAP on the configured stsEndpoint.
 func (k *LDAPIdentity) Retrieve() (value Value, err error) {
-	u, kerr := url.Parse(k.stsEndpoint)
+	u, kerr := url.Parse(k.STSEndpoint)
 	if kerr != nil {
 		err = kerr
 		return
@@ -79,9 +79,9 @@ func (k *LDAPIdentity) Retrieve() (value Value, err error) {
 	clnt := &http.Client{Transport: http.DefaultTransport}
 	v := url.Values{}
 	v.Set("Action", "AssumeRoleWithLDAPIdentity")
-	v.Set("Version", "2011-06-15")
-	v.Set("LDAPUsername", k.ldapUsername)
-	v.Set("LDAPPassword", k.ldapPassword)
+	v.Set("Version", STSVersion)
+	v.Set("LDAPUsername", k.LDAPUsername)
+	v.Set("LDAPPassword", k.LDAPPassword)
 
 	u.RawQuery = v.Encode()
 
