@@ -207,7 +207,7 @@ func validXMLChar(r rune) (ok bool) {
 
 func hasInvalidXMLChar(str string) bool {
 	for _, s := range str {
-		if !isXMLValidChar(s) {
+		if !validXMLChar(s) {
 			return true
 		}
 	}
@@ -234,7 +234,7 @@ func (c Client) removeObjects(ctx context.Context, bucketName string, objectsCh 
 
 		// Try to gather 1000 entries
 		for object := range objectsCh {
-			if hasXMLInvalidChar(object.Key) {
+			if hasInvalidXMLChar(object.Key) {
 				// Use single DELETE so the object name will be in the request URL instead of the multi-delete XML document.
 				err := c.removeObject(ctx, bucketName, object.Key, RemoveObjectOptions{GovernanceBypass: opts.GovernanceBypass})
 				if err != nil {
