@@ -74,6 +74,11 @@ func (c Client) RemoveObject(ctx context.Context, bucketName, objectName string,
 		return err
 	}
 
+	return c.removeObject(ctx, bucketName, objectName, opts)
+}
+
+func (c Client) removeObject(ctx context.Context, bucketName, objectName string, opts RemoveObjectOptions) error {
+
 	// Get resources properly escaped and lined up before
 	// using them in http request.
 	urlValues := make(url.Values)
@@ -189,6 +194,26 @@ func (c Client) RemoveObjects(ctx context.Context, bucketName string, objectsCh 
 	return errorCh
 }
 
+// Return true if the character is within the allowed characters in an XML 1.0 document
+// The list of allowed characters can be found here: https://www.w3.org/TR/xml/#charsets
+func isXMLValidChar(r rune) (inrange bool) {
+	return r == 0x09 ||
+		r == 0x0A ||
+		r == 0x0D ||
+		r >= 0x20 && r <= 0xD7FF ||
+		r >= 0xE000 && r <= 0xFFFD ||
+		r >= 0x10000 && r <= 0x10FFFF
+}
+
+func hasXMLInvalidChar(str string) bool {
+	for _, s := range str {
+		if !isXMLValidChar(s) {
+			return true
+		}
+	}
+	return false
+}
+
 // Generate and call MultiDelete S3 requests based on entries received from objectsCh
 func (c Client) removeObjects(ctx context.Context, bucketName string, objectsCh <-chan ObjectInfo, errorCh chan<- RemoveObjectError, opts RemoveObjectsOptions) {
 	maxEntries := 1000
@@ -209,6 +234,15 @@ func (c Client) removeObjects(ctx context.Context, bucketName string, objectsCh 
 
 		// Try to gather 1000 entries
 		for object := range objectsCh {
+			if hasXMLInvalidChar(object.Key) {
+				// Use single DELETE so the object name will be in the request URL instead of the multi-delete XML document.
+				err := c.removeObject(ctx, bucketName, object.Key, RemoveObjectOptions{GovernanceBypass: opts.GovernanceBypass})
+				if err != nil {
+					errorCh <- RemoveObjectError{ObjectName: object.Key, Err: err}
+				}
+				continue
+			}
+
 			batch = append(batch, object)
 			if count++; count >= maxEntries {
 				break
