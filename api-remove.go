@@ -196,7 +196,7 @@ func (c Client) RemoveObjects(ctx context.Context, bucketName string, objectsCh 
 
 // Return true if the character is within the allowed characters in an XML 1.0 document
 // The list of allowed characters can be found here: https://www.w3.org/TR/xml/#charsets
-func isXMLValidChar(r rune) (inrange bool) {
+func validXMLChar(r rune) (ok bool) {
 	return r == 0x09 ||
 		r == 0x0A ||
 		r == 0x0D ||
