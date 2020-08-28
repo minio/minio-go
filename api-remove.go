@@ -205,7 +205,7 @@ func validXMLChar(r rune) (ok bool) {
 		r >= 0x10000 && r <= 0x10FFFF
 }
 
-func hasXMLInvalidChar(str string) bool {
+func hasInvalidXMLChar(str string) bool {
 	for _, s := range str {
 		if !isXMLValidChar(s) {
 			return true
