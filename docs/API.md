@@ -454,7 +454,7 @@ __minio.GetObjectOptions__
 |Field | Type | Description |
 |:---|:---|:---|
 | `opts.ServerSideEncryption` | _encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go/v7) |
-
+| `opts.ReplicationDeleteMarker`                | _bool_               | Specify if object being deleted is a deletemarker.This option is intended for internal use by MinIO server to extend the replication API implementation by AWS. This option should not be set unless the application is aware of intended use.
 __Return Value__
 
 
@@ -849,6 +849,9 @@ __minio.RemoveObjectOptions__
 |:--- |:--- | :--- |
 | `opts.GovernanceBypass` | _bool_ |Set the bypass governance header to delete an object locked with GOVERNANCE mode|
 | `opts.VersionID` | _string_ |Version ID of the object to delete|
+| `opts.ReplicationDeleteMarker`                | _bool_               | Specify if object being deleted is a deletemarker.This option is intended for internal use by MinIO server to extend the replication API implementation by AWS. This option should not be set unless the application is aware of intended use.
+| `opts.ReplicationMTime`                | _time.Time_               | Preserve source modTime on the replicated object. This option is intended for internal use only by MinIO server to comply with AWS bucket replication implementation. This option should not be set unless the application is aware of intended use.
+| `opts.ReplicationStatus`                | _string_               | Specify replication status of object being removed.This option is intended for internal use by MinIO server to extend the replication API implementation by AWS. This option should not be set unless the application is aware of intended use.
 
 
 ```go
