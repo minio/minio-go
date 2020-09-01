@@ -470,7 +470,7 @@ type Destination struct {
 type And struct {
 	XMLName xml.Name `xml:"And,omitempty" json:"-"`
 	Prefix  string   `xml:"Prefix,omitempty" json:"Prefix,omitempty"`
-	Tags    []Tag    `xml:"Tags,omitempty" json:"Tags,omitempty"`
+	Tags    []Tag    `xml:"Tag,omitempty" json:"Tag,omitempty"`
 }
 
 // isEmpty returns true if Tags field is null
