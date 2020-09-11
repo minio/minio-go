@@ -46,17 +46,19 @@ const (
 
 // Options represents options to set a replication configuration rule
 type Options struct {
-	Op           OptionType
-	ID           string
-	Prefix       string
-	RuleStatus   string
-	Priority     string
-	TagString    string
-	StorageClass string
-	RoleArn      string
-	DestBucket   string
-	IsTagSet     bool
-	IsSCSet      bool
+	Op                     OptionType
+	ID                     string
+	Prefix                 string
+	RuleStatus             string
+	Priority               string
+	TagString              string
+	StorageClass           string
+	RoleArn                string
+	DestBucket             string
+	IsTagSet               bool
+	IsSCSet                bool
+	ReplicateDeletes       string // replicate versioned deletes
+	ReplicateDeleteMarkers string // replicate soft deletes
 }
 
 // Tags returns a slice of tags for a rule
@@ -152,6 +154,30 @@ func (c *Config) AddRule(opts Options) error {
 			return fmt.Errorf("destination bucket needs to be in Arn format")
 		}
 	}
+	dmStatus := Disabled
+	if opts.ReplicateDeleteMarkers != "" {
+		switch opts.ReplicateDeleteMarkers {
+		case "enable":
+			dmStatus = Enabled
+		case "disable":
+			dmStatus = Disabled
+		default:
+			return fmt.Errorf("ReplicateDeleteMarkers should be either enable|disable")
+		}
+	}
+
+	vDeleteStatus := Disabled
+	if opts.ReplicateDeletes != "" {
+		switch opts.ReplicateDeletes {
+		case "enable":
+			vDeleteStatus = Enabled
+		case "disable":
+			vDeleteStatus = Disabled
+		default:
+			return fmt.Errorf("ReplicateDeletes should be either enable|disable")
+		}
+	}
+
 	newRule := Rule{
 		ID:       opts.ID,
 		Priority: priority,
@@ -161,7 +187,8 @@ func (c *Config) AddRule(opts Options) error {
 			Bucket:       destBucket,
 			StorageClass: opts.StorageClass,
 		},
-		DeleteMarkerReplication: DeleteMarkerReplication{Status: Disabled},
+		DeleteMarkerReplication: DeleteMarkerReplication{Status: dmStatus},
+		DeleteReplication:       DeleteReplication{Status: vDeleteStatus},
 	}
 
 	// validate rule after overlaying priority for pre-existing rule being disabled.
@@ -244,6 +271,30 @@ func (c *Config) EditRule(opts Options) error {
 			return fmt.Errorf("Rule state should be either [enable|disable]")
 		}
 	}
+	// set DeleteMarkerReplication rule status for edit option
+	if opts.ReplicateDeleteMarkers != "" {
+		switch opts.ReplicateDeleteMarkers {
+		case "enable":
+			newRule.DeleteMarkerReplication.Status = Enabled
+		case "disable":
+			newRule.DeleteMarkerReplication.Status = Disabled
+		default:
+			return fmt.Errorf("ReplicateDeleteMarkers state should be either [enable|disable]")
+		}
+	}
+
+	// set DeleteReplication rule status for edit option. This is a MinIO specific
+	// option to replicate versioned deletes
+	if opts.ReplicateDeletes != "" {
+		switch opts.ReplicateDeletes {
+		case "enable":
+			newRule.DeleteReplication.Status = Enabled
+		case "disable":
+			newRule.DeleteReplication.Status = Disabled
+		default:
+			return fmt.Errorf("ReplicateDeletes state should be either [enable|disable]")
+		}
+	}
 
 	if opts.IsSCSet {
 		newRule.Destination.StorageClass = opts.StorageClass
@@ -314,6 +365,7 @@ type Rule struct {
 	Status                  Status                  `xml:"Status"`
 	Priority                int                     `xml:"Priority"`
 	DeleteMarkerReplication DeleteMarkerReplication `xml:"DeleteMarkerReplication"`
+	DeleteReplication       DeleteReplication       `xml:"DeleteReplication"`
 	Destination             Destination             `xml:"Destination"`
 	Filter                  Filter                  `xml:"Filter" json:"Filter"`
 }
@@ -494,5 +546,16 @@ type DeleteMarkerReplication struct {
 
 // IsEmpty returns true if DeleteMarkerReplication is not set
 func (d DeleteMarkerReplication) IsEmpty() bool {
+	return len(d.Status) == 0
+}
+
+// DeleteReplication - whether versioned deletes are replicated - this
+// is a MinIO specific extension
+type DeleteReplication struct {
+	Status Status `xml:"Status" json:"Status"` // should be set to "Disabled" by default
+}
+
+// IsEmpty returns true if DeleteReplication is not set
+func (d DeleteReplication) IsEmpty() bool {
 	return len(d.Status) == 0
 }

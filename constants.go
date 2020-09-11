@@ -70,6 +70,7 @@ const (
 	amzTaggingCount      = "X-Amz-Tagging-Count"
 	amzExpiration        = "X-Amz-Expiration"
 	amzReplicationStatus = "X-Amz-Replication-Status"
+	amzDeleteMarker      = "X-Amz-Delete-Marker"
 
 	// Object legal hold header
 	amzLegalHoldHeader = "X-Amz-Object-Lock-Legal-Hold"
@@ -82,6 +83,7 @@ const (
 	// Replication status
 	amzBucketReplicationStatus = "X-Amz-Replication-Status"
 	// Minio specific Replication extension
-	minIOBucketReplicationSourceMTime = "X-Minio-Source-Mtime"
-	minIOBucketReplicationETag        = "X-Minio-Source-Etag"
+	minIOBucketReplicationSourceMTime  = "X-Minio-Source-Mtime"
+	minIOBucketReplicationETag         = "X-Minio-Source-Etag"
+	minIOBucketReplicationDeleteMarker = "X-Minio-Source-DeleteMarker"
 )

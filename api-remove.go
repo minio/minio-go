@@ -24,6 +24,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
@@ -60,8 +61,11 @@ func (c Client) RemoveBucket(ctx context.Context, bucketName string) error {
 
 // RemoveObjectOptions represents options specified by user for RemoveObject call
 type RemoveObjectOptions struct {
-	GovernanceBypass bool
-	VersionID        string
+	GovernanceBypass        bool
+	VersionID               string
+	ReplicationDeleteMarker bool
+	ReplicationStatus       ReplicationStatus
+	ReplicationMTime        time.Time
 }
 
 // RemoveObject removes an object from a bucket.
@@ -93,6 +97,15 @@ func (c Client) removeObject(ctx context.Context, bucketName, objectName string,
 	if opts.GovernanceBypass {
 		// Set the bypass goverenance retention header
 		headers.Set(amzBypassGovernance, "true")
+	}
+	if opts.ReplicationDeleteMarker {
+		headers.Set(minIOBucketReplicationDeleteMarker, "true")
+	}
+	if !opts.ReplicationMTime.IsZero() {
+		headers.Set(minIOBucketReplicationSourceMTime, opts.ReplicationMTime.Format(time.RFC3339))
+	}
+	if !opts.ReplicationStatus.Empty() {
+		headers.Set(amzBucketReplicationStatus, string(opts.ReplicationStatus))
 	}
 	// Execute DELETE on objectName.
 	resp, err := c.executeMethod(ctx, http.MethodDelete, requestMetadata{
