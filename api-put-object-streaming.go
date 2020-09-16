@@ -457,9 +457,6 @@ func (c Client) putObjectDo(ctx context.Context, bucketName, objectName string, 
 		}
 		urlValues := make(url.Values)
 		urlValues.Set("versionId", opts.ReplicationVersionID)
-		if opts.ReplicationETag != "" {
-			urlValues.Set("etag", opts.ReplicationETag)
-		}
 		reqMetadata.queryValues = urlValues
 	}
 
