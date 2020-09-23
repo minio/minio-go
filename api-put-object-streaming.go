@@ -451,12 +451,12 @@ func (c Client) putObjectDo(ctx context.Context, bucketName, objectName string, 
 		contentMD5Base64: md5Base64,
 		contentSHA256Hex: sha256Hex,
 	}
-	if opts.ReplicationVersionID != "" {
-		if _, err := uuid.Parse(opts.ReplicationVersionID); err != nil {
+	if opts.Internal.SourceVersionID != "" {
+		if _, err := uuid.Parse(opts.Internal.SourceVersionID); err != nil {
 			return UploadInfo{}, errInvalidArgument(err.Error())
 		}
 		urlValues := make(url.Values)
-		urlValues.Set("versionId", opts.ReplicationVersionID)
+		urlValues.Set("versionId", opts.Internal.SourceVersionID)
 		reqMetadata.queryValues = urlValues
 	}
 

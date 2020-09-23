@@ -454,7 +454,7 @@ __minio.GetObjectOptions__
 |Field | Type | Description |
 |:---|:---|:---|
 | `opts.ServerSideEncryption` | _encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go/v7) |
-| `opts.ReplicationDeleteMarker`                | _bool_               | Specify if object being deleted is a deletemarker.This option is intended for internal use by MinIO server to extend the replication API implementation by AWS. This option should not be set unless the application is aware of intended use.
+| `opts.Internal`                | _minio.AdvancedGetOptions_               | This option is intended for internal use by MinIO server. This option should not be set unless the application is aware of intended use.
 __Return Value__
 
 
@@ -544,12 +544,8 @@ __minio.PutObjectOptions__
 | `opts.WebsiteRedirectLocation` | _string_               | Specify a redirect for the object, to another object in the same bucket or to a external URL.                                                                                      |
 | `opts.SendContentMd5`          | _bool_                 | Specify if you'd like to send `content-md5` header with PutObject operation. Note that setting this flag will cause higher memory usage because of in-memory `md5sum` calculation. |
 | `opts.PartSize`                | _uint64_               | Specify a custom part size used for uploading the object                                                                                                                           |
-| `opts.ReplicationVersionID`                | _string_               | Specify VersionID of object to replicate.This option is intended for internal use by MinIO server to extend the replication API implementation by AWS. This option should not be set unless the application is aware of intended use.                                                                                              |
-| `opts.ReplicationETag`                | _string_               | Specify ETag of object to replicate.This option is intended for internal use by MinIO server to extend the replication API implementation by AWS. This option should not be set unless the application is aware of intended use.                                                                                              |
-| `opts.ReplicationStatus`                | _minio.ReplicationStatus_ | Specify replication status of object. This option is intended for internal use by MinIO server to extend the replication API implementation by AWS. This option should not be set unless the application is aware of intended use.                                                                                                             |
-| `opts.ReplicationMTime`                | _time.Time_               | Preserve source modTime on the replicated object. This option is intended for internal use only by MinIO server to comply with AWS bucket replication implementation. This option should not be set unless the application is aware of intended use.                                                                                                |
-
-
+| `opts.Internal`                | _minio.AdvancedPutOptions_ | This option is intended for internal use by MinIO server and should not be set unless the application is aware of intended use.
+|
 __minio.UploadInfo__
 
 | Field               | Type     | Description                                                                                                                                                                        |
@@ -849,10 +845,7 @@ __minio.RemoveObjectOptions__
 |:--- |:--- | :--- |
 | `opts.GovernanceBypass` | _bool_ |Set the bypass governance header to delete an object locked with GOVERNANCE mode|
 | `opts.VersionID` | _string_ |Version ID of the object to delete|
-| `opts.ReplicationDeleteMarker`                | _bool_               | Specify if object being deleted is a deletemarker.This option is intended for internal use by MinIO server to extend the replication API implementation by AWS. This option should not be set unless the application is aware of intended use.
-| `opts.ReplicationMTime`                | _time.Time_               | Preserve source modTime on the replicated object. This option is intended for internal use only by MinIO server to comply with AWS bucket replication implementation. This option should not be set unless the application is aware of intended use.
-| `opts.ReplicationStatus`                | _string_               | Specify replication status of object being removed.This option is intended for internal use by MinIO server to extend the replication API implementation by AWS. This option should not be set unless the application is aware of intended use.
-
+| `opts.Internal`                | _minio.AdvancedRemoveOptions_               | This option is intended for internal use by MinIO server and should not be set unless the application is aware of intended use.
 
 ```go
 opts := minio.RemoveObjectOptions {

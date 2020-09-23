@@ -79,7 +79,7 @@ func (c Client) statObject(ctx context.Context, bucketName, objectName string, o
 		return ObjectInfo{}, err
 	}
 	headers := opts.Header()
-	if opts.ReplicationDeleteMarker {
+	if opts.Internal.ReplicationDeleteMarker {
 		headers.Set(minIOBucketReplicationDeleteMarker, "true")
 	}
 
