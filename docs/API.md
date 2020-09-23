@@ -1990,7 +1990,7 @@ __Return Values__
 __Example__
 
 ```go
-replication, err := minioClient.GetBucketReplication(context.Background(), "my-bucketname", ReplicationReqOptions{})
+replication, err := minioClient.GetBucketReplication(context.Background(), "my-bucketname")
 if err != nil {
     log.Fatalln(err)
 }
@@ -2016,7 +2016,7 @@ __Return Values__
 __Example__
 
 ```go
-err = minioClient.RemoveBucketReplication(context.Background(), "my-bucketname", ReplicationReqOptions{})
+err = minioClient.RemoveBucketReplication(context.Background(), "my-bucketname")
 if err != nil {
     fmt.Println(err)
     return
