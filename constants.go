@@ -82,8 +82,9 @@ const (
 
 	// Replication status
 	amzBucketReplicationStatus = "X-Amz-Replication-Status"
-	// Minio specific Replication extension
-	minIOBucketReplicationSourceMTime  = "X-Minio-Source-Mtime"
-	minIOBucketReplicationETag         = "X-Minio-Source-Etag"
+	// Minio specific Replication/lifecycle transition extension
+	minIOBucketSourceMTime = "X-Minio-Source-Mtime"
+
+	minIOBucketSourceETag              = "X-Minio-Source-Etag"
 	minIOBucketReplicationDeleteMarker = "X-Minio-Source-DeleteMarker"
 )

@@ -59,13 +59,18 @@ func (c Client) RemoveBucket(ctx context.Context, bucketName string) error {
 	return nil
 }
 
-// RemoveObjectOptions represents options specified by user for RemoveObject call
-type RemoveObjectOptions struct {
-	GovernanceBypass        bool
-	VersionID               string
+// AdvancedRemoveOptions intended for internal use by replication
+type AdvancedRemoveOptions struct {
 	ReplicationDeleteMarker bool
 	ReplicationStatus       ReplicationStatus
 	ReplicationMTime        time.Time
+}
+
+// RemoveObjectOptions represents options specified by user for RemoveObject call
+type RemoveObjectOptions struct {
+	GovernanceBypass bool
+	VersionID        string
+	Internal         AdvancedRemoveOptions
 }
 
 // RemoveObject removes an object from a bucket.
@@ -98,14 +103,14 @@ func (c Client) removeObject(ctx context.Context, bucketName, objectName string,
 		// Set the bypass goverenance retention header
 		headers.Set(amzBypassGovernance, "true")
 	}
-	if opts.ReplicationDeleteMarker {
+	if opts.Internal.ReplicationDeleteMarker {
 		headers.Set(minIOBucketReplicationDeleteMarker, "true")
 	}
-	if !opts.ReplicationMTime.IsZero() {
-		headers.Set(minIOBucketReplicationSourceMTime, opts.ReplicationMTime.Format(time.RFC3339))
+	if !opts.Internal.ReplicationMTime.IsZero() {
+		headers.Set(minIOBucketSourceMTime, opts.Internal.ReplicationMTime.Format(time.RFC3339))
 	}
-	if !opts.ReplicationStatus.Empty() {
-		headers.Set(amzBucketReplicationStatus, string(opts.ReplicationStatus))
+	if !opts.Internal.ReplicationStatus.Empty() {
+		headers.Set(amzBucketReplicationStatus, string(opts.Internal.ReplicationStatus))
 	}
 	// Execute DELETE on objectName.
 	resp, err := c.executeMethod(ctx, http.MethodDelete, requestMetadata{
