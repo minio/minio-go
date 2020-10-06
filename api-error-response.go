@@ -85,9 +85,14 @@ func (e ErrorResponse) Error() string {
 	if e.Message == "" {
 		msg, ok := s3ErrorResponseMap[e.Code]
 		if !ok {
-			msg = fmt.Sprintf("Error response code %s.", e.Code)
+			if e.Code == "" {
+				msg = "Error Code is not set"
+			} else {
+				// No e.Code in the list of known s3 error codes
+				msg = fmt.Sprintf("Invalid error Code, \"%s\"", e.Code)
+			}
 		}
-		return msg
+		e.Message = msg
 	}
 	return e.Message
 }
@@ -102,7 +107,7 @@ const (
 // structure as error.
 func httpRespToErrorResponse(resp *http.Response, bucketName, objectName string) error {
 	if resp == nil {
-		msg := "Response is empty. " + reportIssue
+		msg := "Empty http response. " + reportIssue
 		return errInvalidArgument(msg)
 	}
 
