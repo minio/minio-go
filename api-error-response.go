@@ -85,14 +85,9 @@ func (e ErrorResponse) Error() string {
 	if e.Message == "" {
 		msg, ok := s3ErrorResponseMap[e.Code]
 		if !ok {
-			if e.Code == "" {
-				msg = "Error Code is not set"
-			} else {
-				// No e.Code in the list of known s3 error codes
-				msg = fmt.Sprintf("Invalid error Code, \"%s\"", e.Code)
-			}
+			msg = fmt.Sprintf("Error response code %s.", e.Code)
 		}
-		e.Message = msg
+		return msg
 	}
 	return e.Message
 }

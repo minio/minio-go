@@ -138,7 +138,7 @@ func TestHttpRespToErrorResponse(t *testing.T) {
 	// List of expected response.
 	// Used for asserting the actual response.
 	expectedErrResponse := []error{
-		genInvalidError("Response is empty. " + "Please report this issue at https://github.com/minio/minio-go/issues."),
+		genInvalidError("Empty http response. " + "Please report this issue at https://github.com/minio/minio-go/issues."),
 		decodeXMLError(createAPIErrorResponse(APIErrors[0], "minio-bucket")),
 		genErrResponse(setCommonHeaders(&http.Response{StatusCode: http.StatusNotFound}), "NoSuchBucket", "The specified bucket does not exist.", "minio-bucket", ""),
 		genErrResponse(setCommonHeaders(&http.Response{StatusCode: http.StatusNotFound}), "NoSuchKey", "The specified key does not exist.", "minio-bucket", "Asia/"),
@@ -280,15 +280,17 @@ func TestErrWithoutMessage(t *testing.T) {
 		Code:      "AccessDenied",
 		RequestID: "minio",
 	}
+
 	if errResp.Error() != "Access Denied." {
 		t.Errorf("Expected \"Access Denied.\", got %s", errResp)
 	}
+
 	errResp = ErrorResponse{
 		Code:      "InvalidArgument",
 		RequestID: "minio",
 	}
-	if errResp.Error() != "Error response code InvalidArgument." {
-		t.Errorf("Expected \"Error response code InvalidArgument.\", got %s", errResp)
+	if errResp.Error() != fmt.Sprintf("Error response code %s.", errResp.Code) {
+		t.Errorf("Expected \"Error response code InvalidArgument.\", got \"%s\"", errResp)
 	}
 }
 
