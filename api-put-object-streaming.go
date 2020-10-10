@@ -149,7 +149,7 @@ func (c Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketNa
 
 	var partsBuf = make([][]byte, opts.getNumThreads())
 	for i := range partsBuf {
-		partsBuf[i] = make([]byte, partSize)
+		partsBuf[i] = make([]byte, 0, partSize)
 	}
 
 	// Receive each part number from the channel allowing three parallel uploads.
