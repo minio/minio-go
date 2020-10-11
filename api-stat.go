@@ -103,6 +103,19 @@ func (c Client) statObject(ctx context.Context, bucketName, objectName string, o
 
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
+			if resp.StatusCode == http.StatusBadRequest && opts.VersionID != "" {
+				errResp := ErrorResponse{
+					StatusCode: resp.StatusCode,
+					Code:       "MethodNotAllowed",
+					Message:    "The specified method is not allowed against this resource.",
+					BucketName: bucketName,
+					Key:        objectName,
+				}
+				return ObjectInfo{
+					VersionID:      resp.Header.Get(amzVersionID),
+					IsDeleteMarker: deleteMarker,
+				}, errResp
+			}
 			return ObjectInfo{
 				VersionID:      resp.Header.Get(amzVersionID),
 				IsDeleteMarker: deleteMarker,
