@@ -44,28 +44,23 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	objectsCh := make(chan string)
+	objectsCh := make(chan minio.ObjectInfo)
 
 	// Send object names that are needed to be removed to objectsCh
 	go func() {
 		defer close(objectsCh)
-
-		doneCh := make(chan struct{})
-
-		// Indicate to our routine to exit cleanly upon return.
-		defer close(doneCh)
-
 		// List all objects from a bucket-name with a matching prefix.
-		for object := range s3Client.ListObjects(context.Background(), "my-bucketname", "my-prefixname", true, doneCh) {
+		opts := minio.ListObjectsOptions{Prefix: "my-prefixname", Recursive: true}
+		for object := range s3Client.ListObjects(context.Background(), "my-bucketname", opts) {
 			if object.Err != nil {
 				log.Fatalln(object.Err)
 			}
-			objectsCh <- object.Key
+			objectsCh <- object
 		}
 	}()
 
 	// Call RemoveObjects API
-	errorCh := s3Client.RemoveObjects(context.Background(), "my-bucketname", objectsCh)
+	errorCh := s3Client.RemoveObjects(context.Background(), "my-bucketname", objectsCh, minio.RemoveObjectsOptions{})
 
 	// Print errors received from RemoveObjects API
 	for e := range errorCh {

@@ -63,23 +63,23 @@ func main() {
 	// Here you create a new Topic notification
 	topicArn := notification.NewArn("YOUR-PROVIDER", "YOUR-SERVICE", "YOUR-REGION", "YOUR-ACCOUNT-ID", "YOUR-RESOURCE")
 	topicConfig := notification.NewConfig(topicArn)
-	topicConfig.AddEvents(minio.ObjectCreatedAll, minio.ObjectRemovedAll)
+	topicConfig.AddEvents(notification.ObjectCreatedAll, notification.ObjectRemovedAll)
 	topicConfig.AddFilterPrefix("photos/")
 	topicConfig.AddFilterSuffix(".jpg")
 
 	// Create a new Queue notification
 	queueArn := notification.NewArn("YOUR-PROVIDER", "YOUR-SERVICE", "YOUR-REGION", "YOUR-ACCOUNT-ID", "YOUR-RESOURCE")
 	queueConfig := notification.NewConfig(queueArn)
-	queueConfig.AddEvents(minio.ObjectRemovedAll)
+	queueConfig.AddEvents(notification.ObjectRemovedAll)
 
 	// Create a new Lambda (CloudFunction)
 	lambdaArn := notification.NewArn("YOUR-PROVIDER", "YOUR-SERVICE", "YOUR-REGION", "YOUR-ACCOUNT-ID", "YOUR-RESOURCE")
 	lambdaConfig := notification.NewConfig(lambdaArn)
-	lambdaConfig.AddEvents(minio.ObjectRemovedAll)
+	lambdaConfig.AddEvents(notification.ObjectRemovedAll)
 	lambdaConfig.AddFilterSuffix(".swp")
 
 	// Now, set all previously created notification configs
-	config := &notification.Configuration{}
+	config := notification.Configuration{}
 	config.AddTopic(topicConfig)
 	config.AddQueue(queueConfig)
 	config.AddLambda(lambdaConfig)

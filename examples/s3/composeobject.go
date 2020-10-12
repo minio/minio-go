@@ -76,7 +76,7 @@ func main() {
 	}
 
 	// Create slice of sources.
-	srcs := []minio.SourceInfo{src1, src2, src3}
+	srcs := []minio.CopySrcOptions{src1, src2, src3}
 
 	// Prepare destination encryption key
 	encKey, _ := encrypt.NewSSEC([]byte{8, 9, 0})
