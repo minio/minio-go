@@ -45,14 +45,14 @@ func main() {
 		return
 	}
 
-	// Create a done channel to control 'ListObjects' go routine.
-	doneCh := make(chan struct{})
-
-	// Indicate to our routine to exit cleanly upon return.
-	defer close(doneCh)
+	opts := minio.ListObjectsOptions{
+		WithMetadata: true,
+		Prefix:       "my-prefixname",
+		Recursive:    true,
+	}
 
 	// List all objects from a bucket-name with a matching prefix.
-	for object := range s3Client.ListObjectsV2WithMetadata(context.Background(), "my-bucketname", "my-prefixname", true, doneCh) {
+	for object := range s3Client.ListObjects(context.Background(), "my-bucketname", opts) {
 		if object.Err != nil {
 			fmt.Println(object.Err)
 			return

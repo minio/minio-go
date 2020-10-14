@@ -2,7 +2,7 @@
 
 /*
  * MinIO Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2015-2017 MinIO, Inc.
+ * Copyright 2015-2020 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,10 +21,9 @@ package main
 
 import (
 	"context"
-	"io"
+	"encoding/xml"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -55,16 +54,16 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	// Create lifecycle file
+	// Save the lifecycle document to a file
 	localLifecycleFile, err := os.Create("lifecycle.json")
 	if err != nil {
 		log.Fatalln(err)
 	}
 	defer localLifecycleFile.Close()
 
-	lifecycleReader := strings.NewReader(lifecycle)
-
-	if _, err := io.Copy(localLifecycleFile, lifecycleReader); err != nil {
+	enc := xml.NewEncoder(localLifecycleFile)
+	enc.Indent("  ", "    ")
+	if err := enc.Encode(lifecycle); err != nil {
 		log.Fatalln(err)
 	}
 }

@@ -44,7 +44,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	err = s3Client.DisableVersioning(context.Background(), "my-bucketname")
+	err = s3Client.SuspendVersioning(context.Background(), "my-bucketname")
 	if err != nil {
 		log.Fatalln(err)
 	}

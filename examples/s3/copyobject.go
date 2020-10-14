@@ -70,7 +70,7 @@ func main() {
 	}
 
 	// Initiate copy object.
-	ui, err = s3Client.CopyObject(context.Background(), dst, src)
+	ui, err := s3Client.CopyObject(context.Background(), dst, src)
 	if err != nil {
 		log.Fatalln(err)
 	}

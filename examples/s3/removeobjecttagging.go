@@ -43,7 +43,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = s3Client.RemoveObjectTagging(context.Background(), "my-bucketname", "my-objectname")
+	err = s3Client.RemoveObjectTagging(context.Background(), "my-bucketname", "my-objectname", minio.RemoveObjectTaggingOptions{})
 	if err != nil {
 		log.Fatalln(err)
 	}

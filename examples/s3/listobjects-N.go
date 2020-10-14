@@ -47,23 +47,23 @@ func main() {
 
 	// List 'N' number of objects from a bucket-name with a matching prefix.
 	listObjectsN := func(bucket, prefix string, recursive bool, N int) (objsInfo []minio.ObjectInfo, err error) {
-		// Create a done channel to control 'ListObjects' go routine.
-		doneCh := make(chan struct{}, 1)
-
-		// Free the channel upon return.
-		defer close(doneCh)
-
+		ctx, cancel := context.WithCancel(context.Background())
+		// Indicate ListObjects go-routine to exit and stop feeding the objectInfo channel.
+		defer cancel()
 		i := 1
-		for object := range s3Client.ListObjects(context.Background(), bucket, prefix, recursive, doneCh) {
+		opts := minio.ListObjectsOptions{
+			UseV1:     true,
+			Prefix:    prefix,
+			Recursive: recursive,
+		}
+		for object := range s3Client.ListObjects(ctx, bucket, opts) {
 			if object.Err != nil {
 				return nil, object.Err
 			}
 			i++
 			// Verify if we have printed N objects.
 			if i == N {
-				// Indicate ListObjects go-routine to exit and stop
-				// feeding the objectInfo channel.
-				doneCh <- struct{}{}
+				break
 			}
 			objsInfo = append(objsInfo, object)
 		}

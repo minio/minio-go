@@ -45,7 +45,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	tags, err := s3Client.GetObjectTagging(context.Background(), "my-bucketname", "my-objectname")
+	tags, err := s3Client.GetObjectTagging(context.Background(), "my-bucketname", "my-objectname", minio.GetObjectTaggingOptions{})
 	if err != nil {
 		log.Fatalln(err)
 	}
