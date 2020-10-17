@@ -174,7 +174,6 @@ mc ls play/mymusic/
 
 ### API文档 : 客户端自定义设置
 * [`SetAppInfo`](http://docs.min.io/docs/golang-client-api-reference#SetAppInfo)
-* [`SetCustomTransport`](http://docs.min.io/docs/golang-client-api-reference#SetCustomTransport)
 * [`TraceOn`](http://docs.min.io/docs/golang-client-api-reference#TraceOn)
 * [`TraceOff`](http://docs.min.io/docs/golang-client-api-reference#TraceOff)
 

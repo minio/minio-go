@@ -173,7 +173,6 @@ The full API Reference is available here.
 
 ### API Reference : Client custom settings
 * [`SetAppInfo`](http://docs.min.io/docs/golang-client-api-reference#SetAppInfo)
-* [`SetCustomTransport`](http://docs.min.io/docs/golang-client-api-reference#SetCustomTransport)
 * [`TraceOn`](http://docs.min.io/docs/golang-client-api-reference#TraceOn)
 * [`TraceOff`](http://docs.min.io/docs/golang-client-api-reference#TraceOff)
 
