@@ -58,29 +58,29 @@ func main() {
 }
 ```
 
-| Bucket operations                                     | Object operations                                   | Presigned operations                          | Bucket Policy/Notification Operations                         | Client custom settings                                |
-| :---                                                  | :---                                                | :---                                          | :---                                                          | :---                                                  |
-| [`MakeBucket`](#MakeBucket)                           | [`GetObject`](#GetObject)                           | [`PresignedGetObject`](#PresignedGetObject)   | [`SetBucketPolicy`](#SetBucketPolicy)                         | [`SetAppInfo`](#SetAppInfo)                           |
-|                                                       | [`PutObject`](#PutObject)                           | [`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)                         | [`SetCustomTransport`](#SetCustomTransport)           |                                                       |
-| [`ListBuckets`](#ListBuckets)                         | [`CopyObject`](#CopyObject)                         | [`PresignedHeadObject`](#PresignedHeadObject) | [`SetBucketNotification`](#SetBucketNotification)             | [`TraceOn`](#TraceOn)                                 |
-| [`BucketExists`](#BucketExists)                       | [`StatObject`](#StatObject)                         | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`GetBucketNotification`](#GetBucketNotification)             | [`TraceOff`](#TraceOff)                               |
-| [`RemoveBucket`](#RemoveBucket)                       | [`RemoveObject`](#RemoveObject)                     |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification) | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
-| [`ListObjects`](#ListObjects)                         | [`RemoveObjects`](#RemoveObjects)                   |                                               | [`ListenBucketNotification`](#ListenBucketNotification)       |                                                       |
-|                                                       | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                               | [`SetBucketLifecycle`](#SetBucketLifecycle)                   |                                                       |
-| [`ListIncompleteUploads`](#ListIncompleteUploads)     | [`FPutObject`](#FPutObject)                         |                                               | [`GetBucketLifecycle`](#GetBucketLifecycle)                   |                                                       |
-| [`SetBucketTagging`](#SetBucketTagging)               | [`FGetObject`](#FGetObject)                         |                                               | [`SetObjectLockConfig`](#SetObjectLockConfig)                 |                                                       |
-| [`GetBucketTagging`](#GetBucketTagging)               | [`ComposeObject`](#ComposeObject)                   |                                               | [`GetObjectLockConfig`](#GetObjectLockConfig)                 |                                                       |
-| [`RemoveBucketTagging`](#RemoveBucketTagging)         |                                                     |                                               | [`EnableVersioning`](#EnableVersioning)                       |                                                       |
-| [`SetBucketReplication`](#SetBucketReplication)       |                                                     |                                               | [`DisableVersioning`](#DisableVersioning)                     |                                                       |
-| [`GetBucketReplication`](#GetBucketReplication)       | [`PutObjectRetention`](#PutObjectRetention)         |                                               | [`GetBucketEncryption`](#GetBucketEncryption)                 |                                                       |
-| [`RemoveBucketReplication`](#RemoveBucketReplication) | [`GetObjectRetention`](#GetObjectRetention)         |                                               | [`RemoveBucketEncryption`](#RemoveBucketEncryption)           |                                                       |
-|                                                       | [`PutObjectLegalHold`](#PutObjectLegalHold)         |                                               |                                                               |                                                       |
-|                                                       | [`GetObjectLegalHold`](#GetObjectLegalHold)         |                                               |                                                               |                                                       |
-|                                                       | [`SelectObjectContent`](#SelectObjectContent)       |                                               |                                                               |                                                       |
-|                                                       | [`PutObjectTagging`](#PutObjectTagging)             |                                               |                                                               |                                                       |
-|                                                       | [`GetObjectTagging`](#GetObjectTagging)             |                                               |                                                               |                                                       |
-|                                                       | [`RemoveObjectTagging`](#RemoveObjectTagging)       |                                               |                                                               |                                                       |
-|                                                       |                                                     |                                               |                                                               |                                                       |
+| Bucket operations                                     | Object operations                                   | Presigned operations                          | Bucket Policy/Notification Operations                         | Client custom settings                                |   |
+| :---                                                  | :---                                                | :---                                          | :---                                                          | :---                                                  |   |
+| [`MakeBucket`](#MakeBucket)                           | [`GetObject`](#GetObject)                           | [`PresignedGetObject`](#PresignedGetObject)   | [`SetBucketPolicy`](#SetBucketPolicy)                         | [`SetAppInfo`](#SetAppInfo)                           |   |
+|                                                       | [`PutObject`](#PutObject)                           | [`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)                         |                                                       |   |
+| [`ListBuckets`](#ListBuckets)                         | [`CopyObject`](#CopyObject)                         | [`PresignedHeadObject`](#PresignedHeadObject) | [`SetBucketNotification`](#SetBucketNotification)             | [`TraceOn`](#TraceOn)                                 |   |
+| [`BucketExists`](#BucketExists)                       | [`StatObject`](#StatObject)                         | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`GetBucketNotification`](#GetBucketNotification)             | [`TraceOff`](#TraceOff)                               |   |
+| [`RemoveBucket`](#RemoveBucket)                       | [`RemoveObject`](#RemoveObject)                     |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification) | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |   |
+| [`ListObjects`](#ListObjects)                         | [`RemoveObjects`](#RemoveObjects)                   |                                               | [`ListenBucketNotification`](#ListenBucketNotification)       |                                                       |   |
+|                                                       | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                               | [`SetBucketLifecycle`](#SetBucketLifecycle)                   |                                                       |   |
+| [`ListIncompleteUploads`](#ListIncompleteUploads)     | [`FPutObject`](#FPutObject)                         |                                               | [`GetBucketLifecycle`](#GetBucketLifecycle)                   |                                                       |   |
+| [`SetBucketTagging`](#SetBucketTagging)               | [`FGetObject`](#FGetObject)                         |                                               | [`SetObjectLockConfig`](#SetObjectLockConfig)                 |                                                       |   |
+| [`GetBucketTagging`](#GetBucketTagging)               | [`ComposeObject`](#ComposeObject)                   |                                               | [`GetObjectLockConfig`](#GetObjectLockConfig)                 |                                                       |   |
+| [`RemoveBucketTagging`](#RemoveBucketTagging)         |                                                     |                                               | [`EnableVersioning`](#EnableVersioning)                       |                                                       |   |
+| [`SetBucketReplication`](#SetBucketReplication)       |                                                     |                                               | [`DisableVersioning`](#DisableVersioning)                     |                                                       |   |
+| [`GetBucketReplication`](#GetBucketReplication)       | [`PutObjectRetention`](#PutObjectRetention)         |                                               | [`GetBucketEncryption`](#GetBucketEncryption)                 |                                                       |   |
+| [`RemoveBucketReplication`](#RemoveBucketReplication) | [`GetObjectRetention`](#GetObjectRetention)         |                                               | [`RemoveBucketEncryption`](#RemoveBucketEncryption)           |                                                       |   |
+|                                                       | [`PutObjectLegalHold`](#PutObjectLegalHold)         |                                               |                                                               |                                                       |   |
+|                                                       | [`GetObjectLegalHold`](#GetObjectLegalHold)         |                                               |                                                               |                                                       |   |
+|                                                       | [`SelectObjectContent`](#SelectObjectContent)       |                                               |                                                               |                                                       |   |
+|                                                       | [`PutObjectTagging`](#PutObjectTagging)             |                                               |                                                               |                                                       |   |
+|                                                       | [`GetObjectTagging`](#GetObjectTagging)             |                                               |                                                               |                                                       |   |
+|                                                       | [`RemoveObjectTagging`](#RemoveObjectTagging)       |                                               |                                                               |                                                       |   |
+|                                                       |                                                     |                                               |                                                               |                                                       |   |
 
 ## 1. Constructor
 <a name="MinIO"></a>
@@ -2037,17 +2037,6 @@ __Example__
 // Set Application name and version to be used in subsequent API requests.
 minioClient.SetAppInfo("myCloudApp", "1.0.0")
 ```
-
-<a name="SetCustomTransport"></a>
-### SetCustomTransport(customHTTPTransport http.RoundTripper)
-Overrides default HTTP transport. This is usually needed for debugging or for adding custom TLS certificates.
-
-__Parameters__
-
-| Param  | Type  | Description  |
-|---|---|---|
-|`customHTTPTransport`  | _http.RoundTripper_  | Custom transport e.g, to trace API requests and responses for debugging purposes.|
-
 
 <a name="TraceOn"></a>
 ### TraceOn(outputStream io.Writer)

@@ -50,24 +50,24 @@ func main() {
 }
 ```
 
-| 操作存储桶                                 | 操作对象                                  | 操作加密对象                 | Presigned操作                          | 存储桶策略/通知                         | 客户端自定义设置 |
-| :---                                              | :---                                                | :---                                        | :---                                          | :---                                                          | :---                                                  |
-| [`MakeBucket`](#MakeBucket)                       | [`GetObject`](#GetObject)                           | [`NewSymmetricKey`](#NewSymmetricKey)       | [`PresignedGetObject`](#PresignedGetObject)   | [`SetBucketPolicy`](#SetBucketPolicy)                         | [`SetAppInfo`](#SetAppInfo)                           |
-| [`ListBuckets`](#ListBuckets)                     | [`PutObject`](#PutObject)                           | [`NewAsymmetricKey`](#NewAsymmetricKey)     | [`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)                         | [`SetCustomTransport`](#SetCustomTransport)           |
-| [`BucketExists`](#BucketExists)                   | [`CopyObject`](#CopyObject)                         | [`GetEncryptedObject`](#GetEncryptedObject) | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`SetBucketNotification`](#SetBucketNotification)                     | [`TraceOn`](#TraceOn)                                 |
-| [`RemoveBucket`](#RemoveBucket)                   | [`StatObject`](#StatObject)                         | [`PutEncryptedObject`](#PutEncryptedObject) |                                               | [`GetBucketNotification`](#GetBucketNotification)           | [`TraceOff`](#TraceOff)                               |
-| [`ListObjects`](#ListObjects)                     | [`RemoveObject`](#RemoveObject)                     | [`NewSSEInfo`](#NewSSEInfo)               |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification)             | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
-| [`ListObjectsV2`](#ListObjectsV2)                 | [`RemoveObjects`](#RemoveObjects)                   | [`FPutEncryptedObject`](#FPutEncryptedObject)    |                                               | [`ListenBucketNotification`](#ListenBucketNotification) |                                                       |
-| [`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                             |                                               |        |                                                       |
-|                                                   | [`FPutObject`](#FPutObject)                         |                                             |                                               |                                                               |                                                       |
-|                                                   | [`FGetObject`](#FGetObject)                         |                                             |                                               |                                                               |                                                       |
-|                                                   | [`ComposeObject`](#ComposeObject)                   |                                             |                                               |                                                               |                                                       |
-|                                                   | [`NewSourceInfo`](#NewSourceInfo)                   |                                             |                                               |                                                               |                                                       |
-|                                                   | [`NewDestinationInfo`](#NewDestinationInfo)         |                                             |                                               |                                                               |                                                       |
-|   | [`PutObjectWithContext`](#PutObjectWithContext)  | |   |   |
-|   | [`GetObjectWithContext`](#GetObjectWithContext)  | |   |   |
-|   | [`FPutObjectWithContext`](#FPutObjectWithContext)  | |   |   |
-|   | [`FGetObjectWithContext`](#FGetObjectWithContext)  | |   |   |
+| 操作存储桶                                        | 操作对象                                            | 操作加密对象                                  | Presigned操作                                 | 存储桶策略/通知                                               | 客户端自定义设置                                      |
+| :---                                              | :---                                                | :---                                          | :---                                          | :---                                                          | :---                                                  |
+| [`MakeBucket`](#MakeBucket)                       | [`GetObject`](#GetObject)                           | [`NewSymmetricKey`](#NewSymmetricKey)         | [`PresignedGetObject`](#PresignedGetObject)   | [`SetBucketPolicy`](#SetBucketPolicy)                         | [`SetAppInfo`](#SetAppInfo)                           |
+| [`ListBuckets`](#ListBuckets)                     | [`PutObject`](#PutObject)                           | [`NewAsymmetricKey`](#NewAsymmetricKey)       | [`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)                         |                                                       |
+| [`BucketExists`](#BucketExists)                   | [`CopyObject`](#CopyObject)                         | [`GetEncryptedObject`](#GetEncryptedObject)   | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`SetBucketNotification`](#SetBucketNotification)             | [`TraceOn`](#TraceOn)                                 |
+| [`RemoveBucket`](#RemoveBucket)                   | [`StatObject`](#StatObject)                         | [`PutEncryptedObject`](#PutEncryptedObject)   |                                               | [`GetBucketNotification`](#GetBucketNotification)             | [`TraceOff`](#TraceOff)                               |
+| [`ListObjects`](#ListObjects)                     | [`RemoveObject`](#RemoveObject)                     | [`NewSSEInfo`](#NewSSEInfo)                   |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification) | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
+| [`ListObjectsV2`](#ListObjectsV2)                 | [`RemoveObjects`](#RemoveObjects)                   | [`FPutEncryptedObject`](#FPutEncryptedObject) |                                               | [`ListenBucketNotification`](#ListenBucketNotification)       |                                                       |
+| [`ListIncompleteUploads`](#ListIncompleteUploads) | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                               |                                               |                                                               |                                                       |
+|                                                   | [`FPutObject`](#FPutObject)                         |                                               |                                               |                                                               |                                                       |
+|                                                   | [`FGetObject`](#FGetObject)                         |                                               |                                               |                                                               |                                                       |
+|                                                   | [`ComposeObject`](#ComposeObject)                   |                                               |                                               |                                                               |                                                       |
+|                                                   | [`NewSourceInfo`](#NewSourceInfo)                   |                                               |                                               |                                                               |                                                       |
+|                                                   | [`NewDestinationInfo`](#NewDestinationInfo)         |                                               |                                               |                                                               |                                                       |
+|                                                   | [`PutObjectWithContext`](#PutObjectWithContext)     |                                               |                                               |                                                               |                                                       |
+|                                                   | [`GetObjectWithContext`](#GetObjectWithContext)     |                                               |                                               |                                                               |                                                       |
+|                                                   | [`FPutObjectWithContext`](#FPutObjectWithContext)   |                                               |                                               |                                                               |                                                       |
+|                                                   | [`FGetObjectWithContext`](#FGetObjectWithContext)   |                                               |                                               |                                                               |                                                       |
 ## 1. 构造函数
 <a name="MinIO"></a>
 
@@ -1756,17 +1756,6 @@ __示例__
 // Set Application name and version to be used in subsequent API requests.
 minioClient.SetAppInfo("myCloudApp", "1.0.0")
 ```
-
-<a name="SetCustomTransport"></a>
-### SetCustomTransport(customHTTPTransport http.RoundTripper)
-重写默认的HTTP transport，通常用于调试或者添加自定义的TLS证书。
-
-__参数__
-
-| 参数  | 类型  | 描述  |
-|---|---|---|
-|`customHTTPTransport`  | _http.RoundTripper_  | 自定义的transport，例如：为了调试对API请求响应进行追踪。|
-
 
 <a name="TraceOn"></a>
 ### TraceOn(outputStream io.Writer)
