@@ -19,7 +19,6 @@ MinIO client requires the following four parameters specified to connect to an A
 | endpoint   | URL to object storage service.   |
 | _minio.Options_ | All the options such as credentials, custom transport etc. |
 
-
 ```go
 package main
 
@@ -116,6 +115,7 @@ func main() {
 
 ### Run FileUploader
 ```sh
+export GO111MODULE=on
 go run file-uploader.go
 2016/08/13 17:03:28 Successfully created mymusic
 2016/08/13 17:03:40 Successfully uploaded golden-oldies.zip of size 16253413
