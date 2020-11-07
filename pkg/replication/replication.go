@@ -62,7 +62,7 @@ type Options struct {
 }
 
 // Tags returns a slice of tags for a rule
-func (opts Options) Tags() []Tag {
+func (opts Options) Tags() ([]Tag, error) {
 	var tagList []Tag
 	tagTokens := strings.Split(opts.TagString, "&")
 	for _, tok := range tagTokens {
@@ -70,12 +70,15 @@ func (opts Options) Tags() []Tag {
 			break
 		}
 		kv := strings.SplitN(tok, "=", 2)
+		if len(kv) != 2 {
+			return []Tag{}, fmt.Errorf("Tags should be entered as comma separated k=v pairs")
+		}
 		tagList = append(tagList, Tag{
 			Key:   kv[0],
 			Value: kv[1],
 		})
 	}
-	return tagList
+	return tagList, nil
 }
 
 // Config - replication configuration specified in
@@ -112,9 +115,12 @@ func (c *Config) AddRule(opts Options) error {
 		return fmt.Errorf("Rule state should be either [enable|disable]")
 	}
 
-	tags := opts.Tags()
+	tags, err := opts.Tags()
+	if err != nil {
+		return err
+	}
 	andVal := And{
-		Tags: opts.Tags(),
+		Tags: tags,
 	}
 	filter := Filter{Prefix: opts.Prefix}
 	// only a single tag is set.
@@ -238,8 +244,12 @@ func (c *Config) EditRule(opts Options) error {
 		if len(newRule.Filter.And.Tags) != 0 {
 			tags = newRule.Filter.And.Tags
 		}
+		var err error
 		if opts.IsTagSet {
-			tags = opts.Tags()
+			tags, err = opts.Tags()
+			if err != nil {
+				return err
+			}
 		}
 		andVal := And{
 			Tags: tags,
