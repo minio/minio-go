@@ -462,7 +462,7 @@ func TestCoreCopyObject(t *testing.T) {
 	cuploadInfo, err := c.CopyObject(context.Background(), bucketName, objectName, destBucketName, destObjectName, map[string]string{
 		"X-Amz-Metadata-Directive": "REPLACE",
 		"Content-Type":             "application/javascript",
-	})
+	}, PutObjectOptions{})
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName, destBucketName, destObjectName)
 	}
