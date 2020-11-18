@@ -231,7 +231,7 @@ func (c Client) copyObjectDo(ctx context.Context, srcBucket, srcObject, destBuck
 	}
 	if dstOpts.Internal.SourceVersionID != "" {
 		if _, err := uuid.Parse(dstOpts.Internal.SourceVersionID); err != nil {
-			return ObjectInfo{}, err
+			return ObjectInfo{}, errInvalidArgument(err.Error())
 		}
 		urlValues := make(url.Values)
 		urlValues.Set("versionId", dstOpts.Internal.SourceVersionID)
