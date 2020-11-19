@@ -52,8 +52,13 @@ type LDAPIdentityResult struct {
 type LDAPIdentity struct {
 	Expiry
 
+	// Required http Client to use when connecting to MinIO STS service.
+	Client *http.Client
+
+	// Exported STS endpoint to fetch STS credentials.
 	STSEndpoint string
 
+	// LDAP username/password used to fetch LDAP STS credentials.
 	LDAPUsername, LDAPPassword string
 }
 
@@ -61,6 +66,7 @@ type LDAPIdentity struct {
 // Identity.
 func NewLDAPIdentity(stsEndpoint, ldapUsername, ldapPassword string) (*Credentials, error) {
 	return New(&LDAPIdentity{
+		Client:       &http.Client{Transport: http.DefaultTransport},
 		STSEndpoint:  stsEndpoint,
 		LDAPUsername: ldapUsername,
 		LDAPPassword: ldapPassword,
@@ -76,7 +82,6 @@ func (k *LDAPIdentity) Retrieve() (value Value, err error) {
 		return
 	}
 
-	clnt := &http.Client{Transport: http.DefaultTransport}
 	v := url.Values{}
 	v.Set("Action", "AssumeRoleWithLDAPIdentity")
 	v.Set("Version", STSVersion)
@@ -91,7 +96,7 @@ func (k *LDAPIdentity) Retrieve() (value Value, err error) {
 		return
 	}
 
-	resp, kerr := clnt.Do(req)
+	resp, kerr := k.Client.Do(req)
 	if kerr != nil {
 		err = kerr
 		return
