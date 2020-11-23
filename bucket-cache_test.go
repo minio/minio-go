@@ -19,6 +19,7 @@ package minio
 
 import (
 	"bytes"
+	"context"
 	"encoding/xml"
 	"io/ioutil"
 	"net/http"
@@ -236,7 +237,7 @@ func TestGetBucketLocationRequest(t *testing.T) {
 			}
 		}
 
-		actualReq, err := client.getBucketLocationRequest(testCase.bucketName)
+		actualReq, err := client.getBucketLocationRequest(context.Background(), testCase.bucketName)
 		if err != nil && testCase.shouldPass {
 			t.Errorf("Test %d: Expected to pass, but failed with: <ERROR> %s", i+1, err.Error())
 		}

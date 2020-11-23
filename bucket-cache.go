@@ -97,12 +97,12 @@ func (c Client) getBucketLocation(ctx context.Context, bucketName string) (strin
 	}
 
 	// Initialize a new request.
-	req, err := c.getBucketLocationRequest(bucketName)
+	req, err := c.getBucketLocationRequest(ctx, bucketName)
 	if err != nil {
 		return "", err
 	}
 
-	req = req.WithContext(ctx)
+	//req = req.WithContext(ctx)
 	// Initiate the request.
 	resp, err := c.do(req)
 	defer closeResponse(resp)
@@ -170,7 +170,7 @@ func processBucketLocationResponse(resp *http.Response, bucketName string) (buck
 }
 
 // getBucketLocationRequest - Wrapper creates a new getBucketLocation request.
-func (c Client) getBucketLocationRequest(bucketName string) (*http.Request, error) {
+func (c Client) getBucketLocationRequest(ctx context.Context, bucketName string) (*http.Request, error) {
 	// Set location query.
 	urlValues := make(url.Values)
 	urlValues.Set("location", "")
@@ -199,7 +199,7 @@ func (c Client) getBucketLocationRequest(bucketName string) (*http.Request, erro
 	}
 
 	// Get a new HTTP request for the method.
-	req, err := http.NewRequest(http.MethodGet, urlStr, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlStr, nil)
 	if err != nil {
 		return nil, err
 	}
