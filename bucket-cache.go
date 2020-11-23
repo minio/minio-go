@@ -102,7 +102,6 @@ func (c Client) getBucketLocation(ctx context.Context, bucketName string) (strin
 		return "", err
 	}
 
-	//req = req.WithContext(ctx)
 	// Initiate the request.
 	resp, err := c.do(req)
 	defer closeResponse(resp)
