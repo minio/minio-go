@@ -135,7 +135,6 @@ The full API Reference is available here.
 * [`BucketExists`](https://docs.min.io/docs/golang-client-api-reference#BucketExists)
 * [`RemoveBucket`](https://docs.min.io/docs/golang-client-api-reference#RemoveBucket)
 * [`ListObjects`](https://docs.min.io/docs/golang-client-api-reference#ListObjects)
-* [`ListObjectsV2`](https://docs.min.io/docs/golang-client-api-reference#ListObjectsV2)
 * [`ListIncompleteUploads`](https://docs.min.io/docs/golang-client-api-reference#ListIncompleteUploads)
 
 ### API Reference : Bucket policy Operations
