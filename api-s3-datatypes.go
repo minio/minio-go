@@ -340,9 +340,10 @@ type deletedObject struct {
 
 // nonDeletedObject container for Error element (failed deletion) in MultiObjects Delete XML response
 type nonDeletedObject struct {
-	Key     string
-	Code    string
-	Message string
+	Key       string
+	Code      string
+	Message   string
+	VersionID string `xml:"VersionId"`
 }
 
 // deletedMultiObjects container for MultiObjects Delete XML request
