@@ -2138,7 +2138,7 @@ func testRemoveObjectsContext() {
 		return
 	}
 
-	defer cleanupBucket(bucketName, c)	
+	defer cleanupBucket(bucketName, c)
 
 	// Generate put data.
 	r := bytes.NewReader(bytes.Repeat([]byte("a"), 8))
@@ -3381,6 +3381,10 @@ func testPresignedPostPolicy() {
 		logError(testName, function, args, startTime, "", "SetContentType did not fail for invalid conditions", err)
 		return
 	}
+	if err := policy.SetContentTypeStartsWith(""); err == nil {
+		logError(testName, function, args, startTime, "", "SetContentTypeStartsWith did not fail for invalid conditions", err)
+		return
+	}
 	if err := policy.SetContentLengthRange(1024*1024, 1024); err == nil {
 		logError(testName, function, args, startTime, "", "SetContentLengthRange did not fail for invalid conditions", err)
 		return
@@ -3554,7 +3558,7 @@ func testCopyObject() {
 		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
 		return
 	}
-	defer cleanupBucket(bucketName + "-copy", c)
+	defer cleanupBucket(bucketName+"-copy", c)
 
 	// Generate 33K of data.
 	bufSize := dataFileMap["datafile-33-kB"]
@@ -5868,7 +5872,7 @@ func testMakeBucketErrorV2() {
 		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
 		return
 	}
-	
+
 	defer cleanupBucket(bucketName, c)
 
 	if err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: region}); err == nil {
@@ -6958,7 +6962,6 @@ func testEncryptedEmptyObject() {
 	}
 
 	delete(args, "objectName")
-
 
 	successLogger(testName, function, args, startTime).Info()
 }
