@@ -389,6 +389,139 @@ func TestConfiguration_RemoveQueueByArnEventsPrefixSuffix(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "Queue Configuration Removed with nil Filter",
+			fields: fields{
+				XMLName:       xml.Name{},
+				LambdaConfigs: nil,
+				TopicConfigs:  nil,
+				QueueConfigs: []QueueConfig{
+					{
+						Config: Config{
+							ID: "",
+							Arn: Arn{
+								Partition: "minio",
+								Service:   "sqs",
+								Region:    "",
+								AccountID: "1",
+								Resource:  "postgresql",
+							},
+							Events: []EventType{
+								ObjectAccessedAll,
+							},
+						},
+						Queue: "arn:minio:sqs::1:postgresql",
+					},
+				},
+			},
+			args: args{
+				arn: Arn{
+					Partition: "minio",
+					Service:   "sqs",
+					Region:    "",
+					AccountID: "1",
+					Resource:  "postgresql",
+				},
+				events: []EventType{
+					ObjectAccessedAll,
+				},
+				prefix: "",
+				suffix: "",
+			},
+			wantErr: false,
+		},
+		{
+			name: "Queue Configuration not Removed with no prefix and Filter",
+			fields: fields{
+				XMLName:       xml.Name{},
+				LambdaConfigs: nil,
+				TopicConfigs:  nil,
+				QueueConfigs: []QueueConfig{
+					{
+						Config: Config{
+							ID: "",
+							Arn: Arn{
+								Partition: "minio",
+								Service:   "sqs",
+								Region:    "",
+								AccountID: "1",
+								Resource:  "postgresql",
+							},
+							Events: []EventType{
+								ObjectAccessedAll,
+							},
+							Filter: &Filter{
+								S3Key: S3Key{
+									FilterRules: []FilterRule{
+										{
+											Name:  "prefix",
+											Value: "x",
+										},
+									},
+								},
+							},
+						},
+						Queue: "arn:minio:sqs::1:postgresql",
+					},
+				},
+			},
+			args: args{
+				arn: Arn{
+					Partition: "minio",
+					Service:   "sqs",
+					Region:    "",
+					AccountID: "1",
+					Resource:  "postgresql",
+				},
+				events: []EventType{
+					ObjectAccessedAll,
+				},
+				prefix: "",
+				suffix: "",
+			},
+			wantErr: true,
+		},
+		{
+			name: "Queue Configuration not Removed with prefix and nil Filter",
+			fields: fields{
+				XMLName:       xml.Name{},
+				LambdaConfigs: nil,
+				TopicConfigs:  nil,
+				QueueConfigs: []QueueConfig{
+					{
+						Config: Config{
+							ID: "",
+							Arn: Arn{
+								Partition: "minio",
+								Service:   "sqs",
+								Region:    "",
+								AccountID: "1",
+								Resource:  "postgresql",
+							},
+							Events: []EventType{
+								ObjectAccessedAll,
+							},
+						},
+						Queue: "arn:minio:sqs::1:postgresql",
+					},
+				},
+			},
+			args: args{
+				arn: Arn{
+					Partition: "minio",
+					Service:   "sqs",
+					Region:    "",
+					AccountID: "1",
+					Resource:  "postgresql",
+				},
+				events: []EventType{
+					ObjectAccessedAll,
+				},
+				prefix: "x",
+				suffix: "",
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -633,6 +766,139 @@ func TestConfiguration_RemoveLambdaByArnEventsPrefixSuffix(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "Lambda Configuration Removed with nil Filter",
+			fields: fields{
+				XMLName:      xml.Name{},
+				QueueConfigs: nil,
+				TopicConfigs: nil,
+				LambdaConfigs: []LambdaConfig{
+					{
+						Config: Config{
+							ID: "",
+							Arn: Arn{
+								Partition: "minio",
+								Service:   "lambda",
+								Region:    "",
+								AccountID: "1",
+								Resource:  "provider",
+							},
+							Events: []EventType{
+								ObjectAccessedAll,
+							},
+						},
+						Lambda: "arn:minio:lambda::1:provider",
+					},
+				},
+			},
+			args: args{
+				arn: Arn{
+					Partition: "minio",
+					Service:   "lambda",
+					Region:    "",
+					AccountID: "1",
+					Resource:  "provider",
+				},
+				events: []EventType{
+					ObjectAccessedAll,
+				},
+				prefix: "",
+				suffix: "",
+			},
+			wantErr: false,
+		},
+		{
+			name: "Lambda Configuration Not Removed with no prefix and Filter",
+			fields: fields{
+				XMLName:      xml.Name{},
+				QueueConfigs: nil,
+				TopicConfigs: nil,
+				LambdaConfigs: []LambdaConfig{
+					{
+						Config: Config{
+							ID: "",
+							Arn: Arn{
+								Partition: "minio",
+								Service:   "lambda",
+								Region:    "",
+								AccountID: "1",
+								Resource:  "provider",
+							},
+							Events: []EventType{
+								ObjectAccessedAll,
+							},
+							Filter: &Filter{
+								S3Key: S3Key{
+									FilterRules: []FilterRule{
+										{
+											Name:  "prefix",
+											Value: "x",
+										},
+									},
+								},
+							},
+						},
+						Lambda: "arn:minio:lambda::1:provider",
+					},
+				},
+			},
+			args: args{
+				arn: Arn{
+					Partition: "minio",
+					Service:   "lambda",
+					Region:    "",
+					AccountID: "1",
+					Resource:  "provider",
+				},
+				events: []EventType{
+					ObjectAccessedAll,
+				},
+				prefix: "",
+				suffix: "",
+			},
+			wantErr: true,
+		},
+		{
+			name: "Lambda Configuration Not Removed with prefix and nil Filter",
+			fields: fields{
+				XMLName:      xml.Name{},
+				QueueConfigs: nil,
+				TopicConfigs: nil,
+				LambdaConfigs: []LambdaConfig{
+					{
+						Config: Config{
+							ID: "",
+							Arn: Arn{
+								Partition: "minio",
+								Service:   "lambda",
+								Region:    "",
+								AccountID: "1",
+								Resource:  "provider",
+							},
+							Events: []EventType{
+								ObjectAccessedAll,
+							},
+						},
+						Lambda: "arn:minio:lambda::1:provider",
+					},
+				},
+			},
+			args: args{
+				arn: Arn{
+					Partition: "minio",
+					Service:   "lambda",
+					Region:    "",
+					AccountID: "1",
+					Resource:  "provider",
+				},
+				events: []EventType{
+					ObjectAccessedAll,
+				},
+				prefix: "x",
+				suffix: "",
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -825,6 +1091,139 @@ func TestConfiguration_RemoveTopicByArnEventsPrefixSuffix(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "Topic Configuration Removed with nil Filter",
+			fields: fields{
+				XMLName:       xml.Name{},
+				QueueConfigs:  nil,
+				LambdaConfigs: nil,
+				TopicConfigs: []TopicConfig{
+					{
+						Config: Config{
+							ID: "",
+							Arn: Arn{
+								Partition: "minio",
+								Service:   "sns",
+								Region:    "",
+								AccountID: "1",
+								Resource:  "kafka",
+							},
+							Events: []EventType{
+								ObjectAccessedAll,
+							},
+						},
+						Topic: "arn:minio:sns::1:kafka",
+					},
+				},
+			},
+			args: args{
+				arn: Arn{
+					Partition: "minio",
+					Service:   "sns",
+					Region:    "",
+					AccountID: "1",
+					Resource:  "kafka",
+				},
+				events: []EventType{
+					ObjectAccessedAll,
+				},
+				prefix: "",
+				suffix: "",
+			},
+			wantErr: false,
+		},
+		{
+			name: "Topic Configuration Not Removed, prefix empty",
+			fields: fields{
+				XMLName:       xml.Name{},
+				QueueConfigs:  nil,
+				LambdaConfigs: nil,
+				TopicConfigs: []TopicConfig{
+					{
+						Config: Config{
+							ID: "",
+							Arn: Arn{
+								Partition: "minio",
+								Service:   "sns",
+								Region:    "",
+								AccountID: "1",
+								Resource:  "kafka",
+							},
+							Events: []EventType{
+								ObjectAccessedAll,
+							},
+							Filter: &Filter{
+								S3Key: S3Key{
+									FilterRules: []FilterRule{
+										{
+											Name:  "prefix",
+											Value: "x",
+										},
+									},
+								},
+							},
+						},
+						Topic: "arn:minio:sns::1:kafka",
+					},
+				},
+			},
+			args: args{
+				arn: Arn{
+					Partition: "minio",
+					Service:   "sns",
+					Region:    "",
+					AccountID: "1",
+					Resource:  "kafka",
+				},
+				events: []EventType{
+					ObjectAccessedAll,
+				},
+				prefix: "",
+				suffix: "",
+			},
+			wantErr: true,
+		},
+		{
+			name: "Topic Configuration Not Removed, Config Events Empty",
+			fields: fields{
+				XMLName:       xml.Name{},
+				QueueConfigs:  nil,
+				LambdaConfigs: nil,
+				TopicConfigs: []TopicConfig{
+					{
+						Config: Config{
+							ID: "",
+							Arn: Arn{
+								Partition: "minio",
+								Service:   "sns",
+								Region:    "",
+								AccountID: "1",
+								Resource:  "kafka",
+							},
+							Events: []EventType{
+								ObjectAccessedAll,
+							},
+						},
+						Topic: "arn:minio:sns::1:kafka",
+					},
+				},
+			},
+			args: args{
+				arn: Arn{
+					Partition: "minio",
+					Service:   "sns",
+					Region:    "",
+					AccountID: "1",
+					Resource:  "kafka",
+				},
+				events: []EventType{
+					ObjectAccessedAll,
+				},
+				prefix: "x",
+				suffix: "",
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -836,6 +1235,172 @@ func TestConfiguration_RemoveTopicByArnEventsPrefixSuffix(t *testing.T) {
 			}
 			if err := b.RemoveTopicByArnEventsPrefixSuffix(tt.args.arn, tt.args.events, tt.args.prefix, tt.args.suffix); (err != nil) != tt.wantErr {
 				t.Errorf("RemoveTopicByArnEventsPrefixSuffix() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestConfigEqual(t *testing.T) {
+	type args struct {
+		config Config
+		events []EventType
+		prefix string
+		suffix string
+	}
+	tests := []struct {
+		name     string
+		args     args
+		expected bool
+	}{
+		{
+			name: "Config equal true",
+			args: args{
+				events: []EventType{ObjectAccessedAll},
+				prefix: "x",
+				suffix: "",
+				config: Config{
+					ID: "",
+					Events: []EventType{
+						ObjectAccessedAll,
+					},
+					Filter: &Filter{
+						S3Key: S3Key{
+							FilterRules: []FilterRule{
+								{
+									Name:  "prefix",
+									Value: "x",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Config Events different",
+			args: args{
+				events: []EventType{ObjectCreatedAll},
+				prefix: "x",
+				suffix: "",
+				config: Config{
+					ID: "",
+					Events: []EventType{
+						ObjectAccessedAll,
+					},
+					Filter: &Filter{
+						S3Key: S3Key{
+							FilterRules: []FilterRule{
+								{
+									Name:  "prefix",
+									Value: "x",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Config prefix, events and suffix equal",
+			args: args{
+				events: []EventType{ObjectCreatedAll},
+				prefix: "x",
+				suffix: "s",
+				config: Config{
+					ID: "",
+					Events: []EventType{
+						ObjectCreatedAll,
+					},
+					Filter: &Filter{
+						S3Key: S3Key{
+							FilterRules: []FilterRule{
+								{
+									Name:  "prefix",
+									Value: "x",
+								},
+								{
+									Name:  "suffix",
+									Value: "s",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Config.Filter nil, filter prefix and suffix empty",
+			args: args{
+				events: []EventType{ObjectCreatedAll},
+				prefix: "",
+				suffix: "",
+				config: Config{
+					ID: "",
+					Events: []EventType{
+						ObjectCreatedAll,
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Config.Filter nil and events, prefix and suffix empty",
+			args: args{
+				events: []EventType{},
+				prefix: "",
+				suffix: "",
+				config: Config{},
+			},
+			expected: true,
+		},
+		{
+			name: "Config prefix empty, Config.Filters not nil",
+			args: args{
+				events: []EventType{ObjectCreatedAll},
+				prefix: "",
+				suffix: "",
+				config: Config{
+					ID: "",
+					Events: []EventType{
+						ObjectCreatedAll,
+					},
+					Filter: &Filter{
+						S3Key: S3Key{
+							FilterRules: []FilterRule{
+								{
+									Name:  "prefix",
+									Value: "x",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Config prefix not empty, Config.Filters nil",
+			args: args{
+				events: []EventType{ObjectCreatedAll},
+				prefix: "x",
+				suffix: "",
+				config: Config{
+					ID: "",
+					Events: []EventType{
+						ObjectCreatedAll,
+					},
+				},
+			},
+			expected: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if res := tt.args.config.Equal(tt.args.events, tt.args.prefix, tt.args.suffix); res != tt.expected {
+				t.Errorf("config.Equal() = %v, expected %v", res, tt.expected)
 			}
 		})
 	}
