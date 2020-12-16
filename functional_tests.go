@@ -3932,7 +3932,7 @@ func testSSES3EncryptedGetObjectReadSeekFunctional() {
 	// Save the data
 	_, err = c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{
 		ContentType:          "binary/octet-stream",
-		ServerSideEncryption: encrypt.NewSSE(),
+		ServerSideEncryption: encrypt.S3,
 	})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject failed", err)
@@ -4289,7 +4289,7 @@ func testSSES3EncryptedGetObjectReadAtFunctional() {
 	// Save the data
 	_, err = c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{
 		ContentType:          "binary/octet-stream",
-		ServerSideEncryption: encrypt.NewSSE(),
+		ServerSideEncryption: encrypt.S3,
 	})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject failed", err)
@@ -4708,7 +4708,7 @@ func testSSES3EncryptionPutGet() {
 		args["objectName"] = objectName
 
 		// Secured object
-		sse := encrypt.NewSSE()
+		sse := encrypt.S3
 		args["sse"] = sse
 
 		// Put encrypted data
@@ -4820,7 +4820,7 @@ func testSSES3EncryptionFPut() {
 		args["objectName"] = objectName
 
 		// Secured object
-		sse := encrypt.NewSSE()
+		sse := encrypt.S3
 		args["sse"] = sse
 
 		// Generate a random file name.
@@ -6971,10 +6971,7 @@ func testEncryptedCopyObjectWrapper(c *minio.Client, bucketName string, sseSrc, 
 		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 		return
 	}
-
-	if sseSrc != nil && sseSrc.Type() != encrypt.S3 {
-		srcEncryption = sseSrc
-	}
+	srcEncryption = sseSrc
 
 	// 2. copy object and change encryption key
 	src := minio.CopySrcOptions{
@@ -6996,10 +6993,8 @@ func testEncryptedCopyObjectWrapper(c *minio.Client, bucketName string, sseSrc, 
 		logError(testName, function, args, startTime, "", "CopyObject failed", err)
 		return
 	}
+	dstEncryption = sseDst
 
-	if sseDst != nil && sseDst.Type() != encrypt.S3 {
-		dstEncryption = sseDst
-	}
 	// 3. get copied object and check if content is equal
 	coreClient := minio.Core{c}
 	reader, _, _, err := coreClient.GetObject(context.Background(), bucketName, "dstObject", minio.GetObjectOptions{ServerSideEncryption: dstEncryption})
@@ -7021,11 +7016,11 @@ func testEncryptedCopyObjectWrapper(c *minio.Client, bucketName string, sseSrc, 
 
 	// Test key rotation for source object in-place.
 	var newSSE encrypt.ServerSide
-	if sseSrc != nil && sseSrc.Type() == encrypt.SSEC {
+	if sseSrc != nil && sseSrc.String() == "SSE-C" {
 		newSSE = encrypt.DefaultPBKDF([]byte("Don't Panic"), []byte(bucketName+"srcObject")) // replace key
 	}
-	if sseSrc != nil && sseSrc.Type() == encrypt.S3 {
-		newSSE = encrypt.NewSSE()
+	if sseSrc != nil && sseSrc == encrypt.S3 {
+		newSSE = encrypt.S3
 	}
 	if newSSE != nil {
 		dst = minio.CopyDestOptions{
@@ -7148,7 +7143,7 @@ func testUnencryptedToSSES3CopyObject() {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
 
 	var sseSrc encrypt.ServerSide
-	sseDst := encrypt.NewSSE()
+	sseDst := encrypt.S3
 	// c.TraceOn(os.Stderr)
 	testEncryptedCopyObjectWrapper(c, bucketName, sseSrc, sseDst)
 }
@@ -7228,7 +7223,7 @@ func testEncryptedSSECToSSES3CopyObject() {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
 
 	sseSrc := encrypt.DefaultPBKDF([]byte("correct horse battery staple"), []byte(bucketName+"srcObject"))
-	sseDst := encrypt.NewSSE()
+	sseDst := encrypt.S3
 	// c.TraceOn(os.Stderr)
 	testEncryptedCopyObjectWrapper(c, bucketName, sseSrc, sseDst)
 }
@@ -7281,7 +7276,7 @@ func testEncryptedSSES3ToSSECCopyObject() {
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
 
-	sseSrc := encrypt.NewSSE()
+	sseSrc := encrypt.S3
 	sseDst := encrypt.DefaultPBKDF([]byte("correct horse battery staple"), []byte(bucketName+"dstObject"))
 	// c.TraceOn(os.Stderr)
 	testEncryptedCopyObjectWrapper(c, bucketName, sseSrc, sseDst)
@@ -7308,8 +7303,8 @@ func testEncryptedSSES3ToSSES3CopyObject() {
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
 
-	sseSrc := encrypt.NewSSE()
-	sseDst := encrypt.NewSSE()
+	sseSrc := encrypt.S3
+	sseDst := encrypt.S3
 	// c.TraceOn(os.Stderr)
 	testEncryptedCopyObjectWrapper(c, bucketName, sseSrc, sseDst)
 }
@@ -7335,7 +7330,7 @@ func testEncryptedSSES3ToUnencryptedCopyObject() {
 	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
 
-	sseSrc := encrypt.NewSSE()
+	sseSrc := encrypt.S3
 	var sseDst encrypt.ServerSide
 	// c.TraceOn(os.Stderr)
 	testEncryptedCopyObjectWrapper(c, bucketName, sseSrc, sseDst)
@@ -7404,7 +7399,7 @@ func testDecryptedCopyObject() {
 	src := minio.CopySrcOptions{
 		Bucket:     bucketName,
 		Object:     objectName,
-		Encryption: encrypt.SSECopy(encryption),
+		Encryption: encryption,
 	}
 	args["source"] = src
 
@@ -7522,8 +7517,8 @@ func testSSECMultipartEncryptedToSSECCopyObjectPart() {
 	// `objectName`.
 	metadata := make(map[string]string)
 	header := make(http.Header)
-	encrypt.SSECopy(srcencryption).Marshal(header)
-	dstencryption.Marshal(header)
+	srcencryption.MarshalCOPY(header, encrypt.CopySource)
+	dstencryption.MarshalCOPY(header, encrypt.CopyTarget)
 	for k, v := range header {
 		metadata[k] = v[0]
 	}
@@ -7699,8 +7694,8 @@ func testSSECEncryptedToSSECCopyObjectPart() {
 	// `objectName`.
 	metadata := make(map[string]string)
 	header := make(http.Header)
-	encrypt.SSECopy(srcencryption).Marshal(header)
-	dstencryption.Marshal(header)
+	srcencryption.MarshalCOPY(header, encrypt.CopySource)
+	dstencryption.MarshalCOPY(header, encrypt.CopyTarget)
 	for k, v := range header {
 		metadata[k] = v[0]
 	}
@@ -7876,7 +7871,7 @@ func testSSECEncryptedToUnencryptedCopyPart() {
 	// `objectName`.
 	metadata := make(map[string]string)
 	header := make(http.Header)
-	encrypt.SSECopy(srcencryption).Marshal(header)
+	srcencryption.MarshalCOPY(header, encrypt.CopySource)
 	for k, v := range header {
 		metadata[k] = v[0]
 	}
@@ -8040,7 +8035,7 @@ func testSSECEncryptedToSSES3CopyObjectPart() {
 
 	destBucketName := bucketName
 	destObjectName := objectName + "-dest"
-	dstencryption := encrypt.NewSSE()
+	dstencryption := encrypt.S3
 
 	uploadID, err := c.NewMultipartUpload(context.Background(), destBucketName, destObjectName, minio.PutObjectOptions{ServerSideEncryption: dstencryption})
 	if err != nil {
@@ -8053,8 +8048,8 @@ func testSSECEncryptedToSSES3CopyObjectPart() {
 	// `objectName`.
 	metadata := make(map[string]string)
 	header := make(http.Header)
-	encrypt.SSECopy(srcencryption).Marshal(header)
-	dstencryption.Marshal(header)
+	srcencryption.MarshalCOPY(header, encrypt.CopySource)
+	dstencryption.MarshalCOPY(header, encrypt.CopyTarget)
 
 	for k, v := range header {
 		metadata[k] = v[0]
@@ -8229,7 +8224,7 @@ func testUnencryptedToSSECCopyObjectPart() {
 	// `objectName`.
 	metadata := make(map[string]string)
 	header := make(http.Header)
-	dstencryption.Marshal(header)
+	dstencryption.MarshalCOPY(header, encrypt.CopyTarget)
 	for k, v := range header {
 		metadata[k] = v[0]
 	}
@@ -8557,7 +8552,7 @@ func testUnencryptedToSSES3CopyObjectPart() {
 
 	destBucketName := bucketName
 	destObjectName := objectName + "-dest"
-	dstencryption := encrypt.NewSSE()
+	dstencryption := encrypt.S3
 
 	uploadID, err := c.NewMultipartUpload(context.Background(), destBucketName, destObjectName, minio.PutObjectOptions{ServerSideEncryption: dstencryption})
 	if err != nil {
@@ -8570,7 +8565,7 @@ func testUnencryptedToSSES3CopyObjectPart() {
 	// `objectName`.
 	metadata := make(map[string]string)
 	header := make(http.Header)
-	dstencryption.Marshal(header)
+	dstencryption.MarshalCOPY(header, encrypt.CopyTarget)
 
 	for k, v := range header {
 		metadata[k] = v[0]
@@ -8707,7 +8702,7 @@ func testSSES3EncryptedToSSECCopyObjectPart() {
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	password := "correct horse battery staple"
-	srcEncryption := encrypt.NewSSE()
+	srcEncryption := encrypt.S3
 	opts := minio.PutObjectOptions{
 		UserMetadata: map[string]string{
 			"Content-Type": "binary/octet-stream",
@@ -8746,7 +8741,7 @@ func testSSES3EncryptedToSSECCopyObjectPart() {
 	// `objectName`.
 	metadata := make(map[string]string)
 	header := make(http.Header)
-	dstencryption.Marshal(header)
+	dstencryption.MarshalCOPY(header, encrypt.CopyTarget)
 	for k, v := range header {
 		metadata[k] = v[0]
 	}
@@ -8881,7 +8876,7 @@ func testSSES3EncryptedToUnencryptedCopyPart() {
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-	srcEncryption := encrypt.NewSSE()
+	srcEncryption := encrypt.S3
 	opts := minio.PutObjectOptions{
 		UserMetadata: map[string]string{
 			"Content-Type": "binary/octet-stream",
@@ -9052,7 +9047,7 @@ func testSSES3EncryptedToSSES3CopyObjectPart() {
 
 	// Save the data
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-	srcEncryption := encrypt.NewSSE()
+	srcEncryption := encrypt.S3
 	opts := minio.PutObjectOptions{
 		UserMetadata: map[string]string{
 			"Content-Type": "binary/octet-stream",
@@ -9077,7 +9072,7 @@ func testSSES3EncryptedToSSES3CopyObjectPart() {
 
 	destBucketName := bucketName
 	destObjectName := objectName + "-dest"
-	dstencryption := encrypt.NewSSE()
+	dstencryption := encrypt.S3
 
 	uploadID, err := c.NewMultipartUpload(context.Background(), destBucketName, destObjectName, minio.PutObjectOptions{ServerSideEncryption: dstencryption})
 	if err != nil {
@@ -9090,7 +9085,7 @@ func testSSES3EncryptedToSSES3CopyObjectPart() {
 	// `objectName`.
 	metadata := make(map[string]string)
 	header := make(http.Header)
-	dstencryption.Marshal(header)
+	dstencryption.MarshalCOPY(header, encrypt.CopySource)
 
 	for k, v := range header {
 		metadata[k] = v[0]

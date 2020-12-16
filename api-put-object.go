@@ -132,7 +132,7 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 	}
 
 	if opts.ServerSideEncryption != nil {
-		opts.ServerSideEncryption.Marshal(header)
+		opts.ServerSideEncryption.MarshalPUT(header)
 	}
 
 	if opts.StorageClass != "" {

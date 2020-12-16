@@ -114,7 +114,7 @@ func (opts CopyDestOptions) Marshal(header http.Header) {
 	}
 
 	if opts.Encryption != nil {
-		opts.Encryption.Marshal(header)
+		opts.Encryption.MarshalCOPY(header, encrypt.CopyTarget)
 	}
 
 	if opts.ReplaceMetadata {
@@ -182,7 +182,7 @@ func (opts CopySrcOptions) Marshal(header http.Header) {
 	}
 
 	if opts.Encryption != nil {
-		encrypt.SSECopy(opts.Encryption).Marshal(header)
+		opts.Encryption.MarshalCOPY(header, encrypt.CopySource)
 	}
 }
 
@@ -380,7 +380,7 @@ func (c Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ...
 	var totalSize, totalParts int64
 	var err error
 	for i, src := range srcs {
-		opts := StatObjectOptions{ServerSideEncryption: encrypt.SSE(src.Encryption), VersionID: src.VersionID}
+		opts := StatObjectOptions{ServerSideEncryption: src.Encryption, VersionID: src.VersionID}
 		srcObjectInfos[i], err = c.statObject(context.Background(), src.Bucket, src.Object, opts)
 		if err != nil {
 			return UploadInfo{}, err
@@ -477,8 +477,8 @@ func (c Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ...
 	for i, src := range srcs {
 		var h = make(http.Header)
 		src.Marshal(h)
-		if dst.Encryption != nil && dst.Encryption.Type() == encrypt.SSEC {
-			dst.Encryption.Marshal(h)
+		if dst.Encryption != nil {
+			dst.Encryption.MarshalCOPY(h, encrypt.CopyTarget)
 		}
 
 		// calculate start/end indices of parts after

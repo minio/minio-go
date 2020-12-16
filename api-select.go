@@ -358,8 +358,8 @@ type SelectObjectOptions struct {
 // Header returns the http.Header representation of the SelectObject options.
 func (o SelectObjectOptions) Header() http.Header {
 	headers := make(http.Header)
-	if o.ServerSideEncryption != nil && o.ServerSideEncryption.Type() == encrypt.SSEC {
-		o.ServerSideEncryption.Marshal(headers)
+	if o.ServerSideEncryption != nil {
+		o.ServerSideEncryption.MarshalGET(headers)
 	}
 	return headers
 }

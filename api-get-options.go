@@ -50,8 +50,8 @@ func (o GetObjectOptions) Header() http.Header {
 	for k, v := range o.headers {
 		headers.Set(k, v)
 	}
-	if o.ServerSideEncryption != nil && o.ServerSideEncryption.Type() == encrypt.SSEC {
-		o.ServerSideEncryption.Marshal(headers)
+	if o.ServerSideEncryption != nil {
+		o.ServerSideEncryption.MarshalGET(headers)
 	}
 	return headers
 }

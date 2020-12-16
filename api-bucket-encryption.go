@@ -23,12 +23,12 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/minio/minio-go/v7/pkg/encrypt"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
-	"github.com/minio/minio-go/v7/pkg/sse"
 )
 
 // SetBucketEncryption sets the default encryption configuration on an existing bucket.
-func (c Client) SetBucketEncryption(ctx context.Context, bucketName string, config *sse.Configuration) error {
+func (c Client) SetBucketEncryption(ctx context.Context, bucketName string, config *encrypt.BucketConfig) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return err
@@ -99,7 +99,7 @@ func (c Client) RemoveBucketEncryption(ctx context.Context, bucketName string) e
 
 // GetBucketEncryption gets the default encryption configuration
 // on an existing bucket with a context to control cancellations and timeouts.
-func (c Client) GetBucketEncryption(ctx context.Context, bucketName string) (*sse.Configuration, error) {
+func (c Client) GetBucketEncryption(ctx context.Context, bucketName string) (*encrypt.BucketConfig, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return nil, err
@@ -125,7 +125,7 @@ func (c Client) GetBucketEncryption(ctx context.Context, bucketName string) (*ss
 		return nil, httpRespToErrorResponse(resp, bucketName, "")
 	}
 
-	encryptionConfig := &sse.Configuration{}
+	encryptionConfig := &encrypt.BucketConfig{}
 	if err = xmlDecoder(resp.Body, encryptionConfig); err != nil {
 		return nil, err
 	}

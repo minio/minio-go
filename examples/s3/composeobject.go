@@ -50,7 +50,8 @@ func main() {
 
 	// Prepare source decryption key (here we assume same key to
 	// decrypt all source objects.)
-	decKey, _ := encrypt.NewSSEC([]byte{1, 2, 3})
+	password := "correct horse battery staple" // Specify your password. DO NOT USE THIS ONE - USE YOUR OWN.
+	decKey := encrypt.DefaultPBKDF([]byte(password), nil)
 
 	// Source objects to concatenate. We also specify decryption
 	// key for each
@@ -78,8 +79,8 @@ func main() {
 	// Create slice of sources.
 	srcs := []minio.CopySrcOptions{src1, src2, src3}
 
-	// Prepare destination encryption key
-	encKey, _ := encrypt.NewSSEC([]byte{8, 9, 0})
+	// New SSE-C where the cryptographic key is derived from a password.
+	encKey := encrypt.DefaultPBKDF([]byte(password), nil)
 
 	// Create destination info
 	dst := minio.CopyDestOptions{

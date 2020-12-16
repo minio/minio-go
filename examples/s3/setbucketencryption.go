@@ -25,7 +25,7 @@ import (
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
-	"github.com/minio/minio-go/v7/pkg/sse"
+	"github.com/minio/minio-go/v7/pkg/encrypt"
 )
 
 func main() {
@@ -48,7 +48,7 @@ func main() {
 	// s3Client.TraceOn(os.Stderr)
 
 	// Set default encryption configuration on a bucket
-	err = s3Client.SetBucketEncryption(context.Background(), "my-bucketname", sse.NewConfigurationSSES3())
+	err = s3Client.SetBucketEncryption(context.Background(), "my-bucketname", encrypt.BucketWithS3())
 	if err != nil {
 		log.Fatalln(err)
 	}
