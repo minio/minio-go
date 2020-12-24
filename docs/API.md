@@ -297,7 +297,7 @@ ctx, cancel := context.WithCancel(context.Background())
 
 defer cancel()
 
-objectCh := minioClient.ListObjects(ctx, "mybucket", ListObjectOptions{
+objectCh := minioClient.ListObjects(ctx, "mybucket", ListObjectsOptions{
        Prefix: "myprefix",
        Recursive: true,
 })

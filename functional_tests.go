@@ -175,7 +175,7 @@ func ignoredLog(testName string, function string, args map[string]interface{}, s
 	duration := time.Since(startTime)
 	// log with the fields as per mint
 	fields := log.Fields{"name": "minio-go: " + testName, "function": function, "args": args,
-		"duration": duration.Nanoseconds() / 1000000, "status": "NA", "alert": alert}
+		"duration": duration.Nanoseconds() / 1000000, "status": "NA", "alert": strings.Split(alert, " ")[0] + " is NotImplemented"}
 	return log.WithFields(cleanEmptyEntries(fields))
 }
 
@@ -366,12 +366,6 @@ func testMakeBucketError() {
 		"region":     region,
 	}
 
-	// skipping region functional tests for non s3 runs
-	if os.Getenv(serverEndpoint) != "s3.amazonaws.com" {
-		ignoredLog(testName, function, args, startTime, "Skipped region functional tests for non s3 runs").Info()
-		return
-	}
-
 	// Seed random based on current time.
 	rand.Seed(time.Now().Unix())
 
@@ -494,12 +488,6 @@ func testMakeBucketRegions() {
 		"region":     region,
 	}
 
-	// skipping region functional tests for non s3 runs
-	if os.Getenv(serverEndpoint) != "s3.amazonaws.com" {
-		ignoredLog(testName, function, args, startTime, "Skipped region functional tests for non s3 runs").Info()
-		return
-	}
-
 	// Seed random based on current time.
 	rand.Seed(time.Now().Unix())
 
@@ -532,7 +520,7 @@ func testMakeBucketRegions() {
 
 	// Delete all objects and buckets
 	if err = cleanupBucket(bucketName, c); err != nil {
-		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		logError(testName, function, args, startTime, "", "CleanupBucket failed", err)
 		return
 	}
 
@@ -548,7 +536,7 @@ func testMakeBucketRegions() {
 
 	// Delete all objects and buckets
 	if err = cleanupBucket(bucketName+".withperiod", c); err != nil {
-		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		logError(testName, function, args, startTime, "", "CleanupBucket failed", err)
 		return
 	}
 	successLogger(testName, function, args, startTime).Info()
@@ -765,7 +753,7 @@ func testListObjectVersions() {
 
 	// Delete all objects and their versions as long as the bucket itself
 	if err = cleanupVersionedBucket(bucketName, c); err != nil {
-		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		logError(testName, function, args, startTime, "", "CleanupBucket failed", err)
 		return
 	}
 
@@ -882,7 +870,7 @@ func testStatObjectWithVersioning() {
 
 	// Delete all objects and their versions as long as the bucket itself
 	if err = cleanupVersionedBucket(bucketName, c); err != nil {
-		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		logError(testName, function, args, startTime, "", "CleanupBucket failed", err)
 		return
 	}
 
@@ -1021,7 +1009,7 @@ func testGetObjectWithVersioning() {
 
 	// Delete all objects and their versions as long as the bucket itself
 	if err = cleanupVersionedBucket(bucketName, c); err != nil {
-		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		logError(testName, function, args, startTime, "", "CleanupBucket failed", err)
 		return
 	}
 
@@ -1158,7 +1146,7 @@ func testCopyObjectWithVersioning() {
 
 	// Delete all objects and their versions as long as the bucket itself
 	if err = cleanupVersionedBucket(bucketName, c); err != nil {
-		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		logError(testName, function, args, startTime, "", "CleanupBucket failed", err)
 		return
 	}
 
@@ -1298,7 +1286,7 @@ func testComposeObjectWithVersioning() {
 
 	// Delete all objects and their versions as long as the bucket itself
 	if err = cleanupVersionedBucket(bucketName, c); err != nil {
-		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		logError(testName, function, args, startTime, "", "CleanupBucket failed", err)
 		return
 	}
 
@@ -1383,7 +1371,7 @@ func testRemoveObjectWithVersioning() {
 
 	err = c.RemoveBucket(context.Background(), bucketName)
 	if err != nil {
-		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		logError(testName, function, args, startTime, "", "CleanupBucket failed", err)
 		return
 	}
 
@@ -1478,7 +1466,7 @@ func testRemoveObjectsWithVersioning() {
 
 	err = c.RemoveBucket(context.Background(), bucketName)
 	if err != nil {
-		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		logError(testName, function, args, startTime, "", "CleanupBucket failed", err)
 		return
 	}
 
@@ -1635,7 +1623,7 @@ func testObjectTaggingWithVersioning() {
 
 	// Delete all objects and their versions as long as the bucket itself
 	if err = cleanupVersionedBucket(bucketName, c); err != nil {
-		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		logError(testName, function, args, startTime, "", "CleanupBucket failed", err)
 		return
 	}
 
@@ -2874,7 +2862,7 @@ func testGetObjectReadSeekFunctional() {
 	defer func() {
 		// Delete all objects and buckets
 		if err = cleanupBucket(bucketName, c); err != nil {
-			logError(testName, function, args, startTime, "", "Cleanup failed", err)
+			logError(testName, function, args, startTime, "", "CleanupBucket failed", err)
 			return
 		}
 	}()
@@ -3740,7 +3728,7 @@ func testSSECEncryptedGetObjectReadSeekFunctional() {
 	defer func() {
 		// Delete all objects and buckets
 		if err = cleanupBucket(bucketName, c); err != nil {
-			logError(testName, function, args, startTime, "", "Cleanup failed", err)
+			logError(testName, function, args, startTime, "", "CleanupBucket failed", err)
 			return
 		}
 	}()
@@ -3922,7 +3910,7 @@ func testSSES3EncryptedGetObjectReadSeekFunctional() {
 	defer func() {
 		// Delete all objects and buckets
 		if err = cleanupBucket(bucketName, c); err != nil {
-			logError(testName, function, args, startTime, "", "Cleanup failed", err)
+			logError(testName, function, args, startTime, "", "CleanupBucket failed", err)
 			return
 		}
 	}()
@@ -4979,7 +4967,7 @@ func testBucketNotification() {
 
 	// Delete all objects and buckets
 	if err = cleanupBucket(bucketName, c); err != nil {
-		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		logError(testName, function, args, startTime, "", "CleanupBucket failed", err)
 		return
 	}
 
@@ -5023,6 +5011,7 @@ func testFunctional() {
 	args["bucketName"] = bucketName
 	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1"})
 
+	defer cleanupBucket(bucketName, c)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
 		return
@@ -5836,11 +5825,6 @@ func testMakeBucketErrorV2() {
 		"region":     "eu-west-1",
 	}
 
-	if os.Getenv(serverEndpoint) != "s3.amazonaws.com" {
-		ignoredLog(testName, function, args, startTime, "Skipped region functional tests for non s3 runs").Info()
-		return
-	}
-
 	// Seed random based on current time.
 	rand.Seed(time.Now().Unix())
 
@@ -6150,11 +6134,6 @@ func testMakeBucketRegionsV2() {
 		"region":     "eu-west-1",
 	}
 
-	if os.Getenv(serverEndpoint) != "s3.amazonaws.com" {
-		ignoredLog(testName, function, args, startTime, "Skipped region functional tests for non s3 runs").Info()
-		return
-	}
-
 	// Seed random based on current time.
 	rand.Seed(time.Now().Unix())
 
@@ -6186,7 +6165,7 @@ func testMakeBucketRegionsV2() {
 	}
 
 	if err = cleanupBucket(bucketName, c); err != nil {
-		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		logError(testName, function, args, startTime, "", "CleanupBucket failed while removing bucket recursively", err)
 		return
 	}
 
@@ -6196,13 +6175,13 @@ func testMakeBucketRegionsV2() {
 	if err = c.MakeBucket(context.Background(), bucketName+".withperiod", minio.MakeBucketOptions{Region: "us-west-2"}); err != nil {
 		args["bucketName"] = bucketName + ".withperiod"
 		args["region"] = "us-west-2"
-		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		logError(testName, function, args, startTime, "", "MakeBucket test with a bucket name with period, '.', failed", err)
 		return
 	}
 
 	// Delete all objects and buckets
 	if err = cleanupBucket(bucketName+".withperiod", c); err != nil {
-		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		logError(testName, function, args, startTime, "", "CleanupBucket failed while removing bucket recursively", err)
 		return
 	}
 
@@ -6840,7 +6819,7 @@ func testComposeMultipleSources(c *minio.Client) {
 	successLogger(testName, function, args, startTime).Info()
 }
 
-// Test concatenating multiple objects objects
+// Test concatenating multiple 10K objects V2
 func testCompose10KSourcesV2() {
 	// initialize logging params
 	startTime := time.Now()
@@ -6962,7 +6941,6 @@ func testEncryptedEmptyObject() {
 	}
 
 	delete(args, "objectName")
-
 	successLogger(testName, function, args, startTime).Info()
 }
 
@@ -9907,7 +9885,7 @@ func testComposeObjectErrorCases() {
 	testComposeObjectErrorCasesWrapper(c)
 }
 
-// Test concatenating 10K objects
+// Test concatenating multiple 10K objects V4
 func testCompose10KSources() {
 	// initialize logging params
 	startTime := time.Now()
@@ -10621,7 +10599,13 @@ func testGetObjectACLContext() {
 		"X-Amz-Acl": "public-read-write",
 	}
 
-	_, err = c.PutObject(context.Background(), bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream", UserMetadata: metaData})
+	_, err = c.PutObject(context.Background(), bucketName,
+		objectName, reader, int64(bufSize),
+		minio.PutObjectOptions{
+			ContentType:  "binary/octet-stream",
+			UserMetadata: metaData,
+		})
+
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject failed", err)
 		return
@@ -10633,8 +10617,8 @@ func testGetObjectACLContext() {
 
 	// Read the data back
 	objectInfo, getObjectACLErr := c.GetObjectACL(ctx, bucketName, objectName)
-	if getObjectACLErr == nil {
-		logError(testName, function, args, startTime, "", "GetObjectACL fail", getObjectACLErr)
+	if getObjectACLErr != nil {
+		logError(testName, function, args, startTime, "", "GetObjectACL failed. ", getObjectACLErr)
 		return
 	}
 
@@ -11202,7 +11186,7 @@ func testRemoveObjects() {
 
 	// Delete all objects and buckets
 	if err = cleanupVersionedBucket(bucketName, c); err != nil {
-		logError(testName, function, args, startTime, "", "Cleanup failed", err)
+		logError(testName, function, args, startTime, "", "CleanupBucket failed", err)
 		return
 	}
 
