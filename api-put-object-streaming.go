@@ -27,6 +27,7 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
@@ -77,6 +78,12 @@ type uploadedPartRes struct {
 type uploadPartReq struct {
 	PartNum int        // Number of the part uploaded.
 	Part    ObjectPart // Size of the part uploaded.
+}
+
+var bufferPool = sync.Pool{
+	New: func() interface{} {
+		return new(bytes.Buffer)
+	},
 }
 
 // putObjectMultipartFromReadAt - Uploads files bigger than 128MiB.
@@ -147,9 +154,13 @@ func (c Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketNa
 	}
 	close(uploadPartsCh)
 
-	var partsBuf = make([][]byte, opts.getNumThreads())
+	var partsBuf = make([]*bytes.Buffer, opts.getNumThreads())
 	for i := range partsBuf {
-		partsBuf[i] = make([]byte, 0, partSize)
+		partBuf := bufferPool.Get().(*bytes.Buffer)
+		partBuf.Reset()
+
+		partsBuf[i] = partBuf
+		defer bufferPool.Put(partBuf) // Relinquish buffer.
 	}
 
 	// Receive each part number from the channel allowing three parallel uploads.
@@ -170,7 +181,7 @@ func (c Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketNa
 					partSize = lastPartSize
 				}
 
-				n, rerr := readFull(io.NewSectionReader(reader, readOffset, partSize), partsBuf[w-1][:partSize])
+				_, rerr := io.Copy(partsBuf[w-1], io.NewSectionReader(reader, readOffset, partSize))
 				if rerr != nil && rerr != io.ErrUnexpectedEOF && err != io.EOF {
 					uploadedPartsCh <- uploadedPartRes{
 						Error: rerr,
@@ -180,7 +191,7 @@ func (c Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketNa
 				}
 
 				// Get a section reader on a particular offset.
-				hookReader := newHook(bytes.NewReader(partsBuf[w-1][:n]), opts.Progress)
+				hookReader := newHook(partsBuf[w-1], opts.Progress)
 
 				// Proceed to upload the part.
 				objPart, err := c.uploadPart(ctx, bucketName, objectName,
@@ -210,10 +221,13 @@ func (c Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketNa
 	// Gather the responses as they occur and update any
 	// progress bar.
 	for u := 1; u <= totalPartsCount; u++ {
+		partsBuf[u-1].Reset()
+
 		uploadRes := <-uploadedPartsCh
 		if uploadRes.Error != nil {
 			return UploadInfo{}, uploadRes.Error
 		}
+
 		// Update the totalUploadedSize.
 		totalUploadedSize += uploadRes.Size
 		// Store the parts to be completed in order.
@@ -403,19 +417,21 @@ func (c Client) putObject(ctx context.Context, bucketName, objectName string, re
 
 	var md5Base64 string
 	if opts.SendContentMd5 {
-		// Create a buffer.
-		buf := make([]byte, size)
+		buf := bufferPool.Get().(*bytes.Buffer)
+		buf.Reset()
 
-		length, rErr := readFull(reader, buf)
+		defer bufferPool.Put(buf)
+
+		// Calculate md5sum.
+		hash := c.md5Hasher()
+
+		_, rErr := io.Copy(io.MultiWriter(buf, hash), reader)
 		if rErr != nil && rErr != io.ErrUnexpectedEOF && rErr != io.EOF {
 			return UploadInfo{}, rErr
 		}
 
-		// Calculate md5sum.
-		hash := c.md5Hasher()
-		hash.Write(buf[:length])
 		md5Base64 = base64.StdEncoding.EncodeToString(hash.Sum(nil))
-		reader = bytes.NewReader(buf[:length])
+		reader = buf
 		hash.Close()
 	}
 
