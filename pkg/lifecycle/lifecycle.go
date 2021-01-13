@@ -220,6 +220,11 @@ func (b ExpireDeleteMarker) MarshalXML(e *xml.Encoder, startElement xml.StartEle
 	return e.EncodeElement(expireDeleteMarkerWrapper(b), startElement)
 }
 
+// IsEnabled returns true if the auto delete-marker expiration is enabled
+func (b ExpireDeleteMarker) IsEnabled() bool {
+	return bool(b)
+}
+
 // Expiration structure - expiration details of lifecycle configuration
 type Expiration struct {
 	XMLName      xml.Name           `xml:"Expiration,omitempty" json:"-"`
