@@ -243,9 +243,14 @@ func (e Expiration) IsDateNull() bool {
 	return e.Date.Time.IsZero()
 }
 
+// IsDeleteMarkerExpirationEnabled returns true if the auto-expiration of delete marker is enabled
+func (e Expiration) IsDeleteMarkerExpirationEnabled() bool {
+	return e.DeleteMarker.IsEnabled()
+}
+
 // IsNull returns true if both date and days fields are null
 func (e Expiration) IsNull() bool {
-	return e.IsDaysNull() && e.IsDateNull()
+	return e.IsDaysNull() && e.IsDateNull() && !e.IsDeleteMarkerExpirationEnabled()
 }
 
 // MarshalXML is expiration is non null
