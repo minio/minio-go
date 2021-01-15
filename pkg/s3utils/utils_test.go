@@ -39,7 +39,15 @@ func TestGetRegionFromURL(t *testing.T) {
 			expectedRegion: "cn-north-1",
 		},
 		{
+			u:              url.URL{Host: "s3.dualstack.cn-north-1.amazonaws.com.cn"},
+			expectedRegion: "cn-north-1",
+		},
+		{
 			u:              url.URL{Host: "s3.cn-northwest-1.amazonaws.com.cn"},
+			expectedRegion: "cn-northwest-1",
+		},
+		{
+			u:              url.URL{Host: "s3.dualstack.cn-northwest-1.amazonaws.com.cn"},
 			expectedRegion: "cn-northwest-1",
 		},
 		{
