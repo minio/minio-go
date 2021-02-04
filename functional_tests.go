@@ -6093,6 +6093,63 @@ func testFunctional() {
 		return
 	}
 
+	function = "PresignHeader(method, bucketName, objectName, expires, reqParams, extraHeaders)"
+	functionAll += ", " + function
+	presignExtraHeaders := map[string][]string{
+		"mysecret": {"abcxxx"},
+	}
+	args = map[string]interface{}{
+		"method":       "PUT",
+		"bucketName":   bucketName,
+		"objectName":   objectName + "-presign-custom",
+		"expires":      3600 * time.Second,
+		"extraHeaders": presignExtraHeaders,
+	}
+	presignedURL, err := c.PresignHeader(context.Background(), "PUT", bucketName, objectName+"-presign-custom", 3600*time.Second, nil, presignExtraHeaders)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Presigned failed", err)
+		return
+	}
+
+	// Generate data more than 32K
+	buf = bytes.Repeat([]byte("1"), rand.Intn(1<<10)+32*1024)
+
+	req, err = http.NewRequest(http.MethodPut, presignedURL.String(), bytes.NewReader(buf))
+	if err != nil {
+		logError(testName, function, args, startTime, "", "HTTP request to Presigned URL failed", err)
+		return
+	}
+
+	req.Header.Add("mysecret", "abcxxx")
+	resp, err = httpClient.Do(req)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "HTTP request to Presigned URL failed", err)
+		return
+	}
+
+	// Download the uploaded object to verify
+	args = map[string]interface{}{
+		"bucketName": bucketName,
+		"objectName": objectName + "-presign-custom",
+	}
+	newReader, err = c.GetObject(context.Background(), bucketName, objectName+"-presign-custom", minio.GetObjectOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "GetObject of uploaded custom-presigned object failed", err)
+		return
+	}
+
+	newReadBytes, err = ioutil.ReadAll(newReader)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "ReadAll failed during get on custom-presigned put object", err)
+		return
+	}
+	newReader.Close()
+
+	if !bytes.Equal(newReadBytes, buf) {
+		logError(testName, function, args, startTime, "", "Bytes mismatch on custom-presigned object upload verification", err)
+		return
+	}
+
 	function = "RemoveObject(bucketName, objectName)"
 	functionAll += ", " + function
 	args = map[string]interface{}{
@@ -6123,6 +6180,14 @@ func testFunctional() {
 
 	args["objectName"] = objectName + "-presigned"
 	err = c.RemoveObject(context.Background(), bucketName, objectName+"-presigned", minio.RemoveObjectOptions{})
+
+	if err != nil {
+		logError(testName, function, args, startTime, "", "RemoveObject failed", err)
+		return
+	}
+
+	args["objectName"] = objectName + "-presign-custom"
+	err = c.RemoveObject(context.Background(), bucketName, objectName+"-presign-custom", minio.RemoveObjectOptions{})
 
 	if err != nil {
 		logError(testName, function, args, startTime, "", "RemoveObject failed", err)
@@ -10871,27 +10936,44 @@ func testFunctionalV2() {
 		return
 	}
 
-	function = "GetObject(bucketName, objectName)"
-	functionAll += ", " + function
+	// Download the uploaded object to verify
 	args = map[string]interface{}{
 		"bucketName": bucketName,
 		"objectName": objectName + "-presigned",
 	}
 	newReader, err = c.GetObject(context.Background(), bucketName, objectName+"-presigned", minio.GetObjectOptions{})
 	if err != nil {
-		logError(testName, function, args, startTime, "", "GetObject failed", err)
+		logError(testName, function, args, startTime, "", "GetObject of uploaded presigned object failed", err)
 		return
 	}
 
 	newReadBytes, err = ioutil.ReadAll(newReader)
 	if err != nil {
-		logError(testName, function, args, startTime, "", "ReadAll failed", err)
+		logError(testName, function, args, startTime, "", "ReadAll failed during get on presigned put object", err)
 		return
 	}
 	newReader.Close()
 
 	if !bytes.Equal(newReadBytes, buf) {
-		logError(testName, function, args, startTime, "", "Bytes mismatch", err)
+		logError(testName, function, args, startTime, "", "Bytes mismatch on presigned object upload verification", err)
+		return
+	}
+
+	function = "PresignHeader(method, bucketName, objectName, expires, reqParams, extraHeaders)"
+	functionAll += ", " + function
+	presignExtraHeaders := map[string][]string{
+		"mysecret": {"abcxxx"},
+	}
+	args = map[string]interface{}{
+		"method":       "PUT",
+		"bucketName":   bucketName,
+		"objectName":   objectName + "-presign-custom",
+		"expires":      3600 * time.Second,
+		"extraHeaders": presignExtraHeaders,
+	}
+	_, err = c.PresignHeader(context.Background(), "PUT", bucketName, objectName+"-presign-custom", 3600*time.Second, nil, presignExtraHeaders)
+	if err == nil {
+		logError(testName, function, args, startTime, "", "Presigned with extra headers succeeded", err)
 		return
 	}
 

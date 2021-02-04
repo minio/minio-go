@@ -29,7 +29,7 @@ import (
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
-// Deprecated: BucketOptions will be renamed to RemoveBucketOptions in future versions.
+// BucketOptions - deprecated: will be renamed to RemoveBucketOptions in future versions.
 type BucketOptions = RemoveBucketOptions
 
 // RemoveBucketOptions special headers to purge buckets, only

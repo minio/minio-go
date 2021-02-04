@@ -208,11 +208,10 @@ func (c *Client) ResetBucketReplication(ctx context.Context, bucketName string, 
 	return rID, nil
 }
 
-// ResetBucketReplication kicks off replication of previously replicated objects if ExistingObjectReplication
-// is enabled in the replication config
-func (c *Client) ResetBucketReplicationOnTarget(ctx context.Context, bucketName string, olderThan time.Duration, tgtArn string) (rinfo replication.ResyncTargetsInfo, err error) {
-	rID := mustGetUUID()
-	return c.resetBucketReplicationOnTarget(ctx, bucketName, olderThan, tgtArn, rID)
+// ResetBucketReplicationOnTarget kicks off replication of previously replicated objects if
+// ExistingObjectReplication is enabled in the replication config
+func (c *Client) ResetBucketReplicationOnTarget(ctx context.Context, bucketName string, olderThan time.Duration, tgtArn string) (replication.ResyncTargetsInfo, error) {
+	return c.resetBucketReplicationOnTarget(ctx, bucketName, olderThan, tgtArn, mustGetUUID())
 }
 
 // ResetBucketReplication kicks off replication of previously replicated objects if ExistingObjectReplication
