@@ -19,6 +19,7 @@ package minio
 
 import (
 	"context"
+	"crypto/rand"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -67,6 +68,35 @@ func TestGetObjectReturnErrorIfServerTruncatesResponse(t *testing.T) {
 
 		// Write less bytes than the content length.
 		w.Write([]byte("12345"))
+	}))
+	defer srv.Close()
+
+	// New - instantiate minio client with options
+	clnt, err := New(srv.Listener.Addr().String(), &Options{
+		Region: "us-east-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	obj, err := clnt.GetObject(context.Background(), "bucketName", "objectName", GetObjectOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// We expect an error when reading back.
+	if _, err = ioutil.ReadAll(obj); err != io.ErrUnexpectedEOF {
+		t.Fatalf("Expected %v, got %v", io.ErrUnexpectedEOF, err)
+	}
+}
+
+func TestGetObjectReturnErrorIfServerTruncatesResponseDouble(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Last-Modified", "Wed, 21 Oct 2015 07:28:00 GMT")
+		w.Header().Set("Content-Length", "1024")
+
+		// Write less bytes than the content length.
+		io.Copy(w, io.LimitReader(rand.Reader, 1023))
 	}))
 	defer srv.Close()
 
