@@ -81,10 +81,15 @@ func (n NoncurrentVersionTransition) IsDaysNull() bool {
 	return n.NoncurrentDays == ExpirationDays(0)
 }
 
+// IsStorageClassEmpty returns true if storage class field is empty
+func (n NoncurrentVersionTransition) IsStorageClassEmpty() bool {
+	return n.StorageClass == ""
+}
+
 // MarshalXML is extended to leave out
 // <NoncurrentVersionTransition></NoncurrentVersionTransition> tags
 func (n NoncurrentVersionTransition) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
-	if n.IsDaysNull() {
+	if n.IsDaysNull() || n.IsStorageClassEmpty() {
 		return nil
 	}
 	type noncurrentVersionTransitionWrapper NoncurrentVersionTransition
