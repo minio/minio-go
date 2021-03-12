@@ -29,8 +29,16 @@ import (
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
+type ObjectInterface interface {
+	Read(b []byte) (n int, err error)
+	Stat() (ObjectInfo, error)
+	ReadAt(b []byte, offset int64) (n int, err error)
+	Seek(offset int64, whence int) (n int64, err error)
+	Close() (err error)
+}
+
 // GetObject wrapper function that accepts a request context
-func (c Client) GetObject(ctx context.Context, bucketName, objectName string, opts GetObjectOptions) (io.Reader, error) {
+func (c Client) GetObject(ctx context.Context, bucketName, objectName string, opts GetObjectOptions) (ObjectInterface, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return nil, err
@@ -623,7 +631,7 @@ func (o *Object) Close() (err error) {
 
 // newObject instantiates a new *minio.Object*
 // ObjectInfo will be set by setObjectInfo
-func newObject(reqCh chan<- getRequest, resCh <-chan getResponse, doneCh chan<- struct{}) *Object {
+func newObject(reqCh chan<- getRequest, resCh <-chan getResponse, doneCh chan<- struct{}) ObjectInterface {
 	return &Object{
 		mutex:  &sync.Mutex{},
 		reqCh:  reqCh,
