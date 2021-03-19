@@ -72,7 +72,7 @@ func (c Client) putObjectMultipartNoStream(ctx context.Context, bucketName, obje
 	var complMultipartUpload completeMultipartUpload
 
 	// Calculate the optimal parts info for a given size.
-	totalPartsCount, partSize, _, err := optimalPartInfo(-1, opts.PartSize)
+	totalPartsCount, partSize, _, err := OptimalPartInfo(-1, opts.PartSize)
 	if err != nil {
 		return UploadInfo{}, err
 	}

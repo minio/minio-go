@@ -99,11 +99,11 @@ func TestBucketPolicyTypes(t *testing.T) {
 
 // Tests optimal part size.
 func TestPartSize(t *testing.T) {
-	_, _, _, err := optimalPartInfo(5000000000000000000, minPartSize)
+	_, _, _, err := OptimalPartInfo(5000000000000000000, minPartSize)
 	if err == nil {
 		t.Fatal("Error: should fail")
 	}
-	totalPartsCount, partSize, lastPartSize, err := optimalPartInfo(5243928576, 5*1024*1024)
+	totalPartsCount, partSize, lastPartSize, err := OptimalPartInfo(5243928576, 5*1024*1024)
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
@@ -116,7 +116,7 @@ func TestPartSize(t *testing.T) {
 	if lastPartSize != 1048576 {
 		t.Fatalf("Error: expecting last part size of 1048576: got %v instead", lastPartSize)
 	}
-	totalPartsCount, partSize, lastPartSize, err = optimalPartInfo(5243928576, 0)
+	totalPartsCount, partSize, lastPartSize, err = OptimalPartInfo(5243928576, 0)
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
@@ -129,7 +129,7 @@ func TestPartSize(t *testing.T) {
 	if lastPartSize != 9437184 {
 		t.Fatalf("Error: expecting last part size of 9437184: got %v instead", lastPartSize)
 	}
-	_, partSize, _, err = optimalPartInfo(5000000000, minPartSize)
+	_, partSize, _, err = OptimalPartInfo(5000000000, minPartSize)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -137,7 +137,7 @@ func TestPartSize(t *testing.T) {
 		t.Fatalf("Error: expecting part size of %v: got %v instead", minPartSize, partSize)
 	}
 	// if stream and using default optimal part size determined by sdk
-	totalPartsCount, partSize, lastPartSize, err = optimalPartInfo(-1, 0)
+	totalPartsCount, partSize, lastPartSize, err = OptimalPartInfo(-1, 0)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -151,7 +151,7 @@ func TestPartSize(t *testing.T) {
 		t.Fatalf("Error: expecting last part size of 671088640: got %v instead", lastPartSize)
 	}
 
-	totalPartsCount, partSize, lastPartSize, err = optimalPartInfo(-1, 64*1024*1024)
+	totalPartsCount, partSize, lastPartSize, err = OptimalPartInfo(-1, 64*1024*1024)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
