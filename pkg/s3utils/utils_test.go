@@ -99,6 +99,12 @@ func TestGetRegionFromURL(t *testing.T) {
 				Host: "s3.kubernetesfrontendlb-caf78da2b1f7516c.elb.amazonaws.com.cn",
 			},
 		},
+		{
+			u: url.URL{
+				Host: "abcd123.compat.objectstorage.us-ashburn-1.oraclecloud.com",
+			},
+			expectedRegion: "us-ashburn-1",
+		},
 	}
 
 	for i, testCase := range testCases {

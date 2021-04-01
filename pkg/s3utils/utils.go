@@ -104,6 +104,9 @@ var elbAmazonRegex = regexp.MustCompile(`elb(.*?).amazonaws.com$`)
 // Regular expression used to determine if the arg is elb host in china.
 var elbAmazonCnRegex = regexp.MustCompile(`elb(.*?).amazonaws.com.cn$`)
 
+// Regular expression used to determine if the arg is elb host in china.
+var oracleS3CompatibilityRegex = regexp.MustCompile(`^.+?.compat.objectstorage.(.*?).oraclecloud.com$`)
+
 // GetRegionFromURL - returns a region from url host.
 func GetRegionFromURL(endpointURL url.URL) string {
 	if endpointURL == sentinelURL {
@@ -136,6 +139,10 @@ func GetRegionFromURL(endpointURL url.URL) string {
 		return parts[1]
 	}
 	parts = amazonS3HostDot.FindStringSubmatch(endpointURL.Host)
+	if len(parts) > 1 {
+		return parts[1]
+	}
+	parts = oracleS3CompatibilityRegex.FindStringSubmatch(endpointURL.Host)
 	if len(parts) > 1 {
 		return parts[1]
 	}

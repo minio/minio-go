@@ -73,6 +73,8 @@ func TestGetEndpointURL(t *testing.T) {
 		{"192.168.1.1:9000", false, "http://192.168.1.1:9000", nil, true},
 		{"192.168.1.1:9000", true, "https://192.168.1.1:9000", nil, true},
 		{"s3.amazonaws.com:443", true, "https://s3.amazonaws.com:443", nil, true},
+		{"abcd123.compat.objectstorage.us-ashburn-1.oraclecloud.com", true, "https://abcd123.compat.objectstorage.us-ashburn-1.oraclecloud.com", nil, true},
+		{"abcd123.compat.objectstorage.uk-london-1.oraclecloud.com", true, "https://abcd123.compat.objectstorage.uk-london-1.oraclecloud.com", nil, true},
 		{"13333.123123.-", true, "", errInvalidArgument(fmt.Sprintf("Endpoint: %s does not follow ip address or domain name standards.", "13333.123123.-")), false},
 		{"13333.123123.-", true, "", errInvalidArgument(fmt.Sprintf("Endpoint: %s does not follow ip address or domain name standards.", "13333.123123.-")), false},
 		{"storage.googleapis.com:4000", true, "", errInvalidArgument("Google Cloud Storage endpoint should be 'storage.googleapis.com'."), false},
@@ -122,6 +124,7 @@ func TestIsValidEndpointURL(t *testing.T) {
 		{"https://storage.googleapis.com/", nil, true},
 		{"https://z3.amazonaws.com", nil, true},
 		{"https://mybalancer.us-east-1.elb.amazonaws.com", nil, true},
+		{"https://abcd123.compat.objectstorage.us-ashburn-1.oraclecloud.com", nil, true},
 		{"192.168.1.1", errInvalidArgument("Endpoint url cannot have fully qualified paths."), false},
 		{"https://amazon.googleapis.com/", errInvalidArgument("Google Cloud Storage endpoint should be 'storage.googleapis.com'."), false},
 		{"https://storage.googleapis.com/bucket/", errInvalidArgument("Endpoint url cannot have fully qualified paths."), false},
@@ -197,6 +200,12 @@ func TestDefaultBucketLocation(t *testing.T) {
 			endpointURL:      url.URL{Host: "s3.amazonaws.com"},
 			regionOverride:   "",
 			expectedLocation: "us-east-1",
+		},
+		// Oracle Cloud Infrastracture. No region override, url based preferenced is honored - Test 7.
+		{
+			endpointURL:      url.URL{Host: "abcd123.compat.objectstorage.us-ashburn-1.oraclecloud.com"},
+			regionOverride:   "",
+			expectedLocation: "us-ashburn-1",
 		},
 	}
 
