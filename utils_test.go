@@ -201,7 +201,7 @@ func TestDefaultBucketLocation(t *testing.T) {
 			regionOverride:   "",
 			expectedLocation: "us-east-1",
 		},
-		// Oracle Cloud Infrastracture. No region override, url based preferenced is honored - Test 7.
+		// Oracle. No region override, url based preferenced is honored - Test 7.
 		{
 			endpointURL:      url.URL{Host: "abcd123.compat.objectstorage.us-ashburn-1.oraclecloud.com"},
 			regionOverride:   "",
