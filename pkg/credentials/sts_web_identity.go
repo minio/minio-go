@@ -103,6 +103,27 @@ func NewSTSWebIdentity(stsEndpoint string, getWebIDTokenExpiry func() (*WebIdent
 	}), nil
 }
 
+// NewSTSWebIdentityWithAssumeRole is similar to NewSTSWebIdentity but allows to
+// specify a role to assume.
+func NewSTSWebIdentityWithAssumeRole(stsEndpoint string, getWebIDTokenExpiry func() (*WebIdentityToken, error),
+	roleARN string, roleSessionName string) (*Credentials, error) {
+	if stsEndpoint == "" {
+		return nil, errors.New("STS endpoint cannot be empty")
+	}
+	if getWebIDTokenExpiry == nil {
+		return nil, errors.New("Web ID token and expiry retrieval function should be defined")
+	}
+	return New(&STSWebIdentity{
+		Client: &http.Client{
+			Transport: http.DefaultTransport,
+		},
+		STSEndpoint:         stsEndpoint,
+		GetWebIDTokenExpiry: getWebIDTokenExpiry,
+		roleARN:             roleARN,
+		roleSessionName:     roleSessionName,
+	}), nil
+}
+
 func getWebIdentityCredentials(clnt *http.Client, endpoint, roleARN, roleSessionName string,
 	getWebIDTokenExpiry func() (*WebIdentityToken, error)) (AssumeRoleWithWebIdentityResponse, error) {
 	idToken, err := getWebIDTokenExpiry()
