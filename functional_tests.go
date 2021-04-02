@@ -11067,6 +11067,7 @@ func testListObjects() {
 
 	testList(c.ListObjects, bucketName, minio.ListObjectsOptions{Recursive: true, UseV1: true})
 	testList(c.ListObjects, bucketName, minio.ListObjectsOptions{Recursive: true})
+	testList(c.ListObjects, bucketName, minio.ListObjectsOptions{Recursive: true, WithMetadata: true})
 
 	successLogger(testName, function, args, startTime).Info()
 }
