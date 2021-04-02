@@ -20,7 +20,9 @@ package minio
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"encoding/xml"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -146,4 +148,40 @@ func (c Client) getBucketReplication(ctx context.Context, bucketName string) (cf
 	}
 
 	return cfg, nil
+}
+
+// GetBucketReplicationMetrics fetches bucket replication status metrics
+func (c Client) GetBucketReplicationMetrics(ctx context.Context, bucketName string) (s replication.Metrics, err error) {
+	// Input validation.
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		return s, err
+	}
+	// Get resources properly escaped and lined up before
+	// using them in http request.
+	urlValues := make(url.Values)
+	urlValues.Set("replication-metrics", "")
+
+	// Execute GET on bucket to get replication config.
+	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
+		bucketName:  bucketName,
+		queryValues: urlValues,
+	})
+
+	defer closeResponse(resp)
+	if err != nil {
+		return s, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return s, httpRespToErrorResponse(resp, bucketName, "")
+	}
+	respBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return s, err
+	}
+
+	if err := json.Unmarshal(respBytes, &s); err != nil {
+		return s, err
+	}
+	return s, nil
 }

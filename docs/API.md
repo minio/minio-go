@@ -2016,6 +2016,35 @@ if err != nil {
 }
 ```
 
+<a name="GetBucketReplicationMetrics"></a>
+### GetBucketReplicationMetrics(ctx context.Context, bucketName string) (replication.Metrics, error)
+Get latest replication metrics on a bucket. This is a MinIO specific extension.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
+|`bucketName`  | _string_  |Name of the bucket   |
+
+__Return Values__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`metrics`  | _replication.Metrics_ |Replication metrics returned from the server |
+|`err` | _error_  |Standard Error  |
+
+__Example__
+
+```go
+replMetrics, err := minioClient.GetBucketReplicationMetrics(context.Background(), "my-bucketname")
+if err != nil {
+    log.Fatalln(err)
+}
+```
+
 ## 6. Client custom settings
 
 <a name="SetAppInfo"></a>
