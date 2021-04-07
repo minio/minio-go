@@ -604,7 +604,24 @@ func (s SourceSelectionCriteria) Validate() error {
 		return nil
 	}
 	if !s.IsValid() {
-		return fmt.Errorf("Invalid ReplicaModification status")
+		return fmt.Errorf("invalid ReplicaModification status")
 	}
 	return nil
+}
+
+// Metrics represents inline replication metrics
+// such as pending, failed and completed bytes in total for a bucket
+type Metrics struct {
+	// Pending size in bytes
+	PendingSize uint64 `json:"pendingReplicationSize"`
+	// Completed size in bytes
+	ReplicatedSize uint64 `json:"completedReplicationSize"`
+	// Total Replica size in bytes
+	ReplicaSize uint64 `json:"replicaSize"`
+	// Failed size in bytes
+	FailedSize uint64 `json:"failedReplicationSize"`
+	// Total number of pending operations including metadata updates
+	PendingCount uint64 `json:"pendingReplicationCount"`
+	// Total number of failed operations including metadata updates
+	FailedCount uint64 `json:"failedReplicationCount"`
 }
