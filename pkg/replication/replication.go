@@ -46,20 +46,21 @@ const (
 
 // Options represents options to set a replication configuration rule
 type Options struct {
-	Op                     OptionType
-	ID                     string
-	Prefix                 string
-	RuleStatus             string
-	Priority               string
-	TagString              string
-	StorageClass           string
-	RoleArn                string
-	DestBucket             string
-	IsTagSet               bool
-	IsSCSet                bool
-	ReplicateDeletes       string // replicate versioned deletes
-	ReplicateDeleteMarkers string // replicate soft deletes
-	ReplicaSync            string // replicate replica metadata modifications
+	Op                      OptionType
+	ID                      string
+	Prefix                  string
+	RuleStatus              string
+	Priority                string
+	TagString               string
+	StorageClass            string
+	RoleArn                 string
+	DestBucket              string
+	IsTagSet                bool
+	IsSCSet                 bool
+	ReplicateDeletes        string // replicate versioned deletes
+	ReplicateDeleteMarkers  string // replicate soft deletes
+	ReplicaSync             string // replicate replica metadata modifications
+	ExistingObjectReplicate string
 }
 
 // Tags returns a slice of tags for a rule
@@ -195,6 +196,17 @@ func (c *Config) AddRule(opts Options) error {
 		return fmt.Errorf("replica metadata sync should be either [enable|disable]")
 	}
 
+	var existingStatus Status
+	if opts.ExistingObjectReplicate != "" {
+		switch opts.ExistingObjectReplicate {
+		case "enable":
+			existingStatus = Enabled
+		case "disable", "":
+			existingStatus = Disabled
+		default:
+			return fmt.Errorf("existingObjectReplicate should be either enable|disable")
+		}
+	}
 	newRule := Rule{
 		ID:       opts.ID,
 		Priority: priority,
@@ -213,6 +225,10 @@ func (c *Config) AddRule(opts Options) error {
 			ReplicaModifications: ReplicaModifications{
 				Status: replicaSync,
 			},
+		},
+		// By default disable existing object replication unless selected
+		ExistingObjectReplication: ExistingObjectReplication{
+			Status: existingStatus,
 		},
 	}
 
@@ -335,7 +351,17 @@ func (c *Config) EditRule(opts Options) error {
 			return fmt.Errorf("replica metadata sync should be either [enable|disable]")
 		}
 	}
-
+	fmt.Println("opts.ExistingObjectReplicate>", opts.ExistingObjectReplicate)
+	if opts.ExistingObjectReplicate != "" {
+		switch opts.ExistingObjectReplicate {
+		case "enable":
+			newRule.ExistingObjectReplication.Status = Enabled
+		case "disable":
+			newRule.ExistingObjectReplication.Status = Disabled
+		default:
+			return fmt.Errorf("existingObjectsReplication state should be either [enable|disable]")
+		}
+	}
 	if opts.IsSCSet {
 		newRule.Destination.StorageClass = opts.StorageClass
 	}
@@ -400,15 +426,16 @@ func (c *Config) RemoveRule(opts Options) error {
 
 // Rule - a rule for replication configuration.
 type Rule struct {
-	XMLName                 xml.Name                `xml:"Rule" json:"-"`
-	ID                      string                  `xml:"ID,omitempty"`
-	Status                  Status                  `xml:"Status"`
-	Priority                int                     `xml:"Priority"`
-	DeleteMarkerReplication DeleteMarkerReplication `xml:"DeleteMarkerReplication"`
-	DeleteReplication       DeleteReplication       `xml:"DeleteReplication"`
-	Destination             Destination             `xml:"Destination"`
-	Filter                  Filter                  `xml:"Filter" json:"Filter"`
-	SourceSelectionCriteria SourceSelectionCriteria `xml:"SourceSelectionCriteria" json:"SourceSelectionCriteria"`
+	XMLName                   xml.Name                  `xml:"Rule" json:"-"`
+	ID                        string                    `xml:"ID,omitempty"`
+	Status                    Status                    `xml:"Status"`
+	Priority                  int                       `xml:"Priority"`
+	DeleteMarkerReplication   DeleteMarkerReplication   `xml:"DeleteMarkerReplication"`
+	DeleteReplication         DeleteReplication         `xml:"DeleteReplication"`
+	Destination               Destination               `xml:"Destination"`
+	Filter                    Filter                    `xml:"Filter" json:"Filter"`
+	SourceSelectionCriteria   SourceSelectionCriteria   `xml:"SourceSelectionCriteria" json:"SourceSelectionCriteria"`
+	ExistingObjectReplication ExistingObjectReplication `xml:"ExistingObjectReplication,omitempty" json:"ExistingObjectReplication,omitempty"`
 }
 
 // Validate validates the rule for correctness
@@ -430,8 +457,7 @@ func (r Rule) Validate() error {
 	if err := r.validateStatus(); err != nil {
 		return err
 	}
-
-	return nil
+	return r.ExistingObjectReplication.Validate()
 }
 
 // validateID - checks if ID is valid or not.
@@ -627,6 +653,27 @@ func (s SourceSelectionCriteria) Validate() error {
 	}
 	if !s.IsValid() {
 		return fmt.Errorf("invalid ReplicaModification status")
+	}
+	return nil
+}
+
+// ExistingObjectReplication - whether existing object replication is enabled
+type ExistingObjectReplication struct {
+	Status Status `xml:"Status"` // should be set to "Disabled" by default
+}
+
+// IsEmpty returns true if DeleteMarkerReplication is not set
+func (e ExistingObjectReplication) IsEmpty() bool {
+	return len(e.Status) == 0
+}
+
+// Validate validates whether the status is disabled.
+func (e ExistingObjectReplication) Validate() error {
+	if e.IsEmpty() {
+		return nil
+	}
+	if e.Status != Disabled && e.Status != Enabled {
+		return fmt.Errorf("invalid ExistingObjectReplication status")
 	}
 	return nil
 }
