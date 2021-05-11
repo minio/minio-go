@@ -142,9 +142,9 @@ func (t Transition) MarshalXML(en *xml.Encoder, startElement xml.StartElement) e
 
 // And And Rule for LifecycleTag, to be used in LifecycleRuleFilter
 type And struct {
-	XMLName xml.Name `xml:"And,omitempty" json:"-"`
-	Prefix  string   `xml:"Prefix,omitempty" json:"Prefix,omitempty"`
-	Tags    []Tag    `xml:"Tag,omitempty" json:"Tags,omitempty"`
+	XMLName xml.Name `xml:"And" json:"-"`
+	Prefix  string   `xml:"Prefix" json:"Prefix,omitempty"`
+	Tags    []Tag    `xml:"Tag" json:"Tags,omitempty"`
 }
 
 // IsEmpty returns true if Tags field is null
