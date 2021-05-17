@@ -54,7 +54,7 @@ func TestAddReplicationRule(t *testing.T) {
 				RoleArn:      "arn:minio:replication:eu-west-1:c5acb6ac-9918-4dc6-8534-6244ed1a611a:destbucket",
 				DestBucket:   "arn:aws:s3:::destbucket",
 			},
-			expectedErr: "Rule state should be either [enable|disable]",
+			expectedErr: "rule state should be either [enable|disable]",
 		},
 		{ //test case :3
 			cfg: Config{Rules: []Rule{{Priority: 1}}},
@@ -68,7 +68,7 @@ func TestAddReplicationRule(t *testing.T) {
 				RoleArn:      "arn:minio:replication:eu-west-1:c5acb6ac-9918-4dc6-8534-6244ed1a611a:destbucket",
 				DestBucket:   "arn:aws:s3:::destbucket",
 			},
-			expectedErr: "Priority must be unique. Replication configuration already has a rule with this priority",
+			expectedErr: "priority must be unique. Replication configuration already has a rule with this priority",
 		},
 		{ //test case :4
 			cfg: Config{},
@@ -111,7 +111,7 @@ func TestAddReplicationRule(t *testing.T) {
 				RoleArn:      "arn:minio:replication:eu-west-1:c5acb6ac-9918-4dc6-8534-6244ed1a611a:destbucket",
 				DestBucket:   "arn:aws:s3:::destbucket",
 			},
-			expectedErr: "Role ARN does not match existing configuration",
+			expectedErr: "role ARN does not match existing configuration",
 		},
 		{ //test case :7
 			cfg: Config{},
@@ -139,7 +139,7 @@ func TestAddReplicationRule(t *testing.T) {
 				RoleArn:      "arn:minio:replication:eu-west-1:c5acb6ac-9918-4dc6-8534-6244ed1a611a:destbucket",
 				DestBucket:   "arn:aws:s3:::destbucket",
 			},
-			expectedErr: "A rule exists with this ID",
+			expectedErr: "a rule exists with this ID",
 		},
 	}
 	for i, testCase := range testCases {
@@ -201,7 +201,7 @@ func TestEditReplicationRule(t *testing.T) {
 				RoleArn:      "arn:minio:replication:eu-west-1:c5acb6ac-9918-4dc6-8534-6244ed1a611a:destbucket",
 				DestBucket:   "arn:aws:s3:::destbucket",
 			},
-			expectedErr: "Rule with ID xyz.id not found in replication configuration",
+			expectedErr: "rule with ID xyz.id not found in replication configuration",
 		},
 		{ //test case :3 missing rule id
 			cfg: Config{
@@ -221,7 +221,7 @@ func TestEditReplicationRule(t *testing.T) {
 				RoleArn:      "arn:minio:replication:eu-west-1:c5acb6ac-9918-4dc6-8534-6244ed1a611a:destbucket",
 				DestBucket:   "arn:aws:s3:::destbucket",
 			},
-			expectedErr: "Rule ID missing",
+			expectedErr: "rule ID missing",
 		},
 		{ //test case :4 different destination bucket
 			cfg: Config{
@@ -242,7 +242,7 @@ func TestEditReplicationRule(t *testing.T) {
 				RoleArn:      "arn:minio:replication:eu-west-1:c5acb6ac-9918-4dc6-8534-6244ed1a611a:destbucket",
 				DestBucket:   "arn:aws:s3:::differentbucket",
 			},
-			expectedErr: "The destination bucket must be same for all rules",
+			expectedErr: "the destination bucket must be same for all rules",
 		},
 		{ //test case :5 invalid destination bucket arn format
 			cfg: Config{
@@ -285,7 +285,7 @@ func TestEditReplicationRule(t *testing.T) {
 				RoleArn:      "arn:minio:replication:eu-west-1:c5acb6ac-9918-4dc6-8534-6244ed1a611a:destbucket",
 				DestBucket:   "arn:aws:s3:::destbucket",
 			},
-			expectedErr: "Rule state should be either [enable|disable]",
+			expectedErr: "rule state should be either [enable|disable]",
 		},
 		{ //test case :7 another rule has same priority
 			cfg: Config{
@@ -312,7 +312,7 @@ func TestEditReplicationRule(t *testing.T) {
 				RoleArn:      "arn:minio:replication:eu-west-1:c5acb6ac-9918-4dc6-8534-6244ed1a611a:destbucket",
 				DestBucket:   "arn:aws:s3:::destbucket",
 			},
-			expectedErr: "Priority must be unique. Replication configuration already has a rule with this priority",
+			expectedErr: "priority must be unique. Replication configuration already has a rule with this priority",
 		},
 	}
 
