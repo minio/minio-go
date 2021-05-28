@@ -27,7 +27,7 @@ import (
 	"github.com/rs/xid"
 )
 
-var errInvalidFilter = fmt.Errorf("Invalid filter")
+var errInvalidFilter = fmt.Errorf("invalid filter")
 
 // OptionType specifies operation to be performed on config
 type OptionType string
@@ -59,6 +59,7 @@ type Options struct {
 	IsSCSet                bool
 	ReplicateDeletes       string // replicate versioned deletes
 	ReplicateDeleteMarkers string // replicate soft deletes
+	ReplicaSync            string // replicate replica metadata modifications
 }
 
 // Tags returns a slice of tags for a rule
@@ -71,7 +72,7 @@ func (opts Options) Tags() ([]Tag, error) {
 		}
 		kv := strings.SplitN(tok, "=", 2)
 		if len(kv) != 2 {
-			return []Tag{}, fmt.Errorf("Tags should be entered as comma separated k=v pairs")
+			return []Tag{}, fmt.Errorf("tags should be entered as comma separated k=v pairs")
 		}
 		tagList = append(tagList, Tag{
 			Key:   kv[0],
@@ -102,7 +103,7 @@ func (c *Config) AddRule(opts Options) error {
 		return err
 	}
 	if opts.RoleArn != c.Role && c.Role != "" {
-		return fmt.Errorf("Role ARN does not match existing configuration")
+		return fmt.Errorf("role ARN does not match existing configuration")
 	}
 	var status Status
 	// toggle rule status for edit option
@@ -112,7 +113,7 @@ func (c *Config) AddRule(opts Options) error {
 	case "disable":
 		status = Disabled
 	default:
-		return fmt.Errorf("Rule state should be either [enable|disable]")
+		return fmt.Errorf("rule state should be either [enable|disable]")
 	}
 
 	tags, err := opts.Tags()
@@ -142,7 +143,7 @@ func (c *Config) AddRule(opts Options) error {
 		arnStr = c.Role
 	}
 	if arnStr == "" {
-		return fmt.Errorf("Role ARN required")
+		return fmt.Errorf("role ARN required")
 	}
 	tokens := strings.Split(arnStr, ":")
 	if len(tokens) != 6 {
@@ -183,6 +184,16 @@ func (c *Config) AddRule(opts Options) error {
 			return fmt.Errorf("ReplicateDeletes should be either enable|disable")
 		}
 	}
+	var replicaSync Status
+	// replica sync is by default Enabled, unless specified.
+	switch opts.ReplicaSync {
+	case "enable", "":
+		replicaSync = Enabled
+	case "disable":
+		replicaSync = Disabled
+	default:
+		return fmt.Errorf("replica metadata sync should be either [enable|disable]")
+	}
 
 	newRule := Rule{
 		ID:       opts.ID,
@@ -200,7 +211,7 @@ func (c *Config) AddRule(opts Options) error {
 		// However AWS leaves this configurable https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-for-metadata-changes.html
 		SourceSelectionCriteria: SourceSelectionCriteria{
 			ReplicaModifications: ReplicaModifications{
-				Status: Enabled,
+				Status: replicaSync,
 			},
 		},
 	}
@@ -211,13 +222,13 @@ func (c *Config) AddRule(opts Options) error {
 	}
 	for _, rule := range c.Rules {
 		if rule.Priority == newRule.Priority {
-			return fmt.Errorf("Priority must be unique. Replication configuration already has a rule with this priority")
+			return fmt.Errorf("priority must be unique. Replication configuration already has a rule with this priority")
 		}
 		if rule.Destination.Bucket != newRule.Destination.Bucket {
-			return fmt.Errorf("The destination bucket must be same for all rules")
+			return fmt.Errorf("the destination bucket must be same for all rules")
 		}
 		if rule.ID == newRule.ID {
-			return fmt.Errorf("A rule exists with this ID")
+			return fmt.Errorf("a rule exists with this ID")
 		}
 	}
 
@@ -228,7 +239,7 @@ func (c *Config) AddRule(opts Options) error {
 // EditRule modifies an existing rule in replication config
 func (c *Config) EditRule(opts Options) error {
 	if opts.ID == "" {
-		return fmt.Errorf("Rule ID missing")
+		return fmt.Errorf("rule ID missing")
 	}
 	rIdx := -1
 	var newRule Rule
@@ -240,7 +251,7 @@ func (c *Config) EditRule(opts Options) error {
 		}
 	}
 	if rIdx < 0 {
-		return fmt.Errorf("Rule with ID %s not found in replication configuration", opts.ID)
+		return fmt.Errorf("rule with ID %s not found in replication configuration", opts.ID)
 	}
 	prefixChg := opts.Prefix != newRule.Prefix()
 	if opts.IsTagSet || prefixChg {
@@ -286,7 +297,7 @@ func (c *Config) EditRule(opts Options) error {
 		case "disable":
 			newRule.Status = Disabled
 		default:
-			return fmt.Errorf("Rule state should be either [enable|disable]")
+			return fmt.Errorf("rule state should be either [enable|disable]")
 		}
 	}
 	// set DeleteMarkerReplication rule status for edit option
@@ -311,6 +322,17 @@ func (c *Config) EditRule(opts Options) error {
 			newRule.DeleteReplication.Status = Disabled
 		default:
 			return fmt.Errorf("ReplicateDeletes state should be either [enable|disable]")
+		}
+	}
+
+	if opts.ReplicaSync != "" {
+		switch opts.ReplicaSync {
+		case "enable", "":
+			newRule.SourceSelectionCriteria.ReplicaModifications.Status = Enabled
+		case "disable":
+			newRule.SourceSelectionCriteria.ReplicaModifications.Status = Disabled
+		default:
+			return fmt.Errorf("replica metadata sync should be either [enable|disable]")
 		}
 	}
 
@@ -343,10 +365,10 @@ func (c *Config) EditRule(opts Options) error {
 	// ensure priority and destination bucket restrictions are not violated
 	for idx, rule := range c.Rules {
 		if rule.Priority == newRule.Priority && rIdx != idx {
-			return fmt.Errorf("Priority must be unique. Replication configuration already has a rule with this priority")
+			return fmt.Errorf("priority must be unique. Replication configuration already has a rule with this priority")
 		}
 		if rule.Destination.Bucket != newRule.Destination.Bucket {
-			return fmt.Errorf("The destination bucket must be same for all rules")
+			return fmt.Errorf("the destination bucket must be same for all rules")
 		}
 	}
 
@@ -369,7 +391,7 @@ func (c *Config) RemoveRule(opts Options) error {
 		return fmt.Errorf("Rule with ID %s not found", opts.ID)
 	}
 	if len(newRules) == 0 {
-		return fmt.Errorf("Replication configuration should have at least one rule")
+		return fmt.Errorf("replication configuration should have at least one rule")
 	}
 	c.Rules = newRules
 	return nil
@@ -402,7 +424,7 @@ func (r Rule) Validate() error {
 	}
 
 	if r.Priority < 0 && r.Status == Enabled {
-		return fmt.Errorf("Priority must be set for the rule")
+		return fmt.Errorf("priority must be set for the rule")
 	}
 
 	if err := r.validateStatus(); err != nil {
@@ -525,11 +547,11 @@ func (tag Tag) IsEmpty() bool {
 // Validate checks this tag.
 func (tag Tag) Validate() error {
 	if len(tag.Key) == 0 || utf8.RuneCountInString(tag.Key) > 128 {
-		return fmt.Errorf("Invalid Tag Key")
+		return fmt.Errorf("invalid Tag Key")
 	}
 
 	if utf8.RuneCountInString(tag.Value) > 256 {
-		return fmt.Errorf("Invalid Tag Value")
+		return fmt.Errorf("invalid Tag Value")
 	}
 	return nil
 }
@@ -585,7 +607,7 @@ func (d DeleteReplication) IsEmpty() bool {
 
 // ReplicaModifications specifies if replica modification sync is enabled
 type ReplicaModifications struct {
-	Status Status `xml:"Status" json:"Status"`
+	Status Status `xml:"Status" json:"Status"` // should be set to "Enabled" by default
 }
 
 // SourceSelectionCriteria - specifies additional source selection criteria in ReplicationConfiguration.
