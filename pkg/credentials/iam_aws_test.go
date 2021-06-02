@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -102,6 +103,40 @@ func initTestServer(expireOn string, failAssume bool) *httptest.Server {
 		}
 	}))
 
+	return server
+}
+
+// Instance Metadata Service with V1 disabled.
+func initIMDSv2Server(expireOn string) *httptest.Server {
+	imdsToken := "IMDSTokenabc123=="
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println(r.URL.Path)
+		fmt.Println(r.Method)
+		if r.URL.Path == "/latest/api/token" && r.Method == "PUT" {
+			ttlHeader := r.Header.Get("X-aws-ec2-metadata-token-ttl-seconds")
+			ttl, err := strconv.ParseInt(ttlHeader, 10, 32)
+			if err != nil || ttl < 0 || ttl > 21600 {
+				http.Error(w, "", http.StatusBadRequest)
+				return
+			}
+			w.Header().Set("X-Aws-Ec2-Metadata-Token-Ttl-Seconds", ttlHeader)
+			w.Write([]byte(imdsToken))
+			return
+		}
+		token := r.Header.Get("X-aws-ec2-metadata-token")
+		if token != imdsToken {
+			http.Error(w, r.URL.Path, http.StatusUnauthorized)
+			return
+		}
+
+		if r.URL.Path == "/latest/meta-data/iam/security-credentials/" {
+			fmt.Fprintln(w, "RoleName")
+		} else if r.URL.Path == "/latest/meta-data/iam/security-credentials/RoleName" {
+			fmt.Fprintf(w, credsRespTmpl, expireOn)
+		} else {
+			http.Error(w, "bad request", http.StatusBadRequest)
+		}
+	}))
 	return server
 }
 
@@ -389,5 +424,17 @@ func TestStsCn(t *testing.T) {
 
 	if !p.IsExpired() {
 		t.Error("Expected creds to be expired.")
+	}
+}
+
+func TestIMDSv1Blocked(t *testing.T) {
+	server := initIMDSv2Server("2014-12-16T01:51:37Z")
+	p := &IAM{
+		Client:   http.DefaultClient,
+		Endpoint: server.URL,
+	}
+	_, err := p.Retrieve()
+	if err != nil {
+		t.Errorf("Unexpected IMDSv2 failure %s", err)
 	}
 }
