@@ -79,6 +79,7 @@ func NewIAM(endpoint string) *Credentials {
 // Error will be returned if the request fails, or unable to extract
 // the desired
 func (m *IAM) Retrieve() (Value, error) {
+	token := os.Getenv("AWS_CONTAINER_AUTHORIZATION_TOKEN")
 	var roleCreds ec2RoleCredRespBody
 	var err error
 
@@ -124,7 +125,7 @@ func (m *IAM) Retrieve() (Value, error) {
 				os.Getenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"))
 		}
 
-		roleCreds, err = getEcsTaskCredentials(m.Client, endpoint)
+		roleCreds, err = getEcsTaskCredentials(m.Client, endpoint, token)
 
 	case len(os.Getenv("AWS_CONTAINER_CREDENTIALS_FULL_URI")) > 0:
 		if len(endpoint) == 0 {
@@ -138,7 +139,7 @@ func (m *IAM) Retrieve() (Value, error) {
 			}
 		}
 
-		roleCreds, err = getEcsTaskCredentials(m.Client, endpoint)
+		roleCreds, err = getEcsTaskCredentials(m.Client, endpoint, token)
 
 	default:
 		roleCreds, err = getCredentials(m.Client, endpoint)
@@ -226,10 +227,14 @@ func listRoleNames(client *http.Client, u *url.URL, token string) ([]string, err
 	return credsList, nil
 }
 
-func getEcsTaskCredentials(client *http.Client, endpoint string) (ec2RoleCredRespBody, error) {
+func getEcsTaskCredentials(client *http.Client, endpoint string, token string) (ec2RoleCredRespBody, error) {
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return ec2RoleCredRespBody{}, err
+	}
+
+	if token != "" {
+		req.Header.Set("Authorization", token)
 	}
 
 	resp, err := client.Do(req)
