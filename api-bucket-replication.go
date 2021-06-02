@@ -25,6 +25,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/minio/minio-go/v7/pkg/replication"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
@@ -184,4 +185,44 @@ func (c Client) GetBucketReplicationMetrics(ctx context.Context, bucketName stri
 		return s, err
 	}
 	return s, nil
+}
+
+// ResetBucketReplication kicks off replication of previously replicated objects if ExistingObjectReplication
+// is enabled in the replication config
+func (c Client) ResetBucketReplication(ctx context.Context, bucketName string, olderThan time.Duration) (resetID string, err error) {
+	// Input validation.
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		return "", err
+	}
+	// Get resources properly escaped and lined up before
+	// using them in http request.
+	urlValues := make(url.Values)
+	urlValues.Set("replication-reset", "")
+	if olderThan > 0 {
+		urlValues.Set("older-than", olderThan.String())
+	}
+
+	// Execute GET on bucket to get replication config.
+	resp, err := c.executeMethod(ctx, http.MethodPut, requestMetadata{
+		bucketName:  bucketName,
+		queryValues: urlValues,
+	})
+
+	defer closeResponse(resp)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", httpRespToErrorResponse(resp, bucketName, "")
+	}
+	respBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	if err := json.Unmarshal(respBytes, &resetID); err != nil {
+		return "", err
+	}
+	return resetID, nil
 }
