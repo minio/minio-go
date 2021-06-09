@@ -107,7 +107,8 @@ func (c Client) FGetObject(ctx context.Context, bucketName, objectName, filePath
 	}
 
 	// Write to the part file.
-	if _, err = io.CopyN(filePart, objectReader, objectStat.Size); err != nil {
+	buffer := make([]byte, 1024 * 1024)
+	if _, err = io.CopyBuffer(filePart, io.LimitReader(objectReader, objectStat.Size), buffer); err != nil {
 		return err
 	}
 
