@@ -46,13 +46,13 @@ func NewCore(endpoint string, opts *Options) (*Core, error) {
 // ListObjects - List all the objects at a prefix, optionally with marker and delimiter
 // you can further filter the results.
 func (c Core) ListObjects(bucket, prefix, marker, delimiter string, maxKeys int) (result ListBucketResult, err error) {
-	return c.listObjectsQuery(context.Background(), bucket, prefix, marker, delimiter, maxKeys)
+	return c.listObjectsQuery(context.Background(), bucket, prefix, marker, delimiter, maxKeys, nil)
 }
 
 // ListObjectsV2 - Lists all the objects at a prefix, similar to ListObjects() but uses
 // continuationToken instead of marker to support iteration over the results.
 func (c Core) ListObjectsV2(bucketName, objectPrefix, continuationToken string, fetchOwner bool, delimiter string, maxkeys int) (ListBucketV2Result, error) {
-	return c.listObjectsV2Query(context.Background(), bucketName, objectPrefix, continuationToken, fetchOwner, false, delimiter, maxkeys)
+	return c.listObjectsV2Query(context.Background(), bucketName, objectPrefix, continuationToken, fetchOwner, false, delimiter, maxkeys, nil)
 }
 
 // CopyObject - copies an object from source object to destination object on server side.
