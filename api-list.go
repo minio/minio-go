@@ -640,6 +640,9 @@ type ListObjectsOptions struct {
 // key-value pair will be part of the HTTP GET request
 // headers.
 func (o *ListObjectsOptions) Set(key, value string) {
+	if o.headers == nil {
+		o.headers = make(http.Header)
+	}
 	o.headers.Set(key, value)
 }
 
