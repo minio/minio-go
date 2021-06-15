@@ -11287,7 +11287,7 @@ func testRemoveObjects() {
 
 	_, err = c.PutObject(context.Background(), bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{})
 	if err != nil {
-		log.Fatalln(err)
+		logError(testName, function, args, startTime, "", "Error uploading object", err)
 	}
 
 	// Replace with smaller...
@@ -11297,7 +11297,7 @@ func testRemoveObjects() {
 
 	_, err = c.PutObject(context.Background(), bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{})
 	if err != nil {
-		log.Fatalln(err)
+		logError(testName, function, args, startTime, "", "Error uploading object", err)
 	}
 
 	t := time.Date(2030, time.April, 25, 14, 0, 0, 0, time.UTC)
