@@ -150,6 +150,8 @@ func logError(testName string, function string, args map[string]interface{}, sta
 	// addition to NotImplemented error returned from server
 	if isErrNotImplemented(err) {
 		ignoredLog(testName, function, args, startTime, message).Info()
+	} else if isRunOnFail() {
+		failureLog(testName, function, args, startTime, alert, message, err).Error()
 	} else {
 		failureLog(testName, function, args, startTime, alert, message, err).Fatal()
 	}
@@ -257,6 +259,10 @@ func cleanupVersionedBucket(bucketName string, c *minio.Client) error {
 
 func isErrNotImplemented(err error) bool {
 	return minio.ToErrorResponse(err).Code == "NotImplemented"
+}
+
+func isRunOnFail() bool {
+	return os.Getenv("RUN_ON_FAIL") == "1"
 }
 
 func init() {
