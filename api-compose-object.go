@@ -513,7 +513,7 @@ func (c Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ...
 
 	// 4. Make final complete-multipart request.
 	uploadInfo, err := c.completeMultipartUpload(ctx, dst.Bucket, dst.Object, uploadID,
-		completeMultipartUpload{Parts: objParts})
+		completeMultipartUpload{Parts: objParts}, PutObjectOptions{})
 	if err != nil {
 		return UploadInfo{}, err
 	}

@@ -97,10 +97,10 @@ func (c Core) ListObjectParts(ctx context.Context, bucket, object, uploadID stri
 }
 
 // CompleteMultipartUpload - Concatenate uploaded parts and commit to an object.
-func (c Core) CompleteMultipartUpload(ctx context.Context, bucket, object, uploadID string, parts []CompletePart) (string, error) {
+func (c Core) CompleteMultipartUpload(ctx context.Context, bucket, object, uploadID string, parts []CompletePart, opts PutObjectOptions) (string, error) {
 	res, err := c.completeMultipartUpload(ctx, bucket, object, uploadID, completeMultipartUpload{
 		Parts: parts,
-	})
+	}, opts)
 	return res.ETag, err
 }
 
