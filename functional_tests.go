@@ -1147,11 +1147,11 @@ func testPutObjectWithVersioning() {
 		return
 	}
 
-	sort.SliceStable(results, func(i, j int) bool {
+	sort.Slice(results, func(i, j int) bool {
 		return results[i].Size < results[j].Size
 	})
 
-	sort.SliceStable(buffers, func(i, j int) bool {
+	sort.Slice(buffers, func(i, j int) bool {
 		return len(buffers[i]) < len(buffers[j])
 	})
 
