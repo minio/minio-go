@@ -7548,7 +7548,7 @@ func testSSECMultipartEncryptedToSSECCopyObjectPart() {
 	completeParts = append(completeParts, minio.CompletePart{PartNumber: part.PartNumber, ETag: part.ETag})
 
 	// Complete the multipart upload
-	_, err = c.CompleteMultipartUpload(context.Background(), bucketName, objectName, uploadID, completeParts)
+	_, err = c.CompleteMultipartUpload(context.Background(), bucketName, objectName, uploadID, completeParts, minio.PutObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "CompleteMultipartUpload call failed", err)
 		return
@@ -7606,7 +7606,7 @@ func testSSECMultipartEncryptedToSSECCopyObjectPart() {
 	}
 
 	// Complete the multipart upload
-	_, err = c.CompleteMultipartUpload(context.Background(), destBucketName, destObjectName, uploadID, []minio.CompletePart{fstPart, sndPart, lstPart})
+	_, err = c.CompleteMultipartUpload(context.Background(), destBucketName, destObjectName, uploadID, []minio.CompletePart{fstPart, sndPart, lstPart}, minio.PutObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "CompleteMultipartUpload call failed", err)
 		return
@@ -7783,7 +7783,7 @@ func testSSECEncryptedToSSECCopyObjectPart() {
 	}
 
 	// Complete the multipart upload
-	_, err = c.CompleteMultipartUpload(context.Background(), destBucketName, destObjectName, uploadID, []minio.CompletePart{fstPart, sndPart, lstPart})
+	_, err = c.CompleteMultipartUpload(context.Background(), destBucketName, destObjectName, uploadID, []minio.CompletePart{fstPart, sndPart, lstPart}, minio.PutObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "CompleteMultipartUpload call failed", err)
 		return
@@ -7959,7 +7959,7 @@ func testSSECEncryptedToUnencryptedCopyPart() {
 	}
 
 	// Complete the multipart upload
-	_, err = c.CompleteMultipartUpload(context.Background(), destBucketName, destObjectName, uploadID, []minio.CompletePart{fstPart, sndPart, lstPart})
+	_, err = c.CompleteMultipartUpload(context.Background(), destBucketName, destObjectName, uploadID, []minio.CompletePart{fstPart, sndPart, lstPart}, minio.PutObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "CompleteMultipartUpload call failed", err)
 		return
@@ -8138,7 +8138,7 @@ func testSSECEncryptedToSSES3CopyObjectPart() {
 	}
 
 	// Complete the multipart upload
-	_, err = c.CompleteMultipartUpload(context.Background(), destBucketName, destObjectName, uploadID, []minio.CompletePart{fstPart, sndPart, lstPart})
+	_, err = c.CompleteMultipartUpload(context.Background(), destBucketName, destObjectName, uploadID, []minio.CompletePart{fstPart, sndPart, lstPart}, minio.PutObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "CompleteMultipartUpload call failed", err)
 		return
@@ -8312,7 +8312,7 @@ func testUnencryptedToSSECCopyObjectPart() {
 	}
 
 	// Complete the multipart upload
-	_, err = c.CompleteMultipartUpload(context.Background(), destBucketName, destObjectName, uploadID, []minio.CompletePart{fstPart, sndPart, lstPart})
+	_, err = c.CompleteMultipartUpload(context.Background(), destBucketName, destObjectName, uploadID, []minio.CompletePart{fstPart, sndPart, lstPart}, minio.PutObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "CompleteMultipartUpload call failed", err)
 		return
@@ -8482,7 +8482,7 @@ func testUnencryptedToUnencryptedCopyPart() {
 	}
 
 	// Complete the multipart upload
-	_, err = c.CompleteMultipartUpload(context.Background(), destBucketName, destObjectName, uploadID, []minio.CompletePart{fstPart, sndPart, lstPart})
+	_, err = c.CompleteMultipartUpload(context.Background(), destBucketName, destObjectName, uploadID, []minio.CompletePart{fstPart, sndPart, lstPart}, minio.PutObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "CompleteMultipartUpload call failed", err)
 		return
@@ -8654,7 +8654,7 @@ func testUnencryptedToSSES3CopyObjectPart() {
 	}
 
 	// Complete the multipart upload
-	_, err = c.CompleteMultipartUpload(context.Background(), destBucketName, destObjectName, uploadID, []minio.CompletePart{fstPart, sndPart, lstPart})
+	_, err = c.CompleteMultipartUpload(context.Background(), destBucketName, destObjectName, uploadID, []minio.CompletePart{fstPart, sndPart, lstPart}, minio.PutObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "CompleteMultipartUpload call failed", err)
 		return
@@ -8829,7 +8829,7 @@ func testSSES3EncryptedToSSECCopyObjectPart() {
 	}
 
 	// Complete the multipart upload
-	_, err = c.CompleteMultipartUpload(context.Background(), destBucketName, destObjectName, uploadID, []minio.CompletePart{fstPart, sndPart, lstPart})
+	_, err = c.CompleteMultipartUpload(context.Background(), destBucketName, destObjectName, uploadID, []minio.CompletePart{fstPart, sndPart, lstPart}, minio.PutObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "CompleteMultipartUpload call failed", err)
 		return
@@ -9000,7 +9000,7 @@ func testSSES3EncryptedToUnencryptedCopyPart() {
 	}
 
 	// Complete the multipart upload
-	_, err = c.CompleteMultipartUpload(context.Background(), destBucketName, destObjectName, uploadID, []minio.CompletePart{fstPart, sndPart, lstPart})
+	_, err = c.CompleteMultipartUpload(context.Background(), destBucketName, destObjectName, uploadID, []minio.CompletePart{fstPart, sndPart, lstPart}, minio.PutObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "CompleteMultipartUpload call failed", err)
 		return
@@ -9174,7 +9174,7 @@ func testSSES3EncryptedToSSES3CopyObjectPart() {
 	}
 
 	// Complete the multipart upload
-	_, err = c.CompleteMultipartUpload(context.Background(), destBucketName, destObjectName, uploadID, []minio.CompletePart{fstPart, sndPart, lstPart})
+	_, err = c.CompleteMultipartUpload(context.Background(), destBucketName, destObjectName, uploadID, []minio.CompletePart{fstPart, sndPart, lstPart}, minio.PutObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "CompleteMultipartUpload call failed", err)
 		return
