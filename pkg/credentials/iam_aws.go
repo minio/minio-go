@@ -181,10 +181,6 @@ type ec2RoleCredRespBody struct {
 // be sent to fetch the rolling access credentials.
 // http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html
 func getIAMRoleURL(endpoint string) (*url.URL, error) {
-	if endpoint == "" {
-		endpoint = defaultIAMRoleEndpoint
-	}
-
 	u, err := url.Parse(endpoint)
 	if err != nil {
 		return nil, err
@@ -281,6 +277,10 @@ func fetchIMDSToken(client *http.Client, endpoint string) (string, error) {
 // If the credentials cannot be found, or there is an error
 // reading the response an error will be returned.
 func getCredentials(client *http.Client, endpoint string) (ec2RoleCredRespBody, error) {
+	if endpoint == "" {
+		endpoint = defaultIAMRoleEndpoint
+	}
+
 	// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html
 	token, _ := fetchIMDSToken(client, endpoint)
 
