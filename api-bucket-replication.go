@@ -189,10 +189,10 @@ func (c Client) GetBucketReplicationMetrics(ctx context.Context, bucketName stri
 
 // ResetBucketReplication kicks off replication of previously replicated objects if ExistingObjectReplication
 // is enabled in the replication config
-func (c Client) ResetBucketReplication(ctx context.Context, bucketName string, olderThan time.Duration) (resetID string, err error) {
+func (c Client) ResetBucketReplication(ctx context.Context, bucketName string, olderThan time.Duration, tgtArn string) (rinfo replication.ResyncTargetsInfo, err error) {
 	// Input validation.
-	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
-		return "", err
+	if err = s3utils.CheckValidBucketName(bucketName); err != nil {
+		return
 	}
 	// Get resources properly escaped and lined up before
 	// using them in http request.
@@ -201,7 +201,9 @@ func (c Client) ResetBucketReplication(ctx context.Context, bucketName string, o
 	if olderThan > 0 {
 		urlValues.Set("older-than", olderThan.String())
 	}
-
+	if tgtArn != "" {
+		urlValues.Set("arn", tgtArn)
+	}
 	// Execute GET on bucket to get replication config.
 	resp, err := c.executeMethod(ctx, http.MethodPut, requestMetadata{
 		bucketName:  bucketName,
@@ -210,19 +212,19 @@ func (c Client) ResetBucketReplication(ctx context.Context, bucketName string, o
 
 	defer closeResponse(resp)
 	if err != nil {
-		return "", err
+		return rinfo, err
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", httpRespToErrorResponse(resp, bucketName, "")
+		return rinfo, httpRespToErrorResponse(resp, bucketName, "")
 	}
 	respBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return rinfo, err
 	}
 
-	if err := json.Unmarshal(respBytes, &resetID); err != nil {
-		return "", err
+	if err := json.Unmarshal(respBytes, &rinfo); err != nil {
+		return rinfo, err
 	}
-	return resetID, nil
+	return rinfo, nil
 }
