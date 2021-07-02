@@ -56,8 +56,7 @@ func (c Client) ListBuckets(ctx context.Context) ([]BucketInfo, error) {
 	return listAllMyBucketsResult.Buckets.Bucket, nil
 }
 
-/// Bucket Read Operations.
-
+/// Bucket List Operations.
 func (c Client) listObjectsV2(ctx context.Context, bucketName string, opts ListObjectsOptions) <-chan ObjectInfo {
 	// Allocate new list objects channel.
 	objectStatCh := make(chan ObjectInfo, 1)
@@ -97,7 +96,7 @@ func (c Client) listObjectsV2(ctx context.Context, bucketName string, opts ListO
 		for {
 			// Get list of objects a maximum of 1000 per request.
 			result, err := c.listObjectsV2Query(ctx, bucketName, opts.Prefix, continuationToken,
-				fetchOwner, opts.WithMetadata, delimiter, opts.MaxKeys, opts.headers)
+				fetchOwner, opts.WithMetadata, delimiter, opts.StartAfter, opts.MaxKeys, opts.headers)
 			if err != nil {
 				objectStatCh <- ObjectInfo{
 					Err: err,
@@ -148,12 +147,13 @@ func (c Client) listObjectsV2(ctx context.Context, bucketName string, opts ListO
 // You can use the request parameters as selection criteria to return a subset of the objects in a bucket.
 // request parameters :-
 // ---------
-// ?continuation-token - Used to continue iterating over a set of objects
-// ?delimiter - A delimiter is a character you use to group keys.
 // ?prefix - Limits the response to keys that begin with the specified prefix.
-// ?max-keys - Sets the maximum number of keys returned in the response body.
+// ?continuation-token - Used to continue iterating over a set of objects
 // ?metadata - Specifies if we want metadata for the objects as part of list operation.
-func (c Client) listObjectsV2Query(ctx context.Context, bucketName, objectPrefix, continuationToken string, fetchOwner, metadata bool, delimiter string, maxkeys int, headers http.Header) (ListBucketV2Result, error) {
+// ?delimiter - A delimiter is a character you use to group keys.
+// ?start-after - Sets a marker to start listing lexically at this key onwards.
+// ?max-keys - Sets the maximum number of keys returned in the response body.
+func (c Client) listObjectsV2Query(ctx context.Context, bucketName, objectPrefix, continuationToken string, fetchOwner, metadata bool, delimiter string, startAfter string, maxkeys int, headers http.Header) (ListBucketV2Result, error) {
 	// Validate bucket name.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return ListBucketV2Result{}, err
@@ -171,6 +171,11 @@ func (c Client) listObjectsV2Query(ctx context.Context, bucketName, objectPrefix
 
 	if metadata {
 		urlValues.Set("metadata", "true")
+	}
+
+	// Set this conditionally if asked
+	if startAfter != "" {
+		urlValues.Set("start-after", startAfter)
 	}
 
 	// Always set encoding-type in ListObjects V2
@@ -277,7 +282,7 @@ func (c Client) listObjects(ctx context.Context, bucketName string, opts ListObj
 	go func(objectStatCh chan<- ObjectInfo) {
 		defer close(objectStatCh)
 
-		marker := ""
+		marker := opts.StartAfter
 		for {
 			// Get list of objects a maximum of 1000 per request.
 			result, err := c.listObjectsQuery(ctx, bucketName, opts.Prefix, marker, delimiter, opts.MaxKeys, opts.headers)
@@ -377,15 +382,14 @@ func (c Client) listObjectVersions(ctx context.Context, bucketName string, opts 
 			// If contents are available loop through and send over channel.
 			for _, version := range result.Versions {
 				info := ObjectInfo{
-					ETag:         trimEtag(version.ETag),
-					Key:          version.Key,
-					LastModified: version.LastModified,
-					Size:         version.Size,
-					Owner:        version.Owner,
-					StorageClass: version.StorageClass,
-					IsLatest:     version.IsLatest,
-					VersionID:    version.VersionID,
-
+					ETag:           trimEtag(version.ETag),
+					Key:            version.Key,
+					LastModified:   version.LastModified,
+					Size:           version.Size,
+					Owner:          version.Owner,
+					StorageClass:   version.StorageClass,
+					IsLatest:       version.IsLatest,
+					VersionID:      version.VersionID,
 					IsDeleteMarker: version.isDeleteMarker,
 				}
 				select {
@@ -629,6 +633,10 @@ type ListObjectsOptions struct {
 	// batch, advanced use-case not useful for most
 	// applications
 	MaxKeys int
+	// StartAfter start listing lexically at this
+	// object onwards, this value can also be set
+	// for Marker when `UseV1` is set to true.
+	StartAfter string
 
 	// Use the deprecated list objects V1 API
 	UseV1 bool
