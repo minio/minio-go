@@ -60,6 +60,10 @@ type LDAPIdentity struct {
 
 	// LDAP username/password used to fetch LDAP STS credentials.
 	LDAPUsername, LDAPPassword string
+
+	// Session policy to apply to the generated credentials. Leave empty to
+	// use the full access policy available to the user.
+	Policy string
 }
 
 // NewLDAPIdentity returns new credentials object that uses LDAP
@@ -70,6 +74,19 @@ func NewLDAPIdentity(stsEndpoint, ldapUsername, ldapPassword string) (*Credentia
 		STSEndpoint:  stsEndpoint,
 		LDAPUsername: ldapUsername,
 		LDAPPassword: ldapPassword,
+	}), nil
+}
+
+// NewLDAPIdentityWithSessionPolicy returns new credentials object that uses
+// LDAP Identity with a specified session policy. The `policy` parameter must be
+// a JSON string specifying the policy document.
+func NewLDAPIdentityWithSessionPolicy(stsEndpoint, ldapUsername, ldapPassword, policy string) (*Credentials, error) {
+	return New(&LDAPIdentity{
+		Client:       &http.Client{Transport: http.DefaultTransport},
+		STSEndpoint:  stsEndpoint,
+		LDAPUsername: ldapUsername,
+		LDAPPassword: ldapPassword,
+		Policy:       policy,
 	}), nil
 }
 
@@ -87,6 +104,9 @@ func (k *LDAPIdentity) Retrieve() (value Value, err error) {
 	v.Set("Version", STSVersion)
 	v.Set("LDAPUsername", k.LDAPUsername)
 	v.Set("LDAPPassword", k.LDAPPassword)
+	if k.Policy != "" {
+		v.Set("Policy", k.Policy)
+	}
 
 	u.RawQuery = v.Encode()
 
