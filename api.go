@@ -34,6 +34,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	md5simd "github.com/minio/md5-simd"
@@ -90,6 +91,11 @@ type Client struct {
 	// Factory for MD5 hash functions.
 	md5Hasher    func() md5simd.Hasher
 	sha256Hasher func() md5simd.Hasher
+
+	healthCheckCh  chan struct{}
+	hasHealthCheck bool
+	up             int32
+	lastOnline     time.Time
 }
 
 // Options for New method
@@ -387,6 +393,62 @@ func (c *Client) hashMaterials(isMd5Requested bool) (hashAlgos map[string]md5sim
 	return hashAlgos, hashSums
 }
 
+// IsOnline returns true if healthcheck enabled and client is online
+func (c *Client) IsOnline() bool {
+	if !c.hasHealthCheck {
+		return true
+	}
+	return atomic.LoadInt32(&c.up) == 1
+}
+
+// IsOffline returns true if healthcheck enabled and client is offline
+func (c *Client) IsOffline() bool {
+	return !c.IsOnline()
+}
+
+// HealthCheck starts a healthcheck to see if endpoint is up. Returns a context cancellation function
+// and and error if health check is already started
+func (c *Client) HealthCheck(hcDuration time.Duration) (context.CancelFunc, error) {
+	if c.hasHealthCheck {
+		return nil, fmt.Errorf("health check running already")
+	}
+	if hcDuration < 1*time.Second {
+		return nil, fmt.Errorf("health check duration should be atleast 1 second")
+	}
+	ctx, cancelFn := context.WithCancel(context.TODO())
+	c.healthCheckCh = make(chan struct{})
+	c.hasHealthCheck = true
+	probeBucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "probe-bucket-sign-")
+	go func(duration time.Duration) {
+		for {
+			select {
+			case <-ctx.Done():
+				close(c.healthCheckCh)
+				c.hasHealthCheck = false
+				return
+			case <-time.After(duration):
+				// Do health check the first time and ONLY if the connection is marked offline
+				if c.IsOffline() || c.lastOnline.Equal(time.Time{}) {
+					_, err := c.getBucketLocation(context.Background(), probeBucketName)
+					if err != nil && IsNetworkOrHostDown(err, false) {
+						atomic.StoreInt32(&c.up, 0)
+					}
+					if ToErrorResponse(err).Code == "NoSuchBucket" || err == nil {
+						c.lastOnline = time.Now()
+						atomic.StoreInt32(&c.up, 1)
+					}
+				}
+			case <-c.healthCheckCh:
+				// set offline if client saw a network error
+				if c.IsOnline() {
+					atomic.StoreInt32(&c.up, 0)
+				}
+			}
+		}
+	}(hcDuration)
+	return cancelFn, nil
+}
+
 // requestMetadata - is container for all the values to make a request.
 type requestMetadata struct {
 	// If set newRequest presigns the URL.
@@ -565,12 +627,25 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 			if isS3CodeRetryable(errResponse.Code) {
 				continue // Retry.
 			}
+
+			if c.hasHealthCheck && IsNetworkOrHostDown(err, false) {
+				select {
+				case c.healthCheckCh <- struct{}{}:
+				default:
+				}
+			}
 			return nil, err
 		}
-
 		// Initiate the request.
 		res, err = c.do(req)
 		if err != nil {
+			if c.hasHealthCheck && IsNetworkOrHostDown(err, false) {
+				select {
+				case c.healthCheckCh <- struct{}{}:
+				default:
+				}
+			}
+
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return nil, err
 			}
