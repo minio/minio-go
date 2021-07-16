@@ -23,8 +23,8 @@ import (
 	"context"
 	"log"
 
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/minio/minio-go/v8"
+	"github.com/minio/minio-go/v8/pkg/credentials"
 )
 
 func main() {
@@ -60,11 +60,13 @@ func main() {
 	}()
 
 	// Call RemoveObjects API
-	errorCh := s3Client.RemoveObjects(context.Background(), "my-bucketname", objectsCh, minio.RemoveObjectsOptions{})
+	resultch := s3Client.RemoveObjects(context.Background(), "my-bucketname", objectsCh, minio.RemoveObjectsOptions{})
 
 	// Print errors received from RemoveObjects API
-	for e := range errorCh {
-		log.Fatalln("Failed to remove " + e.ObjectName + ", error: " + e.Err.Error())
+	for result := range resultCh {
+		if resultCh.Err != nil {
+			log.Fatalln("Failed to remove " + result.ObjectName + ", error: " + result.Err.Error())
+		}
 	}
 
 	log.Println("Success")
