@@ -20,6 +20,7 @@ package credentials
 import (
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"time"
@@ -64,17 +65,43 @@ type LDAPIdentity struct {
 	// Session policy to apply to the generated credentials. Leave empty to
 	// use the full access policy available to the user.
 	Policy string
+
+	// RequestedExpiry is the configured expiry duration for credentials
+	// requested from LDAP.
+	RequestedExpiry time.Duration
 }
 
 // NewLDAPIdentity returns new credentials object that uses LDAP
 // Identity.
-func NewLDAPIdentity(stsEndpoint, ldapUsername, ldapPassword string) (*Credentials, error) {
-	return New(&LDAPIdentity{
+func NewLDAPIdentity(stsEndpoint, ldapUsername, ldapPassword string, optFuncs ...LDAPIdentityOpt) (*Credentials, error) {
+	l := LDAPIdentity{
 		Client:       &http.Client{Transport: http.DefaultTransport},
 		STSEndpoint:  stsEndpoint,
 		LDAPUsername: ldapUsername,
 		LDAPPassword: ldapPassword,
-	}), nil
+	}
+	for _, optFunc := range optFuncs {
+		optFunc(&l)
+	}
+	return New(&l), nil
+}
+
+// LDAPIdentityOpt is a function type used to configured the LDAPIdentity
+// instance.
+type LDAPIdentityOpt func(*LDAPIdentity)
+
+// LDAPIdentityPolicyOpt sets the session policy for requested credentials.
+func LDAPIdentityPolicyOpt(policy string) LDAPIdentityOpt {
+	return func(k *LDAPIdentity) {
+		k.Policy = policy
+	}
+}
+
+// LDAPIdentityExpiryOpt sets the expiry duration for requested credentials.
+func LDAPIdentityExpiryOpt(d time.Duration) LDAPIdentityOpt {
+	return func(k *LDAPIdentity) {
+		k.RequestedExpiry = d
+	}
 }
 
 func stripPassword(err error) error {
@@ -96,6 +123,8 @@ func stripPassword(err error) error {
 // NewLDAPIdentityWithSessionPolicy returns new credentials object that uses
 // LDAP Identity with a specified session policy. The `policy` parameter must be
 // a JSON string specifying the policy document.
+//
+// DEPRECATED: Use the `LDAPIdentityPolicyOpt` with `NewLDAPIdentity` instead.
 func NewLDAPIdentityWithSessionPolicy(stsEndpoint, ldapUsername, ldapPassword, policy string) (*Credentials, error) {
 	return New(&LDAPIdentity{
 		Client:       &http.Client{Transport: http.DefaultTransport},
@@ -121,6 +150,9 @@ func (k *LDAPIdentity) Retrieve() (value Value, err error) {
 	v.Set("LDAPPassword", k.LDAPPassword)
 	if k.Policy != "" {
 		v.Set("Policy", k.Policy)
+	}
+	if k.RequestedExpiry != 0 {
+		v.Set("DurationSeconds", fmt.Sprintf("%d", int(k.RequestedExpiry.Seconds())))
 	}
 
 	u.RawQuery = v.Encode()
