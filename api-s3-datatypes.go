@@ -177,6 +177,7 @@ func (l *ListVersionsResult) UnmarshalXML(d *xml.Decoder, start xml.StartElement
 					v.isDeleteMarker = true
 				}
 				l.Versions = append(l.Versions, v)
+			case "Tenant":
 			default:
 				return errors.New("unrecognized option:" + tagName)
 			}
