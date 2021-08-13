@@ -89,4 +89,6 @@ const (
 	minIOBucketReplicationDeleteMarker = "X-Minio-Source-DeleteMarker"
 	minIOBucketReplicationProxyRequest = "X-Minio-Source-Proxy-Request"
 	minIOBucketReplicationRequest      = "X-Minio-Source-Replication-Request"
+
+	minIOForceDelete = "x-minio-force-delete"
 )
