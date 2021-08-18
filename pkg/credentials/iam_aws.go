@@ -38,8 +38,9 @@ import (
 // prior to the credentials actually expiring. This is beneficial
 // so race conditions with expiring credentials do not cause
 // request to fail unexpectedly due to ExpiredTokenException exceptions.
-// When set to -1, which is the default value, refreshing will be triggered
-// when 80% of the elapsed time until the actual expiration time is passed.
+// DefaultExpiryWindow can be used as parameter to (*Expiry).SetExpiration.
+// When used the tokens refresh will be triggered when 80% of the elapsed
+// time until the actual expiration time is passed.
 const DefaultExpiryWindow = -1
 
 // A IAM retrieves credentials from the EC2 service, and keeps track if
