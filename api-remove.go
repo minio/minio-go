@@ -29,9 +29,9 @@ import (
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
-// BucketOptions special headers to purge buckets, only
+// RemoveBucketOptions special headers to purge buckets, only
 // useful when endpoint is MinIO
-type BucketOptions struct {
+type RemoveBucketOptions struct {
 	ForceDelete bool
 }
 
@@ -40,7 +40,7 @@ type BucketOptions struct {
 // All objects (including all object versions and delete markers)
 // in the bucket will be deleted forcibly if bucket options set
 // ForceDelete to 'true'.
-func (c Client) RemoveBucketWithOptions(ctx context.Context, bucketName string, opts BucketOptions) error {
+func (c Client) RemoveBucketWithOptions(ctx context.Context, bucketName string, opts RemoveBucketOptions) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return err
