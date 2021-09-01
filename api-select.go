@@ -330,10 +330,10 @@ func (j JSONOutputOptions) MarshalXML(e *xml.Encoder, start xml.StartElement) er
 
 // SelectObjectInputSerialization - input serialization parameters
 type SelectObjectInputSerialization struct {
-	CompressionType SelectCompressionType
-	Parquet         *ParquetInputOptions `xml:"Parquet,omitempty"`
-	CSV             *CSVInputOptions     `xml:"CSV,omitempty"`
-	JSON            *JSONInputOptions    `xml:"JSON,omitempty"`
+	CompressionType SelectCompressionType `xml:"CompressionType,omitempty"`
+	Parquet         *ParquetInputOptions  `xml:"Parquet,omitempty"`
+	CSV             *CSVInputOptions      `xml:"CSV,omitempty"`
+	JSON            *JSONInputOptions     `xml:"JSON,omitempty"`
 }
 
 // SelectObjectOutputSerialization - output serialization parameters.

@@ -64,8 +64,9 @@ func (m *StringMap) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 
 // Owner name.
 type Owner struct {
-	DisplayName string `json:"name"`
-	ID          string `json:"id"`
+	XMLName     xml.Name `xml:"Owner"`
+	DisplayName string   `xml:"ID" json:"name"`
+	ID          string   `xml:"DisplayName" json:"id"`
 }
 
 // UploadInfo contains information about the
@@ -115,14 +116,7 @@ type ObjectInfo struct {
 	Owner Owner
 
 	// ACL grant.
-	Grant []struct {
-		Grantee struct {
-			ID          string `xml:"ID"`
-			DisplayName string `xml:"DisplayName"`
-			URI         string `xml:"URI"`
-		} `xml:"Grantee"`
-		Permission string `xml:"Permission"`
-	} `xml:"Grant"`
+	Grant []Grant
 
 	// The class of storage used to store the object.
 	StorageClass string `json:"storageClass"`

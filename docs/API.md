@@ -80,7 +80,7 @@ func main() {
 |                                                       | [`PutObjectTagging`](#PutObjectTagging)             |                                               |                                                               |                                                       |
 |                                                       | [`GetObjectTagging`](#GetObjectTagging)             |                                               |                                                               |                                                       |
 |                                                       | [`RemoveObjectTagging`](#RemoveObjectTagging)       |                                               |                                                               |                                                       |
-|                                                       |                                                     |                                               |                                                               |                                                       |
+|                                                       | [`RestoreObject`](#RestoreObject)                   |                                               |                                                               |                                                       |
 
 ## 1. Constructor
 <a name="MinIO"></a>
@@ -1123,6 +1123,34 @@ if err != nil {
     return
 }
 ```
+
+<a name="RestoreObject"></a>
+### RestoreObject(ctx context.Context, bucketName, objectName, versionID string, opts minio.RestoreRequest) error
+Restore or perform SQL operations on an archived object
+
+__Parameters__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
+|`bucketName`  | _string_  |Name of the bucket   |
+|`objectName` | _string_  |Name of the object   |
+|`versionID` | _string_  |Version ID of the object   |
+|`opts` | _minio.RestoreRequest | Restore request options |
+
+__Example__
+
+```go
+opts := minio.RestoreRequest{}
+opts.SetDays(1)
+opts.SetGlacierJobParameters(minio.GlacierJobParameters{Tier: minio.TierStandard})
+
+err = s3Client.RestoreObject(context.Background(), "your-bucket", "your-object", "", opts)
+if err != nil {
+    log.Fatalln(err)
+}
+```
+
 
 <a name="RemoveIncompleteUpload"></a>
 ### RemoveIncompleteUpload(ctx context.Context, bucketName, objectName string) error
