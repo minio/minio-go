@@ -64,7 +64,7 @@ func (m *StringMap) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 
 // Owner name.
 type Owner struct {
-	XMLName     xml.Name `xml:"Owner"`
+	XMLName     xml.Name `xml:"Owner" json:"owner"`
 	DisplayName string   `xml:"ID" json:"name"`
 	ID          string   `xml:"DisplayName" json:"id"`
 }
