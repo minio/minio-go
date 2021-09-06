@@ -86,6 +86,14 @@ type UploadInfo struct {
 	ExpirationRuleID string
 }
 
+// RestoreInfo contains information of the restore operation of an archived object
+type RestoreInfo struct {
+	// Is the restoring operation is still ongoing
+	OngoingRestore bool
+	// When the restored copy of the archived object will be removed
+	ExpiryTime time.Time
+}
+
 // ObjectInfo container for object metadata.
 type ObjectInfo struct {
 	// An ETag is optionally set to md5sum of an object.  In case of multipart objects,
@@ -137,6 +145,8 @@ type ObjectInfo struct {
 	// not to be confused with `Expires` HTTP header.
 	Expiration       time.Time
 	ExpirationRuleID string
+
+	Restore *RestoreInfo
 
 	// Error
 	Err error `json:"-"`
