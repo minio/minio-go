@@ -22,6 +22,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -56,6 +57,26 @@ func amzExpirationToExpiryDateRuleID(expiration string) (time.Time, string) {
 		return expTime, matches[2]
 	}
 	return time.Time{}, ""
+}
+
+var restoreRegex = regexp.MustCompile(`ongoing-request="(.*?)"(, expiry-date="(.*?)")?`)
+
+func amzRestoreToStruct(restore string) (ongoing bool, expTime time.Time, err error) {
+	matches := restoreRegex.FindStringSubmatch(restore)
+	if len(matches) != 4 {
+		return false, time.Time{}, errors.New("unexpected restore header")
+	}
+	ongoing, err = strconv.ParseBool(matches[1])
+	if err != nil {
+		return false, time.Time{}, err
+	}
+	if matches[3] != "" {
+		expTime, err = time.Parse(http.TimeFormat, matches[3])
+		if err != nil {
+			return false, time.Time{}, err
+		}
+	}
+	return
 }
 
 // xmlDecoder provide decoded value in xml.
@@ -294,6 +315,16 @@ func ToObjectInfo(bucketName string, objectName string, h http.Header) (ObjectIn
 		}
 	}
 
+	// Nil if not found
+	var restore *RestoreInfo
+	if restoreHdr := h.Get(amzRestore); restoreHdr != "" {
+		ongoing, expTime, err := amzRestoreToStruct(restoreHdr)
+		if err != nil {
+			return ObjectInfo{}, err
+		}
+		restore = &RestoreInfo{OngoingRestore: ongoing, ExpiryTime: expTime}
+	}
+
 	// extract lifecycle expiry date and rule ID
 	expTime, ruleID := amzExpirationToExpiryDateRuleID(h.Get(amzExpiration))
 
@@ -319,6 +350,7 @@ func ToObjectInfo(bucketName string, objectName string, h http.Header) (ObjectIn
 		UserMetadata: userMetadata,
 		UserTags:     userTags,
 		UserTagCount: tagCount,
+		Restore:      restore,
 	}, nil
 }
 
