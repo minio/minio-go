@@ -54,6 +54,13 @@ const (
 	SelectCompressionNONE SelectCompressionType = "NONE"
 	SelectCompressionGZIP                       = "GZIP"
 	SelectCompressionBZIP                       = "BZIP2"
+
+	// Non-standard compression schemes, supported by MinIO hosts:
+
+	SelectCompressionZSTD   = "ZSTD"   // Zstandard compression.
+	SelectCompressionLZ4    = "LZ4"    // LZ4 Stream
+	SelectCompressionS2     = "S2"     // S2 Stream
+	SelectCompressionSNAPPY = "SNAPPY" // Snappy stream
 )
 
 // CSVQuoteFields - is the parameter for how CSV fields are quoted.
