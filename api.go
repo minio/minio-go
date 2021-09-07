@@ -398,7 +398,7 @@ func (c *Client) hashMaterials(isMd5Requested bool) (hashAlgos map[string]md5sim
 
 const (
 	unknown = -1
-	offline = 1
+	offline = 0
 	online  = 1
 )
 
@@ -430,13 +430,17 @@ func (c *Client) HealthCheck(hcDuration time.Duration) (context.CancelFunc, erro
 	atomic.StoreInt32(&c.healthCheck, online)
 	probeBucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "probe-health-")
 	go func(duration time.Duration) {
+		timer := time.NewTimer(duration)
+		defer timer.Stop()
 		for {
 			select {
 			case <-ctx.Done():
 				close(c.healthCheckCh)
 				atomic.StoreInt32(&c.healthCheck, unknown)
 				return
-			case <-time.After(duration):
+			case <-timer.C:
+
+				timer.Reset(duration)
 				// Do health check the first time and ONLY if the connection is marked offline
 				if c.IsOffline() || c.lastOnline.IsZero() {
 					_, err := c.getBucketLocation(context.Background(), probeBucketName)
