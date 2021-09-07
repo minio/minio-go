@@ -312,7 +312,8 @@ func privateNew(endpoint string, opts *Options) (*Client, error) {
 	clnt.lookup = opts.BucketLookup
 
 	// healthcheck is not initialized
-	clnt.healthCheck = -1
+	clnt.healthCheck = unknown
+
 	// Return.
 	return clnt, nil
 }
@@ -395,10 +396,16 @@ func (c *Client) hashMaterials(isMd5Requested bool) (hashAlgos map[string]md5sim
 	return hashAlgos, hashSums
 }
 
+const (
+	unknown = -1
+	offline = 1
+	online  = 1
+)
+
 // IsOnline returns true if healthcheck enabled and client is online
 func (c *Client) IsOnline() bool {
 	switch atomic.LoadInt32(&c.healthCheck) {
-	case 1, -1:
+	case online, unknown:
 		return true
 	}
 	return false
@@ -412,7 +419,7 @@ func (c *Client) IsOffline() bool {
 // HealthCheck starts a healthcheck to see if endpoint is up. Returns a context cancellation function
 // and and error if health check is already started
 func (c *Client) HealthCheck(hcDuration time.Duration) (context.CancelFunc, error) {
-	if atomic.LoadInt32(&c.healthCheck) == 1 {
+	if atomic.LoadInt32(&c.healthCheck) == online {
 		return nil, fmt.Errorf("health check running already")
 	}
 	if hcDuration < 1*time.Second {
@@ -420,31 +427,31 @@ func (c *Client) HealthCheck(hcDuration time.Duration) (context.CancelFunc, erro
 	}
 	ctx, cancelFn := context.WithCancel(context.Background())
 	c.healthCheckCh = make(chan struct{})
-	atomic.StoreInt32(&c.healthCheck, 1)
+	atomic.StoreInt32(&c.healthCheck, online)
 	probeBucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "probe-health-")
 	go func(duration time.Duration) {
 		for {
 			select {
 			case <-ctx.Done():
 				close(c.healthCheckCh)
-				atomic.StoreInt32(&c.healthCheck, -1)
+				atomic.StoreInt32(&c.healthCheck, unknown)
 				return
 			case <-time.After(duration):
 				// Do health check the first time and ONLY if the connection is marked offline
 				if c.IsOffline() || c.lastOnline.IsZero() {
 					_, err := c.getBucketLocation(context.Background(), probeBucketName)
 					if err != nil && IsNetworkOrHostDown(err, false) {
-						atomic.StoreInt32(&c.healthCheck, 0)
+						atomic.StoreInt32(&c.healthCheck, offline)
 					}
 					switch ToErrorResponse(err).Code {
 					case "NoSuchBucket", "AccessDenied", "":
 						c.lastOnline = time.Now()
-						atomic.StoreInt32(&c.healthCheck, 1)
+						atomic.StoreInt32(&c.healthCheck, online)
 					}
 				}
 			case <-c.healthCheckCh:
 				// set offline if client saw a network error
-				atomic.StoreInt32(&c.healthCheck, 0)
+				atomic.StoreInt32(&c.healthCheck, offline)
 			}
 		}
 	}(hcDuration)
@@ -630,7 +637,7 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 				continue // Retry.
 			}
 
-			if atomic.LoadInt32(&c.healthCheck) != -1 && IsNetworkOrHostDown(err, false) {
+			if atomic.LoadInt32(&c.healthCheck) != unknown && IsNetworkOrHostDown(err, false) {
 				select {
 				case c.healthCheckCh <- struct{}{}:
 				default:
@@ -641,7 +648,7 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 		// Initiate the request.
 		res, err = c.do(req)
 		if err != nil {
-			if atomic.LoadInt32(&c.healthCheck) != -1 && IsNetworkOrHostDown(err, false) {
+			if atomic.LoadInt32(&c.healthCheck) != unknown && IsNetworkOrHostDown(err, false) {
 				select {
 				case c.healthCheckCh <- struct{}{}:
 				default:
