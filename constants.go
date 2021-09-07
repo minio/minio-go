@@ -69,6 +69,7 @@ const (
 	amzVersionID         = "X-Amz-Version-Id"
 	amzTaggingCount      = "X-Amz-Tagging-Count"
 	amzExpiration        = "X-Amz-Expiration"
+	amzRestore           = "X-Amz-Restore"
 	amzReplicationStatus = "X-Amz-Replication-Status"
 	amzDeleteMarker      = "X-Amz-Delete-Marker"
 
@@ -89,4 +90,6 @@ const (
 	minIOBucketReplicationDeleteMarker = "X-Minio-Source-DeleteMarker"
 	minIOBucketReplicationProxyRequest = "X-Minio-Source-Proxy-Request"
 	minIOBucketReplicationRequest      = "X-Minio-Source-Replication-Request"
+
+	minIOForceDelete = "x-minio-force-delete"
 )

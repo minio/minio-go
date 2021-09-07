@@ -61,6 +61,26 @@ func amzExpirationToExpiryDateRuleID(expiration string) (time.Time, string) {
 	return time.Time{}, ""
 }
 
+var restoreRegex = regexp.MustCompile(`ongoing-request="(.*?)"(, expiry-date="(.*?)")?`)
+
+func amzRestoreToStruct(restore string) (ongoing bool, expTime time.Time, err error) {
+	matches := restoreRegex.FindStringSubmatch(restore)
+	if len(matches) != 4 {
+		return false, time.Time{}, errors.New("unexpected restore header")
+	}
+	ongoing, err = strconv.ParseBool(matches[1])
+	if err != nil {
+		return false, time.Time{}, err
+	}
+	if matches[3] != "" {
+		expTime, err = time.Parse(http.TimeFormat, matches[3])
+		if err != nil {
+			return false, time.Time{}, err
+		}
+	}
+	return
+}
+
 // xmlDecoder provide decoded value in xml.
 func xmlDecoder(body io.Reader, v interface{}) error {
 	d := xml.NewDecoder(body)
@@ -297,6 +317,16 @@ func ToObjectInfo(bucketName string, objectName string, h http.Header) (ObjectIn
 		}
 	}
 
+	// Nil if not found
+	var restore *RestoreInfo
+	if restoreHdr := h.Get(amzRestore); restoreHdr != "" {
+		ongoing, expTime, err := amzRestoreToStruct(restoreHdr)
+		if err != nil {
+			return ObjectInfo{}, err
+		}
+		restore = &RestoreInfo{OngoingRestore: ongoing, ExpiryTime: expTime}
+	}
+
 	// extract lifecycle expiry date and rule ID
 	expTime, ruleID := amzExpirationToExpiryDateRuleID(h.Get(amzExpiration))
 
@@ -322,6 +352,7 @@ func ToObjectInfo(bucketName string, objectName string, h http.Header) (ObjectIn
 		UserMetadata: userMetadata,
 		UserTags:     userTags,
 		UserTagCount: tagCount,
+		Restore:      restore,
 	}, nil
 }
 
@@ -400,19 +431,20 @@ func getDefaultLocation(u url.URL, regionOverride string) (location string) {
 	return region
 }
 
-var supportedHeaders = []string{
-	"content-type",
-	"cache-control",
-	"content-encoding",
-	"content-disposition",
-	"content-language",
-	"x-amz-website-redirect-location",
-	"x-amz-object-lock-mode",
-	"x-amz-metadata-directive",
-	"x-amz-object-lock-retain-until-date",
-	"expires",
-	"x-amz-replication-status",
+var supportedHeaders = map[string]bool{
+	"content-type":                        true,
+	"cache-control":                       true,
+	"content-encoding":                    true,
+	"content-disposition":                 true,
+	"content-language":                    true,
+	"x-amz-website-redirect-location":     true,
+	"x-amz-object-lock-mode":              true,
+	"x-amz-metadata-directive":            true,
+	"x-amz-object-lock-retain-until-date": true,
+	"expires":                             true,
+	"x-amz-replication-status":            true,
 	// Add more supported headers here.
+	// Must be lower case.
 }
 
 // isStorageClassHeader returns true if the header is a supported storage class header
@@ -422,34 +454,24 @@ func isStorageClassHeader(headerKey string) bool {
 
 // isStandardHeader returns true if header is a supported header and not a custom header
 func isStandardHeader(headerKey string) bool {
-	key := strings.ToLower(headerKey)
-	for _, header := range supportedHeaders {
-		if strings.ToLower(header) == key {
-			return true
-		}
-	}
-	return false
+	return supportedHeaders[strings.ToLower(headerKey)]
 }
 
 // sseHeaders is list of server side encryption headers
-var sseHeaders = []string{
-	"x-amz-server-side-encryption",
-	"x-amz-server-side-encryption-aws-kms-key-id",
-	"x-amz-server-side-encryption-context",
-	"x-amz-server-side-encryption-customer-algorithm",
-	"x-amz-server-side-encryption-customer-key",
-	"x-amz-server-side-encryption-customer-key-MD5",
+var sseHeaders = map[string]bool{
+	"x-amz-server-side-encryption":                    true,
+	"x-amz-server-side-encryption-aws-kms-key-id":     true,
+	"x-amz-server-side-encryption-context":            true,
+	"x-amz-server-side-encryption-customer-algorithm": true,
+	"x-amz-server-side-encryption-customer-key":       true,
+	"x-amz-server-side-encryption-customer-key-md5":   true,
+	// Add more supported headers here.
+	// Must be lower case.
 }
 
 // isSSEHeader returns true if header is a server side encryption header.
 func isSSEHeader(headerKey string) bool {
-	key := strings.ToLower(headerKey)
-	for _, h := range sseHeaders {
-		if strings.ToLower(h) == key {
-			return true
-		}
-	}
-	return false
+	return sseHeaders[strings.ToLower(headerKey)]
 }
 
 // isAmzHeader returns true if header is a x-amz-meta-* or x-amz-acl header.
