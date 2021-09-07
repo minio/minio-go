@@ -630,7 +630,7 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 				continue // Retry.
 			}
 
-			if c.hasHealthCheck && IsNetworkOrHostDown(err, false) {
+			if atomic.LoadInt32(&c.healthCheck) != -1 && IsNetworkOrHostDown(err, false) {
 				select {
 				case c.healthCheckCh <- struct{}{}:
 				default:
@@ -641,7 +641,7 @@ func (c Client) executeMethod(ctx context.Context, method string, metadata reque
 		// Initiate the request.
 		res, err = c.do(req)
 		if err != nil {
-			if c.hasHealthCheck && IsNetworkOrHostDown(err, false) {
+			if atomic.LoadInt32(&c.healthCheck) != -1 && IsNetworkOrHostDown(err, false) {
 				select {
 				case c.healthCheckCh <- struct{}{}:
 				default:
