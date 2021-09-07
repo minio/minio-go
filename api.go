@@ -92,10 +92,9 @@ type Client struct {
 	md5Hasher    func() md5simd.Hasher
 	sha256Hasher func() md5simd.Hasher
 
-	healthCheckCh  chan struct{}
-	hasHealthCheck bool
-	up             int32
-	lastOnline     time.Time
+	healthCheckCh chan struct{}
+	healthCheck   int32
+	lastOnline    time.Time
 }
 
 // Options for New method
@@ -311,6 +310,9 @@ func privateNew(endpoint string, opts *Options) (*Client, error) {
 	// Sets bucket lookup style, whether server accepts DNS or Path lookup. Default is Auto - determined
 	// by the SDK. When Auto is specified, DNS lookup is used for Amazon/Google cloud endpoints and Path for all other endpoints.
 	clnt.lookup = opts.BucketLookup
+
+	// healthcheck is not initialized
+	clnt.healthCheck = -1
 	// Return.
 	return clnt, nil
 }
@@ -395,10 +397,11 @@ func (c *Client) hashMaterials(isMd5Requested bool) (hashAlgos map[string]md5sim
 
 // IsOnline returns true if healthcheck enabled and client is online
 func (c *Client) IsOnline() bool {
-	if !c.hasHealthCheck {
+	switch atomic.LoadInt32(&c.healthCheck) {
+	case 1, -1:
 		return true
 	}
-	return atomic.LoadInt32(&c.up) == 1
+	return false
 }
 
 // IsOffline returns true if healthcheck enabled and client is offline
@@ -409,7 +412,7 @@ func (c *Client) IsOffline() bool {
 // HealthCheck starts a healthcheck to see if endpoint is up. Returns a context cancellation function
 // and and error if health check is already started
 func (c *Client) HealthCheck(hcDuration time.Duration) (context.CancelFunc, error) {
-	if c.hasHealthCheck {
+	if atomic.LoadInt32(&c.healthCheck) == 1 {
 		return nil, fmt.Errorf("health check running already")
 	}
 	if hcDuration < 1*time.Second {
@@ -417,32 +420,31 @@ func (c *Client) HealthCheck(hcDuration time.Duration) (context.CancelFunc, erro
 	}
 	ctx, cancelFn := context.WithCancel(context.Background())
 	c.healthCheckCh = make(chan struct{})
-	c.hasHealthCheck = true
+	atomic.StoreInt32(&c.healthCheck, 1)
 	probeBucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "probe-health-")
 	go func(duration time.Duration) {
 		for {
 			select {
 			case <-ctx.Done():
 				close(c.healthCheckCh)
-				c.hasHealthCheck = false
+				atomic.StoreInt32(&c.healthCheck, -1)
 				return
 			case <-time.After(duration):
 				// Do health check the first time and ONLY if the connection is marked offline
 				if c.IsOffline() || c.lastOnline.IsZero() {
 					_, err := c.getBucketLocation(context.Background(), probeBucketName)
 					if err != nil && IsNetworkOrHostDown(err, false) {
-						atomic.StoreInt32(&c.up, 0)
+						atomic.StoreInt32(&c.healthCheck, 0)
 					}
-					if ToErrorResponse(err).Code == "NoSuchBucket" || err == nil {
+					switch ToErrorResponse(err).Code {
+					case "NoSuchBucket", "AccessDenied", "":
 						c.lastOnline = time.Now()
-						atomic.StoreInt32(&c.up, 1)
+						atomic.StoreInt32(&c.healthCheck, 1)
 					}
 				}
 			case <-c.healthCheckCh:
 				// set offline if client saw a network error
-				if c.IsOnline() {
-					atomic.StoreInt32(&c.up, 0)
-				}
+				atomic.StoreInt32(&c.healthCheck, 0)
 			}
 		}
 	}(hcDuration)
