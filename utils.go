@@ -18,6 +18,7 @@
 package minio
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/hex"
@@ -27,6 +28,7 @@ import (
 	"hash"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
@@ -508,4 +510,80 @@ func (m hashWrapper) Close() {
 		sha256Pool.Put(m.Hash)
 	}
 	m.Hash = nil
+}
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyz01234569"
+const (
+	letterIdxBits = 6                    // 6 bits to represent a letter index
+	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
+	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
+)
+
+// randString generates random names and prepends them with a known prefix.
+func randString(n int, src rand.Source, prefix string) string {
+	b := make([]byte, n)
+	// A rand.Int63() generates 63 random bits, enough for letterIdxMax letters!
+	for i, cache, remain := n-1, src.Int63(), letterIdxMax; i >= 0; {
+		if remain == 0 {
+			cache, remain = src.Int63(), letterIdxMax
+		}
+		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
+			b[i] = letterBytes[idx]
+			i--
+		}
+		cache >>= letterIdxBits
+		remain--
+	}
+	return prefix + string(b[0:30-len(prefix)])
+}
+
+// IsNetworkOrHostDown - if there was a network error or if the host is down.
+// expectTimeouts indicates that *context* timeouts are expected and does not
+// indicate a downed host. Other timeouts still returns down.
+func IsNetworkOrHostDown(err error, expectTimeouts bool) bool {
+	if err == nil {
+		return false
+	}
+
+	if errors.Is(err, context.Canceled) {
+		return false
+	}
+
+	if expectTimeouts && errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	// We need to figure if the error either a timeout
+	// or a non-temporary error.
+	urlErr := &url.Error{}
+	if errors.As(err, &urlErr) {
+		switch urlErr.Err.(type) {
+		case *net.DNSError, *net.OpError, net.UnknownNetworkError:
+			return true
+		}
+	}
+	var e net.Error
+	if errors.As(err, &e) {
+		if e.Timeout() {
+			return true
+		}
+	}
+
+	// Fallback to other mechanisms.
+	switch {
+	case strings.Contains(err.Error(), "Connection closed by foreign host"):
+		return true
+	case strings.Contains(err.Error(), "TLS handshake timeout"):
+		// If error is - tlsHandshakeTimeoutError.
+		return true
+	case strings.Contains(err.Error(), "i/o timeout"):
+		// If error is - tcp timeoutError.
+		return true
+	case strings.Contains(err.Error(), "connection timed out"):
+		// If err is a net.Dial timeout.
+		return true
+	case strings.Contains(strings.ToLower(err.Error()), "503 service unavailable"):
+		// Denial errors
+		return true
+	}
+	return false
 }
