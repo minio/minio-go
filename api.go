@@ -415,10 +415,10 @@ func (c *Client) HealthCheck(hcDuration time.Duration) (context.CancelFunc, erro
 	if hcDuration < 1*time.Second {
 		return nil, fmt.Errorf("health check duration should be atleast 1 second")
 	}
-	ctx, cancelFn := context.WithCancel(context.TODO())
+	ctx, cancelFn := context.WithCancel(context.Background())
 	c.healthCheckCh = make(chan struct{})
 	c.hasHealthCheck = true
-	probeBucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "probe-bucket-sign-")
+	probeBucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "probe-health-")
 	go func(duration time.Duration) {
 		for {
 			select {
@@ -428,7 +428,7 @@ func (c *Client) HealthCheck(hcDuration time.Duration) (context.CancelFunc, erro
 				return
 			case <-time.After(duration):
 				// Do health check the first time and ONLY if the connection is marked offline
-				if c.IsOffline() || c.lastOnline.Equal(time.Time{}) {
+				if c.IsOffline() || c.lastOnline.IsZero() {
 					_, err := c.getBucketLocation(context.Background(), probeBucketName)
 					if err != nil && IsNetworkOrHostDown(err, false) {
 						atomic.StoreInt32(&c.up, 0)
