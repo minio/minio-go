@@ -27,6 +27,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7/pkg/replication"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
@@ -187,9 +188,36 @@ func (c Client) GetBucketReplicationMetrics(ctx context.Context, bucketName stri
 	return s, nil
 }
 
+// mustGetUUID - get a random UUID.
+func mustGetUUID() string {
+	u, err := uuid.NewRandom()
+	if err != nil {
+		return ""
+	}
+	return u.String()
+}
+
 // ResetBucketReplication kicks off replication of previously replicated objects if ExistingObjectReplication
 // is enabled in the replication config
-func (c Client) ResetBucketReplication(ctx context.Context, bucketName string, olderThan time.Duration, tgtArn string) (rinfo replication.ResyncTargetsInfo, err error) {
+func (c Client) ResetBucketReplication(ctx context.Context, bucketName string, olderThan time.Duration) (rID string, err error) {
+	rID = mustGetUUID()
+	_, err = c.resetBucketReplicationOnTarget(ctx, bucketName, olderThan, "", rID)
+	if err != nil {
+		return rID, err
+	}
+	return rID, nil
+}
+
+// ResetBucketReplication kicks off replication of previously replicated objects if ExistingObjectReplication
+// is enabled in the replication config
+func (c Client) ResetBucketReplicationOnTarget(ctx context.Context, bucketName string, olderThan time.Duration, tgtArn string) (rinfo replication.ResyncTargetsInfo, err error) {
+	rID := mustGetUUID()
+	return c.resetBucketReplicationOnTarget(ctx, bucketName, olderThan, tgtArn, rID)
+}
+
+// ResetBucketReplication kicks off replication of previously replicated objects if ExistingObjectReplication
+// is enabled in the replication config
+func (c Client) resetBucketReplicationOnTarget(ctx context.Context, bucketName string, olderThan time.Duration, tgtArn string, resetID string) (rinfo replication.ResyncTargetsInfo, err error) {
 	// Input validation.
 	if err = s3utils.CheckValidBucketName(bucketName); err != nil {
 		return
@@ -204,6 +232,7 @@ func (c Client) ResetBucketReplication(ctx context.Context, bucketName string, o
 	if tgtArn != "" {
 		urlValues.Set("arn", tgtArn)
 	}
+	urlValues.Set("reset-id", resetID)
 	// Execute GET on bucket to get replication config.
 	resp, err := c.executeMethod(ctx, http.MethodPut, requestMetadata{
 		bucketName:  bucketName,
