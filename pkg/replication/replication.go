@@ -109,7 +109,7 @@ func (c *Config) AddRule(opts Options) error {
 			return fmt.Errorf("invalid format for replication Role Arn: %v", opts.RoleArn)
 		}
 		if !strings.HasPrefix(opts.RoleArn, "arn:aws:iam") {
-			return fmt.Errorf("RoleArn invalid for AWS replication configuration")
+			return fmt.Errorf("RoleArn invalid for AWS replication configuration: %v", opts.RoleArn)
 		}
 		c.Role = opts.RoleArn
 	}
