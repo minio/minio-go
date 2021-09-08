@@ -698,7 +698,20 @@ type TargetMetrics struct {
 // Metrics represents inline replication metrics for a bucket.
 type Metrics struct {
 	Stats map[string]TargetMetrics
+	// Total Pending size in bytes across targets
+	PendingSize uint64 `json:"pendingReplicationSize"`
+	// Completed size in bytes  across targets
+	ReplicatedSize uint64 `json:"completedReplicationSize"`
+	// Total Replica size in bytes  across targets
+	ReplicaSize uint64 `json:"replicaSize"`
+	// Failed size in bytes  across targets
+	FailedSize uint64 `json:"failedReplicationSize"`
+	// Total number of pending operations including metadata updates across targets
+	PendingCount uint64 `json:"pendingReplicationCount"`
+	// Total number of failed operations including metadata updates across targets
+	FailedCount uint64 `json:"failedReplicationCount"`
 }
+
 type ResyncTargetsInfo struct {
 	Targets []ResyncTarget `json:"target,omitempty"`
 }
