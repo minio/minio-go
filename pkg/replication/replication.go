@@ -47,6 +47,7 @@ const (
 // Options represents options to set a replication configuration rule
 type Options struct {
 	Op                      OptionType
+	RoleArn                 string
 	ID                      string
 	Prefix                  string
 	RuleStatus              string
@@ -102,6 +103,17 @@ func (c *Config) AddRule(opts Options) error {
 	if err != nil {
 		return err
 	}
+	if opts.RoleArn != "" {
+		tokens := strings.Split(opts.RoleArn, ":")
+		if len(tokens) != 6 {
+			return fmt.Errorf("invalid format for replication Role Arn: %v", opts.RoleArn)
+		}
+		if !strings.HasPrefix(opts.RoleArn, "arn:aws:iam") {
+			return fmt.Errorf("RoleArn invalid for AWS replication configuration: %v", opts.RoleArn)
+		}
+		c.Role = opts.RoleArn
+	}
+
 	var status Status
 	// toggle rule status for edit option
 	switch opts.RuleStatus {
@@ -215,8 +227,8 @@ func (c *Config) AddRule(opts Options) error {
 	if err := newRule.Validate(); err != nil {
 		return err
 	}
-	// if replication config uses RoleArn, migrate this to the destination element as target ARN for remote bucket
-	if c.Role != "" {
+	// if replication config uses RoleArn, migrate this to the destination element as target ARN for remote bucket for MinIO configuration
+	if c.Role != "" && !strings.HasPrefix(c.Role, "arn:aws:iam") {
 		for i := range c.Rules {
 			c.Rules[i].Destination.Bucket = c.Role
 		}
@@ -241,8 +253,8 @@ func (c *Config) EditRule(opts Options) error {
 	if opts.ID == "" {
 		return fmt.Errorf("rule ID missing")
 	}
-	// if replication config uses RoleArn, migrate this to the destination element as target ARN for remote bucket
-	if c.Role != "" {
+	// if replication config uses RoleArn, migrate this to the destination element as target ARN for remote bucket for non AWS.
+	if c.Role != "" && !strings.HasPrefix(c.Role, "arn:aws:iam") {
 		for i := range c.Rules {
 			c.Rules[i].Destination.Bucket = c.Role
 		}
