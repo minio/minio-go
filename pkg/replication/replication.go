@@ -393,7 +393,7 @@ func (c *Config) EditRule(opts Options) error {
 		if rule.Priority == newRule.Priority && rIdx != idx {
 			return fmt.Errorf("priority must be unique. Replication configuration already has a rule with this priority")
 		}
-		if rule.Destination.Bucket != newRule.Destination.Bucket {
+		if rule.Destination.Bucket != newRule.Destination.Bucket && rule.ID == newRule.ID {
 			return fmt.Errorf("invalid destination bucket for this rule")
 		}
 	}
