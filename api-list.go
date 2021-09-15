@@ -26,6 +26,42 @@ import (
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
+// ListBucketsWithMetadata list all buckets owned by this authenticated user.
+//
+// This call requires explicit authentication, no anonymous requests are
+// allowed for listing buckets.
+//
+//   api := client.New(....)
+//   for message := range api.ListBucketsWithMetadata(context.Background()) {
+//       fmt.Println(message)
+//   }
+//
+func (c Client) ListBucketsWithMetadata(ctx context.Context) ([]BucketInfo, error) {
+	urlValues := make(url.Values)
+	urlValues.Set("metadata", "true")
+
+	// Execute GET on service with metadata
+	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
+		queryValues:      urlValues,
+		contentSHA256Hex: emptySHA256Hex,
+	})
+	defer closeResponse(resp)
+	if err != nil {
+		return nil, err
+	}
+	if resp != nil {
+		if resp.StatusCode != http.StatusOK {
+			return nil, httpRespToErrorResponse(resp, "", "")
+		}
+	}
+	listAllMyBucketsResult := listAllMyBucketsResult{}
+	err = xmlDecoder(resp.Body, &listAllMyBucketsResult)
+	if err != nil {
+		return nil, err
+	}
+	return listAllMyBucketsResult.Buckets.Bucket, nil
+}
+
 // ListBuckets list all buckets owned by this authenticated user.
 //
 // This call requires explicit authentication, no anonymous requests are
@@ -38,7 +74,9 @@ import (
 //
 func (c Client) ListBuckets(ctx context.Context) ([]BucketInfo, error) {
 	// Execute GET on service.
-	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{contentSHA256Hex: emptySHA256Hex})
+	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
+		contentSHA256Hex: emptySHA256Hex,
+	})
 	defer closeResponse(resp)
 	if err != nil {
 		return nil, err

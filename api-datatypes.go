@@ -22,7 +22,32 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/minio/minio-go/v7/pkg/tags"
 )
+
+// BucketUsageInfo captures bucket usage metrics
+type BucketUsageInfo struct {
+	Size             uint64
+	ObjectsCount     uint64
+	ObjectsHistogram StringMap
+}
+
+// BucketQuotaConfig captures any bucket quota settings
+type BucketQuotaConfig struct {
+	Quota uint64
+	Type  string
+}
+
+// BucketDetailsInfo cpatures bucket specific features
+type BucketDetailsInfo struct {
+	Versioning          bool
+	VersioningSuspended bool
+	Locking             bool
+	Replication         bool
+	Tagging             *tags.Tags
+	Quota               *BucketQuotaConfig
+}
 
 // BucketInfo container for bucket metadata.
 type BucketInfo struct {
@@ -30,6 +55,12 @@ type BucketInfo struct {
 	Name string `json:"name"`
 	// Date the bucket was created.
 	CreationDate time.Time `json:"creationDate"`
+
+	// Bucket usage info and object histogram
+	Usage *BucketUsageInfo `json:"usage"`
+
+	// Bucket details info
+	Details *BucketDetailsInfo `json:"details"`
 }
 
 // StringMap represents map with custom UnmarshalXML
