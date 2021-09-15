@@ -103,15 +103,21 @@ func (c *Config) AddRule(opts Options) error {
 	if err != nil {
 		return err
 	}
+	var compatSw bool // true if RoleArn is used with new mc client and older minio version prior to multisite
 	if opts.RoleArn != "" {
 		tokens := strings.Split(opts.RoleArn, ":")
 		if len(tokens) != 6 {
 			return fmt.Errorf("invalid format for replication Role Arn: %v", opts.RoleArn)
 		}
-		if !strings.HasPrefix(opts.RoleArn, "arn:aws:iam") {
+		switch {
+		case strings.HasPrefix(opts.RoleArn, "arn:minio:replication") && len(c.Rules) == 0:
+			c.Role = opts.RoleArn
+			compatSw = true
+		case strings.HasPrefix(opts.RoleArn, "arn:aws:iam"):
+			c.Role = opts.RoleArn
+		default:
 			return fmt.Errorf("RoleArn invalid for AWS replication configuration: %v", opts.RoleArn)
 		}
-		c.Role = opts.RoleArn
 	}
 
 	var status Status
@@ -151,7 +157,11 @@ func (c *Config) AddRule(opts Options) error {
 	destBucket := opts.DestBucket
 	// ref https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-arn-format.html
 	if btokens := strings.Split(destBucket, ":"); len(btokens) != 6 {
-		return fmt.Errorf("destination bucket needs to be in Arn format")
+		if len(btokens) == 1 && compatSw {
+			destBucket = fmt.Sprintf("arn:aws:s3:::%s", destBucket)
+		} else {
+			return fmt.Errorf("destination bucket needs to be in Arn format")
+		}
 	}
 	dmStatus := Disabled
 	if opts.ReplicateDeleteMarkers != "" {
@@ -228,7 +238,7 @@ func (c *Config) AddRule(opts Options) error {
 		return err
 	}
 	// if replication config uses RoleArn, migrate this to the destination element as target ARN for remote bucket for MinIO configuration
-	if c.Role != "" && !strings.HasPrefix(c.Role, "arn:aws:iam") {
+	if c.Role != "" && !strings.HasPrefix(c.Role, "arn:aws:iam") && !compatSw {
 		for i := range c.Rules {
 			c.Rules[i].Destination.Bucket = c.Role
 		}
@@ -254,7 +264,7 @@ func (c *Config) EditRule(opts Options) error {
 		return fmt.Errorf("rule ID missing")
 	}
 	// if replication config uses RoleArn, migrate this to the destination element as target ARN for remote bucket for non AWS.
-	if c.Role != "" && !strings.HasPrefix(c.Role, "arn:aws:iam") {
+	if c.Role != "" && !strings.HasPrefix(c.Role, "arn:aws:iam") && len(c.Rules) > 1 {
 		for i := range c.Rules {
 			c.Rules[i].Destination.Bucket = c.Role
 		}
