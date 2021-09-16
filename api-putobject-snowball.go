@@ -81,6 +81,13 @@ func (n nopReadSeekCloser) Close() error {
 	return nil
 }
 
+// This is available as io.ReadSeekCloser from go1.16
+type readSeekCloser interface {
+	io.Reader
+	io.Closer
+	io.Seeker
+}
+
 // PutObjectsSnowball will put multiple objects with a single put call.
 // A (compressed) TAR file will be created which will contain multiple objects.
 // The key for each object will be used for the destination in the specified bucket.
@@ -92,11 +99,11 @@ func (c Client) PutObjectsSnowball(ctx context.Context, bucketName string, opts 
 		return err
 	}
 	var tmpWriter io.Writer
-	var getTmpReader func() (rc io.ReadSeekCloser, sz int64, err error)
+	var getTmpReader func() (rc readSeekCloser, sz int64, err error)
 	if opts.InMemory {
 		b := bytes.NewBuffer(nil)
 		tmpWriter = b
-		getTmpReader = func() (io.ReadSeekCloser, int64, error) {
+		getTmpReader = func() (readSeekCloser, int64, error) {
 			return nopReadSeekCloser{bytes.NewReader(b.Bytes())}, int64(b.Len()), nil
 		}
 	} else {
@@ -111,7 +118,7 @@ func (c Client) PutObjectsSnowball(ctx context.Context, bucketName string, opts 
 			f.Close()
 		})
 		defer os.Remove(name)
-		getTmpReader = func() (io.ReadSeekCloser, int64, error) {
+		getTmpReader = func() (readSeekCloser, int64, error) {
 			once.Do(func() {
 				f.Close()
 			})
