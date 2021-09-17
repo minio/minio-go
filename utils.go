@@ -581,6 +581,10 @@ func IsNetworkOrHostDown(err error, expectTimeouts bool) bool {
 	case strings.Contains(err.Error(), "connection timed out"):
 		// If err is a net.Dial timeout.
 		return true
+	case strings.Contains(err.Error(), "connection refused"):
+		// If err is connection refused
+		return true
+
 	case strings.Contains(strings.ToLower(err.Error()), "503 service unavailable"):
 		// Denial errors
 		return true

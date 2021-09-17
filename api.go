@@ -445,17 +445,18 @@ func (c *Client) HealthCheck(hcDuration time.Duration) (context.CancelFunc, erro
 				if c.IsOffline() || c.lastOnline.IsZero() {
 					_, err := c.getBucketLocation(context.Background(), probeBucketName)
 					if err != nil && IsNetworkOrHostDown(err, false) {
-						atomic.StoreInt32(&c.healthCheck, offline)
-					}
-					switch ToErrorResponse(err).Code {
-					case "NoSuchBucket", "AccessDenied", "":
-						c.lastOnline = time.Now()
-						atomic.StoreInt32(&c.healthCheck, online)
+						atomic.CompareAndSwapInt32(&c.healthCheck, online, offline)
+					} else {
+						switch ToErrorResponse(err).Code {
+						case "NoSuchBucket", "AccessDenied", "":
+							c.lastOnline = time.Now()
+							atomic.CompareAndSwapInt32(&c.healthCheck, offline, online)
+						}
 					}
 				}
 			case <-c.healthCheckCh:
 				// set offline if client saw a network error
-				atomic.StoreInt32(&c.healthCheck, offline)
+				atomic.CompareAndSwapInt32(&c.healthCheck, online, offline)
 			}
 		}
 	}(hcDuration)
