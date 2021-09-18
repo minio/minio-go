@@ -882,7 +882,7 @@ Parameters
 |:---|:---| :---|
 |`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
 |`bucketName`  | _string_  |Name of the bucket  |
-|`objectsCh` |  _chan ObjectInfo_  | Channel of objects to be removed  |
+|`objectsCh` |  _chan minio.ObjectInfo_  | Channel of objects to be removed  |
 |`opts` |_minio.RemoveObjectsOptions_ | Allows user to set options |
 
 __minio.RemoveObjectsOptions__
@@ -898,7 +898,7 @@ __Return Values__
 |`errorCh` | _<-chan minio.RemoveObjectError_  | Receive-only channel of errors observed during deletion.  |
 
 ```go
-objectsCh := make(chan ObjectInfo)
+objectsCh := make(chan minio.ObjectInfo)
 
 // Send object names that are needed to be removed to objectsCh
 go func() {
