@@ -85,23 +85,8 @@ func main() {
 ## 1. Constructor
 <a name="MinIO"></a>
 
-### New(endpoint, accessKeyID, secretAccessKey string, ssl bool) (*Client, error)
+### New(endpoint string, opts *Options) (*Client, error)
 Initializes a new client object.
-
-__Parameters__
-
-| Param             | Type     | Description                                                                  |
-|:------------------|:---------|:-----------------------------------------------------------------------------|
-| `endpoint`        | _string_ | S3 compatible object storage endpoint                                        |
-| `accessKeyID`     | _string_ | Access key for the object storage                                            |
-| `secretAccessKey` | _string_ | Secret key for the object storage                                            |
-| `ssl`             | _bool_   | If 'true' API requests will be secure (HTTPS), and insecure (HTTP) otherwise |
-
-### NewWithRegion(endpoint, accessKeyID, secretAccessKey string, ssl bool, region string) (*Client, error)
-Initializes minio client, with region configured. Unlike New(), NewWithRegion avoids bucket-location lookup operations and it is slightly faster. Use this function when your application deals with a single region.
-
-### NewWithOptions(endpoint string, options *Options) (*Client, error)
-Initializes minio client with options configured.
 
 __Parameters__
 
@@ -114,16 +99,18 @@ __minio.Options__
 
 | Field               | Type                       | Description                                                                  |
 |:--------------------|:---------------------------|:-----------------------------------------------------------------------------|
-| `opts.Creds`        | _*credentials.Credentials_ | Access Credentials                                                           |
+| `opts.Creds`        | _*credentials.Credentials_ | S3 compatible object storage access credentials                              |
 | `opts.Secure`       | _bool_                     | If 'true' API requests will be secure (HTTPS), and insecure (HTTP) otherwise |
-| `opts.Region`       | _string_                   | region                                                                       |
+| `opts.Transport`    | _http.RoundTripper_        | Custom transport for executing HTTP transactions                             |
+| `opts.Region`       | _string_                   | S3 compatible object storage region                                          |
 | `opts.BucketLookup` | _BucketLookupType_         | Bucket lookup type can be one of the following values                        |
 |                     |                            | _minio.BucketLookupDNS_                                                      |
 |                     |                            | _minio.BucketLookupPath_                                                     |
 |                     |                            | _minio.BucketLookupAuto_                                                     |
-## 2. Bucket operations
 
+## 2. Bucket operations
 <a name="MakeBucket"></a>
+
 ### MakeBucket(ctx context.Context, bucketName string, opts MakeBucketOptions)
 Creates a new bucket.
 
