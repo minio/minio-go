@@ -85,7 +85,7 @@ func main() {
 ## 1. Constructor
 <a name="MinIO"></a>
 
-### New(endpoint string, opts *Options) (*Client, error)
+### New(endpoint string, opts \*Options) (\*Client, error)
 Initializes a new client object.
 
 __Parameters__
@@ -349,6 +349,7 @@ Sets tags to a bucket.
 
 
 __Parameters__
+
 | Param        | Type              | Description                                         |
 |:-------------|:------------------|:----------------------------------------------------|
 | `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
@@ -378,6 +379,7 @@ Gets tags of a bucket.
 
 
 __Parameters__
+
 | Param        | Type         | Description        |
 |:-------------|:-------------|:-------------------|
 |`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
@@ -405,6 +407,7 @@ Removes all tags on a bucket.
 
 
 __Parameters__
+
 | Param        | Type         | Description        |
 |:-------------|:-------------|:-------------------|
 |`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
