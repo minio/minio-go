@@ -141,7 +141,7 @@ func (r *RestoreRequest) SetOutputLocation(v OutputLocation) {
 }
 
 // RestoreObject is a implementation of https://docs.aws.amazon.com/AmazonS3/latest/API/API_RestoreObject.html AWS S3 API
-func (c Client) RestoreObject(ctx context.Context, bucketName, objectName, versionID string, req RestoreRequest) error {
+func (c *Client) RestoreObject(ctx context.Context, bucketName, objectName, versionID string, req RestoreRequest) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return err
