@@ -30,7 +30,7 @@ import (
 )
 
 // GetObject wrapper function that accepts a request context
-func (c Client) GetObject(ctx context.Context, bucketName, objectName string, opts GetObjectOptions) (*Object, error) {
+func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, opts GetObjectOptions) (*Object, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return nil, err
@@ -639,7 +639,7 @@ func newObject(reqCh chan<- getRequest, resCh <-chan getResponse, doneCh chan<- 
 //
 // For more information about the HTTP Range header.
 // go to http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35.
-func (c Client) getObject(ctx context.Context, bucketName, objectName string, opts GetObjectOptions) (io.ReadCloser, ObjectInfo, http.Header, error) {
+func (c *Client) getObject(ctx context.Context, bucketName, objectName string, opts GetObjectOptions) (io.ReadCloser, ObjectInfo, http.Header, error) {
 	// Validate input arguments.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return nil, ObjectInfo{}, nil, err
