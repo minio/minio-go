@@ -860,7 +860,7 @@ __Parameters__
 |`opts`	|_minio.PutObjectRetentionOptions_ |Allows user to set options like retention mode, expiry date and version id |
 
 <a name="RemoveObjects"></a>
-### RemoveObjects(ctx context.Context, bucketName string, objectsCh <-chan string, opts RemoveObjectsOptions) <-chan RemoveObjectError
+### RemoveObjects(ctx context.Context, bucketName string, objectsCh <-chan ObjectInfo, opts RemoveObjectsOptions) <-chan RemoveObjectError
 Removes a list of objects obtained from an input channel. The call sends a delete request to the server up to 1000 objects at a time. The errors observed are sent over the error channel.
 
 Parameters
@@ -869,7 +869,7 @@ Parameters
 |:---|:---| :---|
 |`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
 |`bucketName`  | _string_  |Name of the bucket  |
-|`objectsCh` |  _chan string_  | Channel of objects to be removed  |
+|`objectsCh` |  _chan minio.ObjectInfo_  | Channel of objects to be removed  |
 |`opts` |_minio.RemoveObjectsOptions_ | Allows user to set options |
 
 __minio.RemoveObjectsOptions__
@@ -885,7 +885,7 @@ __Return Values__
 |`errorCh` | _<-chan minio.RemoveObjectError_  | Receive-only channel of errors observed during deletion.  |
 
 ```go
-objectsCh := make(chan string)
+objectsCh := make(chan minio.ObjectInfo)
 
 // Send object names that are needed to be removed to objectsCh
 go func() {
