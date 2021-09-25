@@ -47,7 +47,6 @@ func (c *Client) SetBucketVersioning(ctx context.Context, bucketName string, con
 		bucketName:       bucketName,
 		queryValues:      urlValues,
 		contentBody:      bytes.NewReader(buf),
-		contentLength:    int64(len(buf)),
 		contentMD5Base64: sumMD5Base64(buf),
 		contentSHA256Hex: sum256Hex(buf),
 	}
