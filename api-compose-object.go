@@ -243,8 +243,10 @@ func (c *Client) copyObjectDo(ctx context.Context, srcBucket, srcObject, destBuc
 		customHeader: headers,
 	}
 	if dstOpts.Internal.SourceVersionID != "" {
-		if _, err := uuid.Parse(dstOpts.Internal.SourceVersionID); err != nil {
-			return ObjectInfo{}, errInvalidArgument(err.Error())
+		if dstOpts.Internal.SourceVersionID != nullVersionID {
+			if _, err := uuid.Parse(dstOpts.Internal.SourceVersionID); err != nil {
+				return ObjectInfo{}, errInvalidArgument(err.Error())
+			}
 		}
 		urlValues := make(url.Values)
 		urlValues.Set("versionId", dstOpts.Internal.SourceVersionID)

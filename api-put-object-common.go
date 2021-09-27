@@ -26,6 +26,8 @@ import (
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
+const nullVersionID = "null"
+
 // Verify if reader is *minio.Object
 func isObject(reader io.Reader) (ok bool) {
 	_, ok = reader.(*Object)
