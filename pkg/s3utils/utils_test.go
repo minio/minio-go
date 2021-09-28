@@ -55,6 +55,10 @@ func TestGetRegionFromURL(t *testing.T) {
 			expectedRegion: "us-gov-west-1",
 		},
 		{
+			u:              url.URL{Host: "s3-fips.us-gov-west-1.amazonaws.com"},
+			expectedRegion: "us-gov-west-1",
+		},
+		{
 			u:              url.URL{Host: "s3-us-gov-west-1.amazonaws.com"},
 			expectedRegion: "us-gov-west-1",
 		},
