@@ -200,8 +200,10 @@ func (c *Client) initiateMultipartUpload(ctx context.Context, bucketName, object
 	urlValues.Set("uploads", "")
 
 	if opts.Internal.SourceVersionID != "" {
-		if _, err := uuid.Parse(opts.Internal.SourceVersionID); err != nil {
-			return initiateMultipartUploadResult{}, errInvalidArgument(err.Error())
+		if opts.Internal.SourceVersionID != nullVersionID {
+			if _, err := uuid.Parse(opts.Internal.SourceVersionID); err != nil {
+				return initiateMultipartUploadResult{}, errInvalidArgument(err.Error())
+			}
 		}
 		urlValues.Set("versionId", opts.Internal.SourceVersionID)
 	}

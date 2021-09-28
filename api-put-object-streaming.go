@@ -452,8 +452,10 @@ func (c *Client) putObjectDo(ctx context.Context, bucketName, objectName string,
 		contentSHA256Hex: sha256Hex,
 	}
 	if opts.Internal.SourceVersionID != "" {
-		if _, err := uuid.Parse(opts.Internal.SourceVersionID); err != nil {
-			return UploadInfo{}, errInvalidArgument(err.Error())
+		if opts.Internal.SourceVersionID != nullVersionID {
+			if _, err := uuid.Parse(opts.Internal.SourceVersionID); err != nil {
+				return UploadInfo{}, errInvalidArgument(err.Error())
+			}
 		}
 		urlValues := make(url.Values)
 		urlValues.Set("versionId", opts.Internal.SourceVersionID)
