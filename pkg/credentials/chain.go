@@ -17,6 +17,23 @@
 
 package credentials
 
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/minio/minio-go/v7/pkg/utils"
+)
+
+const (
+	maxRetry         = 10
+	maxJitter        = 1.0
+	defaultRetryUnit = 200 * time.Millisecond
+	defaultRetryCap  = time.Second
+)
+
+var errRetryRetrieve = errors.New("error during credentials generation, asking for retry")
+
 // A Chain will search for a provider which returns credentials
 // and cache that provider until Retrieve is called again.
 //
@@ -63,11 +80,27 @@ func NewChainCredentials(providers []Provider) *Credentials {
 // to IsExpired() will return the expired state of the cached provider.
 func (c *Chain) Retrieve() (Value, error) {
 	for _, p := range c.Providers {
-		creds, _ := p.Retrieve()
+		var creds Value
+		// Retrieve credentials with retry option of the provider asked to
+		ctx, cancel := context.WithCancel(context.Background())
+		for range utils.NewRetryTimer(ctx, maxRetry, defaultRetryUnit, defaultRetryCap, maxJitter, maxJitter) {
+			var err error
+			creds, err = p.Retrieve()
+			if err != nil {
+				if err == errRetryRetrieve {
+					continue
+				}
+				return Value{}, err
+			}
+			break
+		}
+		cancel()
+
 		// Always prioritize non-anonymous providers, if any.
 		if creds.AccessKeyID == "" && creds.SecretAccessKey == "" {
 			continue
 		}
+
 		c.curr = p
 		return creds, nil
 	}

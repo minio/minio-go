@@ -119,6 +119,8 @@ func (m *IAM) Retrieve() (Value, error) {
 		stsWebIdentityCreds, err := creds.Retrieve()
 		if err == nil {
 			m.SetExpiration(creds.Expiration(), DefaultExpiryWindow)
+		} else {
+			return Value{}, errRetryRetrieve
 		}
 		return stsWebIdentityCreds, err
 

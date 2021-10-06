@@ -41,6 +41,7 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 	"github.com/minio/minio-go/v7/pkg/signer"
+	"github.com/minio/minio-go/v7/pkg/utils"
 	"golang.org/x/net/publicsuffix"
 )
 
@@ -624,7 +625,7 @@ func (c *Client) executeMethod(ctx context.Context, method string, metadata requ
 	// Indicate to our routine to exit cleanly upon return.
 	defer cancel()
 
-	for range c.newRetryTimer(retryCtx, reqRetry, DefaultRetryUnit, DefaultRetryCap, MaxJitter) {
+	for range utils.NewRetryTimer(retryCtx, reqRetry, DefaultRetryUnit, DefaultRetryCap, MaxJitter, MaxJitter) {
 		// Retry executes the following function body if request has an
 		// error until maxRetries have been exhausted, retry attempts are
 		// performed after waiting for a given period of time in a
