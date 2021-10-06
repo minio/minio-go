@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -116,11 +117,20 @@ func (m *IAM) Retrieve() (Value, error) {
 			roleSessionName: os.Getenv("AWS_ROLE_SESSION_NAME"),
 		}
 
-		stsWebIdentityCreds, err := creds.Retrieve()
-		if err == nil {
-			m.SetExpiration(creds.Expiration(), DefaultExpiryWindow)
+		// FIXME: a more comprehensive fix is needed for all
+		// providers with an expontential retry and logging.
+		//
+		// Loop until getting a valid credentials
+		for {
+			stsWebIdentityCreds, err := creds.Retrieve()
+			if err == nil {
+				m.SetExpiration(creds.Expiration(), DefaultExpiryWindow)
+				return stsWebIdentityCreds, nil
+			}
+
+			log.Printf("unable to fetch STS credentials: %s", err.Error())
+			time.Sleep(10 * time.Second)
 		}
-		return stsWebIdentityCreds, err
 
 	case len(os.Getenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI")) > 0:
 		if len(endpoint) == 0 {
