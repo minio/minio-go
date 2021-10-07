@@ -17,6 +17,8 @@
 
 package credentials
 
+import "errors"
+
 // A Chain will search for a provider which returns credentials
 // and cache that provider until Retrieve is called again.
 //
@@ -71,11 +73,8 @@ func (c *Chain) Retrieve() (Value, error) {
 		c.curr = p
 		return creds, nil
 	}
-	// At this point we have exhausted all the providers and
-	// are left without any credentials return anonymous.
-	return Value{
-		SignerType: SignatureAnonymous,
-	}, nil
+
+	return Value{}, errors.New("no provider gave access/secret keys")
 }
 
 // IsExpired will returned the expired state of the currently cached provider
