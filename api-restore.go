@@ -68,7 +68,7 @@ type MetadataEntry struct {
 
 // S3 holds properties of the copy of the archived object
 type S3 struct {
-	AccessControlList *AccessControlList `xml:"AccessControlList,omiempty"`
+	AccessControlList *AccessControlList `xml:"AccessControlList,omitempty"`
 	BucketName        string
 	Prefix            string
 	CannedACL         *string        `xml:"CannedACL,omitempty"`
