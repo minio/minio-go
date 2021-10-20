@@ -26,6 +26,46 @@ import (
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
+func TestParseRFC7231Time(t *testing.T) {
+	testCases := []struct {
+		timeStr         string
+		expectedSuccess bool
+	}{
+		{
+			timeStr:         "Sun, 2 Jan 2000 20:34:56 GMT",
+			expectedSuccess: true,
+		},
+		{
+			timeStr:         "Sun, 02 Jan 2000 20:34:56 GMT",
+			expectedSuccess: true,
+		},
+		{
+			timeStr:         "Sun, 2 Jan 00 20:34:56 GMT",
+			expectedSuccess: true,
+		},
+		{
+			timeStr:         "Sun, 02 Jan 00 20:34:56 GMT",
+			expectedSuccess: true,
+		},
+		{
+			timeStr:         "Su, 2 Jan 00 20:34:56 GMT",
+			expectedSuccess: false,
+		},
+	}
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run("", func(t *testing.T) {
+			_, err := parseRFC7231Time(testCase.timeStr)
+			if err != nil && testCase.expectedSuccess {
+				t.Errorf("expected success found failure %v", err)
+			}
+			if err == nil && !testCase.expectedSuccess {
+				t.Errorf("expected failure found success")
+			}
+		})
+	}
+}
+
 // Tests signature redacting function used
 // in filtering on-wire Authorization header.
 func TestRedactSignature(t *testing.T) {
@@ -118,6 +158,7 @@ func TestIsValidEndpointURL(t *testing.T) {
 		{"https://s3.cn-north-1.amazonaws.com.cn", nil, true},
 		{"https://s3-us-gov-west-1.amazonaws.com", nil, true},
 		{"https://s3-fips-us-gov-west-1.amazonaws.com", nil, true},
+		{"https://s3-fips.us-gov-west-1.amazonaws.com", nil, true},
 		{"https://s3.amazonaws.com/", nil, true},
 		{"https://storage.googleapis.com/", nil, true},
 		{"https://z3.amazonaws.com", nil, true},

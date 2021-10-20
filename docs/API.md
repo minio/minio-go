@@ -80,28 +80,13 @@ func main() {
 |                                                       | [`PutObjectTagging`](#PutObjectTagging)             |                                               |                                                               |                                                       |
 |                                                       | [`GetObjectTagging`](#GetObjectTagging)             |                                               |                                                               |                                                       |
 |                                                       | [`RemoveObjectTagging`](#RemoveObjectTagging)       |                                               |                                                               |                                                       |
-|                                                       |                                                     |                                               |                                                               |                                                       |
+|                                                       | [`RestoreObject`](#RestoreObject)                   |                                               |                                                               |                                                       |
 
 ## 1. Constructor
 <a name="MinIO"></a>
 
-### New(endpoint, accessKeyID, secretAccessKey string, ssl bool) (*Client, error)
+### New(endpoint string, opts \*Options) (\*Client, error)
 Initializes a new client object.
-
-__Parameters__
-
-| Param             | Type     | Description                                                                  |
-|:------------------|:---------|:-----------------------------------------------------------------------------|
-| `endpoint`        | _string_ | S3 compatible object storage endpoint                                        |
-| `accessKeyID`     | _string_ | Access key for the object storage                                            |
-| `secretAccessKey` | _string_ | Secret key for the object storage                                            |
-| `ssl`             | _bool_   | If 'true' API requests will be secure (HTTPS), and insecure (HTTP) otherwise |
-
-### NewWithRegion(endpoint, accessKeyID, secretAccessKey string, ssl bool, region string) (*Client, error)
-Initializes minio client, with region configured. Unlike New(), NewWithRegion avoids bucket-location lookup operations and it is slightly faster. Use this function when your application deals with a single region.
-
-### NewWithOptions(endpoint string, options *Options) (*Client, error)
-Initializes minio client with options configured.
 
 __Parameters__
 
@@ -114,16 +99,18 @@ __minio.Options__
 
 | Field               | Type                       | Description                                                                  |
 |:--------------------|:---------------------------|:-----------------------------------------------------------------------------|
-| `opts.Creds`        | _*credentials.Credentials_ | Access Credentials                                                           |
+| `opts.Creds`        | _*credentials.Credentials_ | S3 compatible object storage access credentials                              |
 | `opts.Secure`       | _bool_                     | If 'true' API requests will be secure (HTTPS), and insecure (HTTP) otherwise |
-| `opts.Region`       | _string_                   | region                                                                       |
+| `opts.Transport`    | _http.RoundTripper_        | Custom transport for executing HTTP transactions                             |
+| `opts.Region`       | _string_                   | S3 compatible object storage region                                          |
 | `opts.BucketLookup` | _BucketLookupType_         | Bucket lookup type can be one of the following values                        |
 |                     |                            | _minio.BucketLookupDNS_                                                      |
 |                     |                            | _minio.BucketLookupPath_                                                     |
 |                     |                            | _minio.BucketLookupAuto_                                                     |
-## 2. Bucket operations
 
+## 2. Bucket operations
 <a name="MakeBucket"></a>
+
 ### MakeBucket(ctx context.Context, bucketName string, opts MakeBucketOptions)
 Creates a new bucket.
 
@@ -362,6 +349,7 @@ Sets tags to a bucket.
 
 
 __Parameters__
+
 | Param        | Type              | Description                                         |
 |:-------------|:------------------|:----------------------------------------------------|
 | `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
@@ -391,6 +379,7 @@ Gets tags of a bucket.
 
 
 __Parameters__
+
 | Param        | Type         | Description        |
 |:-------------|:-------------|:-------------------|
 |`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
@@ -418,6 +407,7 @@ Removes all tags on a bucket.
 
 
 __Parameters__
+
 | Param        | Type         | Description        |
 |:-------------|:-------------|:-------------------|
 |`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
@@ -873,7 +863,7 @@ __Parameters__
 |`opts`	|_minio.PutObjectRetentionOptions_ |Allows user to set options like retention mode, expiry date and version id |
 
 <a name="RemoveObjects"></a>
-### RemoveObjects(ctx context.Context, bucketName string, objectsCh <-chan string, opts RemoveObjectsOptions) <-chan RemoveObjectError
+### RemoveObjects(ctx context.Context, bucketName string, objectsCh <-chan ObjectInfo, opts RemoveObjectsOptions) <-chan RemoveObjectError
 Removes a list of objects obtained from an input channel. The call sends a delete request to the server up to 1000 objects at a time. The errors observed are sent over the error channel.
 
 Parameters
@@ -882,7 +872,7 @@ Parameters
 |:---|:---| :---|
 |`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
 |`bucketName`  | _string_  |Name of the bucket  |
-|`objectsCh` |  _chan string_  | Channel of objects to be removed  |
+|`objectsCh` |  _chan minio.ObjectInfo_  | Channel of objects to be removed  |
 |`opts` |_minio.RemoveObjectsOptions_ | Allows user to set options |
 
 __minio.RemoveObjectsOptions__
@@ -898,7 +888,7 @@ __Return Values__
 |`errorCh` | _<-chan minio.RemoveObjectError_  | Receive-only channel of errors observed during deletion.  |
 
 ```go
-objectsCh := make(chan string)
+objectsCh := make(chan minio.ObjectInfo)
 
 // Send object names that are needed to be removed to objectsCh
 go func() {
@@ -1123,6 +1113,34 @@ if err != nil {
     return
 }
 ```
+
+<a name="RestoreObject"></a>
+### RestoreObject(ctx context.Context, bucketName, objectName, versionID string, opts minio.RestoreRequest) error
+Restore or perform SQL operations on an archived object
+
+__Parameters__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
+|`bucketName`  | _string_  |Name of the bucket   |
+|`objectName` | _string_  |Name of the object   |
+|`versionID` | _string_  |Version ID of the object   |
+|`opts` | _minio.RestoreRequest | Restore request options |
+
+__Example__
+
+```go
+opts := minio.RestoreRequest{}
+opts.SetDays(1)
+opts.SetGlacierJobParameters(minio.GlacierJobParameters{Tier: minio.TierStandard})
+
+err = s3Client.RestoreObject(context.Background(), "your-bucket", "your-object", "", opts)
+if err != nil {
+    log.Fatalln(err)
+}
+```
+
 
 <a name="RemoveIncompleteUpload"></a>
 ### RemoveIncompleteUpload(ctx context.Context, bucketName, objectName string) error

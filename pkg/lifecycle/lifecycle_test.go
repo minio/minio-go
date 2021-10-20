@@ -19,13 +19,115 @@ package lifecycle
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"testing"
 	"time"
 )
 
-func TestMarshalJSON(t *testing.T) {
+func TestLifecycleUnmarshalJSON(t *testing.T) {
+	testCases := []struct {
+		input string
+		err   error
+	}{
+		{
+			input: `{
+				"Rules": [
+					{
+						"ID": "transition-missing",
+						"Status": "Enabled",
+						"Transition": {
+							"Days": 0
+						}
+					}
+				]
+			}`,
+			err: errMissingStorageClass,
+		},
+		{
+			input: `{
+				"Rules": [
+					{
+						"ID": "transition-missing-1",
+						"Status": "Enabled",
+						"Transition": {
+							"Days": 1
+						}
+					}
+				]
+			}`,
+			err: errMissingStorageClass,
+		},
+		{
+			input: `{
+				"Rules": [
+					{
+						"ID": "noncurrent-transition-missing",
+						"Status": "Enabled",
+						"NoncurrentVersionTransition": {
+							"Days": 0
+						}
+					}
+				]
+			}`,
+			err: errMissingStorageClass,
+		},
+		{
+			input: `{
+				"Rules": [
+					{
+						"ID": "noncurrent-transition-missing-1",
+						"Status": "Enabled",
+						"NoncurrentVersionTransition": {
+							"Days": 1
+						}
+					}
+				]
+			}`,
+			err: errMissingStorageClass,
+		},
+		{
+			input: `{
+				"Rules": [
+					{
+						"ID": "transition",
+						"Status": "Enabled",
+						"Transition": {
+							"StorageClass": "S3TIER-1",
+							"Days": 1
+						}
+					}
+				]
+			}`,
+			err: nil,
+		},
+		{
+			input: `{
+				"Rules": [
+					{
+						"ID": "noncurrent-transition",
+						"Status": "Enabled",
+						"NoncurrentVersionTransition": {
+							"StorageClass": "S3TIER-1",
+							"Days": 1
+						}
+					}
+				]
+			}`,
+			err: nil,
+		},
+	}
+
+	for i, tc := range testCases {
+		var lc Configuration
+		if err := json.Unmarshal([]byte(tc.input), &lc); err != tc.err {
+			t.Fatalf("%d: expected error %v but got %v", i+1, tc.err, err)
+		}
+	}
+}
+
+func TestLifecycleJSONRoundtrip(t *testing.T) {
 	testNow := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
-	inp := Configuration{
+	lc := Configuration{
 		Rules: []Rule{
 			{
 				RuleFilter: Filter{
@@ -64,28 +166,117 @@ func TestMarshalJSON(t *testing.T) {
 			},
 			{
 				Transition: Transition{
-					Days: ExpirationDays(3),
+					Days:         ExpirationDays(3),
+					StorageClass: "MINIOTIER-1",
 				},
 				Expiration: Expiration{
 					DeleteMarker: ExpireDeleteMarker(true),
 				},
 				NoncurrentVersionTransition: NoncurrentVersionTransition{
 					NoncurrentDays: ExpirationDays(3),
+					StorageClass:   "MINIOTIER-2",
 				},
 				ID:     "rule-3",
+				Status: "Enabled",
+			},
+			{
+				Transition: Transition{
+					Date:         ExpirationDate{testNow},
+					StorageClass: "MINIOTIER-1",
+				},
+				ID:     "rule-4",
 				Status: "Enabled",
 			},
 		},
 	}
 
-	expected := `{"Rules":[{"AbortIncompleteMultipartUpload":{"DaysAfterInitiation":1},"Expiration":{"Days":3,"DeleteMarker":false},"ID":"rule-1","Filter":{"Prefix":"prefix"},"Status":"Enabled"},{"Expiration":{"Date":"2021-01-01T00:00:00Z","DeleteMarker":false},"ID":"rule-2","Filter":{"And":{"Prefix":"prefix","Tags":[{"Key":"key-1","Value":"val-1"}]}},"NoncurrentVersionExpiration":{"NoncurrentDays":1},"Status":"Enabled"},{"Expiration":{"DeleteMarker":true},"ID":"rule-3","NoncurrentVersionTransition":{"NoncurrentDays":3},"Status":"Enabled","Transition":{"Days":3}}]}`
-
-	got, err := json.Marshal(inp)
+	buf, err := json.Marshal(lc)
 	if err != nil {
 		t.Fatal("failed to marshal json", err)
 	}
 
-	if expected != string(got) {
-		t.Fatalf("Expected %s but got %s", expected, got)
+	var got Configuration
+	if err = json.Unmarshal(buf, &got); err != nil {
+		t.Fatal("failed to unmarshal json", err)
 	}
+
+	for i := range lc.Rules {
+		if !lc.Rules[i].NoncurrentVersionTransition.equals(got.Rules[i].NoncurrentVersionTransition) {
+			t.Fatalf("expected %#v got %#v", lc.Rules[i].NoncurrentVersionTransition, got.Rules[i].NoncurrentVersionTransition)
+		}
+
+		if !lc.Rules[i].Transition.equals(got.Rules[i].Transition) {
+			t.Fatalf("expected %#v got %#v", lc.Rules[i].Transition, got.Rules[i].Transition)
+		}
+	}
+
+}
+
+func TestLifecycleXMLRoundtrip(t *testing.T) {
+	lc := Configuration{
+		Rules: []Rule{
+			{
+				ID:     "immediate-noncurrent",
+				Status: "Enabled",
+				NoncurrentVersionTransition: NoncurrentVersionTransition{
+					NoncurrentDays: 0,
+					StorageClass:   "S3TIER-1",
+				},
+			},
+			{
+				ID:     "immediate-current",
+				Status: "Enabled",
+				Transition: Transition{
+					StorageClass: "S3TIER-1",
+					Days:         0,
+				},
+			},
+			{
+				ID:     "current",
+				Status: "Enabled",
+				Transition: Transition{
+					StorageClass: "S3TIER-1",
+					Date:         ExpirationDate{time.Date(2021, time.September, 1, 0, 0, 0, 0, time.UTC)},
+				},
+			},
+			{
+				ID:     "noncurrent",
+				Status: "Enabled",
+				NoncurrentVersionTransition: NoncurrentVersionTransition{
+					NoncurrentDays: ExpirationDays(5),
+					StorageClass:   "S3TIER-1",
+				},
+			},
+		},
+	}
+
+	buf, err := xml.Marshal(lc)
+	if err != nil {
+		t.Fatalf("failed to marshal lifecycle configuration %v", err)
+	}
+
+	var got Configuration
+	err = xml.Unmarshal(buf, &got)
+	if err != nil {
+		t.Fatalf("failed to unmarshal lifecycle %v", err)
+	}
+
+	for i := range lc.Rules {
+		if !lc.Rules[i].NoncurrentVersionTransition.equals(got.Rules[i].NoncurrentVersionTransition) {
+			t.Fatalf("%d: expected %#v got %#v", i+1, lc.Rules[i].NoncurrentVersionTransition, got.Rules[i].NoncurrentVersionTransition)
+		}
+
+		if !lc.Rules[i].Transition.equals(got.Rules[i].Transition) {
+			t.Fatalf("%d: expected %#v got %#v", i+1, lc.Rules[i].Transition, got.Rules[i].Transition)
+		}
+	}
+
+}
+
+func (n NoncurrentVersionTransition) equals(m NoncurrentVersionTransition) bool {
+	return n.NoncurrentDays == m.NoncurrentDays && n.StorageClass == m.StorageClass
+}
+
+func (t Transition) equals(u Transition) bool {
+	return t.Days == u.Days && t.Date.Equal(u.Date.Time) && t.StorageClass == u.StorageClass
 }
