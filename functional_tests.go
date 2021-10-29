@@ -5989,6 +5989,48 @@ func testFunctional() {
 		return
 	}
 
+	// Generate presigned GET object url for a different host.
+	function = "PresignedGetObjectWithHostOverride(bucketName, objectName, expires, reqParams, hostOverride)"
+	functionAll += ", " + function
+	args = map[string]interface{}{
+		"host":       "localhost.com",
+		"bucketName": bucketName,
+		"objectName": objectName,
+		"expires":    3600 * time.Second,
+	}
+	presignedGetURLDifferentHost, err := c.PresignedGetObjectWithHostOverride(context.Background(), bucketName, objectName, 3600*time.Second, nil, "localhost.com")
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PresignedGetObjectWithHostOverride failed", err)
+		return
+	}
+
+	if presignedGetURLDifferentHost.Host != "localhost.com" {
+		logError(testName, function, args, startTime, "", "PresignedGetObjectWithHostOverride invalid host: "+presignedGetURLDifferentHost.Host, err)
+		return
+	}
+
+	// Since the different host is not a valid one, we can't validate if it works.
+	// Try to retrieve the object with the client host and validate if the request fails
+
+	presignedGetURLDifferentHost.Host = os.Getenv(serverEndpoint)
+	req, err = http.NewRequest(http.MethodGet, presignedGetURLDifferentHost.String(), nil)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PresignedGetObjectWithHostOverride request incorrect", err)
+		return
+	}
+
+	resp, err = httpClient.Do(req)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PresignedGetObjectWithHostOverride response incorrect", err)
+		return
+	}
+
+	if resp.StatusCode != http.StatusForbidden {
+		logError(testName, function, args, startTime, "", "PresignedGetObjectWithHostOverride URL returns status "+string(resp.StatusCode), err)
+		return
+	}
+	resp.Body.Close()
+
 	// Set request parameters.
 	reqParams := make(url.Values)
 	reqParams.Set("response-content-disposition", "attachment; filename=\"test.txt\"")
@@ -10790,6 +10832,57 @@ func testFunctionalV2() {
 		return
 	}
 	newPresignedBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "ReadAll failed", err)
+		return
+	}
+	resp.Body.Close()
+	if !bytes.Equal(newPresignedBytes, buf) {
+		logError(testName, function, args, startTime, "", "Bytes mismatch", err)
+		return
+	}
+
+	// Generate presigned GET object url for a different host.
+	function = "PresignedGetObjectWithHostOverride(bucketName, objectName, expires, reqParams, hostOverride)"
+	functionAll += ", " + function
+	args = map[string]interface{}{
+		"host":       "localhost.com",
+		"bucketName": bucketName,
+		"objectName": objectName,
+		"expires":    3600 * time.Second,
+	}
+	presignedGetURLDifferentHost, err := c.PresignedGetObjectWithHostOverride(context.Background(), bucketName, objectName, 3600*time.Second, nil, "localhost.com")
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PresignedGetObjectWithHostOverride failed", err)
+		return
+	}
+
+	if presignedGetURLDifferentHost.Host != "localhost.com" {
+		logError(testName, function, args, startTime, "", "PresignedGetObjectWithHostOverride invalid host: "+presignedGetURLDifferentHost.Host, err)
+		return
+	}
+
+	// Since the different host is not a valid one, we can't validate if it works.
+	// Try to retrieve the object redefining the host since the used credentials creates a SignatureV2.
+
+	presignedGetURLDifferentHost.Host = os.Getenv(serverEndpoint)
+	req, err = http.NewRequest(http.MethodGet, presignedGetURLDifferentHost.String(), nil)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PresignedGetObjectWithHostOverride request incorrect", err)
+		return
+	}
+
+	resp, err = httpClient.Do(req)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PresignedGetObjectWithHostOverride response incorrect", err)
+		return
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		logError(testName, function, args, startTime, "", "PresignedGetObjectWithHostOverride URL returns status "+string(resp.StatusCode), err)
+		return
+	}
+	newPresignedBytes, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "ReadAll failed", err)
 		return

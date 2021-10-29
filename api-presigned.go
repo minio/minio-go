@@ -30,7 +30,7 @@ import (
 
 // presignURL - Returns a presigned URL for an input 'method'.
 // Expires maximum is 7days - ie. 604800 and minimum is 1.
-func (c *Client) presignURL(ctx context.Context, method string, bucketName string, objectName string, expires time.Duration, reqParams url.Values) (u *url.URL, err error) {
+func (c *Client) presignURL(ctx context.Context, method string, bucketName string, objectName string, expires time.Duration, reqParams url.Values, hostOverride *string) (u *url.URL, err error) {
 	// Input validation.
 	if method == "" {
 		return nil, errInvalidArgument("method cannot be empty.")
@@ -45,11 +45,12 @@ func (c *Client) presignURL(ctx context.Context, method string, bucketName strin
 	// Convert expires into seconds.
 	expireSeconds := int64(expires / time.Second)
 	reqMetadata := requestMetadata{
-		presignURL:  true,
-		bucketName:  bucketName,
-		objectName:  objectName,
-		expires:     expireSeconds,
-		queryValues: reqParams,
+		presignURL:   true,
+		hostOverride: hostOverride,
+		bucketName:   bucketName,
+		objectName:   objectName,
+		expires:      expireSeconds,
+		queryValues:  reqParams,
 	}
 
 	// Instantiate a new request.
@@ -69,7 +70,7 @@ func (c *Client) PresignedGetObject(ctx context.Context, bucketName string, obje
 	if err = s3utils.CheckValidObjectName(objectName); err != nil {
 		return nil, err
 	}
-	return c.presignURL(ctx, http.MethodGet, bucketName, objectName, expires, reqParams)
+	return c.presignURL(ctx, http.MethodGet, bucketName, objectName, expires, reqParams, nil)
 }
 
 // PresignedHeadObject - Returns a presigned URL to access
@@ -80,7 +81,7 @@ func (c *Client) PresignedHeadObject(ctx context.Context, bucketName string, obj
 	if err = s3utils.CheckValidObjectName(objectName); err != nil {
 		return nil, err
 	}
-	return c.presignURL(ctx, http.MethodHead, bucketName, objectName, expires, reqParams)
+	return c.presignURL(ctx, http.MethodHead, bucketName, objectName, expires, reqParams, nil)
 }
 
 // PresignedPutObject - Returns a presigned URL to upload an object
@@ -90,14 +91,57 @@ func (c *Client) PresignedPutObject(ctx context.Context, bucketName string, obje
 	if err = s3utils.CheckValidObjectName(objectName); err != nil {
 		return nil, err
 	}
-	return c.presignURL(ctx, http.MethodPut, bucketName, objectName, expires, nil)
+	return c.presignURL(ctx, http.MethodPut, bucketName, objectName, expires, nil, nil)
 }
 
 // Presign - returns a presigned URL for any http method of your choice
 // along with custom request params. URL can have a maximum expiry of
 // upto 7days or a minimum of 1sec.
 func (c *Client) Presign(ctx context.Context, method string, bucketName string, objectName string, expires time.Duration, reqParams url.Values) (u *url.URL, err error) {
-	return c.presignURL(ctx, method, bucketName, objectName, expires, reqParams)
+	return c.presignURL(ctx, method, bucketName, objectName, expires, reqParams, nil)
+}
+
+// PresignedGetObjectWithHostOverride - Returns a presigned URL to access an object
+// data without credentials. URL can have a maximum expiry of
+// upto 7days or a minimum of 1sec. Additionally you can override
+// a set of response headers using the query parameters.
+// This method allows URL Host override.
+func (c *Client) PresignedGetObjectWithHostOverride(ctx context.Context, bucketName string, objectName string, expires time.Duration, reqParams url.Values, host string) (u *url.URL, err error) {
+	if err = s3utils.CheckValidObjectName(objectName); err != nil {
+		return nil, err
+	}
+	return c.presignURL(ctx, http.MethodGet, bucketName, objectName, expires, reqParams, &host)
+}
+
+// PresignedHeadObjectWithHostOverride - Returns a presigned URL to access
+// object metadata without credentials. URL can have a maximum expiry
+// of upto 7days or a minimum of 1sec. Additionally you can override
+// a set of response headers using the query parameters.
+// This method allows URL Host override.
+func (c *Client) PresignedHeadObjectWithHostOverride(ctx context.Context, bucketName string, objectName string, expires time.Duration, reqParams url.Values, host string) (u *url.URL, err error) {
+	if err = s3utils.CheckValidObjectName(objectName); err != nil {
+		return nil, err
+	}
+	return c.presignURL(ctx, http.MethodHead, bucketName, objectName, expires, reqParams, &host)
+}
+
+// PresignedPutObjectWithHostOverride - Returns a presigned URL to upload an object
+// without credentials. URL can have a maximum expiry of upto 7days
+// or a minimum of 1sec.
+// This method allows URL Host override.
+func (c *Client) PresignedPutObjectWithHostOverride(ctx context.Context, bucketName string, objectName string, expires time.Duration, host string) (u *url.URL, err error) {
+	if err = s3utils.CheckValidObjectName(objectName); err != nil {
+		return nil, err
+	}
+	return c.presignURL(ctx, http.MethodPut, bucketName, objectName, expires, nil, &host)
+}
+
+// PresignWithHostOverride - returns a presigned URL for any http method of your choice
+// along with custom request params. URL can have a maximum expiry of
+// upto 7days or a minimum of 1sec.
+// This method allows URL Host override.
+func (c *Client) PresignWithHostOverride(ctx context.Context, method string, bucketName string, objectName string, expires time.Duration, reqParams url.Values, host string) (u *url.URL, err error) {
+	return c.presignURL(ctx, method, bucketName, objectName, expires, reqParams, &host)
 }
 
 // PresignedPostPolicy - Returns POST urlString, form data to upload an object.

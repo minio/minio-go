@@ -460,7 +460,8 @@ func (c *Client) HealthCheck(hcDuration time.Duration) (context.CancelFunc, erro
 // requestMetadata - is container for all the values to make a request.
 type requestMetadata struct {
 	// If set newRequest presigns the URL.
-	presignURL bool
+	presignURL   bool
+	hostOverride *string
 
 	// User supplied.
 	bucketName   string
@@ -810,6 +811,11 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 
 	// Generate presign url if needed, return right here.
 	if metadata.expires != 0 && metadata.presignURL {
+		if host := metadata.hostOverride; host != nil {
+			req.Host = *metadata.hostOverride
+			req.URL.Host = *metadata.hostOverride
+		}
+
 		if signerType.IsAnonymous() {
 			return nil, errInvalidArgument("Presigned URLs cannot be generated with anonymous credentials.")
 		}
