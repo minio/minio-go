@@ -110,7 +110,7 @@ func (r *RestoreRequest) SetDays(v int) {
 	r.Days = &v
 }
 
-// SetDays sets the GlacierJobParameters of the restore request
+// SetGlacierJobParameters sets the GlacierJobParameters of the restore request
 func (r *RestoreRequest) SetGlacierJobParameters(v GlacierJobParameters) {
 	r.GlacierJobParameters = &v
 }
