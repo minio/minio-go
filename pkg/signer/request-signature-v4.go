@@ -36,7 +36,7 @@ const (
 	yyyymmdd          = "20060102"
 )
 
-// Different service types.
+// Different service types
 const (
 	ServiceTypeS3  = "s3"
 	ServiceTypeSTS = "sts"
@@ -57,7 +57,7 @@ const (
 ///  Authorization:
 ///
 ///      Is skipped for obvious reasons
-///.
+///
 var v4IgnoredHeaders = map[string]bool{
 	"Authorization": true,
 	"User-Agent":    true,
