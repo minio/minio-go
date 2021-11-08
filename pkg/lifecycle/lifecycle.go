@@ -53,13 +53,14 @@ func (n AbortIncompleteMultipartUpload) MarshalXML(e *xml.Encoder, start xml.Sta
 // (or suspended) to request server delete noncurrent object versions at a
 // specific period in the object's lifetime.
 type NoncurrentVersionExpiration struct {
-	XMLName        xml.Name       `xml:"NoncurrentVersionExpiration" json:"-"`
-	NoncurrentDays ExpirationDays `xml:"NoncurrentDays,omitempty"`
+	XMLName               xml.Name       `xml:"NoncurrentVersionExpiration" json:"-"`
+	NoncurrentDays        ExpirationDays `xml:"NoncurrentDays,omitempty"`
+	MaxNoncurrentVersions int            `xml:"MaxNoncurrentVersions,omitempty"`
 }
 
 // MarshalXML if non-current days not set to non zero value
 func (n NoncurrentVersionExpiration) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
-	if n.IsDaysNull() {
+	if n.isNull() {
 		return nil
 	}
 	type noncurrentVersionExpirationWrapper NoncurrentVersionExpiration
@@ -69,6 +70,10 @@ func (n NoncurrentVersionExpiration) MarshalXML(e *xml.Encoder, start xml.StartE
 // IsDaysNull returns true if days field is null
 func (n NoncurrentVersionExpiration) IsDaysNull() bool {
 	return n.NoncurrentDays == ExpirationDays(0)
+}
+
+func (n NoncurrentVersionExpiration) isNull() bool {
+	return n.IsDaysNull() && n.MaxNoncurrentVersions == 0
 }
 
 // NoncurrentVersionTransition structure, set this action to request server to
@@ -405,7 +410,7 @@ func (r Rule) MarshalJSON() ([]byte, error) {
 	if !r.Transition.IsNull() {
 		newr.Transition = &r.Transition
 	}
-	if !r.NoncurrentVersionExpiration.IsDaysNull() {
+	if !r.NoncurrentVersionExpiration.isNull() {
 		newr.NoncurrentVersionExpiration = &r.NoncurrentVersionExpiration
 	}
 	if !r.NoncurrentVersionTransition.isNull() {

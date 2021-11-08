@@ -247,6 +247,13 @@ func TestLifecycleXMLRoundtrip(t *testing.T) {
 					StorageClass:   "S3TIER-1",
 				},
 			},
+			{
+				ID:     "max-noncurrent-versions",
+				Status: "Enabled",
+				NoncurrentVersionExpiration: NoncurrentVersionExpiration{
+					MaxNoncurrentVersions: 5,
+				},
+			},
 		},
 	}
 
