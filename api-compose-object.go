@@ -398,7 +398,7 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 	var err error
 	for i, src := range srcs {
 		opts := StatObjectOptions{ServerSideEncryption: encrypt.SSE(src.Encryption), VersionID: src.VersionID}
-		srcObjectInfos[i], err = c.statObject(context.Background(), src.Bucket, src.Object, opts)
+		srcObjectInfos[i], err = c.StatObject(context.Background(), src.Bucket, src.Object, opts)
 		if err != nil {
 			return UploadInfo{}, err
 		}
