@@ -66,18 +66,6 @@ func (c *Client) StatObject(ctx context.Context, bucketName, objectName string, 
 	if err := s3utils.CheckValidObjectName(objectName); err != nil {
 		return ObjectInfo{}, err
 	}
-	return c.statObject(ctx, bucketName, objectName, opts)
-}
-
-// Lower level API for statObject supporting pre-conditions and range headers.
-func (c *Client) statObject(ctx context.Context, bucketName, objectName string, opts StatObjectOptions) (ObjectInfo, error) {
-	// Input validation.
-	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
-		return ObjectInfo{}, err
-	}
-	if err := s3utils.CheckValidObjectName(objectName); err != nil {
-		return ObjectInfo{}, err
-	}
 	headers := opts.Header()
 	if opts.Internal.ReplicationDeleteMarker {
 		headers.Set(minIOBucketReplicationDeleteMarker, "true")
