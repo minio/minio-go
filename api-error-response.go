@@ -101,11 +101,12 @@ const (
 	reportIssue = "Please report this issue at https://github.com/minio/minio-go/issues."
 )
 
-// xmlDecodeAndBody reads the whole body up to a certain limit and tries to XML
-// decode it. In any case the read body will be returned.
+// xmlDecodeAndBody reads the whole body up to 1MB and
+// tries to XML decode it into v.
+// The body that was read and any error from reading or decoding is returned.
 func xmlDecodeAndBody(bodyReader io.Reader, v interface{}) ([]byte, error) {
-	// read the whole body (up to a certain limit)
-	const maxBodyLength = int64(1024 * 1024)
+	// read the whole body (up to 1MB)
+	const maxBodyLength = 1 << 20
 	body, err := ioutil.ReadAll(io.LimitReader(bodyReader, maxBodyLength))
 	if err != nil {
 		return nil, err
@@ -174,6 +175,9 @@ func httpRespToErrorResponse(resp *http.Response, bucketName, objectName string)
 			msg := resp.Status
 			if len(errBody) > 0 {
 				msg = string(errBody)
+				if len(msg) > 1024 {
+					msg = msg[:1024] + "..."
+				}
 			}
 			errResp = ErrorResponse{
 				StatusCode: resp.StatusCode,
