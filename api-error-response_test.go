@@ -112,6 +112,7 @@ func TestHttpRespToErrorResponse(t *testing.T) {
 	genEmptyBodyResponse := func(statusCode int) *http.Response {
 		resp := &http.Response{
 			StatusCode: statusCode,
+			Status:     http.StatusText(statusCode),
 			Body:       ioutil.NopCloser(bytes.NewReader(nil)),
 		}
 		setCommonHeaders(resp)
@@ -181,6 +182,7 @@ func TestHttpRespToErrorResponse(t *testing.T) {
 		{"minio-bucket", "Asia/", inputResponses[3], expectedErrResponse[3]},
 		{"minio-bucket", "", inputResponses[4], expectedErrResponse[4]},
 		{"minio-bucket", "", inputResponses[5], expectedErrResponse[5]},
+		{"minio-bucket", "", inputResponses[6], expectedErrResponse[6]},
 		{"minio-bucket", "", inputResponses[7], expectedErrResponse[7]},
 		{"minio-bucket", "", inputResponses[8], expectedErrResponse[8]},
 	}
