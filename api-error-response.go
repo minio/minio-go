@@ -18,8 +18,11 @@
 package minio
 
 import (
+	"bytes"
 	"encoding/xml"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 )
 
@@ -98,6 +101,18 @@ const (
 	reportIssue = "Please report this issue at https://github.com/minio/minio-go/issues."
 )
 
+// xmlDecodeAndBody reads the whole body up to a certain limit and tries to XML
+// decode it. In any case the read body will be returned.
+func xmlDecodeAndBody(bodyReader io.Reader, v interface{}) ([]byte, error) {
+	// read the whole body (up to a certain limit)
+	const maxBodyLength = int64(1024 * 1024)
+	body, err := ioutil.ReadAll(io.LimitReader(bodyReader, maxBodyLength))
+	if err != nil {
+		return nil, err
+	}
+	return bytes.TrimSpace(body), xmlDecoder(bytes.NewReader(body), v)
+}
+
 // httpRespToErrorResponse returns a new encoded ErrorResponse
 // structure as error.
 func httpRespToErrorResponse(resp *http.Response, bucketName, objectName string) error {
@@ -111,7 +126,7 @@ func httpRespToErrorResponse(resp *http.Response, bucketName, objectName string)
 		Server:     resp.Header.Get("Server"),
 	}
 
-	err := xmlDecoder(resp.Body, &errResp)
+	errBody, err := xmlDecodeAndBody(resp.Body, &errResp)
 	// Xml decoding failed with no body, fall back to HTTP headers.
 	if err != nil {
 		switch resp.StatusCode {
@@ -156,10 +171,14 @@ func httpRespToErrorResponse(resp *http.Response, bucketName, objectName string)
 				Key:        objectName,
 			}
 		default:
+			msg := resp.Status
+			if len(errBody) > 0 {
+				msg = string(errBody)
+			}
 			errResp = ErrorResponse{
 				StatusCode: resp.StatusCode,
 				Code:       resp.Status,
-				Message:    resp.Status,
+				Message:    msg,
 				BucketName: bucketName,
 			}
 		}

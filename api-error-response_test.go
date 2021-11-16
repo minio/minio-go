@@ -52,18 +52,22 @@ func TestHttpRespToErrorResponse(t *testing.T) {
 		return buf.Bytes()
 	}
 
+	// `createErrorResponse` Mocks a generic error response from the server.
+	createErrorResponse := func(statusCode int, body []byte) *http.Response {
+		resp := &http.Response{}
+		resp.StatusCode = statusCode
+		resp.Status = http.StatusText(statusCode)
+		resp.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+		return resp
+	}
+
 	// `createAPIErrorResponse` Mocks XML error response from the server.
 	createAPIErrorResponse := func(APIErr APIError, bucketName string) *http.Response {
 		// generate error response.
 		// response body contains the XML error message.
-		resp := &http.Response{}
 		errorResponse := genAPIErrorResponse(APIErr, bucketName)
 		encodedErrorResponse := encodeErr(errorResponse)
-		// write Header.
-		resp.StatusCode = APIErr.HTTPStatusCode
-		resp.Body = ioutil.NopCloser(bytes.NewBuffer(encodedErrorResponse))
-
-		return resp
+		return createErrorResponse(APIErr.HTTPStatusCode, encodedErrorResponse)
 	}
 
 	// 'genErrResponse' contructs error response based http Status Code
@@ -145,6 +149,8 @@ func TestHttpRespToErrorResponse(t *testing.T) {
 		genErrResponse(setCommonHeaders(&http.Response{StatusCode: http.StatusForbidden}), "AccessDenied", "Access Denied.", "minio-bucket", ""),
 		genErrResponse(setCommonHeaders(&http.Response{StatusCode: http.StatusConflict}), "Conflict", "Bucket not empty.", "minio-bucket", ""),
 		genErrResponse(setCommonHeaders(&http.Response{StatusCode: http.StatusBadRequest}), "Bad Request", "Bad Request", "minio-bucket", ""),
+		genErrResponse(setCommonHeaders(&http.Response{StatusCode: http.StatusInternalServerError}), "Internal Server Error", "my custom object store error", "minio-bucket", ""),
+		genErrResponse(setCommonHeaders(&http.Response{StatusCode: http.StatusInternalServerError}), "Internal Server Error", "my custom object store error, with way too long body", "minio-bucket", ""),
 	}
 
 	// List of http response to be used as input.
@@ -156,6 +162,8 @@ func TestHttpRespToErrorResponse(t *testing.T) {
 		genEmptyBodyResponse(http.StatusForbidden),
 		genEmptyBodyResponse(http.StatusConflict),
 		genEmptyBodyResponse(http.StatusBadRequest),
+		setCommonHeaders(createErrorResponse(http.StatusInternalServerError, []byte("my custom object store error\n"))),
+		setCommonHeaders(createErrorResponse(http.StatusInternalServerError, append([]byte("my custom object store error, with way too long body\n"), bytes.Repeat([]byte("\n"), 2*1024*1024)...))),
 	}
 
 	testCases := []struct {
@@ -173,6 +181,8 @@ func TestHttpRespToErrorResponse(t *testing.T) {
 		{"minio-bucket", "Asia/", inputResponses[3], expectedErrResponse[3]},
 		{"minio-bucket", "", inputResponses[4], expectedErrResponse[4]},
 		{"minio-bucket", "", inputResponses[5], expectedErrResponse[5]},
+		{"minio-bucket", "", inputResponses[7], expectedErrResponse[7]},
+		{"minio-bucket", "", inputResponses[8], expectedErrResponse[8]},
 	}
 
 	for i, testCase := range testCases {
