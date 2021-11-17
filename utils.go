@@ -436,7 +436,7 @@ func redactSignature(origAuth string) string {
 		return "AWS **REDACTED**:**REDACTED**"
 	}
 
-	/// Signature V4 authorization header.
+	// Signature V4 authorization header.
 
 	// Strip out accessKeyID from:
 	// Credential=<access-key-id>/<date>/<aws-region>/<aws-service>/aws4_request

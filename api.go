@@ -46,7 +46,7 @@ import (
 
 // Client implements Amazon S3 compatible methods.
 type Client struct {
-	///  Standard options.
+	//  Standard options.
 
 	// Parsed endpoint url provided by the user.
 	endpointURL *url.URL
@@ -947,13 +947,13 @@ func (c *Client) makeTargetURL(bucketName, objectName, bucketLocation string, is
 		if isVirtualHostStyle {
 			urlStr = scheme + "://" + bucketName + "." + host + "/"
 			if objectName != "" {
-				urlStr = urlStr + s3utils.EncodePath(objectName)
+				urlStr += s3utils.EncodePath(objectName)
 			}
 		} else {
 			// If not fall back to using path style.
 			urlStr = urlStr + bucketName + "/"
 			if objectName != "" {
-				urlStr = urlStr + s3utils.EncodePath(objectName)
+				urlStr += s3utils.EncodePath(objectName)
 			}
 		}
 	}

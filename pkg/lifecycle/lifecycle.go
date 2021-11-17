@@ -99,6 +99,7 @@ func (n NoncurrentVersionTransition) isNull() bool {
 	return n.StorageClass == ""
 }
 
+// UnmarshalJSON implements NoncurrentVersionTransition JSONify
 func (n *NoncurrentVersionTransition) UnmarshalJSON(b []byte) error {
 	type noncurrentVersionTransition NoncurrentVersionTransition
 	var nt noncurrentVersionTransition

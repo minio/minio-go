@@ -719,9 +719,12 @@ type Metrics struct {
 	FailedCount uint64 `json:"failedReplicationCount"`
 }
 
+// ResyncTargetsInfo provides replication target information to resync replicated data.
 type ResyncTargetsInfo struct {
 	Targets []ResyncTarget `json:"target,omitempty"`
 }
+
+// ResyncTarget provides the replica resources and resetID to initiate resync replication.
 type ResyncTarget struct {
 	Arn     string `json:"arn"`
 	ResetID string `json:"resetid"`
