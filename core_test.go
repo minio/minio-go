@@ -20,7 +20,6 @@ package minio
 import (
 	"bytes"
 	"context"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -777,17 +776,17 @@ func TestCoreGetObjectMetadata(t *testing.T) {
 	_, err = core.PutObject(context.Background(), bucketName, "my-objectname",
 		bytes.NewReader([]byte("hello")), 5, "", "", putopts)
 	if err != nil {
-		log.Fatalln(err)
+		t.Fatal(err)
 	}
 
 	reader, objInfo, _, err := core.GetObject(context.Background(), bucketName, "my-objectname", GetObjectOptions{})
 	if err != nil {
-		log.Fatalln(err)
+		t.Fatal(err)
 	}
-	defer reader.Close()
+	reader.Close()
 
 	if objInfo.Metadata.Get("X-Amz-Meta-Key-1") != "Val-1" {
-		log.Fatalln("Expected metadata to be available but wasn't")
+		t.Fatal("Expected metadata to be available but wasn't")
 	}
 
 	err = core.RemoveObject(context.Background(), bucketName, "my-objectname", RemoveObjectOptions{})

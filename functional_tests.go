@@ -11869,6 +11869,7 @@ func testRemoveObjects() {
 	_, err = c.PutObject(context.Background(), bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "Error uploading object", err)
+		return
 	}
 
 	// Replace with smaller...
@@ -11890,7 +11891,8 @@ func testRemoveObjects() {
 	}
 	err = c.PutObjectRetention(context.Background(), bucketName, objectName, opts)
 	if err != nil {
-		log.Fatalln(err)
+		logError(testName, function, args, startTime, "", "Error setting retention", err)
+		return
 	}
 
 	objectsCh := make(chan minio.ObjectInfo)
@@ -11900,7 +11902,8 @@ func testRemoveObjects() {
 		// List all objects from a bucket-name with a matching prefix.
 		for object := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{UseV1: true, Recursive: true}) {
 			if object.Err != nil {
-				log.Fatalln(object.Err)
+				logError(testName, function, args, startTime, "", "Error listing objects", object.Err)
+				return
 			}
 			objectsCh <- object
 		}
@@ -11923,7 +11926,8 @@ func testRemoveObjects() {
 		// List all objects from a bucket-name with a matching prefix.
 		for object := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{UseV1: true, Recursive: true}) {
 			if object.Err != nil {
-				log.Fatalln(object.Err)
+				logError(testName, function, args, startTime, "", "Error listing objects", object.Err)
+				return
 			}
 			objectsCh1 <- object
 		}

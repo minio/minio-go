@@ -212,7 +212,7 @@ func IsGoogleEndpoint(endpointURL url.URL) bool {
 
 // Expects ascii encoded strings - from output of urlEncodePath
 func percentEncodeSlash(s string) string {
-	return strings.Replace(s, "/", "%2F", -1)
+	return strings.ReplaceAll(s, "/", "%2F")
 }
 
 // QueryEncode - encodes query values in their URL encoded form. In
