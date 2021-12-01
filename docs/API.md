@@ -898,7 +898,7 @@ go func() {
 		if object.Err != nil {
 			log.Fatalln(object.Err)
 		}
-		objectsCh <- object.Key
+		objectsCh <- object
 	}
 }()
 
