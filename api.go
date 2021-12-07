@@ -917,8 +917,8 @@ func (c *Client) makeTargetURL(bucketName, objectName, bucketLocation string, is
 			// http://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html
 			host = c.s3AccelerateEndpoint
 		} else {
-			// Do not change the host if the endpoint URL is a FIPS S3 endpoint.
-			if !s3utils.IsAmazonFIPSEndpoint(*c.endpointURL) {
+			// Do not change the host if the endpoint URL is a FIPS S3 endpoint or a S3 PrivateLink interface endpoint
+			if !s3utils.IsAmazonFIPSEndpoint(*c.endpointURL) && !s3utils.IsAmazonPrivateLinkEndpoint(*c.endpointURL) {
 				// Fetch new host based on the bucket location.
 				host = getS3Endpoint(bucketLocation)
 			}
