@@ -18,6 +18,7 @@
 package policy
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"

@@ -1,6 +1,6 @@
 module github.com/minio/minio-go/v7
 
-go 1.15
+go 1.16
 
 require (
 	github.com/dustin/go-humanize v1.0.0
@@ -8,7 +8,6 @@ require (
 	github.com/json-iterator/go v1.1.10
 	github.com/klauspost/compress v1.13.5
 	github.com/klauspost/cpuid v1.3.1 // indirect
-	github.com/kr/pretty v0.1.0 // indirect
 	github.com/minio/md5-simd v1.1.0
 	github.com/minio/sha256-simd v0.1.1
 	github.com/mitchellh/go-homedir v1.1.0
@@ -22,7 +21,6 @@ require (
 	golang.org/x/net v0.0.0-20200707034311-ab3426394381
 	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae // indirect
 	golang.org/x/text v0.3.3 // indirect
-	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/ini.v1 v1.57.0
 	gopkg.in/yaml.v2 v2.2.8 // indirect
 )

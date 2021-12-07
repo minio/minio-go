@@ -1,3 +1,4 @@
+//go:build mint
 // +build mint
 
 /*
