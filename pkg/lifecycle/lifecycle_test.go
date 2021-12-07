@@ -64,7 +64,7 @@ func TestLifecycleUnmarshalJSON(t *testing.T) {
 						"ID": "noncurrent-transition-missing",
 						"Status": "Enabled",
 						"NoncurrentVersionTransition": {
-							"Days": 0
+							"NoncurrentDays": 0
 						}
 					}
 				]
@@ -78,7 +78,7 @@ func TestLifecycleUnmarshalJSON(t *testing.T) {
 						"ID": "noncurrent-transition-missing-1",
 						"Status": "Enabled",
 						"NoncurrentVersionTransition": {
-							"Days": 1
+							"NoncurrentDays": 1
 						}
 					}
 				]
@@ -108,7 +108,7 @@ func TestLifecycleUnmarshalJSON(t *testing.T) {
 						"Status": "Enabled",
 						"NoncurrentVersionTransition": {
 							"StorageClass": "S3TIER-1",
-							"Days": 1
+							"NoncurrentDays": 1
 						}
 					}
 				]
@@ -187,6 +187,19 @@ func TestLifecycleJSONRoundtrip(t *testing.T) {
 				ID:     "rule-4",
 				Status: "Enabled",
 			},
+			{
+				NoncurrentVersionExpiration: NoncurrentVersionExpiration{
+					NoncurrentDays:          ExpirationDays(3),
+					NewerNoncurrentVersions: 1,
+				},
+				NoncurrentVersionTransition: NoncurrentVersionTransition{
+					NoncurrentDays:          ExpirationDays(3),
+					NewerNoncurrentVersions: 1,
+					StorageClass:            "MINIOTIER-2",
+				},
+				ID:     "rule-5",
+				Status: "Enabled",
+			},
 		},
 	}
 
@@ -251,7 +264,7 @@ func TestLifecycleXMLRoundtrip(t *testing.T) {
 				ID:     "max-noncurrent-versions",
 				Status: "Enabled",
 				NoncurrentVersionExpiration: NoncurrentVersionExpiration{
-					MaxNoncurrentVersions: 5,
+					NewerNoncurrentVersions: 5,
 				},
 			},
 		},
