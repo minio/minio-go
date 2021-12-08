@@ -2628,6 +2628,138 @@ func testRemoveMultipleObjects() {
 	successLogger(testName, function, args, startTime).Info()
 }
 
+// Test removing multiple objects and check for results
+func testRemoveMultipleObjectsWithResult() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "RemoveObjects(bucketName, objectsCh)"
+	args := map[string]interface{}{
+		"bucketName": "",
+	}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
+		return
+	}
+
+	// Set user agent.
+	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
+
+	// Enable tracing, write to stdout.
+	// c.TraceOn(os.Stderr)
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1", ObjectLocking: true})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	defer cleanupVersionedBucket(bucketName, c)
+
+	r := bytes.NewReader(bytes.Repeat([]byte("a"), 8))
+
+	nrObjects := 10
+	nrLockedObjects := 5
+
+	objectsCh := make(chan minio.ObjectInfo)
+
+	go func() {
+		defer close(objectsCh)
+		// Upload objects and send them to objectsCh
+		for i := 0; i < nrObjects; i++ {
+			objectName := "sample" + strconv.Itoa(i) + ".txt"
+			info, err := c.PutObject(context.Background(), bucketName, objectName, r, 8,
+				minio.PutObjectOptions{ContentType: "application/octet-stream"})
+			if err != nil {
+				logError(testName, function, args, startTime, "", "PutObject failed", err)
+				return
+			}
+			if i < nrLockedObjects {
+				// t := time.Date(2130, time.April, 25, 14, 0, 0, 0, time.UTC)
+				t := time.Now().Add(5 * time.Minute)
+				m := minio.RetentionMode(minio.Governance)
+				opts := minio.PutObjectRetentionOptions{
+					GovernanceBypass: false,
+					RetainUntilDate:  &t,
+					Mode:             &m,
+					VersionID:        info.VersionID,
+				}
+				err = c.PutObjectRetention(context.Background(), bucketName, objectName, opts)
+				if err != nil {
+					logError(testName, function, args, startTime, "", "Error setting retention", err)
+					return
+				}
+			}
+
+			objectsCh <- minio.ObjectInfo{
+				Key:       info.Key,
+				VersionID: info.VersionID,
+			}
+		}
+	}()
+
+	// Call RemoveObjects API
+	resultCh := c.RemoveObjectsWithResult(context.Background(), bucketName, objectsCh, minio.RemoveObjectsOptions{})
+
+	var foundNil, foundErr int
+
+	for {
+		// Check if errorCh doesn't receive any error
+		select {
+		case deleteRes, ok := <-resultCh:
+			if !ok {
+				goto out
+			}
+			if deleteRes.ObjectName == "" {
+				logError(testName, function, args, startTime, "", "Unexpected object name", nil)
+				return
+			}
+			if deleteRes.ObjectVersionID == "" {
+				logError(testName, function, args, startTime, "", "Unexpected object version ID", nil)
+				return
+			}
+
+			if deleteRes.Err == nil {
+				foundNil++
+			} else {
+				foundErr++
+			}
+		}
+	}
+out:
+	if foundNil+foundErr != nrObjects {
+		logError(testName, function, args, startTime, "", "Unexpected number of results", nil)
+		return
+	}
+
+	if foundNil != nrObjects-nrLockedObjects {
+		logError(testName, function, args, startTime, "", "Unexpected number of nil errors", nil)
+		return
+	}
+
+	if foundErr != nrLockedObjects {
+		logError(testName, function, args, startTime, "", "Unexpected number of errors", nil)
+		return
+	}
+
+	successLogger(testName, function, args, startTime).Info()
+}
+
 // Tests FPutObject of a big file to trigger multipart
 func testFPutObjectMultipart() {
 	// initialize logging params
@@ -12010,6 +12142,7 @@ func main() {
 		testGetObjectClosedTwice()
 		testGetObjectS3Zip()
 		testRemoveMultipleObjects()
+		testRemoveMultipleObjectsWithResult()
 		testFPutObjectMultipart()
 		testFPutObject()
 		testGetObjectReadSeekFunctional()
