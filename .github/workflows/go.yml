@@ -39,7 +39,8 @@ jobs:
           GO111MODULE: on
           SSL_CERT_FILE: /tmp/certs-dir/public.crt
         run: |
-          sudo apt-get install devscripts
+          sudo apt update -y
+          sudo apt install devscripts -y
           wget -O /tmp/minio https://dl.minio.io/server/minio/release/linux-amd64/minio
           chmod +x /tmp/minio
           mkdir -p /tmp/certs-dir
