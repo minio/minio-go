@@ -11430,12 +11430,6 @@ func testGetObjectACLContext() {
 	// Seed random based on current time.
 	rand.Seed(time.Now().Unix())
 
-	// skipping region functional tests for non s3 runs
-	if os.Getenv(serverEndpoint) != "s3.amazonaws.com" {
-		ignoredLog(testName, function, args, startTime, "Skipped region functional tests for non s3 runs").Info()
-		return
-	}
-
 	// Instantiate new minio client object.
 	c, err := minio.New(os.Getenv(serverEndpoint),
 		&minio.Options{
@@ -11509,6 +11503,17 @@ func testGetObjectACLContext() {
 
 	if len(s) != 1 {
 		logError(testName, function, args, startTime, "", "GetObjectACL fail \"X-Amz-Acl\" canned acl expected \"1\" got "+fmt.Sprintf(`"%d"`, len(s)), nil)
+		return
+	}
+
+	// Do a very limited testing if this is not AWS S3
+	if os.Getenv(serverEndpoint) != "s3.amazonaws.com" {
+		if s[0] != "private" {
+			logError(testName, function, args, startTime, "", "GetObjectACL fail \"X-Amz-Acl\" expected \"private\" but got"+fmt.Sprintf("%q", s[0]), nil)
+			return
+		}
+
+		successLogger(testName, function, args, startTime).Info()
 		return
 	}
 
@@ -12111,6 +12116,7 @@ func main() {
 		// Default to KMS tests.
 		kms = true
 	}
+
 	// execute tests
 	if isFullMode() {
 		testMakeBucketErrorV2()
