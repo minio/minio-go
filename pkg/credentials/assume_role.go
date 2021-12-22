@@ -184,11 +184,16 @@ func getAssumeRoleCredentials(clnt *http.Client, endpoint string, opts STSAssume
 	}
 	defer closeResponse(resp)
 	if resp.StatusCode != http.StatusOK {
-		return AssumeRoleResponse{}, errors.New(resp.Status)
+		var errResp ErrorResponse
+		_, err = xmlDecodeAndBody(resp.Body, &errResp)
+		if err != nil {
+			return AssumeRoleResponse{}, err
+		}
+		return AssumeRoleResponse{}, errResp
 	}
 
 	a := AssumeRoleResponse{}
-	if err = xml.NewDecoder(resp.Body).Decode(&a); err != nil {
+	if _, err = xmlDecodeAndBody(resp.Body, &a); err != nil {
 		return AssumeRoleResponse{}, err
 	}
 	return a, nil

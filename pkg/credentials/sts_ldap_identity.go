@@ -19,7 +19,6 @@ package credentials
 
 import (
 	"encoding/xml"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -169,7 +168,15 @@ func (k *LDAPIdentity) Retrieve() (value Value, err error) {
 
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return value, errors.New(resp.Status)
+		var errResp ErrorResponse
+		_, err = xmlDecodeAndBody(resp.Body, &errResp)
+		if err != nil {
+			return value, ErrorResponse{
+				Code:    "InvalidArgument",
+				Message: err.Error(),
+			}
+		}
+		return value, errResp
 	}
 
 	r := AssumeRoleWithLDAPResponse{}
