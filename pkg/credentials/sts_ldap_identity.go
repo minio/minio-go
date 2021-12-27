@@ -171,10 +171,9 @@ func (k *LDAPIdentity) Retrieve() (value Value, err error) {
 		var errResp ErrorResponse
 		_, err = xmlDecodeAndBody(resp.Body, &errResp)
 		if err != nil {
-			return value, ErrorResponse{
-				Code:    "InvalidArgument",
-				Message: err.Error(),
-			}
+			errResp.STSError.Code = "InvalidArgument"
+			errResp.STSError.Message = err.Error()
+			return value, errResp
 		}
 		return value, errResp
 	}

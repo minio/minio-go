@@ -152,10 +152,9 @@ func (i *STSCertificateIdentity) Retrieve() (Value, error) {
 		var errResp ErrorResponse
 		_, err = xmlDecodeAndBody(resp.Body, &errResp)
 		if err != nil {
-			return Value{}, ErrorResponse{
-				Code:    "InvalidArgument",
-				Message: err.Error(),
-			}
+			errResp.STSError.Code = "InvalidArgument"
+			errResp.STSError.Message = err.Error()
+			return Value{}, errResp
 		}
 		return Value{}, errResp
 	}

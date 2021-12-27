@@ -29,29 +29,21 @@ import (
 // ErrorResponse struct should be comparable since it is compared inside
 // golang http API (https://github.com/golang/go/issues/29768)
 type ErrorResponse struct {
-	XMLName   xml.Name `xml:"Error" json:"-"`
-	Code      string
-	Message   string
+	XMLName  xml.Name `xml:"https://sts.amazonaws.com/doc/2011-06-15/ ErrorResponse" json:"-"`
+	STSError struct {
+		Type    string `xml:"Type"`
+		Code    string `xml:"Code"`
+		Message string `xml:"Message"`
+	} `xml:"Error"`
 	RequestID string `xml:"RequestId"`
-	HostID    string `xml:"HostId"`
-
-	// Region where the bucket is located. This header is returned
-	// only in HEAD bucket and ListObjects response.
-	Region string
-
-	// Captures the server string returned in response header.
-	Server string
-
-	// Underlying HTTP status code for the returned error
-	StatusCode int `xml:"-" json:"-"`
 }
 
 // Error - Returns STS error string.
 func (e ErrorResponse) Error() string {
-	if e.Message == "" {
-		return fmt.Sprintf("Error response code %s.", e.Code)
+	if e.STSError.Message == "" {
+		return fmt.Sprintf("Error response code %s.", e.STSError.Code)
 	}
-	return e.Message
+	return e.STSError.Message
 }
 
 // xmlDecoder provide decoded value in xml.

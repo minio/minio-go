@@ -135,10 +135,10 @@ func getClientGrantsCredentials(clnt *http.Client, endpoint string,
 		var errResp ErrorResponse
 		_, err = xmlDecodeAndBody(resp.Body, &errResp)
 		if err != nil {
-			return AssumeRoleWithClientGrantsResponse{}, ErrorResponse{
-				Code:    "InvalidArgument",
-				Message: err.Error(),
-			}
+			errResp := ErrorResponse{}
+			errResp.STSError.Code = "InvalidArgument"
+			errResp.STSError.Message = err.Error()
+			return AssumeRoleWithClientGrantsResponse{}, errResp
 		}
 		return AssumeRoleWithClientGrantsResponse{}, errResp
 	}
