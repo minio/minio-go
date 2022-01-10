@@ -18,9 +18,11 @@
 package credentials
 
 import (
+	"bytes"
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"time"
@@ -133,12 +135,20 @@ func getClientGrantsCredentials(clnt *http.Client, endpoint string,
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		var errResp ErrorResponse
-		_, err = xmlDecodeAndBody(resp.Body, &errResp)
+		buf, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			errResp := ErrorResponse{}
-			errResp.STSError.Code = "InvalidArgument"
-			errResp.STSError.Message = err.Error()
-			return AssumeRoleWithClientGrantsResponse{}, errResp
+			return AssumeRoleWithClientGrantsResponse{}, err
+
+		}
+		_, err = xmlDecodeAndBody(bytes.NewReader(buf), &errResp)
+		if err != nil {
+			var s3Err Error
+			if _, err = xmlDecodeAndBody(bytes.NewReader(buf), &s3Err); err != nil {
+				return AssumeRoleWithClientGrantsResponse{}, err
+			}
+			errResp.RequestID = s3Err.RequestID
+			errResp.STSError.Code = s3Err.Code
+			errResp.STSError.Message = s3Err.Message
 		}
 		return AssumeRoleWithClientGrantsResponse{}, errResp
 	}

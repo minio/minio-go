@@ -16,10 +16,12 @@
 package credentials
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/xml"
 	"errors"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -150,11 +152,20 @@ func (i *STSCertificateIdentity) Retrieve() (Value, error) {
 	}
 	if resp.StatusCode != http.StatusOK {
 		var errResp ErrorResponse
-		_, err = xmlDecodeAndBody(resp.Body, &errResp)
+		buf, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			errResp.STSError.Code = "InvalidArgument"
-			errResp.STSError.Message = err.Error()
-			return Value{}, errResp
+			return Value{}, err
+
+		}
+		_, err = xmlDecodeAndBody(bytes.NewReader(buf), &errResp)
+		if err != nil {
+			var s3Err Error
+			if _, err = xmlDecodeAndBody(bytes.NewReader(buf), &s3Err); err != nil {
+				return Value{}, err
+			}
+			errResp.RequestID = s3Err.RequestID
+			errResp.STSError.Code = s3Err.Code
+			errResp.STSError.Message = s3Err.Message
 		}
 		return Value{}, errResp
 	}
