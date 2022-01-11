@@ -38,6 +38,36 @@ type ErrorResponse struct {
 	RequestID string `xml:"RequestId"`
 }
 
+// Error - Is the typed error returned by all API operations.
+type Error struct {
+	XMLName    xml.Name `xml:"Error" json:"-"`
+	Code       string
+	Message    string
+	BucketName string
+	Key        string
+	Resource   string
+	RequestID  string `xml:"RequestId"`
+	HostID     string `xml:"HostId"`
+
+	// Region where the bucket is located. This header is returned
+	// only in HEAD bucket and ListObjects response.
+	Region string
+
+	// Captures the server string returned in response header.
+	Server string
+
+	// Underlying HTTP status code for the returned error
+	StatusCode int `xml:"-" json:"-"`
+}
+
+// Error - Returns S3 error string.
+func (e Error) Error() string {
+	if e.Message == "" {
+		return fmt.Sprintf("Error response code %s.", e.Code)
+	}
+	return e.Message
+}
+
 // Error - Returns STS error string.
 func (e ErrorResponse) Error() string {
 	if e.STSError.Message == "" {
