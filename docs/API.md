@@ -512,7 +512,7 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket  |
 |`objectName` | _string_  |Name of the object   |
 |`reader` | _io.Reader_  |Any Go type that implements io.Reader |
-|`objectSize`| _int64_ |Size of the object being uploaded. Pass -1 if stream size is unknown |
+|`objectSize`| _int64_ |Size of the object being uploaded. Pass -1 if stream size is unknown (Warning: passing -1 will allocate a large amount of memory) |
 |`opts` | _minio.PutObjectOptions_  | Allows user to set optional custom metadata, content headers, encryption keys and number of threads for multipart upload operation. |
 
 __minio.PutObjectOptions__
