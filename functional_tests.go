@@ -6067,28 +6067,28 @@ func testFunctional() {
 	}
 	resp.Body.Close()
 
-	function = "PresignedGetObject(bucketName, objectName, expires, reqParams)"
+	function = "PresignedGetObject(bucketName, objectName, expires, reqParams, extraHeaders)"
 	functionAll += ", " + function
 	args = map[string]interface{}{
 		"bucketName": bucketName,
 		"objectName": "",
 		"expires":    3600 * time.Second,
 	}
-	_, err = c.PresignedGetObject(context.Background(), bucketName, "", 3600*time.Second, nil)
+	_, err = c.PresignedGetObject(context.Background(), bucketName, "", 3600*time.Second, nil, nil)
 	if err == nil {
 		logError(testName, function, args, startTime, "", "PresignedGetObject success", err)
 		return
 	}
 
 	// Generate presigned GET object url.
-	function = "PresignedGetObject(bucketName, objectName, expires, reqParams)"
+	function = "PresignedGetObject(bucketName, objectName, expires, reqParams, extraHeaders)"
 	functionAll += ", " + function
 	args = map[string]interface{}{
 		"bucketName": bucketName,
 		"objectName": objectName,
 		"expires":    3600 * time.Second,
 	}
-	presignedGetURL, err := c.PresignedGetObject(context.Background(), bucketName, objectName, 3600*time.Second, nil)
+	presignedGetURL, err := c.PresignedGetObject(context.Background(), bucketName, objectName, 3600*time.Second, nil, nil)
 
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PresignedGetObject failed", err)
@@ -6131,7 +6131,7 @@ func testFunctional() {
 		"expires":    3600 * time.Second,
 		"reqParams":  reqParams,
 	}
-	presignedGetURL, err = c.PresignedGetObject(context.Background(), bucketName, objectName, 3600*time.Second, reqParams)
+	presignedGetURL, err = c.PresignedGetObject(context.Background(), bucketName, objectName, 3600*time.Second, reqParams, nil)
 
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PresignedGetObject failed", err)
@@ -6168,27 +6168,27 @@ func testFunctional() {
 		return
 	}
 
-	function = "PresignedPutObject(bucketName, objectName, expires)"
+	function = "PresignedPutObject(bucketName, objectName, expires, reqParams, extraHeaders)"
 	functionAll += ", " + function
 	args = map[string]interface{}{
 		"bucketName": bucketName,
 		"objectName": "",
 		"expires":    3600 * time.Second,
 	}
-	_, err = c.PresignedPutObject(context.Background(), bucketName, "", 3600*time.Second)
+	_, err = c.PresignedPutObject(context.Background(), bucketName, "", 3600*time.Second, nil, nil)
 	if err == nil {
 		logError(testName, function, args, startTime, "", "PresignedPutObject success", err)
 		return
 	}
 
-	function = "PresignedPutObject(bucketName, objectName, expires)"
+	function = "PresignedPutObject(bucketName, objectName, expires, reqParams, extraHeaders)"
 	functionAll += ", " + function
 	args = map[string]interface{}{
 		"bucketName": bucketName,
 		"objectName": objectName + "-presigned",
 		"expires":    3600 * time.Second,
 	}
-	presignedPutURL, err := c.PresignedPutObject(context.Background(), bucketName, objectName+"-presigned", 3600*time.Second)
+	presignedPutURL, err := c.PresignedPutObject(context.Background(), bucketName, objectName+"-presigned", 3600*time.Second, nil, nil)
 
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PresignedPutObject failed", err)
@@ -10957,14 +10957,14 @@ func testFunctionalV2() {
 	resp.Body.Close()
 
 	// Generate presigned GET object url.
-	function = "PresignedGetObject(bucketName, objectName, expires, reqParams)"
+	function = "PresignedGetObject(bucketName, objectName, expires, reqParams, extraHeaders)"
 	functionAll += ", " + function
 	args = map[string]interface{}{
 		"bucketName": bucketName,
 		"objectName": objectName,
 		"expires":    3600 * time.Second,
 	}
-	presignedGetURL, err := c.PresignedGetObject(context.Background(), bucketName, objectName, 3600*time.Second, nil)
+	presignedGetURL, err := c.PresignedGetObject(context.Background(), bucketName, objectName, 3600*time.Second, nil, nil)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PresignedGetObject failed", err)
 		return
@@ -11003,7 +11003,7 @@ func testFunctionalV2() {
 	reqParams.Set("response-content-disposition", "attachment; filename=\"test.txt\"")
 	// Generate presigned GET object url.
 	args["reqParams"] = reqParams
-	presignedGetURL, err = c.PresignedGetObject(context.Background(), bucketName, objectName, 3600*time.Second, reqParams)
+	presignedGetURL, err = c.PresignedGetObject(context.Background(), bucketName, objectName, 3600*time.Second, reqParams, nil)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PresignedGetObject failed", err)
 		return
@@ -11048,7 +11048,7 @@ func testFunctionalV2() {
 		"objectName": objectName + "-presigned",
 		"expires":    3600 * time.Second,
 	}
-	presignedPutURL, err := c.PresignedPutObject(context.Background(), bucketName, objectName+"-presigned", 3600*time.Second)
+	presignedPutURL, err := c.PresignedPutObject(context.Background(), bucketName, objectName+"-presigned", 3600*time.Second, nil, nil)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PresignedPutObject failed", err)
 		return

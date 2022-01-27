@@ -1169,7 +1169,7 @@ if err != nil {
 ## 4. Presigned operations
 
 <a name="PresignedGetObject"></a>
-### PresignedGetObject(ctx context.Context, bucketName, objectName string, expiry time.Duration, reqParams url.Values) (*url.URL, error)
+### PresignedGetObject(ctx context.Context, bucketName, objectName string, expiry time.Duration, reqParams url.Values, extraHeaders http.Header) (*url.URL, error)
 Generates a presigned URL for HTTP GET operations. Browsers/Mobile clients may point to this URL to directly download objects even if the bucket is private. This presigned URL can have an associated expiration time in seconds after which it is no longer operational. The maximum expiry is 604800 seconds (i.e. 7 days) and minimum is 1 second. 
 
 __Parameters__
@@ -1182,7 +1182,7 @@ __Parameters__
 |`objectName` | _string_  |Name of the object   |
 |`expiry` | _time.Duration_  |Expiry of presigned URL in seconds   |
 |`reqParams` | _url.Values_  |Additional response header overrides supports _response-expires_, _response-content-type_, _response-cache-control_, _response-content-disposition_.  |
-
+|`extraHeaders` | _map[string]string_ | Additional header passed to the HTTP request |
 
 __Example__
 
@@ -1193,7 +1193,7 @@ reqParams := make(url.Values)
 reqParams.Set("response-content-disposition", "attachment; filename=\"your-filename.txt\"")
 
 // Generates a presigned url which expires in a day.
-presignedURL, err := minioClient.PresignedGetObject(context.Background(), "mybucket", "myobject", time.Second * 24 * 60 * 60, reqParams)
+presignedURL, err := minioClient.PresignedGetObject(context.Background(), "mybucket", "myobject", time.Second * 24 * 60 * 60, reqParams, nil)
 if err != nil {
     fmt.Println(err)
     return
@@ -1202,7 +1202,7 @@ fmt.Println("Successfully generated presigned URL", presignedURL)
 ```
 
 <a name="PresignedPutObject"></a>
-### PresignedPutObject(ctx context.Context, bucketName, objectName string, expiry time.Duration) (*url.URL, error)
+### PresignedPutObject(ctx context.Context, bucketName string, objectName string, expires time.Duration, reqParams url.Values, extraHeaders http.Header) (*url.URL, error)
 Generates a presigned URL for HTTP PUT operations. Browsers/Mobile clients may point to this URL to upload objects directly to a bucket even if it is private. This presigned URL can have an associated expiration time in seconds after which it is no longer operational. The default expiry is set to 7 days.
 
 NOTE: you can upload to S3 only with specified object name.
@@ -1216,7 +1216,8 @@ __Parameters__
 |`bucketName`  | _string_  |Name of the bucket   |
 |`objectName` | _string_  |Name of the object   |
 |`expiry` | _time.Duration_  |Expiry of presigned URL in seconds |
-
+|`reqParams` | _url.Values_  |Additional response header overrides supports _response-expires_, _response-content-type_, _response-cache-control_, _response-content-disposition_.  |
+|`extraHeaders` | _map[string]string_ | Additional header passed to the HTTP request |
 
 __Example__
 
@@ -1224,7 +1225,7 @@ __Example__
 ```go
 // Generates a url which expires in a day.
 expiry := time.Second * 24 * 60 * 60 // 1 day.
-presignedURL, err := minioClient.PresignedPutObject(context.Background(), "mybucket", "myobject", expiry)
+presignedURL, err := minioClient.PresignedPutObject(context.Background(), "mybucket", "myobject", expiry, nil, nil)
 if err != nil {
     fmt.Println(err)
     return

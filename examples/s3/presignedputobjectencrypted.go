@@ -46,9 +46,18 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	presignedURL, err := s3Client.PresignedPutObject(context.Background(), "my-bucketname", "my-objectname", time.Duration(1000)*time.Second, nil, nil)
+	//Require server side encrytpion of type SSE-KMS
+	extraHeadersSSEKMS := map[string][]string{
+		"x-amz-server-side-encryption":                {"aws:kms"},
+		"x-amz-server-side-encryption-aws-kms-key-id": {"alias/YOUR_KMS_KEY_ALIAS"},
+	}
+
+	//Generate a put URL for an object and enforce KMS encryption. 
+	presignedURL, err := s3Client.PresignedPutObject(context.Background(), "my-bucketname", "my-objectname", time.Duration(1000)*time.Second, nil, extraHeadersSSEKMS)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Println(presignedURL)
+	log.Println("Successfully generated presigned URL", presignedURL)
+	// Remember that to put the object you will need to precise the headers again in your post request. 
+	// e.g. curl -X PUT -d @/tmp/data.txt -H "x-amz-server-side-encryption: aws:kms" -H "x-amz-server-side-encryption-aws-kms-key-id: alias/YOUR_KMS_KEY_ALIAS" $presignedURL
 }
