@@ -196,6 +196,8 @@ func TestMakeTargetURL(t *testing.T) {
 		{"localhost:80", false, "mybucket", "myobject", "", nil, url.URL{Host: "localhost", Scheme: "http", Path: "/mybucket/myobject"}, nil},
 		// Test 9, testing with port 443
 		{"localhost:443", true, "mybucket", "myobject", "", nil, url.URL{Host: "localhost", Scheme: "https", Path: "/mybucket/myobject"}, nil},
+		{"[240b:c0e0:102:54C0:1c05:c2c1:19:5001]:443", true, "mybucket", "myobject", "", nil, url.URL{Host: "[240b:c0e0:102:54C0:1c05:c2c1:19:5001]", Scheme: "https", Path: "/mybucket/myobject"}, nil},
+		{"[240b:c0e0:102:54C0:1c05:c2c1:19:5001]:9000", true, "mybucket", "myobject", "", nil, url.URL{Host: "[240b:c0e0:102:54C0:1c05:c2c1:19:5001]:9000", Scheme: "https", Path: "/mybucket/myobject"}, nil},
 	}
 
 	for i, testCase := range testCases {
