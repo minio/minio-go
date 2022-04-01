@@ -41,11 +41,13 @@ func buildRequest(serviceName, region, body string) (*http.Request, io.ReadSeeke
 	reader := strings.NewReader(body)
 	req, _ := http.NewRequest(http.MethodPost, endpoint, reader)
 	req.URL.Opaque = "//example.org/bucket/key-._~,!@#$%^&*()"
-	req.Header.Add("X-Amz-Target", "prefix.Operation")
+	req.Header.Add("Accept-Encoding", "identity")
 	req.Header.Add("Content-Type", "application/x-amz-json-1.0")
 	req.Header.Add("Content-Length", fmt.Sprint(len(body)))
+	req.Header.Add("Content-MD5", "99914b932bd37a50b983c5e7c90ae93b")
 	req.Header.Add("X-Amz-Meta-Other-Header", "some-value=!@#$%^&* (+)")
 	req.Header.Add("X-Amz-Meta-Other-Header_With_Underscore", "some-value=!@#$%^&* (+)")
 	req.Header.Add("X-amz-Meta-Other-Header_With_Underscore", "some-value=!@#$%^&* (+)")
+	req.Header.Add("X-Amz-Target", "prefix.Operation")
 	return req, reader
 }

@@ -46,21 +46,26 @@ const (
 // Excerpts from @lsegal -
 // https:/github.com/aws/aws-sdk-js/issues/659#issuecomment-120477258.
 //
-//  User-Agent:
+// * User-Agent
+// This is ignored from signing because signing this causes problems with generating pre-signed
+// URLs (that are executed by other agents) or when customers pass requests through proxies, which
+// may modify the user-agent.
 //
-//      This is ignored from signing because signing this causes
-//      problems with generating pre-signed URLs (that are executed
-//      by other agents) or when customers pass requests through
-//      proxies, which may modify the user-agent.
+// * Authorization
+// Is skipped for obvious reasons.
 //
-//
-//  Authorization:
-//
-//      Is skipped for obvious reasons
+// * Accept-Encoding
+// Some S3 servers like Hitachi Content Platform do not honor this header for signature
+// calculation.
 //
 var v4IgnoredHeaders = map[string]bool{
-	"Authorization": true,
-	"User-Agent":    true,
+	"Accept-Encoding":      true,
+	"Authorization":        true,
+	"Content-MD5":          true,
+	"User-Agent":           true,
+	"X-Amz-Content-SHA256": true,
+	"X-Amz-Date":           true,
+	"X-Amz-Security-Token": true,
 }
 
 // getSigningKey hmac seed to calculate final signature.
