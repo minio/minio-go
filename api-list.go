@@ -184,8 +184,10 @@ func (c *Client) listObjectsV2Query(ctx context.Context, bucketName, objectPrefi
 	// Set object prefix, prefix value to be set to empty is okay.
 	urlValues.Set("prefix", objectPrefix)
 
-	// Set delimiter, delimiter value to be set to empty is okay.
-	urlValues.Set("delimiter", delimiter)
+	// Set delimiter
+	if delimiter != "" {
+		urlValues.Set("delimiter", delimiter)
+	}
 
 	// Set continuation token
 	if continuationToken != "" {
@@ -462,8 +464,10 @@ func (c *Client) listObjectVersionsQuery(ctx context.Context, bucketName, prefix
 	// Set object prefix, prefix value to be set to empty is okay.
 	urlValues.Set("prefix", prefix)
 
-	// Set delimiter, delimiter value to be set to empty is okay.
-	urlValues.Set("delimiter", delimiter)
+	// Set delimiter
+	if delimiter != "" {
+		urlValues.Set("delimiter", delimiter)
+	}
 
 	// Set object marker.
 	if keyMarker != "" {
@@ -556,8 +560,10 @@ func (c *Client) listObjectsQuery(ctx context.Context, bucketName, objectPrefix,
 	// Set object prefix, prefix value to be set to empty is okay.
 	urlValues.Set("prefix", objectPrefix)
 
-	// Set delimiter, delimiter value to be set to empty is okay.
-	urlValues.Set("delimiter", delimiter)
+	// Set delimiter
+	if delimiter != "" {
+		urlValues.Set("delimiter", delimiter)
+	}
 
 	// Set object marker.
 	if objectMarker != "" {
@@ -805,8 +811,10 @@ func (c *Client) listMultipartUploadsQuery(ctx context.Context, bucketName, keyM
 	// Set object prefix, prefix value to be set to empty is okay.
 	urlValues.Set("prefix", prefix)
 
-	// Set delimiter, delimiter value to be set to empty is okay.
-	urlValues.Set("delimiter", delimiter)
+	// Set delimiter
+	if delimiter != "" {
+		urlValues.Set("delimiter", delimiter)
+	}
 
 	// Always set encoding-type
 	urlValues.Set("encoding-type", "url")
