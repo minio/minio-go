@@ -171,7 +171,7 @@ func (c *Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketN
 				}
 
 				n, rerr := readFull(io.NewSectionReader(reader, readOffset, partSize), partsBuf[w-1][:partSize])
-				if rerr != nil && rerr != io.ErrUnexpectedEOF && err != io.EOF {
+				if rerr != nil && rerr != io.ErrUnexpectedEOF && rerr != io.EOF {
 					uploadedPartsCh <- uploadedPartRes{
 						Error: rerr,
 					}
