@@ -105,21 +105,6 @@ func sumMD5Base64(data []byte) string {
 
 // getEndpointURL - construct a new endpoint.
 func getEndpointURL(endpoint string, secure bool) (*url.URL, error) {
-	if strings.Contains(endpoint, ":") {
-		host, _, err := net.SplitHostPort(endpoint)
-		if err != nil {
-			return nil, err
-		}
-		if !s3utils.IsValidIP(host) && !s3utils.IsValidDomain(host) {
-			msg := "Endpoint: " + endpoint + " does not follow ip address or domain name standards."
-			return nil, errInvalidArgument(msg)
-		}
-	} else {
-		if !s3utils.IsValidIP(endpoint) && !s3utils.IsValidDomain(endpoint) {
-			msg := "Endpoint: " + endpoint + " does not follow ip address or domain name standards."
-			return nil, errInvalidArgument(msg)
-		}
-	}
 	// If secure is false, use 'http' scheme.
 	scheme := "https"
 	if !secure {
@@ -176,6 +161,21 @@ func isValidEndpointURL(endpointURL url.URL) error {
 	if endpointURL.Path != "/" && endpointURL.Path != "" {
 		return errInvalidArgument("Endpoint url cannot have fully qualified paths.")
 	}
+
+	host, _, err := net.SplitHostPort(endpointURL.Host)
+	if err != nil {
+		if strings.Contains(err.Error(), "missing port in address") {
+			err = nil
+			host = endpointURL.Host
+		} else {
+			return err
+		}
+	}
+	if !s3utils.IsValidIP(host) && !s3utils.IsValidDomain(host) {
+		msg := "Endpoint: " + endpointURL.Host + " does not follow ip address or domain name standards."
+		return errInvalidArgument(msg)
+	}
+
 	if strings.Contains(endpointURL.Host, ".s3.amazonaws.com") {
 		if !s3utils.IsAmazonEndpoint(endpointURL) {
 			return errInvalidArgument("Amazon S3 endpoint should be 's3.amazonaws.com'.")
