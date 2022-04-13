@@ -49,7 +49,7 @@ func generateErrorResponse(resp *http.Response, APIErr APIError, bucketName stri
 // getErrorResponse gets in standard error and resource value and
 // provides a encodable populated response values.
 func getAPIErrorResponse(err APIError, bucketName string) ErrorResponse {
-	var errResp = ErrorResponse{}
+	errResp := ErrorResponse{}
 	errResp.Code = err.Code
 	errResp.Message = err.Description
 	errResp.BucketName = bucketName

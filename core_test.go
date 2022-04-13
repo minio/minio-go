@@ -20,13 +20,12 @@ package minio
 import (
 	"bytes"
 	"context"
+	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
 	"testing"
 	"time"
-
-	"math/rand"
 
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )

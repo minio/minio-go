@@ -30,7 +30,7 @@ import (
 // of bucket policies, to verify the correctness of BucketAccessPolicy
 // struct defined in this package.
 func TestUnmarshalBucketPolicy(t *testing.T) {
-	var testCases = []struct {
+	testCases := []struct {
 		policyData    string
 		shouldSucceed bool
 	}{
@@ -1579,7 +1579,6 @@ func TestGetObjectPolicy(t *testing.T) {
 
 // GetPolicyRules is called and the result is validated
 func TestListBucketPolicies(t *testing.T) {
-
 	// Condition for read objects
 	downloadCondMap := make(ConditionMap)
 	downloadCondKeyMap := make(ConditionKeyMap)
@@ -1630,14 +1629,16 @@ func TestListBucketPolicies(t *testing.T) {
 				Effect:    "Allow",
 				Principal: User{AWS: set.CreateStringSet("*")},
 				Resources: set.CreateStringSet("arn:aws:s3:::mybucket/download*"),
-			}}, "mybucket", "", map[string]BucketPolicy{"mybucket/download*": BucketPolicyReadOnly}},
+			},
+		}, "mybucket", "", map[string]BucketPolicy{"mybucket/download*": BucketPolicyReadOnly}},
 		{[]Statement{
 			{
 				Actions:   commonSetActions.Union(readOnlyObjectActions),
 				Effect:    "Allow",
 				Principal: User{AWS: set.CreateStringSet("*")},
 				Resources: set.CreateStringSet("arn:aws:s3:::mybucket", "arn:aws:s3:::mybucket/*"),
-			}}, "mybucket", "", map[string]BucketPolicy{"mybucket/*": BucketPolicyReadOnly}},
+			},
+		}, "mybucket", "", map[string]BucketPolicy{"mybucket/*": BucketPolicyReadOnly}},
 		// Write Only
 		{[]Statement{
 			{
@@ -1651,7 +1652,8 @@ func TestListBucketPolicies(t *testing.T) {
 				Effect:    "Allow",
 				Principal: User{AWS: set.CreateStringSet("*")},
 				Resources: set.CreateStringSet("arn:aws:s3:::mybucket/upload*"),
-			}}, "mybucket", "", map[string]BucketPolicy{"mybucket/upload*": BucketPolicyWriteOnly}},
+			},
+		}, "mybucket", "", map[string]BucketPolicy{"mybucket/upload*": BucketPolicyWriteOnly}},
 		// Readwrite
 		{[]Statement{
 			{
@@ -1672,7 +1674,8 @@ func TestListBucketPolicies(t *testing.T) {
 				Effect:    "Allow",
 				Principal: User{AWS: set.CreateStringSet("*")},
 				Resources: set.CreateStringSet("arn:aws:s3:::mybucket/both*"),
-			}}, "mybucket", "", map[string]BucketPolicy{"mybucket/both*": BucketPolicyReadWrite}},
+			},
+		}, "mybucket", "", map[string]BucketPolicy{"mybucket/both*": BucketPolicyReadWrite}},
 	}
 
 	for _, testCase := range testCases {
@@ -1974,7 +1977,6 @@ func TestIsValidBucketPolicy(t *testing.T) {
 
 // Tests validate Bucket policy resource matcher.
 func TestBucketPolicyResourceMatch(t *testing.T) {
-
 	// generates\ statement with given resource..
 	generateStatement := func(resource string) Statement {
 		statement := Statement{}

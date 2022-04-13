@@ -51,8 +51,7 @@ func TestSignatureCalculationV4(t *testing.T) {
 }
 
 func TestSignatureCalculationV2(t *testing.T) {
-
-	var testCases = []struct {
+	testCases := []struct {
 		endpointURL string
 		virtualHost bool
 	}{

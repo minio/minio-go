@@ -34,8 +34,10 @@ func TestSetHeader(t *testing.T) {
 		{5, 0, nil, "bytes=5-"},
 		{0, -5, nil, "bytes=-5"},
 		{0, 0, nil, "bytes=0-0"},
-		{11, 10, fmt.Errorf("Invalid range specified: start=11 end=10"),
-			""},
+		{
+			11, 10, fmt.Errorf("Invalid range specified: start=11 end=10"),
+			"",
+		},
 		{-1, 10, fmt.Errorf("Invalid range specified: start=-1 end=10"), ""},
 		{-1, 0, fmt.Errorf("Invalid range specified: start=-1 end=0"), ""},
 		{1, -5, fmt.Errorf("Invalid range specified: start=1 end=-5"), ""},

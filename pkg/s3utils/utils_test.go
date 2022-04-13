@@ -177,7 +177,6 @@ func TestIsValidIP(t *testing.T) {
 			t.Errorf("Test %d: Expected isValidIP to be '%v' for input \"%s\", but found it to be '%v' instead", i+1, testCase.result, testCase.ip, result)
 		}
 	}
-
 }
 
 // Tests validate virtual host validator.
@@ -249,7 +248,6 @@ func TestIsAmazonEndpoint(t *testing.T) {
 			t.Errorf("Test %d: Expected isAmazonEndpoint to be '%v' for input \"%s\", but found it to be '%v' instead", i+1, testCase.result, testCase.url, result)
 		}
 	}
-
 }
 
 // Tests validate Google Cloud end point validator.
@@ -282,7 +280,6 @@ func TestIsGoogleEndpoint(t *testing.T) {
 			t.Errorf("Test %d: Expected isGoogleEndpoint to be '%v' for input \"%s\", but found it to be '%v' instead", i+1, testCase.result, testCase.url, result)
 		}
 	}
-
 }
 
 func TestPercentEncodeSlash(t *testing.T) {
@@ -305,7 +302,6 @@ func TestPercentEncodeSlash(t *testing.T) {
 				i+1, testCase.input, testCase.output,
 				receivedOutput,
 			)
-
 		}
 	}
 }
@@ -485,7 +481,6 @@ func TestIsValidBucketName(t *testing.T) {
 		}
 
 	}
-
 }
 
 // Tests validate the bucket name validator stricter.
@@ -529,5 +524,4 @@ func TestIsValidBucketNameStrict(t *testing.T) {
 		}
 
 	}
-
 }

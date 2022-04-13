@@ -174,7 +174,6 @@ func TestHttpRespToErrorResponse(t *testing.T) {
 		// expected results.
 		expectedResult error
 		// flag indicating whether tests should pass.
-
 	}{
 		{"minio-bucket", "", inputResponses[0], expectedErrResponse[0]},
 		{"minio-bucket", "", inputResponses[1], expectedErrResponse[1]},

@@ -62,7 +62,6 @@ func main() {
 	progress := pb.New64(objectInfo.Size)
 	progress.Start()
 	n, err := s3Client.PutObject(context.Background(), "my-bucketname", "my-objectname-progress", reader, objectInfo.Size, minio.PutObjectOptions{ContentType: "application/octet-stream", Progress: progress})
-
 	if err != nil {
 		log.Fatalln(err)
 	}

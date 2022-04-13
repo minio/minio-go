@@ -71,7 +71,6 @@ func TestEnvAWSRetrieve(t *testing.T) {
 	if !reflect.DeepEqual(creds, expectedCreds) {
 		t.Errorf("Expected %v, got %v", expectedCreds, creds)
 	}
-
 }
 
 func TestEnvMinioRetrieve(t *testing.T) {

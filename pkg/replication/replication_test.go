@@ -169,7 +169,8 @@ func TestEditReplicationRule(t *testing.T) {
 					Priority:    1,
 					Filter:      Filter{Prefix: "xyz/"},
 					Destination: Destination{Bucket: "arn:aws:s3:::destbucket"},
-				}}},
+				}},
+			},
 			opts: Options{
 				ID:           "xyz.id",
 				Prefix:       "abc/",
@@ -189,7 +190,8 @@ func TestEditReplicationRule(t *testing.T) {
 					Priority:    1,
 					Filter:      Filter{Prefix: "xyz/"},
 					Destination: Destination{Bucket: "arn:aws:s3:::destbucket"},
-				}}},
+				}},
+			},
 			opts: Options{
 				ID:           "xyz.id",
 				Prefix:       "abc/",
@@ -209,7 +211,8 @@ func TestEditReplicationRule(t *testing.T) {
 					Priority:    1,
 					Filter:      Filter{Prefix: "xyz/"},
 					Destination: Destination{Bucket: "arn:minio:replication:eu-west-1:c5acb6ac-9918-4dc6-8534-6244ed1a611a:destbucket"},
-				}}},
+				}},
+			},
 			opts: Options{
 				Prefix:       "abc/",
 				RuleStatus:   "enable",
@@ -228,7 +231,8 @@ func TestEditReplicationRule(t *testing.T) {
 					Priority:    1,
 					Filter:      Filter{Prefix: "xyz/"},
 					Destination: Destination{Bucket: "arn:minio:replication:eu-west-1:c5acb6ac-9918-4dc6-8534-6244ed1a611a:destbucket"},
-				}}},
+				}},
+			},
 			opts: Options{
 				ID:           "xyz.id",
 				Prefix:       "abc/",
@@ -248,7 +252,8 @@ func TestEditReplicationRule(t *testing.T) {
 					Priority:    1,
 					Filter:      Filter{Prefix: "xyz/"},
 					Destination: Destination{Bucket: "arn:aws:s3:::destbucket"},
-				}}},
+				}},
+			},
 			opts: Options{
 				ID:           "xyz.id",
 				Prefix:       "abc/",
@@ -268,7 +273,8 @@ func TestEditReplicationRule(t *testing.T) {
 					Priority:    1,
 					Filter:      Filter{Prefix: "xyz/"},
 					Destination: Destination{Bucket: "arn:aws:s3:::destbucket"},
-				}}},
+				}},
+			},
 			opts: Options{
 				ID:           "xyz.id",
 				Prefix:       "abc/",
@@ -282,18 +288,21 @@ func TestEditReplicationRule(t *testing.T) {
 		},
 		{ // test case :7 another rule has same priority
 			cfg: Config{
-				Rules: []Rule{{
-					ID:          "xyz.id",
-					Priority:    0,
-					Filter:      Filter{Prefix: "xyz/"},
-					Destination: Destination{Bucket: "arn:aws:s3:::destbucket"},
-				},
+				Rules: []Rule{
+					{
+						ID:          "xyz.id",
+						Priority:    0,
+						Filter:      Filter{Prefix: "xyz/"},
+						Destination: Destination{Bucket: "arn:aws:s3:::destbucket"},
+					},
 					{
 						ID:          "xyz.id2",
 						Priority:    1,
 						Filter:      Filter{Prefix: "xyz/"},
 						Destination: Destination{Bucket: "arn:aws:s3:::destbucket"},
-					}}},
+					},
+				},
+			},
 			opts: Options{
 				ID:           "xyz.id",
 				Prefix:       "abc/",
@@ -313,7 +322,8 @@ func TestEditReplicationRule(t *testing.T) {
 					Priority:    1,
 					Filter:      Filter{Prefix: "xyz/"},
 					Destination: Destination{Bucket: "arn:aws:s3:::destbucket"},
-				}}},
+				}},
+			},
 			opts: Options{
 				ID:           "xyz.id",
 				Prefix:       "abc/",

@@ -126,7 +126,6 @@ func TestGetBucketLocationRequest(t *testing.T) {
 		}
 
 		return req, nil
-
 	}
 	// Info for 'Client' creation.
 	// Will be used as arguments for 'NewClient'.

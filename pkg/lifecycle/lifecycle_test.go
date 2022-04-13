@@ -147,7 +147,8 @@ func TestLifecycleJSONRoundtrip(t *testing.T) {
 					And: And{
 						Prefix: "prefix",
 						Tags: []Tag{
-							{Key: "key-1",
+							{
+								Key:   "key-1",
 								Value: "val-1",
 							},
 						},
@@ -222,7 +223,6 @@ func TestLifecycleJSONRoundtrip(t *testing.T) {
 			t.Fatalf("expected %#v got %#v", lc.Rules[i].Transition, got.Rules[i].Transition)
 		}
 	}
-
 }
 
 func TestLifecycleXMLRoundtrip(t *testing.T) {
@@ -290,7 +290,6 @@ func TestLifecycleXMLRoundtrip(t *testing.T) {
 			t.Fatalf("%d: expected %#v got %#v", i+1, lc.Rules[i].Transition, got.Rules[i].Transition)
 		}
 	}
-
 }
 
 func (n NoncurrentVersionTransition) equals(m NoncurrentVersionTransition) bool {

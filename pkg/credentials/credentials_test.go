@@ -32,6 +32,7 @@ func (s *credProvider) Retrieve() (Value, error) {
 	s.expired = false
 	return s.creds, s.err
 }
+
 func (s *credProvider) IsExpired() bool {
 	return s.expired
 }

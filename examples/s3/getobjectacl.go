@@ -48,13 +48,13 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	//print object owner informations
+	// print object owner informations
 	fmt.Printf(`Object owner:
 Display name: %q
 ID: %q
 `, objectInfo.Owner.DisplayName, objectInfo.Owner.ID)
 
-	//print object grant informations
+	// print object grant informations
 	for _, g := range objectInfo.Grant {
 		fmt.Printf(`Object grant:
  - Display name: %q
@@ -64,7 +64,7 @@ ID: %q
 `, g.Grantee.DisplayName, g.Grantee.ID, g.Grantee.URI, g.Permission)
 	}
 
-	//print all value header (acl, metadata, standard header value...)
+	// print all value header (acl, metadata, standard header value...)
 	for k, v := range objectInfo.Metadata {
 		fmt.Println("key:", k)
 		fmt.Printf(" - value: %v\n", v)

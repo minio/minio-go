@@ -330,7 +330,6 @@ func TestIsValidBucketName(t *testing.T) {
 		}
 
 	}
-
 }
 
 // Tests if header is standard supported header
@@ -355,7 +354,6 @@ func TestIsStandardHeader(t *testing.T) {
 			t.Errorf("Test %d: Expected to pass, but failed", i+1)
 		}
 	}
-
 }
 
 // Tests if header is server encryption header
@@ -407,5 +405,4 @@ func TestIsAmzHeader(t *testing.T) {
 			t.Errorf("Test %d: Expected to pass, but failed", i+1)
 		}
 	}
-
 }

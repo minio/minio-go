@@ -82,7 +82,6 @@ func TestEncodeURL2Path(t *testing.T) {
 			t.Fatalf("Test %d, Error: expected = `%v`, found = `%v`", i+1, expectedPath, foundPath)
 		}
 	}
-
 }
 
 // TestSignV4TrimAll - tests the logic of TrimAll() function

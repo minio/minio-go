@@ -504,8 +504,10 @@ func isAmzHeader(headerKey string) bool {
 	return strings.HasPrefix(key, "x-amz-meta-") || strings.HasPrefix(key, "x-amz-grant-") || key == "x-amz-acl" || isSSEHeader(headerKey)
 }
 
-var md5Pool = sync.Pool{New: func() interface{} { return md5.New() }}
-var sha256Pool = sync.Pool{New: func() interface{} { return sha256.New() }}
+var (
+	md5Pool    = sync.Pool{New: func() interface{} { return md5.New() }}
+	sha256Pool = sync.Pool{New: func() interface{} { return sha256.New() }}
+)
 
 func newMd5Hasher() md5simd.Hasher {
 	return hashWrapper{Hash: md5Pool.Get().(hash.Hash), isMD5: true}
