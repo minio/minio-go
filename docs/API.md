@@ -1169,19 +1169,31 @@ if err != nil {
 ## 4. Presigned operations
 
 <a name="PresignedGetObject"></a>
-### PresignedGetObject(ctx context.Context, bucketName, objectName string, expiry time.Duration, reqParams url.Values) (*url.URL, error)
+### PresignedGetObject(ctx context.Context, bucketName, objectName string, expiry time.Duration, opts minio.PresignOptions) (*url.URL, error)
 Generates a presigned URL for HTTP GET operations. Browsers/Mobile clients may point to this URL to directly download objects even if the bucket is private. This presigned URL can have an associated expiration time in seconds after which it is no longer operational. The maximum expiry is 604800 seconds (i.e. 7 days) and minimum is 1 second. 
 
 __Parameters__
 
 
-|Param   |Type   |Description   |
-|:---|:---| :---|
-|`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
-|`bucketName`  | _string_  |Name of the bucket   |
-|`objectName` | _string_  |Name of the object   |
-|`expiry` | _time.Duration_  |Expiry of presigned URL in seconds   |
-|`reqParams` | _url.Values_  |Additional response header overrides supports _response-expires_, _response-content-type_, _response-cache-control_, _response-content-disposition_.  |
+| Param        | Type                    | Description                                                                        |
+|:-------------|:------------------------|:-----------------------------------------------------------------------------------|
+| `ctx`        | _context.Context_       | Custom context for timeout/cancellation of the call                                |
+| `bucketName` | _string_                | Name of the bucket                                                                 |
+| `objectName` | _string_                | Name of the object                                                                 |
+| `expiry`     | _time.Duration_         | Expiry of presigned URL in seconds                                                 |
+| `opts`       | _minio.PresignOptions_  | Options for Pre-Signing requests specifying additional options like object version |
+
+
+__minio.PresignOptions__
+
+| Field            | Type                | Description                                                                                                                                          |
+|:-----------------|:--------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| `opts.ReqParams` | _url.Values_        | Additional response header overrides supports _response-expires_, _response-content-type_, _response-cache-control_, _response-content-disposition_. |
+| `opts.VersionID` | _string_            | Version ID of the object to delete                                                                                                                   |
+| `opts.Region`    | _string_            | To against what region should the url should be signed                                                                                               |
+| `opts.Header()`  | _map[string]string_ | Returns the headers built on this options                                                                                                            |
+| `opts.Set()`     | _function_          | Allows to set custom headers                                                                                                                         |
+
 
 
 __Example__
@@ -1210,12 +1222,12 @@ NOTE: you can upload to S3 only with specified object name.
 __Parameters__
 
 
-|Param   |Type   |Description   |
-|:---|:---| :---|
-|`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
-|`bucketName`  | _string_  |Name of the bucket   |
-|`objectName` | _string_  |Name of the object   |
-|`expiry` | _time.Duration_  |Expiry of presigned URL in seconds |
+| Param       | Type              | Description                                         |
+|:------------|:------------------|:----------------------------------------------------|
+| `ctx`       | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName`| _string_          | Name of the bucket                                  |
+| `objectName`| _string_          | Name of the object                                  |
+| `expiry`    | _time.Duration_   | Expiry of presigned URL in seconds                  |
 
 
 __Example__
@@ -1233,18 +1245,30 @@ fmt.Println("Successfully generated presigned URL", presignedURL)
 ```
 
 <a name="PresignedHeadObject"></a>
-### PresignedHeadObject(ctx context.Context, bucketName, objectName string, expiry time.Duration, reqParams url.Values) (*url.URL, error)
+### PresignedHeadObject(ctx context.Context, bucketName, objectName string, expiry time.Duration, opts minio.PresignOptions) (*url.URL, error)
 Generates a presigned URL for HTTP HEAD operations. Browsers/Mobile clients may point to this URL to directly get metadata from objects even if the bucket is private. This presigned URL can have an associated expiration time in seconds after which it is no longer operational. The default expiry is set to 7 days.
 
 __Parameters__
 
-|Param   |Type   |Description   |
-|:---|:---| :---|
-|`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
-|`bucketName`  | _string_  |Name of the bucket   |
-|`objectName` | _string_  |Name of the object   |
-|`expiry` | _time.Duration_  |Expiry of presigned URL in seconds   |
-|`reqParams` | _url.Values_  |Additional response header overrides supports _response-expires_, _response-content-type_, _response-cache-control_, _response-content-disposition_.  |
+| Param        | Type                   | Description                                                                        |
+|:-------------|:-----------------------|:-----------------------------------------------------------------------------------|
+| `ctx`        | _context.Context_      | Custom context for timeout/cancellation of the call                                |
+| `bucketName` | _string_               | Name of the bucket                                                                 |
+| `objectName` | _string_               | Name of the object                                                                 |
+| `expiry`     | _time.Duration_        | Expiry of presigned URL in seconds                                                 |
+| `opts`       | _minio.PresignOptions_ | Options for Pre-Signing requests specifying additional options like object version |
+
+
+__minio.PresignOptions__
+
+| Field            | Type                | Description                                                                                                                                          |
+|:-----------------|:--------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| `opts.ReqParams` | _url.Values_        | Additional response header overrides supports _response-expires_, _response-content-type_, _response-cache-control_, _response-content-disposition_. |
+| `opts.VersionID` | _string_            | Version ID of the object to delete                                                                                                                   |
+| `opts.Region`    | _string_            | To against what region should the url should be signed                                                                                               |
+| `opts.Header()`  | _map[string]string_ | Returns the headers built on this options                                                                                                            |
+| `opts.Set()`     | _function_          | Allows to set custom headers                                                                                                                         |
+
 
 
 __Example__

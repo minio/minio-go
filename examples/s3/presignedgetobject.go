@@ -51,8 +51,12 @@ func main() {
 	reqParams := make(url.Values)
 	reqParams.Set("response-content-disposition", "attachment; filename=\"your-filename.txt\"")
 
+	opts := minio.PreSignOptions{
+		ReqParams: reqParams,
+	}
+
 	// Gernerate presigned get object url.
-	presignedURL, err := s3Client.PresignedGetObject(context.Background(), "my-bucketname", "my-objectname", time.Duration(1000)*time.Second, reqParams)
+	presignedURL, err := s3Client.PresignedGetObject(context.Background(), "my-bucketname", "my-objectname", time.Duration(1000)*time.Second, opts)
 	if err != nil {
 		log.Fatalln(err)
 	}

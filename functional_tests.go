@@ -6014,7 +6014,7 @@ func testFunctional() {
 		"objectName": "",
 		"expires":    3600 * time.Second,
 	}
-	if _, err = c.PresignedHeadObject(context.Background(), bucketName, "", 3600*time.Second, nil); err == nil {
+	if _, err = c.PresignedHeadObject(context.Background(), bucketName, "", 3600*time.Second, minio.PreSignOptions{}); err == nil {
 		logError(testName, function, args, startTime, "", "PresignedHeadObject success", err)
 		return
 	}
@@ -6027,7 +6027,7 @@ func testFunctional() {
 		"objectName": objectName,
 		"expires":    3600 * time.Second,
 	}
-	presignedHeadURL, err := c.PresignedHeadObject(context.Background(), bucketName, objectName, 3600*time.Second, nil)
+	presignedHeadURL, err := c.PresignedHeadObject(context.Background(), bucketName, objectName, 3600*time.Second, minio.PreSignOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PresignedHeadObject failed", err)
 		return
@@ -6076,7 +6076,7 @@ func testFunctional() {
 		"objectName": "",
 		"expires":    3600 * time.Second,
 	}
-	_, err = c.PresignedGetObject(context.Background(), bucketName, "", 3600*time.Second, nil)
+	_, err = c.PresignedGetObject(context.Background(), bucketName, "", 3600*time.Second, minio.PreSignOptions{})
 	if err == nil {
 		logError(testName, function, args, startTime, "", "PresignedGetObject success", err)
 		return
@@ -6090,7 +6090,7 @@ func testFunctional() {
 		"objectName": objectName,
 		"expires":    3600 * time.Second,
 	}
-	presignedGetURL, err := c.PresignedGetObject(context.Background(), bucketName, objectName, 3600*time.Second, nil)
+	presignedGetURL, err := c.PresignedGetObject(context.Background(), bucketName, objectName, 3600*time.Second, minio.PreSignOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PresignedGetObject failed", err)
 		return
@@ -6132,7 +6132,11 @@ func testFunctional() {
 		"expires":    3600 * time.Second,
 		"reqParams":  reqParams,
 	}
-	presignedGetURL, err = c.PresignedGetObject(context.Background(), bucketName, objectName, 3600*time.Second, reqParams)
+
+	opts := minio.PreSignOptions{
+		ReqParams: reqParams,
+	}
+	presignedGetURL, err = c.PresignedGetObject(context.Background(), bucketName, objectName, 3600*time.Second, opts)
 
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PresignedGetObject failed", err)
@@ -6238,7 +6242,10 @@ func testFunctional() {
 		"expires":      3600 * time.Second,
 		"extraHeaders": presignExtraHeaders,
 	}
-	presignedURL, err := c.PresignHeader(context.Background(), "PUT", bucketName, objectName+"-presign-custom", 3600*time.Second, nil, presignExtraHeaders)
+	opts = minio.PreSignOptions{}
+	opts.Set("mysecret", "abcxxx")
+
+	presignedURL, err := c.PresignHeader(context.Background(), "PUT", bucketName, objectName+"-presign-custom", 3600*time.Second, opts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "Presigned failed", err)
 		return
@@ -10916,7 +10923,7 @@ func testFunctionalV2() {
 		"objectName": objectName,
 		"expires":    3600 * time.Second,
 	}
-	presignedHeadURL, err := c.PresignedHeadObject(context.Background(), bucketName, objectName, 3600*time.Second, nil)
+	presignedHeadURL, err := c.PresignedHeadObject(context.Background(), bucketName, objectName, 3600*time.Second, minio.PreSignOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PresignedHeadObject failed", err)
 		return
@@ -10966,7 +10973,7 @@ func testFunctionalV2() {
 		"objectName": objectName,
 		"expires":    3600 * time.Second,
 	}
-	presignedGetURL, err := c.PresignedGetObject(context.Background(), bucketName, objectName, 3600*time.Second, nil)
+	presignedGetURL, err := c.PresignedGetObject(context.Background(), bucketName, objectName, 3600*time.Second, minio.PreSignOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PresignedGetObject failed", err)
 		return
@@ -11005,7 +11012,12 @@ func testFunctionalV2() {
 	reqParams.Set("response-content-disposition", "attachment; filename=\"test.txt\"")
 	// Generate presigned GET object url.
 	args["reqParams"] = reqParams
-	presignedGetURL, err = c.PresignedGetObject(context.Background(), bucketName, objectName, 3600*time.Second, reqParams)
+
+	opts := minio.PreSignOptions{
+		ReqParams: reqParams,
+	}
+
+	presignedGetURL, err = c.PresignedGetObject(context.Background(), bucketName, objectName, 3600*time.Second, opts)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PresignedGetObject failed", err)
 		return
@@ -11106,7 +11118,10 @@ func testFunctionalV2() {
 		"expires":      3600 * time.Second,
 		"extraHeaders": presignExtraHeaders,
 	}
-	_, err = c.PresignHeader(context.Background(), "PUT", bucketName, objectName+"-presign-custom", 3600*time.Second, nil, presignExtraHeaders)
+	opts = minio.PreSignOptions{}
+	opts.Set("mysecret", "abcxxx")
+
+	_, err = c.PresignHeader(context.Background(), "PUT", bucketName, objectName+"-presign-custom", 3600*time.Second, opts)
 	if err == nil {
 		logError(testName, function, args, startTime, "", "Presigned with extra headers succeeded", err)
 		return

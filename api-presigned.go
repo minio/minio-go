@@ -30,7 +30,7 @@ import (
 
 // presignURL - Returns a presigned URL for an input 'method'.
 // Expires maximum is 7days - ie. 604800 and minimum is 1.
-func (c *Client) presignURL(ctx context.Context, method string, bucketName string, objectName string, expires time.Duration, reqParams url.Values, extraHeaders http.Header) (u *url.URL, err error) {
+func (c *Client) presignURL(ctx context.Context, method string, bucketName string, objectName string, expires time.Duration, opts PreSignOptions) (u *url.URL, err error) {
 	// Input validation.
 	if method == "" {
 		return nil, errInvalidArgument("method cannot be empty.")
@@ -44,13 +44,29 @@ func (c *Client) presignURL(ctx context.Context, method string, bucketName strin
 
 	// Convert expires into seconds.
 	expireSeconds := int64(expires / time.Second)
+
+	var urlValues url.Values
+	if opts.ReqParams != nil {
+		urlValues = opts.ReqParams
+	} else {
+		urlValues = make(url.Values)
+	}
+
+	if opts.VersionID != "" {
+		urlValues.Set("versionId", opts.VersionID)
+	}
+
 	reqMetadata := requestMetadata{
 		presignURL:         true,
 		bucketName:         bucketName,
 		objectName:         objectName,
 		expires:            expireSeconds,
-		queryValues:        reqParams,
-		extraPresignHeader: extraHeaders,
+		queryValues:        urlValues,
+		extraPresignHeader: opts.Header(),
+	}
+
+	if opts.Region != "" {
+		reqMetadata.bucketLocation = opts.Region
 	}
 
 	// Instantiate a new request.
@@ -66,22 +82,22 @@ func (c *Client) presignURL(ctx context.Context, method string, bucketName strin
 // data without credentials. URL can have a maximum expiry of
 // upto 7days or a minimum of 1sec. Additionally you can override
 // a set of response headers using the query parameters.
-func (c *Client) PresignedGetObject(ctx context.Context, bucketName string, objectName string, expires time.Duration, reqParams url.Values) (u *url.URL, err error) {
+func (c *Client) PresignedGetObject(ctx context.Context, bucketName string, objectName string, expires time.Duration, opts PreSignOptions) (u *url.URL, err error) {
 	if err = s3utils.CheckValidObjectName(objectName); err != nil {
 		return nil, err
 	}
-	return c.presignURL(ctx, http.MethodGet, bucketName, objectName, expires, reqParams, nil)
+	return c.presignURL(ctx, http.MethodGet, bucketName, objectName, expires, opts)
 }
 
 // PresignedHeadObject - Returns a presigned URL to access
 // object metadata without credentials. URL can have a maximum expiry
 // of upto 7days or a minimum of 1sec. Additionally you can override
 // a set of response headers using the query parameters.
-func (c *Client) PresignedHeadObject(ctx context.Context, bucketName string, objectName string, expires time.Duration, reqParams url.Values) (u *url.URL, err error) {
+func (c *Client) PresignedHeadObject(ctx context.Context, bucketName string, objectName string, expires time.Duration, opts PreSignOptions) (u *url.URL, err error) {
 	if err = s3utils.CheckValidObjectName(objectName); err != nil {
 		return nil, err
 	}
-	return c.presignURL(ctx, http.MethodHead, bucketName, objectName, expires, reqParams, nil)
+	return c.presignURL(ctx, http.MethodHead, bucketName, objectName, expires, opts)
 }
 
 // PresignedPutObject - Returns a presigned URL to upload an object
@@ -91,7 +107,7 @@ func (c *Client) PresignedPutObject(ctx context.Context, bucketName string, obje
 	if err = s3utils.CheckValidObjectName(objectName); err != nil {
 		return nil, err
 	}
-	return c.presignURL(ctx, http.MethodPut, bucketName, objectName, expires, nil, nil)
+	return c.presignURL(ctx, http.MethodPut, bucketName, objectName, expires, PreSignOptions{})
 }
 
 // PresignHeader - similar to Presign() but allows including HTTP headers that
@@ -101,15 +117,15 @@ func (c *Client) PresignedPutObject(ctx context.Context, bucketName string, obje
 //
 // FIXME: The extra header parameter should be included in Presign() in the next
 // major version bump, and this function should then be deprecated.
-func (c *Client) PresignHeader(ctx context.Context, method string, bucketName string, objectName string, expires time.Duration, reqParams url.Values, extraHeaders http.Header) (u *url.URL, err error) {
-	return c.presignURL(ctx, method, bucketName, objectName, expires, reqParams, extraHeaders)
+func (c *Client) PresignHeader(ctx context.Context, method string, bucketName string, objectName string, expires time.Duration, opts PreSignOptions) (u *url.URL, err error) {
+	return c.presignURL(ctx, method, bucketName, objectName, expires, opts)
 }
 
 // Presign - returns a presigned URL for any http method of your choice along
 // with custom request params and extra signed headers. URL can have a maximum
 // expiry of upto 7days or a minimum of 1sec.
-func (c *Client) Presign(ctx context.Context, method string, bucketName string, objectName string, expires time.Duration, reqParams url.Values) (u *url.URL, err error) {
-	return c.presignURL(ctx, method, bucketName, objectName, expires, reqParams, nil)
+func (c *Client) Presign(ctx context.Context, method string, bucketName string, objectName string, expires time.Duration, opts PreSignOptions) (u *url.URL, err error) {
+	return c.presignURL(ctx, method, bucketName, objectName, expires, opts)
 }
 
 // PresignedPostPolicy - Returns POST urlString, form data to upload an object.
@@ -225,4 +241,33 @@ func (c *Client) PresignedPostPolicy(ctx context.Context, p *PostPolicy) (u *url
 	}
 	p.formData["x-amz-signature"] = signer.PostPresignSignatureV4(policyBase64, t, secretAccessKey, location)
 	return u, p.formData, nil
+}
+
+// PreSignOptions are used to specify additional headers or options
+// during Signing operations.
+type PreSignOptions struct {
+	// Region if specified we won't be making a get bucket location call before signing the request
+	Region    string
+	VersionID string
+	ReqParams url.Values
+	headers   map[string]string
+}
+
+// Header returns the http.Header representation of the GET options.
+func (o PreSignOptions) Header() http.Header {
+	headers := make(http.Header, len(o.headers))
+	for k, v := range o.headers {
+		headers.Set(k, v)
+	}
+	return headers
+}
+
+// Set adds a key value pair to the options. The
+// key-value pair will be part of the HTTP GET request
+// headers.
+func (o *PreSignOptions) Set(key, value string) {
+	if o.headers == nil {
+		o.headers = make(map[string]string)
+	}
+	o.headers[http.CanonicalHeaderKey(key)] = value
 }
