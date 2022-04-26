@@ -97,5 +97,6 @@ const (
 	// Header indicates last legalhold update time on source
 	minIOBucketReplicationObjectLegalHoldTimestamp = "X-Minio-Source-Replication-LegalHold-Timestamp"
 
-	minIOForceDelete = "x-minio-force-delete"
+	minIOForceDelete   = "x-minio-force-delete"
+	minIOPurgeOnDelete = "x-minio-purge-on-delete"
 )

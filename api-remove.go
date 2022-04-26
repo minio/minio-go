@@ -124,6 +124,7 @@ type RemoveObjectOptions struct {
 	GovernanceBypass bool
 	VersionID        string
 	Internal         AdvancedRemoveOptions
+	PurgeOnDelete    bool
 }
 
 // RemoveObject removes an object from a bucket.
@@ -170,6 +171,9 @@ func (c *Client) removeObject(ctx context.Context, bucketName, objectName string
 	}
 	if opts.ForceDelete {
 		headers.Set(minIOForceDelete, "true")
+	}
+	if opts.PurgeOnDelete {
+		headers.Set(minIOPurgeOnDelete, "true")
 	}
 	// Execute DELETE on objectName.
 	resp, err := c.executeMethod(ctx, http.MethodDelete, requestMetadata{
@@ -276,6 +280,7 @@ func processRemoveMultiObjectsResponse(body io.Reader, objects []ObjectInfo, res
 // RemoveObjectsOptions represents options specified by user for RemoveObjects call
 type RemoveObjectsOptions struct {
 	GovernanceBypass bool
+	PurgeOnDelete    bool
 }
 
 // RemoveObjects removes multiple objects from a bucket while
@@ -394,6 +399,7 @@ func (c *Client) removeObjects(ctx context.Context, bucketName string, objectsCh
 				removeResult := c.removeObject(ctx, bucketName, object.Key, RemoveObjectOptions{
 					VersionID:        object.VersionID,
 					GovernanceBypass: opts.GovernanceBypass,
+					PurgeOnDelete:    opts.PurgeOnDelete,
 				})
 				if err := removeResult.Err; err != nil {
 					// Version does not exist is not an error ignore and continue.
@@ -427,6 +433,10 @@ func (c *Client) removeObjects(ctx context.Context, bucketName string, objectsCh
 		if opts.GovernanceBypass {
 			// Set the bypass goverenance retention header
 			headers.Set(amzBypassGovernance, "true")
+		}
+		if opts.PurgeOnDelete {
+			// Set the x-minio-purge-on-delete flag to purge the object immediately
+			headers.Set(minIOPurgeOnDelete, "true")
 		}
 
 		// Generate remove multi objects XML request

@@ -836,9 +836,10 @@ __minio.RemoveObjectOptions__
 | `opts.GovernanceBypass` | _bool_ |Set the bypass governance header to delete an object locked with GOVERNANCE mode|
 | `opts.VersionID` | _string_ |Version ID of the object to delete|
 | `opts.Internal`                | _minio.AdvancedRemoveOptions_               | This option is intended for internal use by MinIO server and should not be set unless the application is aware of intended use.
+| `opts.PurgeOnDelete` | _bool_ |Set the purge-on-delete header to purge the object immediately. This is a MinIO only header.|
 
 ```go
-opts := minio.RemoveObjectOptions {
+opts := minio.RemoveObjectOptions{
 		GovernanceBypass: true,
 		VersionID: "myversionid",
 		}
@@ -880,6 +881,7 @@ __minio.RemoveObjectsOptions__
 |Field | Type | Description |
 |:--- |:--- | :--- |
 | `opts.GovernanceBypass` | _bool_ |Set the bypass governance header to delete an object locked with GOVERNANCE mode|
+| `opts.PurgeOnDelete` | _bool_ |Set the x-minio-purge-on-delete header to purge the objects immediately. This is a MinIO only header.|
 
 __Return Values__
 

@@ -47,6 +47,7 @@ func main() {
 
 	opts := minio.RemoveObjectOptions{
 		GovernanceBypass: true,
+		PurgeOnDelete:    true,
 	}
 
 	err = s3Client.RemoveObject(context.Background(), "my-bucketname", "my-objectname", opts)
