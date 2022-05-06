@@ -88,8 +88,8 @@ type BucketVersioningConfiguration struct {
 	MFADelete string   `xml:"MfaDelete,omitempty"`
 	// MinIO extension - allows selective, prefix-level versioning exclusion.
 	// Requires versioning to be enabled
-	ExcludedPrefixes    []ExcludedPrefix `xml:",omitempty"`
-	ExcludePrefixMarker bool             `xml:",omitempty"`
+	ExcludedPrefixes []ExcludedPrefix `xml:",omitempty"`
+	ExcludeFolders   bool             `xml:",omitempty"`
 }
 
 // Various supported states
