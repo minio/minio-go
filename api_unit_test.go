@@ -207,7 +207,7 @@ func TestMakeTargetURL(t *testing.T) {
 			Secure: testCase.secure,
 		})
 		isVirtualHost := c.isVirtualHostStyleRequest(*c.endpointURL, testCase.bucketName)
-		u, err := c.makeTargetURL(testCase.bucketName, testCase.objectName, testCase.bucketLocation, isVirtualHost, testCase.queryValues)
+		u, err := c.makeTargetURL(testCase.bucketName, testCase.objectName, testCase.bucketLocation, isVirtualHost, testCase.queryValues, "")
 		// Check the returned error
 		if testCase.expectedErr == nil && err != nil {
 			t.Fatalf("Test %d: Should succeed but failed with err = %v", i+1, err)

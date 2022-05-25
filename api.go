@@ -417,6 +417,8 @@ type requestMetadata struct {
 	contentLength    int64
 	contentMD5Base64 string // carries base64 encoded md5sum
 	contentSHA256Hex string // carries hex encoded sha256sum
+
+	relPath string // Relative URL path
 }
 
 // dumpHTTP - dump HTTP request and response.
@@ -715,7 +717,7 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 
 	// Construct a new target URL.
 	targetURL, err := c.makeTargetURL(metadata.bucketName, metadata.objectName, location,
-		isVirtualHost, metadata.queryValues)
+		isVirtualHost, metadata.queryValues, metadata.relPath)
 	if err != nil {
 		return nil, err
 	}
@@ -843,7 +845,7 @@ func (c *Client) setUserAgent(req *http.Request) {
 }
 
 // makeTargetURL make a new target url.
-func (c *Client) makeTargetURL(bucketName, objectName, bucketLocation string, isVirtualHostStyle bool, queryValues url.Values) (*url.URL, error) {
+func (c *Client) makeTargetURL(bucketName, objectName, bucketLocation string, isVirtualHostStyle bool, queryValues url.Values, relPath string) (*url.URL, error) {
 	host := c.endpointURL.Host
 	// For Amazon S3 endpoint, try to fetch location based endpoint.
 	if s3utils.IsAmazonEndpoint(*c.endpointURL) {
@@ -881,7 +883,7 @@ func (c *Client) makeTargetURL(bucketName, objectName, bucketLocation string, is
 		}
 	}
 
-	urlStr := scheme + "://" + host + "/"
+	urlStr := scheme + "://" + host + "/" + relPath
 
 	// Make URL only if bucketName is available, otherwise use the
 	// endpoint URL.

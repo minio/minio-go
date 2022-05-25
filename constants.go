@@ -97,5 +97,8 @@ const (
 	// Header indicates last legalhold update time on source
 	minIOBucketReplicationObjectLegalHoldTimestamp = "X-Minio-Source-Replication-LegalHold-Timestamp"
 
-	minIOForceDelete = "x-minio-force-delete"
+	// MinIO internal headers
+	minIOForceDelete       = "x-minio-force-delete"
+	minioWriteQuorumHeader = "x-minio-write-quorum"
+	minIOHealingDrives     = "x-minio-healing-drives"
 )

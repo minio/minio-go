@@ -2110,3 +2110,25 @@ __Parameters__
 | Param  | Type  | Description  |
 |---|---|---|
 |`acceleratedEndpoint`  | _string_  | Set to new S3 transfer acceleration endpoint.|
+
+<a name="ClusterHealth"></a>
+### ClusterHealth(ctx context.Context) (result ClusterHealthResult, err error)
+Check if the cluster is healthy and has good enough quorum
+(Note: This is an anonymous API and does not require access and secret key)
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
+
+__Example__
+
+```go
+healthResult, err := minioClient.ClusterHealth(context.Background())
+if err != nil {
+    log.Fatalln(err)
+}
+log.Println(healthResult)
+```

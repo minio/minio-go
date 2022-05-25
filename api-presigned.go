@@ -134,7 +134,7 @@ func (c *Client) PresignedPostPolicy(ctx context.Context, p *PostPolicy) (u *url
 
 	isVirtualHost := c.isVirtualHostStyleRequest(*c.endpointURL, bucketName)
 
-	u, err = c.makeTargetURL(bucketName, "", location, isVirtualHost, nil)
+	u, err = c.makeTargetURL(bucketName, "", location, isVirtualHost, nil, "")
 	if err != nil {
 		return nil, nil, err
 	}
