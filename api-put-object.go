@@ -40,7 +40,7 @@ const (
 	// ReplicationStatusPending indicates replication is pending
 	ReplicationStatusPending ReplicationStatus = "PENDING"
 	// ReplicationStatusComplete indicates replication completed ok
-	ReplicationStatusComplete ReplicationStatus = "COMPLETE"
+	ReplicationStatusComplete ReplicationStatus = "COMPLETED"
 	// ReplicationStatusFailed indicates replication failed
 	ReplicationStatusFailed ReplicationStatus = "FAILED"
 	// ReplicationStatusReplica indicates object is a replica of a source
