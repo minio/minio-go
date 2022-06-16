@@ -744,3 +744,33 @@ type ResyncTarget struct {
 	Bucket string `json:"bucket,omitempty"`
 	Object string `json:"object,omitempty"`
 }
+
+// DiffOpts holds options for `mc replicate diff` command
+type DiffOpts struct {
+	ARN     string
+	Verbose bool
+	Prefix  string
+}
+
+// TgtDiffInfo returns status of unreplicated objects
+// for the target ARN
+type TgtDiffInfo struct {
+	ReplicationStatus       string `json:"rStatus,omitempty"`  // target replication status
+	DeleteReplicationStatus string `json:"drStatus,omitempty"` // target delete replication status
+
+}
+
+// DiffInfo represents relevant replication status and last attempt to replicate
+// for the replication targets configured for the bucket
+type DiffInfo struct {
+	Object                  string                 `json:"object"`
+	VersionID               string                 `json:"versionId"`
+	Targets                 map[string]TgtDiffInfo `json:"targets,omitempty"`
+	Err                     error                  `json:"error,omitempty"`
+	ReplicationStatus       string                 `json:"rStatus,omitempty"` // overall replication status
+	DeleteReplicationStatus string                 `json:"dStatus,omitempty"` // overall replication status of version delete
+
+	ReplicationTimestamp time.Time `json:"replTimestamp,omitempty"`
+	LastModified         time.Time `json:"lastModified,omitempty"`
+	IsDeleteMarker       bool      `json:"deletemarker"`
+}

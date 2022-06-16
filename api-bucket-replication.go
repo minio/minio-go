@@ -289,3 +289,54 @@ func (c *Client) GetBucketReplicationResyncStatus(ctx context.Context, bucketNam
 	}
 	return rinfo, nil
 }
+
+// BucketReplicationDiff - gets diff for non-replicated entries.
+func (c *Client) BucketReplicationDiff(ctx context.Context, bucketName string, opts replication.DiffOpts) <-chan replication.DiffInfo {
+	diffCh := make(chan replication.DiffInfo)
+
+	// start a routine to start reading line by line.
+	go func(diffCh chan<- replication.DiffInfo) {
+		defer close(diffCh)
+		urlValues := make(url.Values)
+		urlValues.Set("replication-diff", "")
+		if opts.Verbose {
+			urlValues.Set("verbose", "true")
+		}
+		if opts.ARN != "" {
+			urlValues.Set("arn", opts.ARN)
+		}
+		if opts.Prefix != "" {
+			urlValues.Set("prefix", opts.Prefix)
+		}
+		// Execute GET on bucket to get replication config.
+		resp, err := c.executeMethod(ctx, http.MethodPost, requestMetadata{
+			bucketName:  bucketName,
+			queryValues: urlValues,
+		})
+		if err != nil {
+			diffCh <- replication.DiffInfo{Err: err}
+			return
+		}
+		defer closeResponse(resp)
+
+		if resp.StatusCode != http.StatusOK {
+			diffCh <- replication.DiffInfo{Err: httpRespToErrorResponse(resp, bucketName, "")}
+			return
+		}
+
+		dec := json.NewDecoder(resp.Body)
+		for {
+			var di replication.DiffInfo
+			if err = dec.Decode(&di); err != nil {
+				break
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case diffCh <- di:
+			}
+		}
+	}(diffCh)
+	// Returns the diff channel, for caller to start reading from.
+	return diffCh
+}

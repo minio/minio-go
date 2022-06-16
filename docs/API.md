@@ -2063,6 +2063,39 @@ if err != nil {
 }
 ```
 
+<a name="BucketReplicationDiff"></a>
+### BucketReplicationDiff(ctx context.Context, bucketName string, opts replication.DiffOpts) (diffCh <-chan replication.DiffInfo)
+Return list of unreplicated versions in a channel. This is a MinIO specific extension.
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
+|`bucketName`  | _string_  |Name of the bucket   |
+|`opts`  | _replication.DiffOpts_  | options to specify remote arn  |
+__Return Values__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`diffCh`  | _replication.DiffInfo_ |Replication diff returned from the server |
+
+
+__Example__
+
+```go
+diffCh := minioClient.BucketReplicationDiff(context.Background(), "my-bucketname", replication.DiffOpts{
+    ARN: "<remote-arn>",
+})
+for diff := range diffCh {
+    if diff.Err != nil {
+        log.Fatalln(diff.Err)
+    }
+    fmt.Println(diff)
+}
+```
 ## 6. Client custom settings
 
 <a name="SetAppInfo"></a>
