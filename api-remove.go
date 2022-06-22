@@ -276,6 +276,7 @@ func processRemoveMultiObjectsResponse(body io.Reader, objects []ObjectInfo, res
 // RemoveObjectsOptions represents options specified by user for RemoveObjects call
 type RemoveObjectsOptions struct {
 	GovernanceBypass bool
+	ForceDelete      bool
 }
 
 // RemoveObjects removes multiple objects from a bucket while
@@ -394,6 +395,7 @@ func (c *Client) removeObjects(ctx context.Context, bucketName string, objectsCh
 				removeResult := c.removeObject(ctx, bucketName, object.Key, RemoveObjectOptions{
 					VersionID:        object.VersionID,
 					GovernanceBypass: opts.GovernanceBypass,
+					ForceDelete:      opts.ForceDelete,
 				})
 				if err := removeResult.Err; err != nil {
 					// Version does not exist is not an error ignore and continue.
@@ -427,6 +429,9 @@ func (c *Client) removeObjects(ctx context.Context, bucketName string, objectsCh
 		if opts.GovernanceBypass {
 			// Set the bypass goverenance retention header
 			headers.Set(amzBypassGovernance, "true")
+		}
+		if opts.ForceDelete {
+			headers.Set(minIOForceDelete, "true")
 		}
 
 		// Generate remove multi objects XML request
