@@ -186,7 +186,10 @@ func (c *Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketN
 				// Proceed to upload the part.
 				objPart, err := c.uploadPart(ctx, bucketName, objectName,
 					uploadID, hookReader, uploadReq.PartNum,
-					"", "", partSize, opts.ServerSideEncryption)
+					"", "", partSize,
+					opts.ServerSideEncryption,
+					!opts.DisableContentSha256,
+				)
 				if err != nil {
 					uploadedPartsCh <- uploadedPartRes{
 						Error: err,
@@ -322,7 +325,10 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 
 		objPart, uerr := c.uploadPart(ctx, bucketName, objectName, uploadID,
 			io.LimitReader(hookReader, partSize),
-			partNumber, md5Base64, "", partSize, opts.ServerSideEncryption)
+			partNumber, md5Base64, "", partSize,
+			opts.ServerSideEncryption,
+			!opts.DisableContentSha256,
+		)
 		if uerr != nil {
 			return UploadInfo{}, uerr
 		}
@@ -452,6 +458,7 @@ func (c *Client) putObjectDo(ctx context.Context, bucketName, objectName string,
 		contentLength:    size,
 		contentMD5Base64: md5Base64,
 		contentSHA256Hex: sha256Hex,
+		streamSha256:     !opts.DisableContentSha256,
 	}
 	if opts.Internal.SourceVersionID != "" {
 		if opts.Internal.SourceVersionID != nullVersionID {
