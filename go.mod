@@ -9,7 +9,6 @@ require (
 	github.com/klauspost/compress v1.13.5
 	github.com/minio/md5-simd v1.1.0
 	github.com/minio/sha256-simd v0.1.1
-	github.com/mitchellh/go-homedir v1.1.0
 	github.com/rs/xid v1.2.1
 	github.com/sirupsen/logrus v1.8.1
 	golang.org/x/crypto v0.0.0-20201216223049-8b5274cf687f
