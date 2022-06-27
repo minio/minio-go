@@ -66,6 +66,7 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 	go func() {
 		defer close(reqCh)
 		defer close(resCh)
+		defer cancel()
 
 		// Used to verify if etag of object has changed since last read.
 		var etag string
@@ -83,7 +84,10 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 				return
 
 			// Gather incoming request.
-			case req := <-reqCh:
+			case req, ok := <-reqCh:
+				if !ok {
+					return
+				}
 				// If this is the first request we may not need to do a getObject request yet.
 				if req.isFirstReq {
 					// First request is a Read/ReadAt.
