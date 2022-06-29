@@ -130,23 +130,28 @@ func (c *Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketN
 	var complMultipartUpload completeMultipartUpload
 
 	// Declare a channel that sends the next part number to be uploaded.
-	// Buffered to 10000 because thats the maximum number of parts allowed
-	// by S3.
-	uploadPartsCh := make(chan uploadPartReq, 10000)
+	uploadPartsCh := make(chan uploadPartReq)
 
 	// Declare a channel that sends back the response of a part upload.
-	// Buffered to 10000 because thats the maximum number of parts allowed
-	// by S3.
-	uploadedPartsCh := make(chan uploadedPartRes, 10000)
+	uploadedPartsCh := make(chan uploadedPartRes)
 
 	// Used for readability, lastPartNumber is always totalPartsCount.
 	lastPartNumber := totalPartsCount
 
+	partitionCtx, partitionCancel := context.WithCancel(ctx)
+	defer partitionCancel()
 	// Send each part number to the channel to be processed.
-	for p := 1; p <= totalPartsCount; p++ {
-		uploadPartsCh <- uploadPartReq{PartNum: p}
-	}
-	close(uploadPartsCh)
+	go func() {
+		defer close(uploadPartsCh)
+
+		for p := 1; p <= totalPartsCount; p++ {
+			select {
+			case <-partitionCtx.Done():
+				return
+			case uploadPartsCh <- uploadPartReq{PartNum: p}:
+			}
+		}
+	}()
 
 	// Receive each part number from the channel allowing three parallel uploads.
 	for w := 1; w <= opts.getNumThreads(); w++ {
@@ -214,12 +219,12 @@ func (c *Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketN
 			return UploadInfo{}, ctx.Err()
 		case uploadRes := <-uploadedPartsCh:
 			if uploadRes.Error != nil {
+
 				return UploadInfo{}, uploadRes.Error
 			}
 
 			// Update the totalUploadedSize.
 			totalUploadedSize += uploadRes.Size
-			// Store the parts to be completed in order.
 			complMultipartUpload.Parts = append(complMultipartUpload.Parts, CompletePart{
 				ETag:       uploadRes.Part.ETag,
 				PartNumber: uploadRes.Part.PartNumber,
