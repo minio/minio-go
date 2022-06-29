@@ -148,14 +148,9 @@ func (c *Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketN
 	}
 	close(uploadPartsCh)
 
-	partsBuf := make([][]byte, opts.getNumThreads())
-	for i := range partsBuf {
-		partsBuf[i] = make([]byte, 0, partSize)
-	}
-
 	// Receive each part number from the channel allowing three parallel uploads.
 	for w := 1; w <= opts.getNumThreads(); w++ {
-		go func(w int, partSize int64) {
+		go func(partSize int64) {
 			for {
 				var uploadReq uploadPartReq
 				var ok bool
@@ -181,21 +176,11 @@ func (c *Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketN
 					partSize = lastPartSize
 				}
 
-				n, rerr := readFull(io.NewSectionReader(reader, readOffset, partSize), partsBuf[w-1][:partSize])
-				if rerr != nil && rerr != io.ErrUnexpectedEOF && rerr != io.EOF {
-					uploadedPartsCh <- uploadedPartRes{
-						Error: rerr,
-					}
-					// Exit the goroutine.
-					return
-				}
-
-				// Get a section reader on a particular offset.
-				hookReader := newHook(bytes.NewReader(partsBuf[w-1][:n]), opts.Progress)
+				sectionReader := newHook(io.NewSectionReader(reader, readOffset, partSize), opts.Progress)
 
 				// Proceed to upload the part.
 				objPart, err := c.uploadPart(ctx, bucketName, objectName,
-					uploadID, hookReader, uploadReq.PartNum,
+					uploadID, sectionReader, uploadReq.PartNum,
 					"", "", partSize,
 					opts.ServerSideEncryption,
 					!opts.DisableContentSha256,
@@ -218,7 +203,7 @@ func (c *Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketN
 					Part:    uploadReq.Part,
 				}
 			}
-		}(w, partSize)
+		}(partSize)
 	}
 
 	// Gather the responses as they occur and update any
