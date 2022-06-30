@@ -75,6 +75,8 @@ type Client struct {
 	traceErrorsOnly bool
 	traceOutput     io.Writer
 
+	transferTimeout time.Duration
+
 	// S3 specific accelerated endpoint.
 	s3AccelerateEndpoint string
 
@@ -102,6 +104,13 @@ type Options struct {
 	Transport    http.RoundTripper
 	Region       string
 	BucketLookup BucketLookupType
+
+	// TransferTimeout sets a request/response body individual read timeout.
+	// When set to a non-zero value this will apply a timeout on each read call.
+	// Keep at 0 to use default.
+	// Set to negative to disable.
+	// Can be used to apply a timeout for stuck transfers.
+	TransferTimeout time.Duration
 
 	// Custom hash routines. Leave nil to use standard.
 	CustomMD5    func() md5simd.Hasher
@@ -208,6 +217,12 @@ func privateNew(endpoint string, opts *Options) (*Client, error) {
 	// Save endpoint URL, user agent for future uses.
 	clnt.endpointURL = endpointURL
 
+	// Set response read timeout
+	clnt.transferTimeout = opts.TransferTimeout
+	if clnt.transferTimeout == 0 {
+		clnt.transferTimeout = 5 * time.Minute
+	}
+
 	transport := opts.Transport
 	if transport == nil {
 		transport, err = DefaultTransport(opts.Secure)
@@ -216,6 +231,9 @@ func privateNew(endpoint string, opts *Options) (*Client, error) {
 		}
 	}
 
+	if clnt.transferTimeout > 0 {
+		transport = transportTimeoutWrapper(transport, clnt.transferTimeout)
+	}
 	// Instantiate http client and bucket location cache.
 	clnt.httpClient = &http.Client{
 		Jar:       jar,
