@@ -100,9 +100,13 @@ type transportTimeout struct {
 }
 
 func (t *transportTimeout) RoundTrip(request *http.Request) (*http.Response, error) {
-	request, ctx, cancel := newReqAliveChecker(request, t.timeout)
+	request, ctx, cancel, status := newReqAliveChecker(request, t.timeout)
 	resp, err := t.parent.RoundTrip(request)
 	if err != nil {
+		if status != nil && atomic.LoadUint32(status) == 2 {
+			// If we canceled, change the error.
+			err = context.DeadlineExceeded
+		}
 		cancel()
 		return resp, err
 	}
@@ -113,19 +117,20 @@ func (t *transportTimeout) RoundTrip(request *http.Request) (*http.Response, err
 // This will measure time between body reads.
 // When the timeout is exceeded the request will be canceled.
 // A new request with a new context is returned.
-func newReqAliveChecker(req *http.Request, timeout time.Duration) (request *http.Request, ctx context.Context, cancel context.CancelFunc) {
+func newReqAliveChecker(req *http.Request, timeout time.Duration) (request *http.Request, ctx context.Context, cancel context.CancelFunc, status *uint32) {
 	ctx, cancel = context.WithCancel(req.Context())
 	req = req.WithContext(ctx)
 
 	if req.Body == nil || timeout <= 0 {
-		return req, ctx, cancel
+		return req, ctx, cancel, nil
 	}
-	req.Body = &reqAliveChecker{timeout: timeout, rc: req.Body, ctx: ctx, cancel: cancel}
-	return req, ctx, cancel
+	ac := reqAliveChecker{timeout: timeout, rc: req.Body, ctx: ctx, cancel: cancel}
+	req.Body = &ac
+	return req, ctx, cancel, &ac.timedOut
 }
 
 type reqAliveChecker struct {
-	timedOut uint32
+	timedOut uint32 // 0 = ok, 1 = upstream cancel, 2 = timeout
 	timeout  time.Duration
 	rc       io.ReadCloser
 
@@ -135,7 +140,7 @@ type reqAliveChecker struct {
 }
 
 func (a *reqAliveChecker) Read(p []byte) (n int, err error) {
-	if atomic.LoadUint32(&a.timedOut) == 1 {
+	if atomic.LoadUint32(&a.timedOut) != 0 {
 		return 0, context.DeadlineExceeded
 	}
 	n, err = a.rc.Read(p)
@@ -161,7 +166,7 @@ func (a *reqAliveChecker) Read(p []byte) (n int, err error) {
 						a.cancel()
 						return
 					case <-t.C:
-						atomic.StoreUint32(&a.timedOut, 1)
+						atomic.StoreUint32(&a.timedOut, 2)
 						a.cancel()
 						return
 					}
