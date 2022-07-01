@@ -83,7 +83,10 @@ var DefaultTransport = func(secure bool) (*http.Transport, error) {
 	return tr, nil
 }
 
-// transportTimeoutWrapper wraps a transport to time out on request and response body transfers.
+// transportTimeoutWrapper wraps a http.RoundTripper to time out on request and response body transfers.
+// For requests time between each Read is measured, and if the timeout is exceeded the request is canceled.
+// For responses each upstream Read is timed.
+// If an individual read blocks longer than the timeout the request is canceled.
 func transportTimeoutWrapper(tripper http.RoundTripper, timeout time.Duration) http.RoundTripper {
 	if timeout <= 0 {
 		return tripper
@@ -109,8 +112,7 @@ func (t *transportTimeout) RoundTrip(request *http.Request) (*http.Response, err
 // newReqAliveChecker will perform timeout checks between read calls.
 // This will measure time between body reads.
 // When the timeout is exceeded the request will be canceled.
-// A new request and context is returned.
-//
+// A new request with a new context is returned.
 func newReqAliveChecker(req *http.Request, timeout time.Duration) (request *http.Request, ctx context.Context, cancel context.CancelFunc) {
 	ctx, cancel = context.WithCancel(req.Context())
 	req = req.WithContext(ctx)
@@ -157,14 +159,21 @@ func (a *reqAliveChecker) Read(p []byte) (n int, err error) {
 					case <-a.ctx.Done():
 						atomic.StoreUint32(&a.timedOut, 1)
 						a.cancel()
+						return
 					case <-t.C:
 						atomic.StoreUint32(&a.timedOut, 1)
 						a.cancel()
+						return
 					}
 				}
 			}()
 		} else {
-			a.reset <- struct{}{}
+			// Send non-blocking update.
+			// If we cannot write there is no need to block and add another one.
+			select {
+			case a.reset <- struct{}{}:
+			default:
+			}
 		}
 	}
 	return n, err
@@ -215,6 +224,8 @@ type readResponse struct {
 	err error
 }
 
+// Read performs an upstream read in a separate goroutine.
+// If the timeout is reached the cancel function is called.
 func (a *respAliveChecker) Read(p []byte) (n int, err error) {
 	if a.timedOut {
 		return 0, context.DeadlineExceeded
@@ -229,6 +240,9 @@ func (a *respAliveChecker) Read(p []byte) (n int, err error) {
 	if a.ctx != nil {
 		done = a.ctx.Done()
 	}
+
+	// Wait until we get response from goroutine,
+	// time out or context is canceled.
 	select {
 	case <-done:
 		if a.cancel != nil {
@@ -249,15 +263,21 @@ func (a *respAliveChecker) Read(p []byte) (n int, err error) {
 
 func (a *respAliveChecker) Close() error {
 	if a.timedOut {
+		// For all cases where we timed out
+		// a Read was running in goroutine.
+		// This means that in all cases there will either
+		// be a response queued or still running.
 		select {
 		case <-a.comms:
 			// Read returned.
+			// We are safe to call close.
 		default:
 			// We are still blocked on a read.
 			// Spawn a goroutine that waits for the request to finish before we Close.
-			for range a.comms {
+			go func() {
+				<-a.comms
 				a.rc.Close()
-			}
+			}()
 			return context.DeadlineExceeded
 		}
 	} else if a.cancel != nil {
