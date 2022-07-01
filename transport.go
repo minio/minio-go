@@ -144,6 +144,7 @@ func (a *reqAliveChecker) Read(p []byte) (n int, err error) {
 			a.reset = update
 			go func() {
 				t := time.NewTimer(a.timeout)
+				defer t.Stop()
 				for {
 					select {
 					case _, ok := <-update:
