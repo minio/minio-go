@@ -384,13 +384,11 @@ func (c *Client) HealthCheck(hcDuration time.Duration) (context.CancelFunc, erro
 					gctx, gcancel := context.WithTimeout(context.Background(), 3*time.Second)
 					_, err := c.getBucketLocation(gctx, probeBucketName)
 					gcancel()
-					if IsNetworkOrHostDown(err, false) {
-						// Still network errors do not need to do anything.
-						continue
-					}
-					switch ToErrorResponse(err).Code {
-					case "NoSuchBucket", "AccessDenied", "":
-						atomic.CompareAndSwapInt32(&c.healthStatus, offline, online)
+					if !IsNetworkOrHostDown(err, false) {
+						switch ToErrorResponse(err).Code {
+						case "NoSuchBucket", "AccessDenied", "":
+							atomic.CompareAndSwapInt32(&c.healthStatus, offline, online)
+						}
 					}
 				}
 
