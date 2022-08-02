@@ -251,7 +251,7 @@ func privateNew(endpoint string, opts *Options) (*Client, error) {
 	clnt.lookup = opts.BucketLookup
 
 	// healthcheck is not initialized
-	clnt.healthStatus = unknown
+	clnt.healthStatus = closed
 
 	// Return.
 	return clnt, nil
@@ -338,19 +338,24 @@ func (c *Client) hashMaterials(isMd5Requested, isSha256Requested bool) (hashAlgo
 }
 
 const (
-	unknown = -1
-	offline = 0
-	online  = 1
+	offline = iota
+	online
+	closed
 )
 
 // IsOnline returns true if healthcheck enabled and client is online
 func (c *Client) IsOnline() bool {
-	return !c.IsOffline()
+	return atomic.LoadInt32(&c.healthStatus) == online
 }
 
-// sets online healthStatus to offline
-func (c *Client) markOffline() {
-	atomic.CompareAndSwapInt32(&c.healthStatus, online, offline)
+// IsClosed returns ture if client is explicitly closed for all calls.
+func (c *Client) IsClosed() bool {
+	return atomic.LoadInt32(&c.healthStatus) == closed
+}
+
+// MarkOffline - marks the Client as offline.
+func (c *Client) MarkOffline() {
+	atomic.StoreInt32(&c.healthStatus, offline)
 }
 
 // IsOffline returns true if healthcheck enabled and client is offline
@@ -361,7 +366,7 @@ func (c *Client) IsOffline() bool {
 // HealthCheck starts a healthcheck to see if endpoint is up. Returns a context cancellation function
 // and and error if health check is already started
 func (c *Client) HealthCheck(hcDuration time.Duration) (context.CancelFunc, error) {
-	if atomic.LoadInt32(&c.healthStatus) == online {
+	if c.IsOnline() {
 		return nil, fmt.Errorf("health check is running")
 	}
 	if hcDuration < 1*time.Second {
@@ -376,12 +381,16 @@ func (c *Client) HealthCheck(hcDuration time.Duration) (context.CancelFunc, erro
 		for {
 			select {
 			case <-ctx.Done():
-				atomic.StoreInt32(&c.healthStatus, unknown)
+				atomic.StoreInt32(&c.healthStatus, closed)
 				return
 			case <-timer.C:
+				if c.IsClosed() {
+					return
+				}
+
 				// Do health check the first time and ONLY if the connection is marked offline
 				if c.IsOffline() {
-					gctx, gcancel := context.WithTimeout(context.Background(), 3*time.Second)
+					gctx, gcancel := context.WithTimeout(ctx, 3*time.Second)
 					_, err := c.getBucketLocation(gctx, probeBucketName)
 					gcancel()
 					if !IsNetworkOrHostDown(err, false) {
@@ -485,7 +494,7 @@ func (c *Client) dumpHTTP(req *http.Request, resp *http.Response) error {
 func (c *Client) do(req *http.Request) (resp *http.Response, err error) {
 	defer func() {
 		if IsNetworkOrHostDown(err, false) {
-			c.markOffline()
+			c.MarkOffline()
 		}
 	}()
 

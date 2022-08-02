@@ -219,7 +219,6 @@ func (c *Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketN
 			return UploadInfo{}, ctx.Err()
 		case uploadRes := <-uploadedPartsCh:
 			if uploadRes.Error != nil {
-
 				return UploadInfo{}, uploadRes.Error
 			}
 
