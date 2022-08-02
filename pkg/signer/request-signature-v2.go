@@ -136,8 +136,8 @@ func SignV2(req http.Request, accessKeyID, secretAccessKey string, virtualHost b
 	// Initial time.
 	d := time.Now().UTC()
 
-	// Add date if not present.
-	if date := req.Header.Get("Date"); date == "" {
+	// Add date if not present and there is no "X-Amz-Date".
+	if date := req.Header.Get("Date"); date == ""  && req.Header.Get("X-Amz-Date") == "" {
 		req.Header.Set("Date", d.Format(http.TimeFormat))
 	}
 
