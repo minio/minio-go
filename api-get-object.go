@@ -62,7 +62,6 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 
 	// This routine feeds partial object data as and when the caller reads.
 	go func() {
-		defer close(reqCh)
 		defer close(resCh)
 		defer func() {
 			// Close the http response body before returning.
@@ -615,6 +614,9 @@ func (o *Object) Close() (err error) {
 
 	// Close successfully.
 	o.cancel()
+
+	// Close the request channel to indicate the internal go-routine to exit.
+	close(o.reqCh)
 
 	// Save for future operations.
 	errMsg := "Object is already closed. Bad file descriptor."
