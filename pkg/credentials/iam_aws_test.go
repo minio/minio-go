@@ -89,24 +89,6 @@ func initTestServerNoRoles() *httptest.Server {
 	return server
 }
 
-func initTestServer(expireOn string, failAssume bool) *httptest.Server {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/latest/meta-data/iam/security-credentials/" {
-			fmt.Fprintln(w, "RoleName")
-		} else if r.URL.Path == "/latest/meta-data/iam/security-credentials/RoleName" {
-			if failAssume {
-				fmt.Fprint(w, credsFailRespTmpl)
-			} else {
-				fmt.Fprintf(w, credsRespTmpl, expireOn)
-			}
-		} else {
-			http.Error(w, "bad request", http.StatusBadRequest)
-		}
-	}))
-
-	return server
-}
-
 // Instance Metadata Service with V1 disabled.
 func initIMDSv2Server(expireOn string, failAssume bool) *httptest.Server {
 	imdsToken := "IMDSTokenabc123=="
