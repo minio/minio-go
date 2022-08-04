@@ -89,26 +89,8 @@ func initTestServerNoRoles() *httptest.Server {
 	return server
 }
 
-func initTestServer(expireOn string, failAssume bool) *httptest.Server {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/latest/meta-data/iam/security-credentials/" {
-			fmt.Fprintln(w, "RoleName")
-		} else if r.URL.Path == "/latest/meta-data/iam/security-credentials/RoleName" {
-			if failAssume {
-				fmt.Fprint(w, credsFailRespTmpl)
-			} else {
-				fmt.Fprintf(w, credsRespTmpl, expireOn)
-			}
-		} else {
-			http.Error(w, "bad request", http.StatusBadRequest)
-		}
-	}))
-
-	return server
-}
-
 // Instance Metadata Service with V1 disabled.
-func initIMDSv2Server(expireOn string) *httptest.Server {
+func initIMDSv2Server(expireOn string, failAssume bool) *httptest.Server {
 	imdsToken := "IMDSTokenabc123=="
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(r.URL.Path)
@@ -133,7 +115,11 @@ func initIMDSv2Server(expireOn string) *httptest.Server {
 		if r.URL.Path == "/latest/meta-data/iam/security-credentials/" {
 			fmt.Fprintln(w, "RoleName")
 		} else if r.URL.Path == "/latest/meta-data/iam/security-credentials/RoleName" {
-			fmt.Fprintf(w, credsRespTmpl, expireOn)
+			if failAssume {
+				fmt.Fprint(w, credsFailRespTmpl)
+			} else {
+				fmt.Fprintf(w, credsRespTmpl, expireOn)
+			}
 		} else {
 			http.Error(w, "bad request", http.StatusBadRequest)
 		}
@@ -203,7 +189,7 @@ func TestIAMNoRoles(t *testing.T) {
 }
 
 func TestIAM(t *testing.T) {
-	server := initTestServer("2014-12-16T01:51:37Z", false)
+	server := initIMDSv2Server("2014-12-16T01:51:37Z", false)
 	defer server.Close()
 
 	p := &IAM{
@@ -234,7 +220,7 @@ func TestIAM(t *testing.T) {
 }
 
 func TestIAMFailAssume(t *testing.T) {
-	server := initTestServer("2014-12-16T01:51:37Z", true)
+	server := initIMDSv2Server("2014-12-16T01:51:37Z", true)
 	defer server.Close()
 
 	p := &IAM{
@@ -252,7 +238,7 @@ func TestIAMFailAssume(t *testing.T) {
 }
 
 func TestIAMIsExpired(t *testing.T) {
-	server := initTestServer("2014-12-16T01:51:37Z", false)
+	server := initIMDSv2Server("2014-12-16T01:51:37Z", false)
 	defer server.Close()
 
 	p := &IAM{
@@ -429,7 +415,7 @@ func TestStsCn(t *testing.T) {
 }
 
 func TestIMDSv1Blocked(t *testing.T) {
-	server := initIMDSv2Server("2014-12-16T01:51:37Z")
+	server := initIMDSv2Server("2014-12-16T01:51:37Z", false)
 	p := &IAM{
 		Client:   http.DefaultClient,
 		Endpoint: server.URL,
