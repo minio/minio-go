@@ -23,6 +23,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"net/http"
 	"sort"
@@ -299,11 +300,17 @@ func (c *Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketNam
 	if err != nil {
 		return UploadInfo{}, err
 	}
+
+	if !opts.SendContentMd5 {
+		opts.UserMetadata = map[string]string{"X-Amz-Checksum-Algorithm": "CRC32C"}
+	}
+
 	// Initiate a new multipart upload.
 	uploadID, err := c.newUploadID(ctx, bucketName, objectName, opts)
 	if err != nil {
 		return UploadInfo{}, err
 	}
+	opts.UserMetadata = nil
 
 	defer func() {
 		if err != nil {
@@ -319,6 +326,12 @@ func (c *Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketNam
 
 	// Create a buffer.
 	buf := make([]byte, partSize)
+
+	// Create checksums
+	// CRC32C is ~50% faster on AMD64 @ 30GB/s
+	var crcBytes []byte
+	customHeader := make(http.Header)
+	crc := crc32.New(crc32.MakeTable(crc32.Castagnoli))
 
 	for partNumber <= totalPartsCount {
 		length, rerr := readFull(reader, buf)
@@ -337,6 +350,12 @@ func (c *Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketNam
 			hash.Write(buf[:length])
 			md5Base64 = base64.StdEncoding.EncodeToString(hash.Sum(nil))
 			hash.Close()
+		} else {
+			crc.Reset()
+			crc.Write(buf[:length])
+			cSum := crc.Sum(nil)
+			customHeader.Set("x-amz-checksum-crc32c", base64.StdEncoding.EncodeToString(cSum))
+			crcBytes = append(crcBytes, cSum...)
 		}
 
 		// Update progress reader appropriately to the latest offset
@@ -344,11 +363,7 @@ func (c *Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketNam
 		rd := newHook(bytes.NewReader(buf[:length]), opts.Progress)
 
 		// Proceed to upload the part.
-		objPart, uerr := c.uploadPart(ctx, bucketName, objectName, uploadID, rd, partNumber,
-			md5Base64, "", int64(length),
-			opts.ServerSideEncryption,
-			!opts.DisableContentSha256,
-		)
+		objPart, uerr := c.uploadPart(ctx, bucketName, objectName, uploadID, rd, partNumber, md5Base64, "", int64(length), opts.ServerSideEncryption, !opts.DisableContentSha256, customHeader)
 		if uerr != nil {
 			return UploadInfo{}, uerr
 		}
@@ -377,15 +392,26 @@ func (c *Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketNam
 			return UploadInfo{}, errInvalidArgument(fmt.Sprintf("Missing part number %d", i))
 		}
 		complMultipartUpload.Parts = append(complMultipartUpload.Parts, CompletePart{
-			ETag:       part.ETag,
-			PartNumber: part.PartNumber,
+			ETag:           part.ETag,
+			PartNumber:     part.PartNumber,
+			ChecksumCRC32:  part.ChecksumCRC32,
+			ChecksumCRC32C: part.ChecksumCRC32C,
+			ChecksumSHA1:   part.ChecksumSHA1,
+			ChecksumSHA256: part.ChecksumSHA256,
 		})
 	}
 
 	// Sort all completed parts.
 	sort.Sort(completedParts(complMultipartUpload.Parts))
 
-	uploadInfo, err := c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload, PutObjectOptions{})
+	opts = PutObjectOptions{}
+	if len(crcBytes) > 0 {
+		// Add hash of hashes.
+		crc.Reset()
+		crc.Write(crcBytes)
+		opts.UserMetadata = map[string]string{"X-Amz-Checksum-Crc32c": base64.StdEncoding.EncodeToString(crc.Sum(nil))}
+	}
+	uploadInfo, err := c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload, opts)
 	if err != nil {
 		return UploadInfo{}, err
 	}
