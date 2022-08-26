@@ -137,9 +137,13 @@ func initEcsTaskTestServer(expireOn string) *httptest.Server {
 
 func initStsTestServer(expireOn string) *httptest.Server {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		required := []string{"RoleArn", "RoleSessionName", "WebIdentityToken", "Version"}
 		for _, field := range required {
-			if _, ok := r.URL.Query()[field]; !ok {
+			if _, ok := r.Form[field]; !ok {
 				http.Error(w, fmt.Sprintf("%s missing", field), http.StatusBadRequest)
 				return
 			}
