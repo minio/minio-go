@@ -595,12 +595,11 @@ func (c *Client) executeMethod(ctx context.Context, method string, metadata requ
 		// Initiate the request.
 		res, err = c.do(req)
 		if err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				return nil, err
+			if isRequestErrorRetryable(err) {
+				// Retry the request
+				continue
 			}
-
-			// Retry the request
-			continue
+			return nil, err
 		}
 
 		// For any known successful http status, return quickly.
