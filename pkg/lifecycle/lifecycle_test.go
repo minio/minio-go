@@ -18,6 +18,7 @@
 package lifecycle
 
 import (
+	"bytes"
 	"encoding/json"
 	"encoding/xml"
 	"testing"
@@ -201,6 +202,13 @@ func TestLifecycleJSONRoundtrip(t *testing.T) {
 				ID:     "rule-5",
 				Status: "Enabled",
 			},
+			{
+				Expiration: Expiration{
+					DeleteMarker: true,
+				},
+				ID:     "rule-6",
+				Status: "Enabled",
+			},
 		},
 	}
 
@@ -221,6 +229,9 @@ func TestLifecycleJSONRoundtrip(t *testing.T) {
 
 		if !lc.Rules[i].Transition.equals(got.Rules[i].Transition) {
 			t.Fatalf("expected %#v got %#v", lc.Rules[i].Transition, got.Rules[i].Transition)
+		}
+		if lc.Rules[i].Expiration != got.Rules[i].Expiration {
+			t.Fatalf("expected %#v got %#v", lc.Rules[i].Expiration, got.Rules[i].Expiration)
 		}
 	}
 }
@@ -298,4 +309,27 @@ func (n NoncurrentVersionTransition) equals(m NoncurrentVersionTransition) bool 
 
 func (t Transition) equals(u Transition) bool {
 	return t.Days == u.Days && t.Date.Equal(u.Date.Time) && t.StorageClass == u.StorageClass
+}
+
+func TestExpiredObjectDeleteMarker(t *testing.T) {
+	expected := []byte(`{"Rules":[{"Expiration":{"ExpiredObjectDeleteMarker":true},"ID":"expired-object-delete-marker","Status":"Enabled"}]}`)
+	lc := Configuration{
+		Rules: []Rule{
+			{
+				Expiration: Expiration{
+					DeleteMarker: true,
+				},
+				ID:     "expired-object-delete-marker",
+				Status: "Enabled",
+			},
+		},
+	}
+
+	got, err := json.Marshal(lc)
+	if err != nil {
+		t.Fatalf("Failed to marshal due to %v", err)
+	}
+	if !bytes.Equal(expected, got) {
+		t.Fatalf("Expected %s but got %s", expected, got)
+	}
 }
