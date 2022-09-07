@@ -205,13 +205,12 @@ func (c *Client) putObjectMultipartNoStream(ctx context.Context, bucketName, obj
 		// Add hash of hashes.
 		crc.Reset()
 		crc.Write(crcBytes)
-		opts.UserMetadata["X-Amz-Checksum-Crc32c"] = base64.StdEncoding.EncodeToString(crc.Sum(nil))
+		opts.UserMetadata = map[string]string{"X-Amz-Checksum-Crc32c": base64.StdEncoding.EncodeToString(crc.Sum(nil))}
 	}
 	uploadInfo, err := c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload, opts)
 	if err != nil {
 		return UploadInfo{}, err
 	}
-	delete(opts.UserMetadata, "X-Amz-Checksum-Crc32c")
 
 	uploadInfo.Size = totalUploadedSize
 	return uploadInfo, nil
