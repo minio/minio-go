@@ -85,7 +85,10 @@ func (c *Client) putObjectMultipartNoStream(ctx context.Context, bucketName, obj
 	// HTTPS connection.
 	hashAlgos, hashSums := c.hashMaterials(opts.SendContentMd5, !opts.DisableContentSha256)
 	if len(hashSums) == 0 {
-		opts.UserMetadata = map[string]string{"X-Amz-Checksum-Algorithm": "CRC32C"}
+		if opts.UserMetadata == nil {
+			opts.UserMetadata = make(map[string]string, 1)
+		}
+		opts.UserMetadata["X-Amz-Checksum-Algorithm"] = "CRC32C"
 	}
 
 	// Initiate a new multipart upload.
@@ -93,6 +96,7 @@ func (c *Client) putObjectMultipartNoStream(ctx context.Context, bucketName, obj
 	if err != nil {
 		return UploadInfo{}, err
 	}
+	delete(opts.UserMetadata, "X-Amz-Checksum-Algorithm")
 
 	defer func() {
 		if err != nil {
@@ -201,12 +205,13 @@ func (c *Client) putObjectMultipartNoStream(ctx context.Context, bucketName, obj
 		// Add hash of hashes.
 		crc.Reset()
 		crc.Write(crcBytes)
-		opts.UserMetadata = map[string]string{"X-Amz-Checksum-Crc32c": base64.StdEncoding.EncodeToString(crc.Sum(nil))}
+		opts.UserMetadata["X-Amz-Checksum-Crc32c"] = base64.StdEncoding.EncodeToString(crc.Sum(nil))
 	}
 	uploadInfo, err := c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload, opts)
 	if err != nil {
 		return UploadInfo{}, err
 	}
+	delete(opts.UserMetadata, "X-Amz-Checksum-Crc32c")
 
 	uploadInfo.Size = totalUploadedSize
 	return uploadInfo, nil

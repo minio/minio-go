@@ -216,18 +216,18 @@ func (a completedParts) Less(i, j int) bool { return a[i].PartNumber < a[j].Part
 //
 // You must have WRITE permissions on a bucket to create an object.
 //
-//  - For size smaller than 16MiB PutObject automatically does a
-//    single atomic PUT operation.
+//   - For size smaller than 16MiB PutObject automatically does a
+//     single atomic PUT operation.
 //
-//  - For size larger than 16MiB PutObject automatically does a
-//    multipart upload operation.
+//   - For size larger than 16MiB PutObject automatically does a
+//     multipart upload operation.
 //
-//  - For size input as -1 PutObject does a multipart Put operation
-//    until input stream reaches EOF. Maximum object size that can
-//    be uploaded through this operation will be 5TiB.
+//   - For size input as -1 PutObject does a multipart Put operation
+//     until input stream reaches EOF. Maximum object size that can
+//     be uploaded through this operation will be 5TiB.
 //
-//    WARNING: Passing down '-1' will use memory and these cannot
-//    be reused for best outcomes for PutObject(), pass the size always.
+//     WARNING: Passing down '-1' will use memory and these cannot
+//     be reused for best outcomes for PutObject(), pass the size always.
 //
 // NOTE: Upon errors during upload multipart operation is entirely aborted.
 func (c *Client) PutObject(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64,
@@ -302,7 +302,10 @@ func (c *Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketNam
 	}
 
 	if !opts.SendContentMd5 {
-		opts.UserMetadata = map[string]string{"X-Amz-Checksum-Algorithm": "CRC32C"}
+		if opts.UserMetadata == nil {
+			opts.UserMetadata = make(map[string]string, 1)
+		}
+		opts.UserMetadata["X-Amz-Checksum-Algorithm"] = "CRC32C"
 	}
 
 	// Initiate a new multipart upload.
@@ -310,7 +313,7 @@ func (c *Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketNam
 	if err != nil {
 		return UploadInfo{}, err
 	}
-	opts.UserMetadata = nil
+	delete(opts.UserMetadata, "X-Amz-Checksum-Algorithm")
 
 	defer func() {
 		if err != nil {
@@ -409,12 +412,13 @@ func (c *Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketNam
 		// Add hash of hashes.
 		crc.Reset()
 		crc.Write(crcBytes)
-		opts.UserMetadata = map[string]string{"X-Amz-Checksum-Crc32c": base64.StdEncoding.EncodeToString(crc.Sum(nil))}
+		opts.UserMetadata["X-Amz-Checksum-Crc32c"] = base64.StdEncoding.EncodeToString(crc.Sum(nil))
 	}
 	uploadInfo, err := c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload, opts)
 	if err != nil {
 		return UploadInfo{}, err
 	}
+	delete(opts.UserMetadata, "X-Amz-Checksum-Crc32c")
 
 	uploadInfo.Size = totalUploadedSize
 	return uploadInfo, nil

@@ -39,9 +39,8 @@ import (
 //
 // Following code handles these types of readers.
 //
-//  - *minio.Object
-//  - Any reader which has a method 'ReadAt()'
-//
+//   - *minio.Object
+//   - Any reader which has a method 'ReadAt()'
 func (c *Client) putObjectMultipartStream(ctx context.Context, bucketName, objectName string,
 	reader io.Reader, size int64, opts PutObjectOptions,
 ) (info UploadInfo, err error) {
@@ -257,7 +256,10 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 	}
 
 	if !opts.SendContentMd5 {
-		opts.UserMetadata = map[string]string{"X-Amz-Checksum-Algorithm": "CRC32C"}
+		if opts.UserMetadata == nil {
+			opts.UserMetadata = make(map[string]string, 1)
+		}
+		opts.UserMetadata["X-Amz-Checksum-Algorithm"] = "CRC32C"
 	}
 
 	// Calculate the optimal parts info for a given size.
@@ -270,7 +272,7 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 	if err != nil {
 		return UploadInfo{}, err
 	}
-	opts.UserMetadata = nil
+	delete(opts.UserMetadata, "X-Amz-Checksum-Algorithm")
 
 	// Aborts the multipart upload if the function returns
 	// any error, since we do not resume we should purge
@@ -385,12 +387,13 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 		// Add hash of hashes.
 		crc.Reset()
 		crc.Write(crcBytes)
-		opts.UserMetadata = map[string]string{"X-Amz-Checksum-Crc32c": base64.StdEncoding.EncodeToString(crc.Sum(nil))}
+		opts.UserMetadata["X-Amz-Checksum-Crc32c"] = base64.StdEncoding.EncodeToString(crc.Sum(nil))
 	}
 	uploadInfo, err := c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload, opts)
 	if err != nil {
 		return UploadInfo{}, err
 	}
+	delete(opts.UserMetadata, "X-Amz-Checksum-Crc32c")
 
 	uploadInfo.Size = totalUploadedSize
 	return uploadInfo, nil
