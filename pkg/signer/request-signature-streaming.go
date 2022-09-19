@@ -32,13 +32,15 @@ import (
 // Reference for constants used below -
 // http://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-streaming.html#example-signature-calculations-streaming
 const (
-	streamingSignAlgorithm = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD"
-	streamingPayloadHdr    = "AWS4-HMAC-SHA256-PAYLOAD"
-	emptySHA256            = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-	payloadChunkSize       = 64 * 1024
-	chunkSigConstLen       = 17 // ";chunk-signature="
-	signatureStrLen        = 64 // e.g. "f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2"
-	crlfLen                = 2  // CRLF
+	streamingSignAlgorithm        = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD"
+	streamingSignTrailerAlgorithm = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD-TRAILER"
+	streamingPayloadHdr           = "AWS4-HMAC-SHA256-PAYLOAD"
+	streamingTrailerHdr           = "AWS4-HMAC-SHA256-TRAILER"
+	emptySHA256                   = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+	payloadChunkSize              = 64 * 1024
+	chunkSigConstLen              = 17 // ";chunk-signature="
+	signatureStrLen               = 64 // e.g. "f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2"
+	crlfLen                       = 2  // CRLF
 )
 
 // Request headers to be ignored while calculating seed signature for
@@ -91,11 +93,33 @@ func buildChunkStringToSign(t time.Time, region, previousSig string, chunkData [
 	return strings.Join(stringToSignParts, "\n")
 }
 
+// buildTrailerChunkStringToSign - returns the string to sign given chunk data
+// and previous signature.
+func buildTrailerChunkStringToSign(t time.Time, region, previousSig string, chunkData []byte) string {
+	stringToSignParts := []string{
+		streamingTrailerHdr,
+		t.Format(iso8601DateFormat),
+		getScope(region, t, ServiceTypeS3),
+		previousSig,
+		hex.EncodeToString(sum256(chunkData)),
+	}
+
+	return strings.Join(stringToSignParts, "\n")
+}
+
 // prepareStreamingRequest - prepares a request with appropriate
 // headers before computing the seed signature.
 func prepareStreamingRequest(req *http.Request, sessionToken string, dataLen int64, timestamp time.Time) {
 	// Set x-amz-content-sha256 header.
-	req.Header.Set("X-Amz-Content-Sha256", streamingSignAlgorithm)
+	if len(req.Trailer) == 0 {
+		req.Header.Set("X-Amz-Content-Sha256", streamingSignAlgorithm)
+	} else {
+		req.Header.Set("X-Amz-Content-Sha256", streamingSignTrailerAlgorithm)
+		for k := range req.Trailer {
+			req.Header.Add("X-Amz-Trailer", k)
+		}
+	}
+
 	if sessionToken != "" {
 		req.Header.Set("X-Amz-Security-Token", sessionToken)
 	}
@@ -118,6 +142,17 @@ func buildChunkSignature(chunkData []byte, reqTime time.Time, region,
 ) string {
 	chunkStringToSign := buildChunkStringToSign(reqTime, region,
 		previousSignature, chunkData)
+	signingKey := getSigningKey(secretAccessKey, region, reqTime, ServiceTypeS3)
+	return getSignature(signingKey, chunkStringToSign)
+}
+
+// buildChunkSignature - returns chunk signature for a given chunk and previous signature.
+func buildTrailerChunkSignature(chunkData []byte, reqTime time.Time, region,
+	previousSignature, secretAccessKey string,
+) string {
+	chunkStringToSign := buildTrailerChunkStringToSign(reqTime, region,
+		previousSignature, chunkData)
+	fmt.Println("chunkStringToSign:", chunkStringToSign)
 	signingKey := getSigningKey(secretAccessKey, region, reqTime, ServiceTypeS3)
 	return getSignature(signingKey, chunkStringToSign)
 }
@@ -156,6 +191,7 @@ type StreamingReader struct {
 	chunkNum        int
 	totalChunks     int
 	lastChunkSize   int
+	trailer         *http.Header
 }
 
 // signChunk - signs a chunk read from s.baseReader of chunkLen size.
@@ -178,6 +214,33 @@ func (s *StreamingReader) signChunk(chunkLen int) {
 	s.buf.Write([]byte("\r\n"))
 
 	// Reset chunkBufLen for next chunk read.
+	s.chunkBufLen = 0
+	s.chunkNum++
+}
+
+// addSignedTrailer - adds a trailer with the provided headers,
+// then signs a chunk and adds it to output.
+func (s *StreamingReader) addSignedTrailer(h http.Header) {
+	olen := len(s.chunkBuf)
+	s.chunkBuf = s.chunkBuf[:0]
+	for k, v := range h {
+		if len(v) > 0 {
+			s.chunkBuf = append(s.chunkBuf, []byte(k+":"+v[0]+"\n")...)
+		}
+	}
+
+	// Compute chunk signature
+	signature := buildTrailerChunkSignature(s.chunkBuf, s.reqTime,
+		s.region, s.prevSignature, s.secretAccessKey)
+
+	// For next chunk signature computation
+	s.prevSignature = signature
+
+	s.buf.Write(s.chunkBuf)
+	fmt.Fprintf(&s.buf, "x-amz-trailer-signature:%s\r\n", signature)
+
+	// Reset chunkBufLen for next chunk read.
+	s.chunkBuf = s.chunkBuf[:olen]
 	s.chunkBufLen = 0
 	s.chunkNum++
 }
@@ -221,6 +284,11 @@ func StreamingSignV4(req *http.Request, accessKeyID, secretAccessKey, sessionTok
 		chunkNum:        1,
 		totalChunks:     int((dataLen+payloadChunkSize-1)/payloadChunkSize) + 1,
 		lastChunkSize:   int(dataLen % payloadChunkSize),
+	}
+	if len(req.Trailer) > 0 {
+		stReader.trailer = &req.Trailer
+		// Remove from request.
+		req.Trailer = nil
 	}
 
 	// Add the request headers required for chunk upload signing.
@@ -290,6 +358,12 @@ func (s *StreamingReader) Read(buf []byte) (int, error) {
 
 					// Sign the chunk and write it to s.buf.
 					s.signChunk(0)
+					if s.trailer != nil {
+						// Trailer must be set now.
+						s.addSignedTrailer(*s.trailer)
+						// Remove...
+						*s.trailer = http.Header{}
+					}
 					break
 				}
 				return 0, err

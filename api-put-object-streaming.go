@@ -184,7 +184,8 @@ func (c *Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketN
 				sectionReader := newHook(io.NewSectionReader(reader, readOffset, partSize), opts.Progress)
 
 				// Proceed to upload the part.
-				objPart, err := c.uploadPart(ctx, bucketName, objectName, uploadID, sectionReader, uploadReq.PartNum, "", "", partSize, opts.ServerSideEncryption, !opts.DisableContentSha256, nil)
+				p := uploadPartParams{bucketName: bucketName, objectName: objectName, uploadID: uploadID, reader: sectionReader, partNumber: uploadReq.PartNum, size: partSize, sse: opts.ServerSideEncryption, streamSha256: !opts.DisableContentSha256}
+				objPart, err := c.uploadPart(ctx, p)
 				if err != nil {
 					uploadedPartsCh <- uploadedPartRes{
 						Error: err,
@@ -339,8 +340,8 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 		// Update progress reader appropriately to the latest offset
 		// as we read from the source.
 		hooked := newHook(bytes.NewReader(buf[:length]), opts.Progress)
-
-		objPart, uerr := c.uploadPart(ctx, bucketName, objectName, uploadID, hooked, partNumber, md5Base64, "", partSize, opts.ServerSideEncryption, !opts.DisableContentSha256, customHeader)
+		p := uploadPartParams{bucketName: bucketName, objectName: objectName, uploadID: uploadID, reader: hooked, partNumber: partNumber, md5Base64: md5Base64, size: partSize, sse: opts.ServerSideEncryption, streamSha256: !opts.DisableContentSha256, customHeader: customHeader}
+		objPart, uerr := c.uploadPart(ctx, p)
 		if uerr != nil {
 			return UploadInfo{}, uerr
 		}

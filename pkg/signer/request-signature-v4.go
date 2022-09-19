@@ -42,7 +42,6 @@ const (
 	ServiceTypeSTS = "sts"
 )
 
-//
 // Excerpts from @lsegal -
 // https:/github.com/aws/aws-sdk-js/issues/659#issuecomment-120477258.
 //
@@ -57,7 +56,6 @@ const (
 // * Accept-Encoding
 // Some S3 servers like Hitachi Content Platform do not honor this header for signature
 // calculation.
-//
 var v4IgnoredHeaders = map[string]bool{
 	"Accept-Encoding": true,
 	"Authorization":   true,
@@ -177,12 +175,13 @@ func getSignedHeaders(req http.Request, ignoredHeaders map[string]bool) string {
 // getCanonicalRequest generate a canonical request of style.
 //
 // canonicalRequest =
-//  <HTTPMethod>\n
-//  <CanonicalURI>\n
-//  <CanonicalQueryString>\n
-//  <CanonicalHeaders>\n
-//  <SignedHeaders>\n
-//  <HashedPayload>
+//
+//	<HTTPMethod>\n
+//	<CanonicalURI>\n
+//	<CanonicalQueryString>\n
+//	<CanonicalHeaders>\n
+//	<SignedHeaders>\n
+//	<HashedPayload>
 func getCanonicalRequest(req http.Request, ignoredHeaders map[string]bool, hashedPayload string) string {
 	req.URL.RawQuery = strings.ReplaceAll(req.URL.Query().Encode(), "+", "%20")
 	canonicalRequest := strings.Join([]string{

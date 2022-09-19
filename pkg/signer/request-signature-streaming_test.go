@@ -63,6 +63,20 @@ func TestChunkSignature(t *testing.T) {
 	}
 }
 
+// Example on https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-streaming-trailers.html
+func TestTrailerChunkSignature(t *testing.T) {
+	chunkData := []byte("x-amz-checksum-crc32c:wdBDMA==\n")
+	reqTime, _ := time.Parse(iso8601DateFormat, "20130524T000000Z")
+	previousSignature := "e05ab64fe1dfdbf0b5870abbaabdb063c371d4e96f2767e6934d90529c5ae850"
+	location := "us-east-1"
+	secretAccessKeyID := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+	expectedSignature := "41e14ac611e27a8bb3d66c3bad6856f209297767d5dd4fc87d8fa9e422e03faf"
+	actualSignature := buildTrailerChunkSignature(chunkData, reqTime, location, previousSignature, secretAccessKeyID)
+	if actualSignature != expectedSignature {
+		t.Errorf("Expected %s but received %s", expectedSignature, actualSignature)
+	}
+}
+
 func TestSetStreamingAuthorization(t *testing.T) {
 	location := "us-east-1"
 	secretAccessKeyID := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
@@ -82,6 +96,33 @@ func TestSetStreamingAuthorization(t *testing.T) {
 	actualAuthorization := req.Header.Get("Authorization")
 	if actualAuthorization != expectedAuthorization {
 		t.Errorf("Expected %s but received %s", expectedAuthorization, actualAuthorization)
+	}
+}
+
+// Test against https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-streaming-trailers.html
+func TestSetStreamingAuthorizationTrailer(t *testing.T) {
+	location := "us-east-1"
+	secretAccessKeyID := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+	accessKeyID := "AKIAIOSFODNN7EXAMPLE"
+
+	req := NewRequest(http.MethodPut, "/examplebucket/chunkObject.txt", nil)
+	req.Header.Set("Content-Encoding", "aws-chunked")
+	req.Header.Set("x-amz-decoded-content-length", "66560")
+	req.Header.Set("x-amz-storage-class", "REDUCED_REDUNDANCY")
+	req.Host = ""
+	req.URL.Host = "s3.amazonaws.com"
+	req.Trailer = http.Header{"x-amz-checksum-crc32c": nil}
+
+	dataLen := int64(65 * 1024)
+	reqTime, _ := time.Parse(iso8601DateFormat, "20130524T000000Z")
+	req = StreamingSignV4(req, accessKeyID, secretAccessKeyID, "", location, dataLen, reqTime)
+
+	// (order of signed headers is different)
+	expectedAuthorization := "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request,SignedHeaders=content-encoding;host;x-amz-content-sha256;x-amz-date;x-amz-decoded-content-length;x-amz-storage-class;x-amz-trailer,Signature=106e2a8a18243abcf37539882f36619c00e2dfc72633413f02d3b74544bfeb8e"
+
+	actualAuthorization := req.Header.Get("Authorization")
+	if actualAuthorization != expectedAuthorization {
+		t.Errorf("Expected \n%s but received \n%s", expectedAuthorization, actualAuthorization)
 	}
 }
 
