@@ -419,6 +419,7 @@ func (c *Client) putObject(ctx context.Context, bucketName, objectName string, r
 		return UploadInfo{}, errInvalidArgument("MD5Sum cannot be calculated with size '-1'")
 	}
 
+	var readSeeker io.Seeker
 	if size > 0 {
 		if isReadAt(reader) && !isObject(reader) {
 			seeker, ok := reader.(io.Seeker)
@@ -428,35 +429,49 @@ func (c *Client) putObject(ctx context.Context, bucketName, objectName string, r
 					return UploadInfo{}, errInvalidArgument(err.Error())
 				}
 				reader = io.NewSectionReader(reader.(io.ReaderAt), offset, size)
+				readSeeker = reader.(io.Seeker)
 			}
 		}
 	}
 
 	var md5Base64 string
 	if opts.SendContentMd5 {
-		// Create a buffer.
-		buf := make([]byte, size)
-
-		length, rErr := readFull(reader, buf)
-		if rErr != nil && rErr != io.ErrUnexpectedEOF && rErr != io.EOF {
-			return UploadInfo{}, rErr
-		}
-
 		// Calculate md5sum.
 		hash := c.md5Hasher()
-		hash.Write(buf[:length])
+
+		if readSeeker != nil {
+			if _, err := io.Copy(hash, reader); err != nil {
+				return UploadInfo{}, err
+			}
+			// Seek back to beginning of io.NewSectionReader's offset.
+			_, err = readSeeker.Seek(0, io.SeekStart)
+			if err != nil {
+				return UploadInfo{}, errInvalidArgument(err.Error())
+			}
+		} else {
+			// Create a buffer.
+			buf := make([]byte, size)
+
+			length, err := readFull(reader, buf)
+			if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
+				return UploadInfo{}, err
+			}
+
+			hash.Write(buf[:length])
+			reader = bytes.NewReader(buf[:length])
+		}
+
 		md5Base64 = base64.StdEncoding.EncodeToString(hash.Sum(nil))
-		reader = bytes.NewReader(buf[:length])
 		hash.Close()
 	}
 
 	// Update progress reader appropriately to the latest offset as we
 	// read from the source.
-	readSeeker := newHook(reader, opts.Progress)
+	progressReader := newHook(reader, opts.Progress)
 
 	// This function does not calculate sha256 and md5sum for payload.
 	// Execute put object.
-	return c.putObjectDo(ctx, bucketName, objectName, readSeeker, md5Base64, "", size, opts)
+	return c.putObjectDo(ctx, bucketName, objectName, progressReader, md5Base64, "", size, opts)
 }
 
 // putObjectDo - executes the put object http operation.
