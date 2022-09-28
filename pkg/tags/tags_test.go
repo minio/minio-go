@@ -32,6 +32,14 @@ func TestParseTags(t *testing.T) {
 			false,
 		},
 		{
+			"store+forever=false&factory=true",
+			false,
+		},
+		{
+			" store forever =false&factory=true",
+			false,
+		},
+		{
 			fmt.Sprintf("%0128d=%0256d", 1, 1),
 			false,
 		},
