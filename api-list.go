@@ -70,21 +70,28 @@ func (c *Client) listObjectsV2(ctx context.Context, bucketName string, opts List
 	// Return object owner information by default
 	fetchOwner := true
 
+	sendObjectInfo := func(info ObjectInfo) {
+		select {
+		case objectStatCh <- info:
+		case <-ctx.Done():
+		}
+	}
+
 	// Validate bucket name.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		defer close(objectStatCh)
-		objectStatCh <- ObjectInfo{
+		sendObjectInfo(ObjectInfo{
 			Err: err,
-		}
+		})
 		return objectStatCh
 	}
 
 	// Validate incoming object prefix.
 	if err := s3utils.CheckValidObjectNamePrefix(opts.Prefix); err != nil {
 		defer close(objectStatCh)
-		objectStatCh <- ObjectInfo{
+		sendObjectInfo(ObjectInfo{
 			Err: err,
-		}
+		})
 		return objectStatCh
 	}
 
@@ -98,9 +105,9 @@ func (c *Client) listObjectsV2(ctx context.Context, bucketName string, opts List
 			result, err := c.listObjectsV2Query(ctx, bucketName, opts.Prefix, continuationToken,
 				fetchOwner, opts.WithMetadata, delimiter, opts.StartAfter, opts.MaxKeys, opts.headers)
 			if err != nil {
-				objectStatCh <- ObjectInfo{
+				sendObjectInfo(ObjectInfo{
 					Err: err,
-				}
+				})
 				return
 			}
 
@@ -135,6 +142,14 @@ func (c *Client) listObjectsV2(ctx context.Context, bucketName string, opts List
 
 			// Listing ends result is not truncated, return right here.
 			if !result.IsTruncated {
+				return
+			}
+
+			// Add this to catch broken S3 API implementations.
+			if continuationToken == "" {
+				sendObjectInfo(ObjectInfo{
+					Err: fmt.Errorf("listObjectsV2 is truncated without continuationToken, %s S3 server is incompatible with S3 API", c.endpointURL),
+				})
 				return
 			}
 		}
@@ -262,20 +277,28 @@ func (c *Client) listObjects(ctx context.Context, bucketName string, opts ListOb
 		// If recursive we do not delimit.
 		delimiter = ""
 	}
+
+	sendObjectInfo := func(info ObjectInfo) {
+		select {
+		case objectStatCh <- info:
+		case <-ctx.Done():
+		}
+	}
+
 	// Validate bucket name.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		defer close(objectStatCh)
-		objectStatCh <- ObjectInfo{
+		sendObjectInfo(ObjectInfo{
 			Err: err,
-		}
+		})
 		return objectStatCh
 	}
 	// Validate incoming object prefix.
 	if err := s3utils.CheckValidObjectNamePrefix(opts.Prefix); err != nil {
 		defer close(objectStatCh)
-		objectStatCh <- ObjectInfo{
+		sendObjectInfo(ObjectInfo{
 			Err: err,
-		}
+		})
 		return objectStatCh
 	}
 
@@ -288,9 +311,9 @@ func (c *Client) listObjects(ctx context.Context, bucketName string, opts ListOb
 			// Get list of objects a maximum of 1000 per request.
 			result, err := c.listObjectsQuery(ctx, bucketName, opts.Prefix, marker, delimiter, opts.MaxKeys, opts.headers)
 			if err != nil {
-				objectStatCh <- ObjectInfo{
+				sendObjectInfo(ObjectInfo{
 					Err: err,
-				}
+				})
 				return
 			}
 
@@ -343,21 +366,28 @@ func (c *Client) listObjectVersions(ctx context.Context, bucketName string, opts
 		delimiter = ""
 	}
 
+	sendObjectInfo := func(info ObjectInfo) {
+		select {
+		case resultCh <- info:
+		case <-ctx.Done():
+		}
+	}
+
 	// Validate bucket name.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		defer close(resultCh)
-		resultCh <- ObjectInfo{
+		sendObjectInfo(ObjectInfo{
 			Err: err,
-		}
+		})
 		return resultCh
 	}
 
 	// Validate incoming object prefix.
 	if err := s3utils.CheckValidObjectNamePrefix(opts.Prefix); err != nil {
 		defer close(resultCh)
-		resultCh <- ObjectInfo{
+		sendObjectInfo(ObjectInfo{
 			Err: err,
-		}
+		})
 		return resultCh
 	}
 
@@ -374,9 +404,9 @@ func (c *Client) listObjectVersions(ctx context.Context, bucketName string, opts
 			// Get list of objects a maximum of 1000 per request.
 			result, err := c.listObjectVersionsQuery(ctx, bucketName, opts.Prefix, keyMarker, versionIDMarker, delimiter, opts.MaxKeys, opts.headers)
 			if err != nil {
-				resultCh <- ObjectInfo{
+				sendObjectInfo(ObjectInfo{
 					Err: err,
-				}
+				})
 				return
 			}
 
