@@ -95,6 +95,8 @@ type Client struct {
 	sha256Hasher func() md5simd.Hasher
 
 	healthStatus int32
+
+	trailingHeaderSupport bool
 }
 
 // Options for New method
@@ -104,6 +106,9 @@ type Options struct {
 	Transport    http.RoundTripper
 	Region       string
 	BucketLookup BucketLookupType
+
+	// TrailingHeaders indicates server support of trailing headers.
+	TrailingHeaders bool
 
 	// Custom hash routines. Leave nil to use standard.
 	CustomMD5    func() md5simd.Hasher
@@ -248,6 +253,9 @@ func privateNew(endpoint string, opts *Options) (*Client, error) {
 	if clnt.sha256Hasher == nil {
 		clnt.sha256Hasher = newSHA256Hasher
 	}
+
+	clnt.trailingHeaderSupport = opts.TrailingHeaders
+
 	// Sets bucket lookup style, whether server accepts DNS or Path lookup. Default is Auto - determined
 	// by the SDK. When Auto is specified, DNS lookup is used for Amazon/Google cloud endpoints and Path for all other endpoints.
 	clnt.lookup = opts.BucketLookup
@@ -594,7 +602,7 @@ func (c *Client) executeMethod(ctx context.Context, method string, metadata requ
 				// Update trailer when done.
 				metadata.trailer.Set("x-amz-checksum-crc32c", base64.StdEncoding.EncodeToString(hash))
 			})
-			metadata.trailer.Set("x-amz-checksum-crc32c", "")
+			metadata.trailer.Set("x-amz-checksum-crc32c", base64.StdEncoding.EncodeToString(crc.Sum(nil)))
 		}
 		// Instantiate a new request.
 		var req *http.Request
@@ -607,6 +615,7 @@ func (c *Client) executeMethod(ctx context.Context, method string, metadata requ
 
 			return nil, err
 		}
+
 		// Initiate the request.
 		res, err = c.do(req)
 		if err != nil {
@@ -840,24 +849,19 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 	default:
 		// Set sha256 sum for signature calculation only with signature version '4'.
 		shaHeader := unsignedPayload
-		if len(metadata.trailer) > 0 && metadata.contentSHA256Hex == "" {
-			// Set as Go trailer.
-			// This requires transfer to be chunked.
-			req.Trailer = metadata.trailer
-			req.TransferEncoding = []string{"chunked"}
-			// Add trailer keys to amz header.
-			for k := range metadata.trailer {
-				req.Header.Add("X-Amz-Trailer", k)
-			}
-			shaHeader = unsignedPayloadTrailer
-		}
 		if metadata.contentSHA256Hex != "" {
 			shaHeader = metadata.contentSHA256Hex
+			if len(metadata.trailer) > 0 {
+				// Sanity check, we should not end up here if upstream is sane.
+				return nil, errors.New("internal error: contentSHA256Hex with trailer not supported")
+			}
+		} else if len(metadata.trailer) > 0 {
+			shaHeader = unsignedPayloadTrailer
 		}
 		req.Header.Set("X-Amz-Content-Sha256", shaHeader)
 
 		// Add signature version '4' authorization header.
-		req = signer.SignV4(*req, accessKeyID, secretAccessKey, sessionToken, location)
+		req = signer.SignV4Trailer(*req, accessKeyID, secretAccessKey, sessionToken, location, metadata.trailer)
 	}
 
 	// Return request.

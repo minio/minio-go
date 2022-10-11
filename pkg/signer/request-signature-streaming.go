@@ -41,6 +41,8 @@ const (
 	chunkSigConstLen              = 17 // ";chunk-signature="
 	signatureStrLen               = 64 // e.g. "f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2"
 	crlfLen                       = 2  // CRLF
+	trailerKVSeparator            = ":"
+	trailerSignature              = "x-amz-trailer-signature"
 )
 
 // Request headers to be ignored while calculating seed signature for
@@ -62,7 +64,7 @@ func getSignedChunkLength(chunkDataSize int64) int64 {
 }
 
 // getStreamLength - calculates the length of the overall stream (data + metadata)
-func getStreamLength(dataLen, chunkSize int64) int64 {
+func getStreamLength(dataLen, chunkSize int64, trailers http.Header) int64 {
 	if dataLen <= 0 {
 		return 0
 	}
@@ -75,6 +77,15 @@ func getStreamLength(dataLen, chunkSize int64) int64 {
 		streamLen += getSignedChunkLength(remainingBytes)
 	}
 	streamLen += getSignedChunkLength(0)
+	if len(trailers) > 0 {
+		for name, placeholder := range trailers {
+			if len(placeholder) > 0 {
+				streamLen += int64(len(name) + len(trailerKVSeparator) + len(placeholder[0]) + 1)
+			}
+		}
+		streamLen += int64(len(trailerSignature)+len(trailerKVSeparator)) + signatureStrLen + crlfLen + crlfLen
+	}
+
 	return streamLen
 }
 
@@ -116,8 +127,9 @@ func prepareStreamingRequest(req *http.Request, sessionToken string, dataLen int
 	} else {
 		req.Header.Set("X-Amz-Content-Sha256", streamingSignTrailerAlgorithm)
 		for k := range req.Trailer {
-			req.Header.Add("X-Amz-Trailer", k)
+			req.Header.Add("X-Amz-Trailer", strings.ToLower(k))
 		}
+		req.TransferEncoding = []string{"aws-chunked"}
 	}
 
 	if sessionToken != "" {
@@ -126,7 +138,7 @@ func prepareStreamingRequest(req *http.Request, sessionToken string, dataLen int
 
 	req.Header.Set("X-Amz-Date", timestamp.Format(iso8601DateFormat))
 	// Set content length with streaming signature for each chunk included.
-	req.ContentLength = getStreamLength(dataLen, int64(payloadChunkSize))
+	req.ContentLength = getStreamLength(dataLen, int64(payloadChunkSize), req.Trailer)
 	req.Header.Set("x-amz-decoded-content-length", strconv.FormatInt(dataLen, 10))
 }
 
@@ -152,7 +164,6 @@ func buildTrailerChunkSignature(chunkData []byte, reqTime time.Time, region,
 ) string {
 	chunkStringToSign := buildTrailerChunkStringToSign(reqTime, region,
 		previousSignature, chunkData)
-	fmt.Println("chunkStringToSign:", chunkStringToSign)
 	signingKey := getSigningKey(secretAccessKey, region, reqTime, ServiceTypeS3)
 	return getSignature(signingKey, chunkStringToSign)
 }
@@ -191,11 +202,11 @@ type StreamingReader struct {
 	chunkNum        int
 	totalChunks     int
 	lastChunkSize   int
-	trailer         *http.Header
+	trailer         http.Header
 }
 
 // signChunk - signs a chunk read from s.baseReader of chunkLen size.
-func (s *StreamingReader) signChunk(chunkLen int) {
+func (s *StreamingReader) signChunk(chunkLen int, addCrLf bool) {
 	// Compute chunk signature for next header
 	signature := buildChunkSignature(s.chunkBuf[:chunkLen], s.reqTime,
 		s.region, s.prevSignature, s.secretAccessKey)
@@ -211,7 +222,9 @@ func (s *StreamingReader) signChunk(chunkLen int) {
 	s.buf.Write(s.chunkBuf[:chunkLen])
 
 	// Write the chunk trailer.
-	s.buf.Write([]byte("\r\n"))
+	if addCrLf {
+		s.buf.Write([]byte("\r\n"))
+	}
 
 	// Reset chunkBufLen for next chunk read.
 	s.chunkBufLen = 0
@@ -224,9 +237,7 @@ func (s *StreamingReader) addSignedTrailer(h http.Header) {
 	olen := len(s.chunkBuf)
 	s.chunkBuf = s.chunkBuf[:0]
 	for k, v := range h {
-		if len(v) > 0 {
-			s.chunkBuf = append(s.chunkBuf, []byte(k+":"+v[0]+"\n")...)
-		}
+		s.chunkBuf = append(s.chunkBuf, []byte(strings.ToLower(k)+trailerKVSeparator+v[0]+"\n")...)
 	}
 
 	// Compute chunk signature
@@ -237,7 +248,7 @@ func (s *StreamingReader) addSignedTrailer(h http.Header) {
 	s.prevSignature = signature
 
 	s.buf.Write(s.chunkBuf)
-	fmt.Fprintf(&s.buf, "x-amz-trailer-signature:%s\r\n", signature)
+	s.buf.WriteString("\r\n" + trailerSignature + trailerKVSeparator + signature + "\r\n\r\n")
 
 	// Reset chunkBufLen for next chunk read.
 	s.chunkBuf = s.chunkBuf[:olen]
@@ -286,8 +297,8 @@ func StreamingSignV4(req *http.Request, accessKeyID, secretAccessKey, sessionTok
 		lastChunkSize:   int(dataLen % payloadChunkSize),
 	}
 	if len(req.Trailer) > 0 {
-		stReader.trailer = &req.Trailer
-		// Remove from request.
+		stReader.trailer = req.Trailer
+		// Remove...
 		req.Trailer = nil
 	}
 
@@ -340,7 +351,7 @@ func (s *StreamingReader) Read(buf []byte) (int, error) {
 					(s.chunkNum == s.totalChunks-1 &&
 						s.chunkBufLen == s.lastChunkSize) {
 					// Sign the chunk and write it to s.buf.
-					s.signChunk(s.chunkBufLen)
+					s.signChunk(s.chunkBufLen, true)
 					break
 				}
 			}
@@ -357,12 +368,10 @@ func (s *StreamingReader) Read(buf []byte) (int, error) {
 					}
 
 					// Sign the chunk and write it to s.buf.
-					s.signChunk(0)
-					if s.trailer != nil {
+					s.signChunk(0, len(s.trailer) == 0)
+					if len(s.trailer) > 0 {
 						// Trailer must be set now.
-						s.addSignedTrailer(*s.trailer)
-						// Remove...
-						*s.trailer = http.Header{}
+						s.addSignedTrailer(s.trailer)
 					}
 					break
 				}

@@ -19,6 +19,7 @@ package signer
 
 import (
 	"bytes"
+	"encoding/hex"
 	"io/ioutil"
 	"net/http"
 	"testing"
@@ -111,7 +112,8 @@ func TestSetStreamingAuthorizationTrailer(t *testing.T) {
 	req.Header.Set("x-amz-storage-class", "REDUCED_REDUNDANCY")
 	req.Host = ""
 	req.URL.Host = "s3.amazonaws.com"
-	req.Trailer = http.Header{"x-amz-checksum-crc32c": nil}
+	req.Trailer = http.Header{}
+	req.Trailer.Set("x-amz-checksum-crc32c", "wdBDMA==")
 
 	dataLen := int64(65 * 1024)
 	reqTime, _ := time.Parse(iso8601DateFormat, "20130524T000000Z")
@@ -124,6 +126,8 @@ func TestSetStreamingAuthorizationTrailer(t *testing.T) {
 	if actualAuthorization != expectedAuthorization {
 		t.Errorf("Expected \n%s but received \n%s", expectedAuthorization, actualAuthorization)
 	}
+	chunkData := []byte("x-amz-checksum-crc32c:wdBDMA==\n")
+	t.Log(hex.EncodeToString(sum256(chunkData)))
 }
 
 func TestStreamingReader(t *testing.T) {
