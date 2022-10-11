@@ -75,12 +75,6 @@ func prepareUSStreamingRequest(req *http.Request, sessionToken string, dataLen i
 	req.ContentLength = getUSStreamLength(dataLen, int64(payloadChunkSize), req.Trailer)
 }
 
-// buildChunkHeader - returns the chunk header.
-// e.g string(IntHexBase(chunk-size)) + ";chunk-signature=" + signature + \r\n + chunk-data + \r\n
-func buildUSChunkHeader(chunkLen int64) []byte {
-	return []byte(strconv.FormatInt(chunkLen, 16) + ";\r\n")
-}
-
 // StreamingUSReader implements chunked upload signature as a reader on
 // top of req.Body's ReaderCloser chunk header;data;... repeat
 type StreamingUSReader struct {
