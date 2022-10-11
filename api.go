@@ -108,6 +108,7 @@ type Options struct {
 	BucketLookup BucketLookupType
 
 	// TrailingHeaders indicates server support of trailing headers.
+	// Only supported for v4 signatures.
 	TrailingHeaders bool
 
 	// Custom hash routines. Leave nil to use standard.
@@ -254,7 +255,7 @@ func privateNew(endpoint string, opts *Options) (*Client, error) {
 		clnt.sha256Hasher = newSHA256Hasher
 	}
 
-	clnt.trailingHeaderSupport = opts.TrailingHeaders
+	clnt.trailingHeaderSupport = opts.TrailingHeaders && !clnt.overrideSignerType.IsV4()
 
 	// Sets bucket lookup style, whether server accepts DNS or Path lookup. Default is Auto - determined
 	// by the SDK. When Auto is specified, DNS lookup is used for Amazon/Google cloud endpoints and Path for all other endpoints.
