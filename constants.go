@@ -96,6 +96,7 @@ const (
 	minIOBucketReplicationObjectRetentionTimestamp = "X-Minio-Source-Replication-Retention-Timestamp"
 	// Header indicates last legalhold update time on source
 	minIOBucketReplicationObjectLegalHoldTimestamp = "X-Minio-Source-Replication-LegalHold-Timestamp"
-
-	minIOForceDelete = "x-minio-force-delete"
+	minIOForceDelete                               = "x-minio-force-delete"
+	// Header indicates delete marker replication request can be sent by source now.
+	minioTgtReplicationReady = "X-Minio-Replication-Ready"
 )

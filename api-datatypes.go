@@ -147,7 +147,8 @@ type ObjectInfo struct {
 	// - FAILED
 	// - REPLICA (on the destination)
 	ReplicationStatus string `xml:"ReplicationStatus"`
-
+	// set to true if delete marker has backing object version on target, and eligible to replicate
+	ReplicationReady bool
 	// Lifecycle expiry-date and ruleID associated with the expiry
 	// not to be confused with `Expires` HTTP header.
 	Expiration       time.Time
