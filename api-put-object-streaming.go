@@ -184,7 +184,7 @@ func (c *Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketN
 				sectionReader := newHook(io.NewSectionReader(reader, readOffset, partSize), opts.Progress)
 
 				// Proceed to upload the part.
-				objPart, err := c.uploadPart(ctx, bucketName, objectName, uploadID, sectionReader, uploadReq.PartNum, "", "", partSize, opts.ServerSideEncryption, !opts.DisableContentSha256, nil)
+				objPart, _, err := c.uploadPart(ctx, bucketName, objectName, uploadID, sectionReader, uploadReq.PartNum, "", "", partSize, opts.ServerSideEncryption, !opts.DisableContentSha256, nil)
 				if err != nil {
 					uploadedPartsCh <- uploadedPartRes{
 						Error: err,
@@ -340,7 +340,7 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 		// as we read from the source.
 		hooked := newHook(bytes.NewReader(buf[:length]), opts.Progress)
 
-		objPart, uerr := c.uploadPart(ctx, bucketName, objectName, uploadID, hooked, partNumber, md5Base64, "", partSize, opts.ServerSideEncryption, !opts.DisableContentSha256, customHeader)
+		objPart, _, uerr := c.uploadPart(ctx, bucketName, objectName, uploadID, hooked, partNumber, md5Base64, "", partSize, opts.ServerSideEncryption, !opts.DisableContentSha256, customHeader)
 		if uerr != nil {
 			return UploadInfo{}, uerr
 		}

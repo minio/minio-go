@@ -331,6 +331,7 @@ func (c *Client) copyObjectPartDo(ctx context.Context, srcBucket, srcObject, des
 		return p, err
 	}
 	p.PartNumber, p.ETag = partID, cpObjRes.ETag
+	p.LastModified = cpObjRes.LastModified
 	return p, nil
 }
 

@@ -160,7 +160,7 @@ func (c *Client) putObjectMultipartNoStream(ctx context.Context, bucketName, obj
 		}
 
 		// Proceed to upload the part.
-		objPart, uerr := c.uploadPart(ctx, bucketName, objectName, uploadID, rd, partNumber, md5Base64, sha256Hex, int64(length), opts.ServerSideEncryption, !opts.DisableContentSha256, customHeader)
+		objPart, _, uerr := c.uploadPart(ctx, bucketName, objectName, uploadID, rd, partNumber, md5Base64, sha256Hex, int64(length), opts.ServerSideEncryption, !opts.DisableContentSha256, customHeader)
 		if uerr != nil {
 			return UploadInfo{}, uerr
 		}
@@ -270,25 +270,25 @@ func (c *Client) initiateMultipartUpload(ctx context.Context, bucketName, object
 }
 
 // uploadPart - Uploads a part in a multipart upload.
-func (c *Client) uploadPart(ctx context.Context, bucketName string, objectName string, uploadID string, reader io.Reader, partNumber int, md5Base64 string, sha256Hex string, size int64, sse encrypt.ServerSide, streamSha256 bool, customHeader http.Header) (ObjectPart, error) {
+func (c *Client) uploadPart(ctx context.Context, bucketName string, objectName string, uploadID string, reader io.Reader, partNumber int, md5Base64 string, sha256Hex string, size int64, sse encrypt.ServerSide, streamSha256 bool, customHeader http.Header) (part ObjectPart, hdr http.Header, err error) {
 	// Input validation.
-	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
-		return ObjectPart{}, err
+	if err = s3utils.CheckValidBucketName(bucketName); err != nil {
+		return
 	}
-	if err := s3utils.CheckValidObjectName(objectName); err != nil {
-		return ObjectPart{}, err
+	if err = s3utils.CheckValidObjectName(objectName); err != nil {
+		return
 	}
 	if size > maxPartSize {
-		return ObjectPart{}, errEntityTooLarge(size, maxPartSize, bucketName, objectName)
+		return part, hdr, errEntityTooLarge(size, maxPartSize, bucketName, objectName)
 	}
 	if size <= -1 {
-		return ObjectPart{}, errEntityTooSmall(size, bucketName, objectName)
+		return part, hdr, errEntityTooSmall(size, bucketName, objectName)
 	}
 	if partNumber <= 0 {
-		return ObjectPart{}, errInvalidArgument("Part number cannot be negative or equal to zero.")
+		return part, hdr, errInvalidArgument("Part number cannot be negative or equal to zero.")
 	}
 	if uploadID == "" {
-		return ObjectPart{}, errInvalidArgument("UploadID cannot be empty.")
+		return part, hdr, errInvalidArgument("UploadID cannot be empty.")
 	}
 
 	// Get resources properly escaped and lined up before using them in http request.
@@ -326,11 +326,11 @@ func (c *Client) uploadPart(ctx context.Context, bucketName string, objectName s
 	resp, err := c.executeMethod(ctx, http.MethodPut, reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
-		return ObjectPart{}, err
+		return part, hdr, err
 	}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return ObjectPart{}, httpRespToErrorResponse(resp, bucketName, objectName)
+			return part, hdr, httpRespToErrorResponse(resp, bucketName, objectName)
 		}
 	}
 	// Once successfully uploaded, return completed part.
@@ -345,7 +345,7 @@ func (c *Client) uploadPart(ctx context.Context, bucketName string, objectName s
 	objPart.PartNumber = partNumber
 	// Trim off the odd double quotes from ETag in the beginning and end.
 	objPart.ETag = trimEtag(h.Get("ETag"))
-	return objPart, nil
+	return objPart, h, nil
 }
 
 // completeMultipartUpload - Completes a multipart upload by assembling previously uploaded parts.

@@ -87,6 +87,7 @@ type PutObjectOptions struct {
 	SendContentMd5          bool
 	DisableContentSha256    bool
 	DisableMultipart        bool
+	IsExtract               bool
 	Internal                AdvancedPutOptions
 }
 
@@ -170,7 +171,9 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 	if !opts.Internal.TaggingTimestamp.IsZero() {
 		header.Set(minIOBucketReplicationTaggingTimestamp, opts.Internal.TaggingTimestamp.Format(time.RFC3339Nano))
 	}
-
+	if opts.IsExtract {
+		header.Set(minIOExtract, "true")
+	}
 	if len(opts.UserTags) != 0 {
 		header.Set(amzTaggingHeader, s3utils.TagEncode(opts.UserTags))
 	}
@@ -366,7 +369,7 @@ func (c *Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketNam
 		rd := newHook(bytes.NewReader(buf[:length]), opts.Progress)
 
 		// Proceed to upload the part.
-		objPart, uerr := c.uploadPart(ctx, bucketName, objectName, uploadID, rd, partNumber, md5Base64, "", int64(length), opts.ServerSideEncryption, !opts.DisableContentSha256, customHeader)
+		objPart, _, uerr := c.uploadPart(ctx, bucketName, objectName, uploadID, rd, partNumber, md5Base64, "", int64(length), opts.ServerSideEncryption, !opts.DisableContentSha256, customHeader)
 		if uerr != nil {
 			return UploadInfo{}, uerr
 		}
