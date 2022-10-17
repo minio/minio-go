@@ -632,3 +632,38 @@ func IsNetworkOrHostDown(err error, expectTimeouts bool) bool {
 	}
 	return false
 }
+
+// newHashReaderWrapper will hash all reads done through r.
+// When r returns io.EOF the done function will be called with the sum.
+func newHashReaderWrapper(r io.Reader, h hash.Hash, done func(hash []byte)) *hashReaderWrapper {
+	return &hashReaderWrapper{
+		r:    r,
+		h:    h,
+		done: done,
+	}
+}
+
+type hashReaderWrapper struct {
+	r    io.Reader
+	h    hash.Hash
+	done func(hash []byte)
+}
+
+// Read implements the io.Reader interface.
+func (h *hashReaderWrapper) Read(p []byte) (n int, err error) {
+	n, err = h.r.Read(p)
+	if n > 0 {
+		n2, err := h.h.Write(p[:n])
+		if err != nil {
+			return 0, err
+		}
+		if n2 != n {
+			return 0, io.ErrShortWrite
+		}
+	}
+	if err == io.EOF {
+		// Call back
+		h.done(h.h.Sum(nil))
+	}
+	return n, err
+}
