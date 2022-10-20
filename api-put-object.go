@@ -159,7 +159,7 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 		header.Set(minIOBucketSourceETag, opts.Internal.SourceETag)
 	}
 	if opts.Internal.ReplicationRequest {
-		header.Set(minIOBucketReplicationRequest, "")
+		header.Set(minIOBucketReplicationRequest, "true")
 	}
 	if !opts.Internal.LegalholdTimestamp.IsZero() {
 		header.Set(minIOBucketReplicationObjectLegalHoldTimestamp, opts.Internal.LegalholdTimestamp.Format(time.RFC3339Nano))
