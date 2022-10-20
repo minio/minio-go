@@ -166,7 +166,7 @@ func (c *Client) removeObject(ctx context.Context, bucketName, objectName string
 		headers.Set(amzBucketReplicationStatus, string(opts.Internal.ReplicationStatus))
 	}
 	if opts.Internal.ReplicationRequest {
-		headers.Set(minIOBucketReplicationRequest, "")
+		headers.Set(minIOBucketReplicationRequest, "true")
 	}
 	if opts.ForceDelete {
 		headers.Set(minIOForceDelete, "true")
