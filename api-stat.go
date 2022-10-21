@@ -70,6 +70,9 @@ func (c *Client) StatObject(ctx context.Context, bucketName, objectName string, 
 	if opts.Internal.ReplicationDeleteMarker {
 		headers.Set(minIOBucketReplicationDeleteMarker, "true")
 	}
+	if opts.Internal.IsReplicationReadyForDeleteMarker {
+		headers.Set(isMinioTgtReplicationReady, "true")
+	}
 
 	urlValues := make(url.Values)
 	if opts.VersionID != "" {

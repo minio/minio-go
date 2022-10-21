@@ -103,4 +103,6 @@ const (
 	minIOForceDelete                               = "x-minio-force-delete"
 	// Header indicates delete marker replication request can be sent by source now.
 	minioTgtReplicationReady = "X-Minio-Replication-Ready"
+	// Header asks if delete marker replication request can be sent by source now.
+	isMinioTgtReplicationReady = "X-Minio-Check-Replication-Ready"
 )
