@@ -4216,10 +4216,6 @@ func testPresignedPostPolicy() {
 		logError(testName, function, args, startTime, "", "SetContentType did not fail for invalid conditions", err)
 		return
 	}
-	if err := policy.SetContentTypeStartsWith(""); err == nil {
-		logError(testName, function, args, startTime, "", "SetContentTypeStartsWith did not fail for invalid conditions", err)
-		return
-	}
 	if err := policy.SetContentLengthRange(1024*1024, 1024); err == nil {
 		logError(testName, function, args, startTime, "", "SetContentLengthRange did not fail for invalid conditions", err)
 		return
