@@ -448,5 +448,10 @@ func (c *Client) completeMultipartUpload(ctx context.Context, bucketName, object
 		Location:         completeMultipartUploadResult.Location,
 		Expiration:       expTime,
 		ExpirationRuleID: ruleID,
+
+		ChecksumSHA256: completeMultipartUploadResult.ChecksumSHA256,
+		ChecksumSHA1:   completeMultipartUploadResult.ChecksumSHA1,
+		ChecksumCRC32:  completeMultipartUploadResult.ChecksumCRC32,
+		ChecksumCRC32C: completeMultipartUploadResult.ChecksumCRC32C,
 	}, nil
 }

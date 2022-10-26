@@ -87,6 +87,8 @@ type UploadInfo struct {
 	ExpirationRuleID string
 
 	// Verified checksum values, if any.
+	// Values are base64 (standard) encoded.
+	// For multipart objects this is a checksum of the checksum of each part.
 	ChecksumCRC32  string
 	ChecksumCRC32C string
 	ChecksumSHA1   string
