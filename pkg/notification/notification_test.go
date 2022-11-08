@@ -1422,7 +1422,14 @@ func TestNewArnFromString(t *testing.T) {
 	t.Run("invalid ARN format", func(t *testing.T) {
 		_, err := NewArnFromString("arn:only:four:parts")
 		if err != ErrInvalidArnFormat {
-			t.Errorf("expected an error %s, but got none", ErrInvalidArnFormat.Error())
+			t.Errorf("expected an error %v, but got %v", ErrInvalidArnFormat, err)
+		}
+	})
+
+	t.Run("invalid ARN prefix", func(t *testing.T) {
+		_, err := NewArnFromString("non-arn:partition:service:region:accountID:resource")
+		if err != ErrInvalidArnPrefix {
+			t.Errorf("expected an error %v, but got %v", ErrInvalidArnPrefix, err)
 		}
 	})
 }
