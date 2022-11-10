@@ -1405,3 +1405,31 @@ func TestConfigEqual(t *testing.T) {
 		})
 	}
 }
+
+func TestNewArnFromString(t *testing.T) {
+	t.Run("valid ARN", func(t *testing.T) {
+		arn := NewArn("partition", "service", "region", "accountID", "resource")
+		arnString := arn.String()
+		arnFromString, err := NewArnFromString(arnString)
+		if err != nil {
+			t.Fatalf("did not exect an error, but got %v", err)
+		}
+		if arnFromString.String() != arnString {
+			t.Errorf("expected ARNs to be equal, but they are not: arnFromString = %s, arn = %s", arnFromString.String(), arnString)
+		}
+	})
+
+	t.Run("invalid ARN format", func(t *testing.T) {
+		_, err := NewArnFromString("arn:only:four:parts")
+		if err != ErrInvalidArnFormat {
+			t.Errorf("expected an error %v, but got %v", ErrInvalidArnFormat, err)
+		}
+	})
+
+	t.Run("invalid ARN prefix", func(t *testing.T) {
+		_, err := NewArnFromString("non-arn:partition:service:region:accountID:resource")
+		if err != ErrInvalidArnPrefix {
+			t.Errorf("expected an error %v, but got %v", ErrInvalidArnPrefix, err)
+		}
+	})
+}
