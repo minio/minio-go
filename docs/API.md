@@ -462,11 +462,15 @@ if err != nil {
     fmt.Println(err)
     return
 }
+defer object.Close()
+
 localFile, err := os.Create("/tmp/local-file.jpg")
 if err != nil {
     fmt.Println(err)
     return
 }
+defer localFile.Close()
+
 if _, err = io.Copy(localFile, object); err != nil {
     fmt.Println(err)
     return
