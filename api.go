@@ -231,6 +231,7 @@ func privateNew(endpoint string, opts *Options) (*Client, error) {
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
+		Timeout: 2 * time.Minute,
 	}
 
 	// Sets custom region, if region is empty bucket location cache is used automatically.
@@ -798,7 +799,8 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 		}
 		return req, nil
 	}
-
+	// set 'Expect' header for the request.
+	req.Header.Set("Expect", "100-continue")
 	// Set 'User-Agent' header for the request.
 	c.setUserAgent(req)
 
