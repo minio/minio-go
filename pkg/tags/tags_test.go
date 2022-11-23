@@ -43,6 +43,11 @@ func TestParseTags(t *testing.T) {
 			fmt.Sprintf("%0128d=%0256d", 1, 1),
 			false,
 		},
+		// Valid tags support ,
+		{
+			"11/23/2022, 1:07:45 PM",
+			false,
+		},
 		// Failure cases - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions
 		{
 			"key1=value1&key1=value2",
