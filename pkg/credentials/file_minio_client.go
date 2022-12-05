@@ -18,7 +18,6 @@
 package credentials
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -123,7 +122,7 @@ func loadAlias(filename, alias string) (hostConfig, error) {
 	cfg := &config{}
 	json := jsoniter.ConfigCompatibleWithStandardLibrary
 
-	configBytes, err := ioutil.ReadFile(filename)
+	configBytes, err := os.ReadFile(filename)
 	if err != nil {
 		return hostConfig{}, err
 	}

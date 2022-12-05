@@ -32,9 +32,9 @@ type BucketPolicy string
 // Different types of Policies currently supported for buckets.
 const (
 	BucketPolicyNone      BucketPolicy = "none"
-	BucketPolicyReadOnly               = "readonly"
-	BucketPolicyReadWrite              = "readwrite"
-	BucketPolicyWriteOnly              = "writeonly"
+	BucketPolicyReadOnly  BucketPolicy = "readonly"
+	BucketPolicyReadWrite BucketPolicy = "readwrite"
+	BucketPolicyWriteOnly BucketPolicy = "writeonly"
 )
 
 // IsValidBucketPolicy - returns true if policy is valid and supported, false otherwise.

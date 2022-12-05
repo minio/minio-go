@@ -18,6 +18,7 @@
 package minio
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"testing"
@@ -303,12 +304,12 @@ func TestIsValidBucketName(t *testing.T) {
 		// Flag to indicate whether test should Pass.
 		shouldPass bool
 	}{
-		{".mybucket", errInvalidBucketName("Bucket name contains invalid characters"), false},
-		{"mybucket.", errInvalidBucketName("Bucket name contains invalid characters"), false},
-		{"mybucket-", errInvalidBucketName("Bucket name contains invalid characters"), false},
-		{"my", errInvalidBucketName("Bucket name cannot be shorter than 3 characters"), false},
-		{"", errInvalidBucketName("Bucket name cannot be empty"), false},
-		{"my..bucket", errInvalidBucketName("Bucket name contains invalid characters"), false},
+		{".mybucket", errors.New("Bucket name contains invalid characters"), false},
+		{"mybucket.", errors.New("Bucket name contains invalid characters"), false},
+		{"mybucket-", errors.New("Bucket name contains invalid characters"), false},
+		{"my", errors.New("Bucket name cannot be shorter than 3 characters"), false},
+		{"", errors.New("Bucket name cannot be empty"), false},
+		{"my..bucket", errors.New("Bucket name contains invalid characters"), false},
 		{"my.bucket.com", nil, true},
 		{"my-bucket", nil, true},
 		{"123my-bucket", nil, true},

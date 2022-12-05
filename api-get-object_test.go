@@ -21,7 +21,6 @@ import (
 	"context"
 	"crypto/rand"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -51,7 +50,7 @@ func TestGetObjectReturnSuccess(t *testing.T) {
 	}
 
 	// We expect an error when reading back.
-	buf, err := ioutil.ReadAll(obj)
+	buf, err := io.ReadAll(obj)
 	if err != nil {
 		t.Fatalf("Expected 'nil', got %v", err)
 	}
@@ -85,7 +84,7 @@ func TestGetObjectReturnErrorIfServerTruncatesResponse(t *testing.T) {
 	}
 
 	// We expect an error when reading back.
-	if _, err = ioutil.ReadAll(obj); err != io.ErrUnexpectedEOF {
+	if _, err = io.ReadAll(obj); err != io.ErrUnexpectedEOF {
 		t.Fatalf("Expected %v, got %v", io.ErrUnexpectedEOF, err)
 	}
 }
@@ -114,7 +113,7 @@ func TestGetObjectReturnErrorIfServerTruncatesResponseDouble(t *testing.T) {
 	}
 
 	// We expect an error when reading back.
-	if _, err = ioutil.ReadAll(obj); err != io.ErrUnexpectedEOF {
+	if _, err = io.ReadAll(obj); err != io.ErrUnexpectedEOF {
 		t.Fatalf("Expected %v, got %v", io.ErrUnexpectedEOF, err)
 	}
 }
@@ -143,7 +142,7 @@ func TestGetObjectReturnErrorIfServerSendsMore(t *testing.T) {
 	}
 
 	// We expect an error when reading back.
-	if _, err = ioutil.ReadAll(obj); err != io.ErrUnexpectedEOF {
+	if _, err = io.ReadAll(obj); err != io.ErrUnexpectedEOF {
 		t.Fatalf("Expected %v, got %v", io.ErrUnexpectedEOF, err)
 	}
 }

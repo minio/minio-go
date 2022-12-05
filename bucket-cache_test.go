@@ -21,7 +21,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -279,7 +279,7 @@ func TestGetBucketLocationRequest(t *testing.T) {
 // generates http response with bucket location set in the body.
 func generateLocationResponse(resp *http.Response, bodyContent []byte) (*http.Response, error) {
 	resp.StatusCode = http.StatusOK
-	resp.Body = ioutil.NopCloser(bytes.NewBuffer(bodyContent))
+	resp.Body = io.NopCloser(bytes.NewBuffer(bodyContent))
 	return resp, nil
 }
 
