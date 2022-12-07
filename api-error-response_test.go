@@ -21,7 +21,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -57,7 +57,7 @@ func TestHttpRespToErrorResponse(t *testing.T) {
 		resp := &http.Response{}
 		resp.StatusCode = statusCode
 		resp.Status = http.StatusText(statusCode)
-		resp.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+		resp.Body = io.NopCloser(bytes.NewBuffer(body))
 		return resp
 	}
 
@@ -113,7 +113,7 @@ func TestHttpRespToErrorResponse(t *testing.T) {
 		resp := &http.Response{
 			StatusCode: statusCode,
 			Status:     http.StatusText(statusCode),
-			Body:       ioutil.NopCloser(bytes.NewReader(nil)),
+			Body:       io.NopCloser(bytes.NewReader(nil)),
 		}
 		setCommonHeaders(resp)
 		return resp
@@ -238,34 +238,6 @@ func TestErrUnexpectedEOF(t *testing.T) {
 		Key:        "Asia/",
 	}
 	actualResult := errUnexpectedEOF(100, 101, "minio-bucket", "Asia/")
-	if !reflect.DeepEqual(expectedResult, actualResult) {
-		t.Errorf("Expected result to be '%#v', but instead got '%#v'", expectedResult, actualResult)
-	}
-}
-
-// Test validates 'ErrInvalidBucketName' error response.
-func TestErrInvalidBucketName(t *testing.T) {
-	expectedResult := ErrorResponse{
-		StatusCode: http.StatusBadRequest,
-		Code:       "InvalidBucketName",
-		Message:    "Invalid Bucket name",
-		RequestID:  "minio",
-	}
-	actualResult := errInvalidBucketName("Invalid Bucket name")
-	if !reflect.DeepEqual(expectedResult, actualResult) {
-		t.Errorf("Expected result to be '%#v', but instead got '%#v'", expectedResult, actualResult)
-	}
-}
-
-// Test validates 'ErrInvalidObjectName' error response.
-func TestErrInvalidObjectName(t *testing.T) {
-	expectedResult := ErrorResponse{
-		StatusCode: http.StatusNotFound,
-		Code:       "NoSuchKey",
-		Message:    "Invalid Object Key",
-		RequestID:  "minio",
-	}
-	actualResult := errInvalidObjectName("Invalid Object Key")
 	if !reflect.DeepEqual(expectedResult, actualResult) {
 		t.Errorf("Expected result to be '%#v', but instead got '%#v'", expectedResult, actualResult)
 	}

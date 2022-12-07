@@ -20,7 +20,7 @@ package signer
 import (
 	"bytes"
 	"encoding/hex"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -31,7 +31,7 @@ func TestGetSeedSignature(t *testing.T) {
 	secretAccessKeyID := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 	dataLen := 66560
 	data := bytes.Repeat([]byte("a"), dataLen)
-	body := ioutil.NopCloser(bytes.NewReader(data))
+	body := io.NopCloser(bytes.NewReader(data))
 
 	req := NewRequest(http.MethodPut, "/examplebucket/chunkObject.txt", body)
 	req.Header.Set("x-amz-storage-class", "REDUCED_REDUNDANCY")
@@ -143,11 +143,11 @@ func TestStreamingReader(t *testing.T) {
 	req.Host = ""
 	req.URL.Host = "s3.amazonaws.com"
 
-	baseReader := ioutil.NopCloser(bytes.NewReader(bytes.Repeat([]byte("a"), 65*1024)))
+	baseReader := io.NopCloser(bytes.NewReader(bytes.Repeat([]byte("a"), 65*1024)))
 	req.Body = baseReader
 	req = StreamingSignV4(req, accessKeyID, secretAccessKeyID, "", location, dataLen, reqTime)
 
-	b, err := ioutil.ReadAll(req.Body)
+	b, err := io.ReadAll(req.Body)
 	if err != nil {
 		t.Errorf("Expected no error but received %v  %d", err, len(b))
 	}

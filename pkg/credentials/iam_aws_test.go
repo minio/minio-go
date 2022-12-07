@@ -22,7 +22,6 @@ package credentials
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -343,7 +342,7 @@ func TestSts(t *testing.T) {
 		Endpoint: server.URL,
 	}
 
-	f, err := ioutil.TempFile("", "minio-go")
+	f, err := os.CreateTemp("", "minio-go")
 	if err != nil {
 		t.Errorf("Unexpected failure %s", err)
 	}
@@ -384,7 +383,7 @@ func TestStsCn(t *testing.T) {
 		Endpoint: server.URL,
 	}
 
-	f, err := ioutil.TempFile("", "minio-go")
+	f, err := os.CreateTemp("", "minio-go")
 	if err != nil {
 		t.Errorf("Unexpected failure %s", err)
 	}
