@@ -266,6 +266,9 @@ func (c *Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketN
 	// Sort all completed parts.
 	sort.Sort(completedParts(complMultipartUpload.Parts))
 
+	opts = PutObjectOptions{
+		ServerSideEncryption: opts.ServerSideEncryption,
+	}
 	if withChecksum {
 		// Add hash of hashes.
 		crc := crc32.New(crc32.MakeTable(crc32.Castagnoli))
@@ -278,7 +281,7 @@ func (c *Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketN
 		opts.UserMetadata = map[string]string{"X-Amz-Checksum-Crc32c": base64.StdEncoding.EncodeToString(crc.Sum(nil))}
 	}
 
-	uploadInfo, err := c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload, PutObjectOptions{})
+	uploadInfo, err := c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload, opts)
 	if err != nil {
 		return UploadInfo{}, err
 	}
@@ -425,7 +428,9 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 	// Sort all completed parts.
 	sort.Sort(completedParts(complMultipartUpload.Parts))
 
-	opts = PutObjectOptions{}
+	opts = PutObjectOptions{
+		ServerSideEncryption: opts.ServerSideEncryption,
+	}
 	if len(crcBytes) > 0 {
 		// Add hash of hashes.
 		crc.Reset()
