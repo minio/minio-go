@@ -524,7 +524,7 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 
 	// 4. Make final complete-multipart request.
 	uploadInfo, err := c.completeMultipartUpload(ctx, dst.Bucket, dst.Object, uploadID,
-		completeMultipartUpload{Parts: objParts}, PutObjectOptions{})
+		completeMultipartUpload{Parts: objParts}, PutObjectOptions{ServerSideEncryption: dst.Encryption})
 	if err != nil {
 		return UploadInfo{}, err
 	}
