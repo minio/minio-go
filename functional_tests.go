@@ -1732,12 +1732,39 @@ func testRemoveObjectWithVersioning() {
 		logError(testName, function, args, startTime, "", "Unexpected versioning info, should not have any one ", err)
 		return
 	}
-
-	err = c.RemoveBucket(context.Background(), bucketName)
+	// test delete marker version id is non-null
+	_, err = c.PutObject(context.Background(), bucketName, objectName, getDataReader("datafile-10-kB"), int64(dataFileMap["datafile-10-kB"]), minio.PutObjectOptions{})
 	if err != nil {
-		logError(testName, function, args, startTime, "", "CleanupBucket failed", err)
+		logError(testName, function, args, startTime, "", "PutObject failed", err)
 		return
 	}
+	// create delete marker
+	err = c.RemoveObject(context.Background(), bucketName, objectName, minio.RemoveObjectOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "DeleteObject failed", err)
+		return
+	}
+	objectsInfo = c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{WithVersions: true, Recursive: true})
+	idx := 0
+	for info := range objectsInfo {
+		if info.Err != nil {
+			logError(testName, function, args, startTime, "", "Unexpected error during listing objects", err)
+			return
+		}
+		if idx == 0 {
+			if !info.IsDeleteMarker {
+				logError(testName, function, args, startTime, "", "Unexpected error - expected delete marker to have been created", err)
+				return
+			}
+			if info.VersionID == "" {
+				logError(testName, function, args, startTime, "", "Unexpected error - expected delete marker to be versioned", err)
+				return
+			}
+		}
+		idx++
+	}
+
+	defer cleanupBucket(bucketName, c)
 
 	successLogger(testName, function, args, startTime).Info()
 }
