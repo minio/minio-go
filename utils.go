@@ -666,3 +666,20 @@ func (h *hashReaderWrapper) Read(p []byte) (n int, err error) {
 	}
 	return n, err
 }
+
+// wrapReader embeds io.Reader but returns an error
+// with 'read error' prefix. This is needed because
+// net/http Do() request does not have a way to indicate
+// a way to indicate this is an error from reading the
+// request body.
+type wrapReader struct {
+	io.Reader
+}
+
+func (wr wrapReader) Read(p []byte) (n int, e error) {
+	n, e = wr.Reader.Read(p)
+	if e != nil && e != io.EOF { // do not wrap io.EOF for callers not using errors.Is() yet
+		e = fmt.Errorf("read: %w", e)
+	}
+	return
+}

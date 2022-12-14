@@ -242,7 +242,7 @@ func (c *Client) PutObject(ctx context.Context, bucketName, objectName string, r
 		return UploadInfo{}, err
 	}
 
-	return c.putObjectCommon(ctx, bucketName, objectName, reader, objectSize, opts)
+	return c.putObjectCommon(ctx, bucketName, objectName, &wrapReader{reader}, objectSize, opts)
 }
 
 func (c *Client) putObjectCommon(ctx context.Context, bucketName, objectName string, reader io.Reader, size int64, opts PutObjectOptions) (info UploadInfo, err error) {
