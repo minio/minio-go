@@ -813,7 +813,11 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 	if metadata.contentLength == 0 {
 		req.Body = nil
 	} else {
-		req.Body = io.NopCloser(metadata.contentBody)
+		body := metadata.contentBody
+		if metadata.contentLength > 0 {
+			body = io.LimitReader(body, metadata.contentLength)
+		}
+		req.Body = io.NopCloser(body)
 	}
 
 	// Set incoming content-length.

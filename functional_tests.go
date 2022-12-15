@@ -10565,6 +10565,79 @@ func testStorageClassMetadataCopyObject() {
 	successLogger(testName, function, args, startTime).Info()
 }
 
+// Test put object with a size shorter than the io.Reader content
+func testPutObjectLessLength() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "PutObject(bucketName, objectName, reader, size, opts)"
+	args := map[string]interface{}{
+		"bucketName": "",
+		"objectName": "",
+		"size":       -1,
+		"opts":       "",
+	}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV2(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client v2 object creation failed", err)
+		return
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	defer cleanupBucket(bucketName, c)
+
+	objectName := bucketName + "unique"
+	args["objectName"] = objectName
+
+	uploadData := []byte("abcd")
+	uploadLength := len(uploadData) - 1
+
+	// Upload an object.
+	_, err = c.PutObject(context.Background(), bucketName, objectName, bytes.NewBuffer(uploadData), int64(uploadLength), minio.PutObjectOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObjectWithSize failed", err)
+		return
+	}
+
+	st, err := c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "StatObject failed", err)
+		return
+	}
+
+	if st.Size != 3 {
+		logError(testName, function, args, startTime, "", "Expected upload object size "+string(uploadLength)+" got "+string(st.Size), err)
+		return
+	}
+
+	successLogger(testName, function, args, startTime).Info()
+}
+
 // Test put object with size -1 byte object.
 func testPutObjectNoLengthV2() {
 	// initialize logging params
@@ -12314,6 +12387,7 @@ func main() {
 		testPutObjectWithChecksums()
 		testPutObject0ByteV2()
 		testPutObjectNoLengthV2()
+		testPutObjectLessLength()
 		testPutObjectsUnknownV2()
 		testGetObjectContextV2()
 		testFPutObjectContextV2()
