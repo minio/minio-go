@@ -113,6 +113,7 @@ type hostConfig struct {
 type config struct {
 	Version string                `json:"version"`
 	Hosts   map[string]hostConfig `json:"hosts"`
+	Aliases map[string]hostConfig `json:"aliases"`
 }
 
 // loadAliass loads from the file pointed to by shared credentials filename for alias.
@@ -129,5 +130,10 @@ func loadAlias(filename, alias string) (hostConfig, error) {
 	if err = json.Unmarshal(configBytes, cfg); err != nil {
 		return hostConfig{}, err
 	}
+
+	if cfg.Version == "10" {
+		return cfg.Aliases[alias], nil
+	}
+
 	return cfg.Hosts[alias], nil
 }
