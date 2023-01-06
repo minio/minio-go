@@ -474,13 +474,11 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 	defer cancel()
 
 	// Calculate the optimal parts info for a given size.
-	partSize := int64(maxPartSize)
-	if opts.PartSize > 0 {
-		partSize = int64(opts.PartSize)
-	}
+	totalPartsCount, partSize, _, err := OptimalPartInfo(-1, opts.PartSize)
 	if err != nil {
 		return UploadInfo{}, err
 	}
+
 	// Initiates a new multipart request
 	uploadID, err := c.newUploadID(ctx, bucketName, objectName, opts)
 	if err != nil {
@@ -516,17 +514,18 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 	bufs := make(chan []byte, nBuffers)
 	all := make([]byte, nBuffers*partSize)
 	for i := int64(0); i < nBuffers; i++ {
-		bufs <- all[i*nBuffers : i*nBuffers+nBuffers]
+		bufs <- all[i*partSize : i*partSize+partSize]
 	}
 
-	// Part number always starts with '1'.
-	var partNumber int
 	var wg sync.WaitGroup
+	var mu sync.Mutex
 	errCh := make(chan error, opts.NumThreads)
 
 	reader = newHook(reader, opts.Progress)
 
-	for partNumber = 1; ; partNumber++ {
+	// Part number always starts with '1'.
+	var partNumber int
+	for partNumber = 1; partNumber <= totalPartsCount; partNumber++ {
 		// Proceed to upload the part.
 		var buf []byte
 		select {
@@ -535,6 +534,10 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 			cancel()
 			wg.Wait()
 			return UploadInfo{}, err
+		}
+
+		if int64(len(buf)) != partSize {
+			return UploadInfo{}, fmt.Errorf("read buffer < %d than expected partSize: %d", len(buf), partSize)
 		}
 
 		length, rerr := readFull(reader, buf)
@@ -572,14 +575,27 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 			}
 
 			defer wg.Done()
-			p := uploadPartParams{bucketName: bucketName, objectName: objectName, uploadID: uploadID, reader: bytes.NewReader(buf[:length]), partNumber: partNumber, md5Base64: md5Base64, size: int64(length), sse: opts.ServerSideEncryption, streamSha256: !opts.DisableContentSha256, customHeader: customHeader}
+			p := uploadPartParams{
+				bucketName:   bucketName,
+				objectName:   objectName,
+				uploadID:     uploadID,
+				reader:       bytes.NewReader(buf[:length]),
+				partNumber:   partNumber,
+				md5Base64:    md5Base64,
+				size:         int64(length),
+				sse:          opts.ServerSideEncryption,
+				streamSha256: !opts.DisableContentSha256,
+				customHeader: customHeader,
+			}
 			objPart, uerr := c.uploadPart(ctx, p)
 			if uerr != nil {
 				errCh <- uerr
 			}
 
 			// Save successfully uploaded part metadata.
+			mu.Lock()
 			partsInfo[partNumber] = objPart
+			mu.Unlock()
 
 			// Send buffer back so it can be reused.
 			bufs <- buf
