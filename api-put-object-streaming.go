@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -462,7 +463,11 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 		return UploadInfo{}, err
 	}
 
-	if !opts.SendContentMd5 {
+	// Choose hash algorithms to be calculated by hashCopyN,
+	// avoid sha256 with non-v4 signature request or
+	// HTTPS connection.
+	hashAlgos, hashSums := c.hashMaterials(opts.SendContentMd5, !opts.DisableContentSha256)
+	if len(hashSums) == 0 {
 		if opts.UserMetadata == nil {
 			opts.UserMetadata = make(map[string]string, 1)
 		}
@@ -500,8 +505,6 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 	// CRC32C is ~50% faster on AMD64 @ 30GB/s
 	var crcBytes []byte
 	crc := crc32.New(crc32.MakeTable(crc32.Castagnoli))
-	md5Hash := c.md5Hasher()
-	defer md5Hash.Close()
 
 	// Total data read and written to server. should be equal to 'size' at the end of the call.
 	var totalUploadedSize int64
@@ -552,10 +555,27 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 			return UploadInfo{}, rerr
 		}
 
-		// Calculate md5sum.
 		customHeader := make(http.Header)
-		if !opts.SendContentMd5 {
-			// Add CRC32C instead.
+		// Calculates hash sums while copying partSize bytes into cw.
+		for k, v := range hashAlgos {
+			v.Write(buf[:length])
+			hashSums[k] = v.Sum(nil)
+			v.Close()
+		}
+
+		// Checksums..
+		var (
+			md5Base64 string
+			sha256Hex string
+		)
+
+		if hashSums["md5"] != nil {
+			md5Base64 = base64.StdEncoding.EncodeToString(hashSums["md5"])
+		}
+		if hashSums["sha256"] != nil {
+			sha256Hex = hex.EncodeToString(hashSums["sha256"])
+		}
+		if len(hashSums) == 0 {
 			crc.Reset()
 			crc.Write(buf[:length])
 			cSum := crc.Sum(nil)
@@ -563,33 +583,27 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 			crcBytes = append(crcBytes, cSum...)
 		}
 
+		p := uploadPartParams{
+			bucketName:   bucketName,
+			objectName:   objectName,
+			uploadID:     uploadID,
+			reader:       bytes.NewReader(buf[:length]),
+			partNumber:   partNumber,
+			md5Base64:    md5Base64,
+			sha256Hex:    sha256Hex,
+			size:         int64(length),
+			sse:          opts.ServerSideEncryption,
+			streamSha256: !opts.DisableContentSha256,
+			customHeader: customHeader,
+		}
+
 		wg.Add(1)
 		go func(partNumber int) {
-			// Avoid declaring variables in the for loop
-			var md5Base64 string
-
-			if opts.SendContentMd5 {
-				md5Hash.Reset()
-				md5Hash.Write(buf[:length])
-				md5Base64 = base64.StdEncoding.EncodeToString(md5Hash.Sum(nil))
-			}
-
 			defer wg.Done()
-			p := uploadPartParams{
-				bucketName:   bucketName,
-				objectName:   objectName,
-				uploadID:     uploadID,
-				reader:       bytes.NewReader(buf[:length]),
-				partNumber:   partNumber,
-				md5Base64:    md5Base64,
-				size:         int64(length),
-				sse:          opts.ServerSideEncryption,
-				streamSha256: !opts.DisableContentSha256,
-				customHeader: customHeader,
-			}
 			objPart, uerr := c.uploadPart(ctx, p)
 			if uerr != nil {
 				errCh <- uerr
+				return
 			}
 
 			// Save successfully uploaded part metadata.
@@ -597,7 +611,7 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 			partsInfo[partNumber] = objPart
 			mu.Unlock()
 
-			// Send buffer back so it can be reused.
+			// Send the buffer back for reuse.
 			bufs <- buf
 		}(partNumber)
 
