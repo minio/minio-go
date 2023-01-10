@@ -41,6 +41,9 @@ const (
 
 // Tests for Core GetObject() function.
 func TestGetObjectCore(t *testing.T) {
+	if os.Getenv(serverEndpoint) == "" {
+		t.Skip("SERVER_ENDPOINT not set")
+	}
 	if testing.Short() {
 		t.Skip("skipping functional tests for the short runs")
 	}
@@ -238,6 +241,9 @@ func TestGetObjectCore(t *testing.T) {
 // Tests GetObject to return Content-Encoding properly set
 // and overrides any auto decoding.
 func TestGetObjectContentEncoding(t *testing.T) {
+	if os.Getenv(serverEndpoint) == "" {
+		t.Skip("SERVER_ENDPOINT not set")
+	}
 	if testing.Short() {
 		t.Skip("skipping functional tests for the short runs")
 	}
@@ -311,6 +317,9 @@ func TestGetObjectContentEncoding(t *testing.T) {
 
 // Tests get bucket policy core API.
 func TestGetBucketPolicy(t *testing.T) {
+	if os.Getenv(serverEndpoint) == "" {
+		t.Skip("SERVER_ENDPOINT not set")
+	}
 	if testing.Short() {
 		t.Skip("skipping functional tests for short runs")
 	}
@@ -374,6 +383,9 @@ func TestGetBucketPolicy(t *testing.T) {
 
 // Tests Core CopyObject API implementation.
 func TestCoreCopyObject(t *testing.T) {
+	if os.Getenv(serverEndpoint) == "" {
+		t.Skip("SERVER_ENDPOINT not set")
+	}
 	if testing.Short() {
 		t.Skip("skipping functional tests for short runs")
 	}
@@ -497,6 +509,9 @@ func TestCoreCopyObject(t *testing.T) {
 
 // Test Core CopyObjectPart implementation
 func TestCoreCopyObjectPart(t *testing.T) {
+	if os.Getenv(serverEndpoint) == "" {
+		t.Skip("SERVER_ENDPOINT not set")
+	}
 	if testing.Short() {
 		t.Skip("skipping functional tests for short runs")
 	}
@@ -650,6 +665,9 @@ func TestCoreCopyObjectPart(t *testing.T) {
 
 // Test Core PutObject.
 func TestCorePutObject(t *testing.T) {
+	if os.Getenv(serverEndpoint) == "" {
+		t.Skip("SERVER_ENDPOINT not set")
+	}
 	if testing.Short() {
 		t.Skip("skipping functional tests for short runs")
 	}
@@ -744,6 +762,9 @@ func TestCorePutObject(t *testing.T) {
 }
 
 func TestCoreGetObjectMetadata(t *testing.T) {
+	if os.Getenv(serverEndpoint) == "" {
+		t.Skip("SERVER_ENDPOINT not set")
+	}
 	if testing.Short() {
 		t.Skip("skipping functional tests for the short runs")
 	}
@@ -801,6 +822,9 @@ func TestCoreGetObjectMetadata(t *testing.T) {
 }
 
 func TestCoreMultipartUpload(t *testing.T) {
+	if os.Getenv(serverEndpoint) == "" {
+		t.Skip("SERVER_ENDPOINT not set")
+	}
 	if testing.Short() {
 		t.Skip("skipping functional tests for the short runs")
 	}

@@ -20,10 +20,14 @@ package credentials
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
 func TestFileAWS(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("\"/bin/cat\": file does not exist")
+	}
 	os.Clearenv()
 
 	creds := NewFileAWSCredentials("credentials.sample", "")
