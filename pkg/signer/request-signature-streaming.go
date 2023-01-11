@@ -250,7 +250,7 @@ func (s *StreamingReader) addSignedTrailer(h http.Header) {
 	s.sh256.Write(s.chunkBuf)
 	chunkChecksum := hex.EncodeToString(s.sh256.Sum(nil))
 	// Compute chunk signature
-	signature := buildTrailerChunkSignature(chunckChecksum, s.reqTime,
+	signature := buildTrailerChunkSignature(chunkChecksum, s.reqTime,
 		s.region, s.prevSignature, s.secretAccessKey)
 
 	// For next chunk signature computation
