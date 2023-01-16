@@ -523,7 +523,7 @@ var supportedQueryValues = map[string]bool{
 	"response-expires":             true,
 }
 
-// isStandardQueryValue will return true when the passed in query string parameter is supported rather than customised.
+// isStandardQueryValue will return true when the passed in query string parameter is supported rather than customized.
 func isStandardQueryValue(qsKey string) bool {
 	return supportedQueryValues[qsKey]
 }
