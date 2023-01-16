@@ -21,7 +21,13 @@
 package s3
 
 import (
+	"context"
+	"io"
+	"log"
 	"os"
+
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 func main() {

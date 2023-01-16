@@ -20,4 +20,4 @@ require (
 	gopkg.in/ini.v1 v1.66.6 // indirect
 )
 
-replace github.com/minio/minio-go/v7 v7.0.10 => ../..
+replace github.com/minio/minio-go/v7 v7.0.32 => github.com/reedchan7/minio-go-sdk/v7 v7.0.48-0.20230116044606-89d027d0d418
