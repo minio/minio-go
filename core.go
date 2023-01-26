@@ -87,7 +87,10 @@ func (c Core) ListMultipartUploads(ctx context.Context, bucket, prefix, keyMarke
 }
 
 // PutObjectPart - Upload an object part.
-func (c Core) PutObjectPart(ctx context.Context, bucket, object, uploadID string, partID int, data io.Reader, size int64, md5Base64, sha256Hex string, sse encrypt.ServerSide) (ObjectPart, error) {
+func (c Core) PutObjectPart(ctx context.Context, bucket, object, uploadID string,
+	partID int, data io.Reader, size int64, md5Base64, sha256Hex string,
+	sse encrypt.ServerSide, customHeader, trailer http.Header,
+) (ObjectPart, error) {
 	p := uploadPartParams{
 		bucketName:   bucket,
 		objectName:   object,
@@ -99,6 +102,8 @@ func (c Core) PutObjectPart(ctx context.Context, bucket, object, uploadID string
 		size:         size,
 		sse:          sse,
 		streamSha256: true,
+		customHeader: customHeader,
+		trailer:      trailer,
 	}
 	return c.uploadPart(ctx, p)
 }
@@ -109,11 +114,11 @@ func (c Core) ListObjectParts(ctx context.Context, bucket, object, uploadID stri
 }
 
 // CompleteMultipartUpload - Concatenate uploaded parts and commit to an object.
-func (c Core) CompleteMultipartUpload(ctx context.Context, bucket, object, uploadID string, parts []CompletePart, opts PutObjectOptions) (string, error) {
+func (c Core) CompleteMultipartUpload(ctx context.Context, bucket, object, uploadID string, parts []CompletePart, opts PutObjectOptions) (UploadInfo, error) {
 	res, err := c.completeMultipartUpload(ctx, bucket, object, uploadID, completeMultipartUpload{
 		Parts: parts,
 	}, opts)
-	return res.ETag, err
+	return res, err
 }
 
 // AbortMultipartUpload - Abort an incomplete upload.

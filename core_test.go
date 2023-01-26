@@ -875,7 +875,7 @@ func TestCoreMultipartUpload(t *testing.T) {
 			partID++
 			data := bytes.NewReader(partBuf[:n])
 			dataLen := int64(len(partBuf[:n]))
-			objectPart, err := core.PutObjectPart(context.Background(), bucketName, objectName, uploadID, partID, data, dataLen, "", "", encrypt.NewSSE())
+			objectPart, err := core.PutObjectPart(context.Background(), bucketName, objectName, uploadID, partID, data, dataLen, "", "", encrypt.NewSSE(), nil, nil)
 			if err != nil {
 				t.Fatal("Error:", err, bucketName, objectName)
 			}
