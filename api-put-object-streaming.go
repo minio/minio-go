@@ -452,7 +452,8 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 // putObjectMultipartStreamParallel uploads opts.NumThreads parts in parallel.
 // This is expected to take opts.PartSize * opts.NumThreads * (GOGC / 100) bytes of buffer.
 func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketName, objectName string,
-	reader io.Reader, opts PutObjectOptions) (info UploadInfo, err error) {
+	reader io.Reader, opts PutObjectOptions,
+) (info UploadInfo, err error) {
 	// Input validation.
 	if err = s3utils.CheckValidBucketName(bucketName); err != nil {
 		return UploadInfo{}, err
@@ -496,11 +497,6 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 		}
 	}()
 
-	// Create checksums
-	// CRC32C is ~50% faster on AMD64 @ 30GB/s
-	var crcBytes []byte
-	crc := crc32.New(crc32.MakeTable(crc32.Castagnoli))
-
 	// Total data read and written to server. should be equal to 'size' at the end of the call.
 	var totalUploadedSize int64
 
@@ -520,6 +516,10 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 	errCh := make(chan error, opts.NumThreads)
 
 	reader = newHook(reader, opts.Progress)
+	var crcHashes [][]byte
+	if !opts.SendContentMd5 {
+		crcHashes = make([][]byte, totalPartsCount)
+	}
 
 	// Part number always starts with '1'.
 	var partNumber int
@@ -550,27 +550,33 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 			return UploadInfo{}, rerr
 		}
 
-		// Calculate md5sum.
-		customHeader := make(http.Header)
-		if !opts.SendContentMd5 {
-			// Add CRC32C instead.
-			crc.Reset()
-			crc.Write(buf[:length])
-			cSum := crc.Sum(nil)
-			customHeader.Set("x-amz-checksum-crc32c", base64.StdEncoding.EncodeToString(cSum))
-			crcBytes = append(crcBytes, cSum...)
-		}
-
 		wg.Add(1)
 		go func(partNumber int) {
 			// Avoid declaring variables in the for loop
 			var md5Base64 string
 
+			var src io.Reader = bytes.NewReader(buf[:length])
+			var trailer http.Header
 			if opts.SendContentMd5 {
 				md5Hash := c.md5Hasher()
 				md5Hash.Write(buf[:length])
 				md5Base64 = base64.StdEncoding.EncodeToString(md5Hash.Sum(nil))
 				md5Hash.Close()
+			} else {
+				// Send CRC32 as trailer. CRC32C is ~50% faster on AMD64 @
+				// 30GB/s
+				crc := crc32.New(crc32.MakeTable(crc32.Castagnoli))
+				trailer := make(http.Header, 1)
+				trailer.Set("x-amz-checksum-crc32c", base64.StdEncoding.EncodeToString(crc.Sum(nil)))
+
+				src = newHashReaderWrapper(src, crc, func(hash []byte) {
+					trailer.Set("x-amz-checksum-crc32c",
+						base64.StdEncoding.EncodeToString(hash))
+					// Save the hash in an array to compute the final hash of
+					// hashes later. (partNumber is 1 based, so we save the hash
+					// at `partNumber - 1`)
+					crcHashes[partNumber-1] = hash
+				})
 			}
 
 			defer wg.Done()
@@ -578,13 +584,13 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 				bucketName:   bucketName,
 				objectName:   objectName,
 				uploadID:     uploadID,
-				reader:       bytes.NewReader(buf[:length]),
+				reader:       src,
 				partNumber:   partNumber,
 				md5Base64:    md5Base64,
 				size:         int64(length),
 				sse:          opts.ServerSideEncryption,
 				streamSha256: !opts.DisableContentSha256,
-				customHeader: customHeader,
+				trailer:      trailer,
 			}
 			objPart, uerr := c.uploadPart(ctx, p)
 			if uerr != nil {
@@ -637,10 +643,12 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 	sort.Sort(completedParts(complMultipartUpload.Parts))
 
 	opts = PutObjectOptions{}
-	if len(crcBytes) > 0 {
+	if !opts.SendContentMd5 {
 		// Add hash of hashes.
-		crc.Reset()
-		crc.Write(crcBytes)
+		crc := crc32.New(crc32.MakeTable(crc32.Castagnoli))
+		for i := 1; i < partNumber; i++ {
+			crc.Write(crcHashes[i-1])
+		}
 		opts.UserMetadata = map[string]string{"X-Amz-Checksum-Crc32c": base64.StdEncoding.EncodeToString(crc.Sum(nil))}
 	}
 	uploadInfo, err := c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload, opts)
