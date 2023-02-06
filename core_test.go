@@ -875,14 +875,9 @@ func TestCoreMultipartUpload(t *testing.T) {
 			partID++
 			data := bytes.NewReader(partBuf[:n])
 			dataLen := int64(len(partBuf[:n]))
-			objectPart, err := core.PutObjectPart(context.Background(),
-				PartUploadReq{
-					Bucket:       bucketName,
-					Object:       objectName,
-					UploadID:     uploadID,
-					PartID:       partID,
-					Data:         data,
-					Size:         dataLen,
+			objectPart, err := core.PutObjectPart(context.Background(), bucketName, objectName, uploadID, partID,
+				data, dataLen,
+				PutObjectPartOptions{
 					Md5Base64:    "",
 					Sha256Hex:    "",
 					SSE:          encrypt.NewSSE(),

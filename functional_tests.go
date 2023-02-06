@@ -8414,20 +8414,9 @@ func testSSECMultipartEncryptedToSSECCopyObjectPart() {
 
 	var completeParts []minio.CompletePart
 
-	part, err := c.PutObjectPart(context.Background(),
-		PartUploadReq{
-			Bucket:       bucketName,
-			Object:       objectName,
-			UploadID:     uploadID,
-			PartID:       1,
-			Data:         bytes.NewReader(buf[:5*1024*1024]),
-			Size:         5 * 1024 * 1024,
-			Md5Base64:    "",
-			Sha256Hex:    "",
-			SSE:          srcencryption,
-			CustomHeader: nil,
-			Trailer:      nil,
-		},
+	part, err := c.PutObjectPart(context.Background(), bucketName, objectName, uploadID, 1,
+		bytes.NewReader(buf[:5*1024*1024]), 5*1024*1024,
+		minio.PutObjectPartOptions{SSE: srcencryption},
 	)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObjectPart call failed", err)
@@ -8435,20 +8424,9 @@ func testSSECMultipartEncryptedToSSECCopyObjectPart() {
 	}
 	completeParts = append(completeParts, minio.CompletePart{PartNumber: part.PartNumber, ETag: part.ETag})
 
-	part, err = c.PutObjectPart(context.Background(),
-		PartUploadReq{
-			Bucket:       bucketName,
-			Object:       objectName,
-			UploadID:     uploadID,
-			PartID:       2,
-			Data:         bytes.NewReader(buf[5*1024*1024:]),
-			Size:         1024 * 1024,
-			Md5Base64:    "",
-			Sha256Hex:    "",
-			SSE:          srcencryption,
-			CustomHeader: nil,
-			Trailer:      nil,
-		},
+	part, err = c.PutObjectPart(context.Background(), bucketName, objectName, uploadID, 2,
+		bytes.NewReader(buf[5*1024*1024:]), 1024*1024,
+		minio.PutObjectPartOptions{SSE: srcencryption},
 	)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObjectPart call failed", err)

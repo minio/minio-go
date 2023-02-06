@@ -86,32 +86,30 @@ func (c Core) ListMultipartUploads(ctx context.Context, bucket, prefix, keyMarke
 	return c.listMultipartUploadsQuery(ctx, bucket, keyMarker, uploadIDMarker, prefix, delimiter, maxUploads)
 }
 
-// PartUploadReq contains inputs for PutObjectPart
-type PartUploadReq struct {
-	Bucket, Object, UploadID string
-	PartID                   int
-	Data                     io.Reader
-	Size                     int64
-	Md5Base64, Sha256Hex     string
-	SSE                      encrypt.ServerSide
-	CustomHeader, Trailer    http.Header
+// PutObjectPartOptions contains options for PutObjectPart API
+type PutObjectPartOptions struct {
+	Md5Base64, Sha256Hex  string
+	SSE                   encrypt.ServerSide
+	CustomHeader, Trailer http.Header
 }
 
 // PutObjectPart - Upload an object part.
-func (c Core) PutObjectPart(ctx context.Context, r PartUploadReq) (ObjectPart, error) {
+func (c Core) PutObjectPart(ctx context.Context, bucket, object, uploadID string, partID int,
+	data io.Reader, size int64, opts PutObjectPartOptions,
+) (ObjectPart, error) {
 	p := uploadPartParams{
-		bucketName:   r.Bucket,
-		objectName:   r.Object,
-		uploadID:     r.UploadID,
-		reader:       r.Data,
-		partNumber:   r.PartID,
-		md5Base64:    r.Md5Base64,
-		sha256Hex:    r.Sha256Hex,
-		size:         r.Size,
-		sse:          r.SSE,
+		bucketName:   bucket,
+		objectName:   object,
+		uploadID:     uploadID,
+		reader:       data,
+		partNumber:   partID,
+		md5Base64:    opts.Md5Base64,
+		sha256Hex:    opts.Sha256Hex,
+		size:         size,
+		sse:          opts.SSE,
 		streamSha256: true,
-		customHeader: r.CustomHeader,
-		trailer:      r.Trailer,
+		customHeader: opts.CustomHeader,
+		trailer:      opts.Trailer,
 	}
 	return c.uploadPart(ctx, p)
 }
