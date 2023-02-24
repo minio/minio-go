@@ -96,6 +96,7 @@ type Client struct {
 	healthStatus int32
 
 	trailingHeaderSupport bool
+	headers               map[string]string
 }
 
 // Options for New method
@@ -113,6 +114,7 @@ type Options struct {
 	// Custom hash routines. Leave nil to use standard.
 	CustomMD5    func() md5simd.Hasher
 	CustomSHA256 func() md5simd.Hasher
+	Headers      map[string]string
 }
 
 // Global constants.
@@ -214,6 +216,8 @@ func privateNew(endpoint string, opts *Options) (*Client, error) {
 
 	// Save endpoint URL, user agent for future uses.
 	clnt.endpointURL = endpointURL
+
+	clnt.headers = opts.Headers
 
 	transport := opts.Transport
 	if transport == nil {
@@ -552,6 +556,10 @@ func (c *Client) executeMethod(ctx context.Context, method string, metadata requ
 	var retryable bool       // Indicates if request can be retried.
 	var bodySeeker io.Seeker // Extracted seeker from io.Reader.
 	reqRetry := MaxRetry     // Indicates how many times we can retry the request
+
+	for k, v := range c.headers {
+		metadata.customHeader.Add(k, v)
+	}
 
 	if metadata.contentBody != nil {
 		// Check if body is seekable then it is retryable.
