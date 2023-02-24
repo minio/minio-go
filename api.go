@@ -557,6 +557,9 @@ func (c *Client) executeMethod(ctx context.Context, method string, metadata requ
 	var bodySeeker io.Seeker // Extracted seeker from io.Reader.
 	reqRetry := MaxRetry     // Indicates how many times we can retry the request
 
+	if metadata.customHeader == nil {
+		metadata.customHeader = make(http.Header)
+	}
 	for k, v := range c.headers {
 		metadata.customHeader.Add(k, v)
 	}
