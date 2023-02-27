@@ -389,7 +389,8 @@ func (c *Client) completeMultipartUpload(ctx context.Context, bucketName, object
 
 	headers := opts.Header()
 	if s3utils.IsAmazonEndpoint(*c.endpointURL) {
-		headers.Del(encrypt.SseGenericHeader)
+		headers.Del(encrypt.SseKmsKeyID)      // Remove X-Amz-Server-Side-Encryption-Aws-Kms-Key-Id not supported in CompleteMultipartUpload
+		headers.Del(encrypt.SseGenericHeader) // Remove X-Amz-Server-Side-Encryption not supported in CompleteMultipartUpload
 	}
 
 	// Instantiate all the complete multipart buffer.
