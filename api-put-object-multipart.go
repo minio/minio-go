@@ -387,6 +387,11 @@ func (c *Client) completeMultipartUpload(ctx context.Context, bucketName, object
 		return UploadInfo{}, err
 	}
 
+	headers := opts.Header()
+	if s3utils.IsAmazonEndpoint(*c.endpointURL) {
+		headers.Del(encrypt.SseGenericHeader)
+	}
+
 	// Instantiate all the complete multipart buffer.
 	completeMultipartUploadBuffer := bytes.NewReader(completeMultipartUploadBytes)
 	reqMetadata := requestMetadata{
@@ -396,7 +401,7 @@ func (c *Client) completeMultipartUpload(ctx context.Context, bucketName, object
 		contentBody:      completeMultipartUploadBuffer,
 		contentLength:    int64(len(completeMultipartUploadBytes)),
 		contentSHA256Hex: sum256Hex(completeMultipartUploadBytes),
-		customHeader:     opts.Header(),
+		customHeader:     headers,
 	}
 
 	// Execute POST to complete multipart upload for an objectName.
