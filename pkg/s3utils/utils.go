@@ -113,6 +113,12 @@ var elbAmazonCnRegex = regexp.MustCompile(`elb(.*?).amazonaws.com.cn$`)
 // amazonS3HostPrivateLink - regular expression used to determine if an arg is s3 host in AWS PrivateLink interface endpoints style
 var amazonS3HostPrivateLink = regexp.MustCompile(`^(?:bucket|accesspoint).vpce-.*?.s3.(.*?).vpce.amazonaws.com$`)
 
+// Regular expression used to determine if the arg is related to amazon
+var amazonHostRegex = regexp.MustCompile(`\.amazonaws\.com(?:\.cn)?$`)
+
+// genericS3HostDot - regular expression used to determine if an arg is s3 host in . style.
+var genericS3HostDot = regexp.MustCompile(`^s3\.([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])(?:\.(?:[A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])){2,}$`)
+
 // GetRegionFromURL - returns a region from url host.
 func GetRegionFromURL(endpointURL url.URL) string {
 	if endpointURL == sentinelURL {
@@ -163,6 +169,13 @@ func GetRegionFromURL(endpointURL url.URL) string {
 	parts = amazonS3HostPrivateLink.FindStringSubmatch(endpointURL.Host)
 	if len(parts) > 1 {
 		return parts[1]
+	}
+
+	if !amazonHostRegex.MatchString(endpointURL.Host) {
+		parts = genericS3HostDot.FindStringSubmatch(endpointURL.Host)
+		if len(parts) > 1 {
+			return parts[1]
+		}
 	}
 	return ""
 }

@@ -127,6 +127,36 @@ func TestGetRegionFromURL(t *testing.T) {
 			},
 			expectedRegion: "us-west-1",
 		},
+		{
+			u: url.URL{
+				Host: "s3.sbg.io.cloud.ovh.net",
+			},
+			expectedRegion: "sbg",
+		},
+		{
+			u: url.URL{
+				Host: "s3.nl-ams.scw.cloud",
+			},
+			expectedRegion: "nl-ams",
+		},
+		{
+			u: url.URL{
+				Host: "s3.us-central-1.wasabisys.com",
+			},
+			expectedRegion: "us-central-1",
+		},
+		{
+			u: url.URL{
+				Host: "s3.wasabisys.com",
+			},
+			expectedRegion: "",
+		},
+		{
+			u: url.URL{
+				Host: "something.s3.foo.bar",
+			},
+			expectedRegion: "",
+		},
 	}
 
 	for i, testCase := range testCases {
