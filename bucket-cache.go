@@ -195,7 +195,7 @@ func (c *Client) getBucketLocationRequest(ctx context.Context, bucketName string
 	var urlStr string
 
 	// only support Aliyun OSS & Ksyun KS3 for virtual hosted path,  compatible  Amazon & Google Endpoint
-	if isVirtualHost && s3utils.IsAliyunOSSEndpoint(targetURL) && s3utils.IsKsyunKS3Endpoint(targetURL) {
+	if isVirtualHost && (s3utils.IsAliyunOSSEndpoint(targetURL) || s3utils.IsKsyunKS3Endpoint(targetURL)) {
 		urlStr = c.endpointURL.Scheme + "://" + bucketName + "." + targetURL.Host + "/?location"
 	} else {
 		targetURL.Path = path.Join(bucketName, "") + "/"
