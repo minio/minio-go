@@ -75,11 +75,20 @@ func TestGetBucketLocationRequest(t *testing.T) {
 
 		// Set get bucket location always as path style.
 		targetURL := *c.endpointURL
-		targetURL.Path = path.Join(bucketName, "") + "/"
-		targetURL.RawQuery = urlValues.Encode()
+
+		isVirtualStyle := c.isVirtualHostStyleRequest(targetURL, bucketName)
+
+		var urlStr string
+		if isVirtualStyle {
+			urlStr = targetURL.Scheme + "://" + bucketName + "." + targetURL.Host + "/?location"
+		} else {
+			targetURL.Path = path.Join(bucketName, "") + "/"
+			targetURL.RawQuery = urlValues.Encode()
+			urlStr = targetURL.String()
+		}
 
 		// Get a new HTTP request for the method.
-		req, err := http.NewRequest(http.MethodGet, targetURL.String(), nil)
+		req, err := http.NewRequest(http.MethodGet, urlStr, nil)
 		if err != nil {
 			return nil, err
 		}
