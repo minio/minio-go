@@ -60,7 +60,7 @@ func main() {
 
 | Bucket operations                                     | Object operations                                   | Presigned operations                          | Bucket Policy/Notification Operations                         | Client custom settings                                |
 | :---                                                  | :---                                                | :---                                          | :---                                                          | :---                                                  |
-| [`MakeBucket`](#MakeBucket)                           | [`GetObject`](#GetObject)                           | [`PresignedGetObject`](#PresignedGetObject)   | [`SetBucketPolicy`](#SetBucketPolicy)                         | [`SetAppInfo`](#SetAppInfo)                           |
+| [`MakeBucket`](#Ma[API.md](zh_CN%2FAPI.md)keBucket)                           | [`GetObject`](#GetObject)                           | [`PresignedGetObject`](#PresignedGetObject)   | [`SetBucketPolicy`](#SetBucketPolicy)                         | [`SetAppInfo`](#SetAppInfo)                           |
 |                                                       | [`PutObject`](#PutObject)                           | [`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)                         |                                                       |
 | [`ListBuckets`](#ListBuckets)                         | [`CopyObject`](#CopyObject)                         | [`PresignedHeadObject`](#PresignedHeadObject) | [`SetBucketNotification`](#SetBucketNotification)             | [`TraceOn`](#TraceOn)                                 |
 | [`BucketExists`](#BucketExists)                       | [`StatObject`](#StatObject)                         | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`GetBucketNotification`](#GetBucketNotification)             | [`TraceOff`](#TraceOff)                               |
@@ -505,6 +505,7 @@ if err != nil {
 ```
 
 <a name="PutObject"></a>
+
 ### PutObject(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64,opts PutObjectOptions) (info UploadInfo, err error)
 Uploads objects that are less than 128MiB in a single PUT operation. For objects that are greater than 128MiB in size, PutObject seamlessly uploads the object as parts of 128MiB or more depending on the actual file size. The max upload size for an object is 5TB.
 
@@ -736,6 +737,7 @@ fmt.Println("Composed object successfully:", uploadInfo)
 ```
 
 <a name="FPutObject"></a>
+
 ### FPutObject(ctx context.Context, bucketName, objectName, filePath, opts PutObjectOptions) (info UploadInfo, err error)
 Uploads contents from a file to objectName.
 
@@ -853,6 +855,7 @@ if err != nil {
 }
 ```
 <a name="PutObjectRetention"></a>
+
 ### PutObjectRetention(ctx context.Context, bucketName, objectName string, opts minio.PutObjectRetentionOptions) error
 Applies object retention lock onto an object.
 
@@ -867,6 +870,7 @@ __Parameters__
 |`opts`	|_minio.PutObjectRetentionOptions_ |Allows user to set options like retention mode, expiry date and version id |
 
 <a name="RemoveObjects"></a>
+
 ### RemoveObjects(ctx context.Context, bucketName string, objectsCh <-chan ObjectInfo, opts RemoveObjectsOptions) <-chan RemoveObjectError
 Removes a list of objects obtained from an input channel. The call sends a delete request to the server up to 1000 objects at a time. The errors observed are sent over the error channel.
 
@@ -1489,10 +1493,10 @@ __Parameters__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
+|`ctx` |_context.Context_ |Custom context for timeout/cancellation of the call |
 |`bucketName`  | _string_  | Bucket to listen notifications on   |
 |`prefix`  | _string_ | Object key prefix to filter notifications for  |
 |`suffix`  | _string_ | Object key suffix to filter notifications for  |
-|`events`  | _[]string_ | Enables notifications for specific event types |
 
 __Return Values__
 
