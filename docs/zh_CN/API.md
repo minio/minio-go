@@ -18,7 +18,7 @@ func main() {
 	endpoint := "play.min.io"
 	accessKeyID := "Q3AM3UQ867SPQQA43P2F"
 	secretAccessKey := "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG"
-	// 使用ssl
+	//  使用ssl
 	useSSL := true
 
 	// 初使化minio client对象。
