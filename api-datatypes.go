@@ -45,7 +45,7 @@ type StringMap map[string]string
 // if m is nil it can be initialized, which is often the case if m is
 // nested in another xml structural. This is also why the first thing done
 // on the first line is initialize it.
-func (m *StringMap) UnmarshalXML(d *xml.Decoder, s xml.StartElement) error {
+func (m *StringMap) UnmarshalXML(d *xml.Decoder, _ xml.StartElement) error {
 	*m = StringMap{}
 	for {
 		// Format is <key>value</key>
