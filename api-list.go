@@ -422,6 +422,8 @@ func (c *Client) listObjectVersions(ctx context.Context, bucketName string, opts
 					IsLatest:       version.IsLatest,
 					VersionID:      version.VersionID,
 					IsDeleteMarker: version.isDeleteMarker,
+					UserTags:       version.UserTags,
+					UserMetadata:   version.UserMetadata,
 				}
 				select {
 				// Send object version info.
