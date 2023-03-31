@@ -22,6 +22,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/minio/minio-go/v7/pkg/s3utils"
@@ -41,13 +42,13 @@ func (c *Client) presignURL(ctx context.Context, method string, bucketName strin
 	if err = isValidExpiry(expires); err != nil {
 		return nil, err
 	}
-
+	validObjectName := strings.TrimPrefix(objectName, "/")
 	// Convert expires into seconds.
 	expireSeconds := int64(expires / time.Second)
 	reqMetadata := requestMetadata{
 		presignURL:         true,
 		bucketName:         bucketName,
-		objectName:         objectName,
+		objectName:         validObjectName,
 		expires:            expireSeconds,
 		queryValues:        reqParams,
 		extraPresignHeader: extraHeaders,
