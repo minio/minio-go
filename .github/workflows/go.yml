@@ -33,11 +33,9 @@ jobs:
         env:
           MINT_MODE: full
           SERVER_ENDPOINT: localhost:9000
-          ACCESS_KEY: minio
-          SECRET_KEY: minio123
+          ACCESS_KEY: minioadmin
+          SECRET_KEY: minioadmin
           ENABLE_HTTPS: 1
-          MINIO_ACCESS_KEY: minio
-          MINIO_SECRET_KEY: minio123
           MINIO_KMS_MASTER_KEY: my-minio-key:6368616e676520746869732070617373776f726420746f206120736563726574
           SSL_CERT_FILE: /tmp/certs-dir/public.crt
           MINIO_CI_CD: true
