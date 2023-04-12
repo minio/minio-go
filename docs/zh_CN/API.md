@@ -1400,9 +1400,9 @@ fmt.Println("Successfully generated presigned URL", presignedURL)
 
 <a name="PresignedPutObject"></a>
 ### PresignedPutObject(bucketName, objectName string, expiry time.Duration) (*url.URL, error)
-生成一个用于HTTP GET操作的presigned URL。浏览器/移动客户端可以在即使存储桶为私有的情况下也可以通过这个URL进行下载。这个presigned URL可以有一个过期时间，默认是7天。
+为HTTP PUT操作生成一个presigned URL。浏览器/移动客户端可以在即使存储桶为私有的情况下也可以通过这个URL进行上传。这个presigned URL可以有一个过期时间（以秒为单位），过期后，该URL不再可用。默认设置的过期时间为7天。
 
-注意：你可以通过只指定对象名称上传到S3。
+注意：你只能用指定的对象名称上传到S3。
 
 __参数__
 
@@ -1430,7 +1430,7 @@ fmt.Println("Successfully generated presigned URL", presignedURL)
 
 <a name="PresignedHeadObject"></a>
 ### PresignedHeadObject(bucketName, objectName string, expiry time.Duration, reqParams url.Values) (*url.URL, error)
-生成一个用于HTTP GET操作的presigned URL。浏览器/移动客户端可以在即使存储桶为私有的情况下也可以通过这个URL进行下载。这个presigned URL可以有一个过期时间，默认是7天。
+为HTTP HEAD操作生成一个presigned URL。浏览器/移动客户端可以在即使存储桶为私有的情况下也可以通过这个URL获取对象的元数据。这个presigned URL可以有一个相关的过期时间（以秒为单位），过期后，该URL不再可用。默认的过期时间被设置为7天。
 
 __参数__
 
