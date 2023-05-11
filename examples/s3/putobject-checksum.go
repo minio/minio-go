@@ -73,7 +73,8 @@ func main() {
 	}
 
 	// Upload object.
-	info, err := s3Client.PutObject(context.Background(), "my-bucket", "my-objectname", object, objectStat.Size(), minio.PutObjectOptions{ContentType: "application/octet-stream", UserMetadata: meta})
+	// Checksums are different with multipart, so we disable that.
+	info, err := s3Client.PutObject(context.Background(), "my-bucket", "my-objectname", object, objectStat.Size(), minio.PutObjectOptions{ContentType: "application/octet-stream", UserMetadata: meta, DisableMultipart: true})
 	if err != nil {
 		log.Fatalln(err)
 	}
