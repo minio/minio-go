@@ -4458,6 +4458,13 @@ func testPresignedPostPolicy() {
 	policy.SetContentType("binary/octet-stream")
 	policy.SetContentLengthRange(10, 1024*1024)
 	policy.SetUserMetadata(metadataKey, metadataValue)
+
+	// Add CRC32C
+	hasher := crc32.New(crc32.MakeTable(crc32.Castagnoli))
+	hasher.Write(buf)
+	policy.SetUserData("checksum-algorithm", "CRC32C")
+	policy.SetUserData("checksum-crc32c", base64.StdEncoding.EncodeToString(hasher.Sum(nil)))
+
 	args["policy"] = policy.String()
 
 	presignedPostPolicyURL, formData, err := c.PresignedPostPolicy(context.Background(), policy)
@@ -4525,6 +4532,7 @@ func testPresignedPostPolicy() {
 		Timeout:   30 * time.Second,
 		Transport: transport,
 	}
+	args["url"] = presignedPostPolicyURL.String()
 
 	req, err := http.NewRequest(http.MethodPost, presignedPostPolicyURL.String(), bytes.NewReader(formBuf.Bytes()))
 	if err != nil {
@@ -4557,13 +4565,21 @@ func testPresignedPostPolicy() {
 	expectedLocation := scheme + os.Getenv(serverEndpoint) + "/" + bucketName + "/" + objectName
 	expectedLocationBucketDNS := scheme + bucketName + "." + os.Getenv(serverEndpoint) + "/" + objectName
 
-	if val, ok := res.Header["Location"]; ok {
-		if val[0] != expectedLocation && val[0] != expectedLocationBucketDNS {
-			logError(testName, function, args, startTime, "", "Location in header response is incorrect", err)
+	if !strings.Contains(expectedLocation, "s3.amazonaws.com/") {
+		// Test when not against AWS S3.
+		if val, ok := res.Header["Location"]; ok {
+			if val[0] != expectedLocation && val[0] != expectedLocationBucketDNS {
+				logError(testName, function, args, startTime, "", fmt.Sprintf("Location in header response is incorrect. Want %q or %q, got %q", expectedLocation, expectedLocationBucketDNS, val[0]), err)
+				return
+			}
+		} else {
+			logError(testName, function, args, startTime, "", "Location not found in header response", err)
 			return
 		}
-	} else {
-		logError(testName, function, args, startTime, "", "Location not found in header response", err)
+	}
+	want := base64.StdEncoding.EncodeToString(hasher.Sum(nil))
+	if got := res.Header.Get("X-Amz-Checksum-Crc32c"); got != want {
+		logError(testName, function, args, startTime, "", fmt.Sprintf("Want checksum %q, got %q", want, got), nil)
 		return
 	}
 
