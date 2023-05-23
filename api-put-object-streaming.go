@@ -193,7 +193,7 @@ func (c *Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketN
 				}
 
 				sectionReader := newHook(io.NewSectionReader(reader, readOffset, partSize), opts.Progress)
-				var trailer = make(http.Header, 1)
+				trailer := make(http.Header, 1)
 				if withChecksum {
 					crc := crc32.New(crc32.MakeTable(crc32.Castagnoli))
 					trailer.Set("x-amz-checksum-crc32c", base64.StdEncoding.EncodeToString(crc.Sum(nil)))
@@ -203,7 +203,8 @@ func (c *Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketN
 				}
 
 				// Proceed to upload the part.
-				p := uploadPartParams{bucketName: bucketName,
+				p := uploadPartParams{
+					bucketName:   bucketName,
 					objectName:   objectName,
 					uploadID:     uploadID,
 					reader:       sectionReader,
@@ -244,7 +245,6 @@ func (c *Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketN
 			return UploadInfo{}, ctx.Err()
 		case uploadRes := <-uploadedPartsCh:
 			if uploadRes.Error != nil {
-
 				return UploadInfo{}, uploadRes.Error
 			}
 
@@ -452,7 +452,8 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 // putObjectMultipartStreamParallel uploads opts.NumThreads parts in parallel.
 // This is expected to take opts.PartSize * opts.NumThreads * (GOGC / 100) bytes of buffer.
 func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketName, objectName string,
-	reader io.Reader, opts PutObjectOptions) (info UploadInfo, err error) {
+	reader io.Reader, opts PutObjectOptions,
+) (info UploadInfo, err error) {
 	// Input validation.
 	if err = s3utils.CheckValidBucketName(bucketName); err != nil {
 		return UploadInfo{}, err

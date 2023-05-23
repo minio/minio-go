@@ -2312,7 +2312,7 @@ func testPutMultipartObjectWithChecksums() {
 
 		cmpChecksum := func(got, want string) {
 			if want != got {
-				//logError(testName, function, args, startTime, "", "checksum mismatch", fmt.Errorf("want %s, got %s", want, got))
+				// logError(testName, function, args, startTime, "", "checksum mismatch", fmt.Errorf("want %s, got %s", want, got))
 				fmt.Printf("want %s, got %s\n", want, got)
 				return
 			}
