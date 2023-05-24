@@ -271,8 +271,25 @@ func (p *PostPolicy) SetChecksums(cksum map[string]string) {
 	if cksum == nil {
 		return
 	}
+	supportedFields := map[string]struct{}{
+		"algorithm": {},
+		"crc32":     {},
+		"crc32c":    {},
+		"sha1":      {},
+		"sha256":    {},
+	}
 	for k, v := range cksum {
-		p.formData[k] = v
+		if strings.HasPrefix(strings.ToLower(k), "x-amz-checksum-") {
+			p.formData[k] = v
+		} else {
+			if _, ok := supportedFields[strings.ToLower(k)]; ok {
+				if strings.ToLower(k) == "algorithm" {
+					p.formData["x-amz-checksum-"+strings.ToLower(k)] = strings.ToUpper(v)
+				} else {
+					p.formData["x-amz-checksum-"+strings.ToLower(k)] = v
+				}
+			}
+		}
 	}
 }
 
