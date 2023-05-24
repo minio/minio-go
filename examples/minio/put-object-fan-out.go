@@ -28,6 +28,7 @@ import (
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/minio/minio-go/v7/pkg/encrypt"
 )
 
 func main() {
@@ -62,16 +63,19 @@ func main() {
 	}
 	defer file.Close()
 
-	fanOutReq := []minio.PutObjectFanOutRequest{
-		minio.PutObjectFanOutRequest{Key: "my1-prefix/1.txt"},
-		minio.PutObjectFanOutRequest{Key: "my1-prefix/2.txt"},
-		minio.PutObjectFanOutRequest{Key: "my1-prefix/3.txt"},
-		minio.PutObjectFanOutRequest{Key: "my1-prefix/4.txt"},
-		minio.PutObjectFanOutRequest{Key: "my1-prefix/5.txt"},
-		minio.PutObjectFanOutRequest{Key: "my1-prefix/6.txt"},
+	fanOutReq := minio.PutObjectFanOutRequest{
+		Entries: []minio.PutObjectFanOutEntry{
+			{Key: "my1-prefix/1.txt"},
+			{Key: "my1-prefix/2.txt"},
+			{Key: "my1-prefix/3.txt"},
+			{Key: "my1-prefix/4.txt"},
+			{Key: "my1-prefix/5.txt"},
+			{Key: "my1-prefix/6.txt"},
+		},
+		SSE: encrypt.NewSSE(),
 	}
 
-	fanOutResp, err := minioClient.PutObjectFanOut(context.Background(), "testbucket", file, fanOutReq...)
+	fanOutResp, err := minioClient.PutObjectFanOut(context.Background(), "testbucket", file, fanOutReq)
 	if err != nil {
 		log.Fatalln(err)
 	}

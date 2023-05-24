@@ -1,6 +1,6 @@
 /*
  * MinIO Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2015-2017 MinIO, Inc.
+ * Copyright 2015-2023 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,11 @@ package minio
 import (
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
+
+	"github.com/minio/minio-go/v7/pkg/encrypt"
 )
 
 // expirationDateFormat date format for expiration key in json policy.
@@ -256,6 +259,33 @@ func (p *PostPolicy) SetUserMetadata(key string, value string) error {
 	}
 	p.formData[headerName] = value
 	return nil
+}
+
+// SetChecksums sets additional S3 specific checksums
+// x-amz-checksum-algorithm: [CRC32, CRC32C, SHA1, and SHA256]
+// x-amz-checksum-crc32: xxx
+// x-amz-checksum-crc32c: xxx
+// x-amz-checksum-sha1: xxx
+// x-amz-checksum-sha256: xxx
+func (p *PostPolicy) SetChecksums(cksum map[string]string) {
+	if cksum == nil {
+		return
+	}
+	for k, v := range cksum {
+		p.formData[k] = v
+	}
+}
+
+// SetEncryption - sets encryption headers for POST API
+func (p *PostPolicy) SetEncryption(sse encrypt.ServerSide) {
+	if sse == nil {
+		return
+	}
+	h := http.Header{}
+	sse.Marshal(h)
+	for k, v := range h {
+		p.formData[k] = v[0]
+	}
 }
 
 // SetUserData - Set user data as a key/value couple.

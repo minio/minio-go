@@ -512,14 +512,23 @@ A variant of PutObject instead of writing a single object from a single stream m
 
 __Parameters__
 
-| Param        | Type                             | Description                                                           |
-|:-------------|:---------------------------------|:----------------------------------------------------------------------|
-| `ctx`        | _context.Context_                | Custom context for timeout/cancellation of the call                   |
-| `bucketName` | _string_                         | Name of the bucket                                                    |
-| `body`       | _io.Reader_                      | Any Go type that implements io.Reader                                 |
-| `fanOutReq`  | _[]minio.PutObjectFanOutRequest_ | User input list of all the objects that will be created on the server |
+| Param        | Type                           | Description                                                           |
+|:-------------|:-------------------------------|:----------------------------------------------------------------------|
+| `ctx`        | _context.Context_              | Custom context for timeout/cancellation of the call                   |
+| `bucketName` | _string_                       | Name of the bucket                                                    |
+| `fanOutData` | _io.Reader_                    | Any Go type that implements io.Reader                                 |
+| `fanOutReq`  | _minio.PutObjectFanOutRequest_ | User input list of all the objects that will be created on the server |
+|              |                                |                                                                       |
 
 __minio.PutObjectFanOutRequest__
+
+| Field       | Type                            | Description                                |
+|:------------|:--------------------------------|:-------------------------------------------|
+| `Entries`   | _[]minio.PutObjectFanOutEntyry_ | List of object fan out entries             |
+| `Checksums` | _map[string]string_             | Checksums for the input data               |
+| `SSE`       | _encrypt.ServerSide             | Encryption settings for the entire fan-out |
+
+__minio.PutObjectFanOutEntry__
 
 | Field                | Type                  | Description                                                                                        |
 |:---------------------|:----------------------|:---------------------------------------------------------------------------------------------------|
