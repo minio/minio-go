@@ -22,7 +22,10 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"hash/crc32"
+	"io"
 	"log"
 	"os"
 
@@ -63,6 +66,15 @@ func main() {
 	}
 	defer file.Close()
 
+	crc := crc32.New(crc32.MakeTable(crc32.Castagnoli))
+	_, err = io.Copy(crc, file)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	// Seek to beginning before upload.
+	file.Seek(0, 0)
+
 	fanOutReq := minio.PutObjectFanOutRequest{
 		Entries: []minio.PutObjectFanOutEntry{
 			{Key: "my1-prefix/1.txt"},
@@ -73,6 +85,10 @@ func main() {
 			{Key: "my1-prefix/6.txt"},
 		},
 		SSE: encrypt.NewSSE(),
+		Checksums: map[string]string{
+			"algorithm": "CRC32C",
+			"crc32c":    base64.StdEncoding.EncodeToString(crc.Sum(nil)),
+		},
 	}
 
 	fanOutResp, err := minioClient.PutObjectFanOut(context.Background(), "testbucket", file, fanOutReq)
