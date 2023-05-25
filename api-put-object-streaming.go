@@ -742,6 +742,17 @@ func (c *Client) putObjectDo(ctx context.Context, bucketName, objectName string,
 	// Set headers.
 	customHeader := opts.Header()
 
+	// Add CRC when client supports it, MD5 is not set, not Google and we don't add SHA256 to chunks.
+	addCrc := c.trailingHeaderSupport && md5Base64 == "" && !s3utils.IsGoogleEndpoint(*c.endpointURL) && (opts.DisableContentSha256 || c.secure)
+
+	if addCrc {
+		// If user has added checksums, don't add them ourselves.
+		for k := range opts.UserMetadata {
+			if strings.HasPrefix(strings.ToLower(k), "x-amz-checksum-") {
+				addCrc = false
+			}
+		}
+	}
 	// Populate request metadata.
 	reqMetadata := requestMetadata{
 		bucketName:       bucketName,
@@ -752,6 +763,7 @@ func (c *Client) putObjectDo(ctx context.Context, bucketName, objectName string,
 		contentMD5Base64: md5Base64,
 		contentSHA256Hex: sha256Hex,
 		streamSha256:     !opts.DisableContentSha256,
+		addCrc:           addCrc,
 	}
 	if opts.Internal.SourceVersionID != "" {
 		if opts.Internal.SourceVersionID != nullVersionID {
