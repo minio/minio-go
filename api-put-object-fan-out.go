@@ -48,14 +48,14 @@ type PutObjectFanOutEntry struct {
 // PutObjectFanOutRequest this is the request structure sent
 // to the server to fan-out the stream to multiple objects.
 type PutObjectFanOutRequest struct {
-	Entries   []PutObjectFanOutEntry
-	Checksums map[string]string
-	SSE       encrypt.ServerSide
+	Entries  []PutObjectFanOutEntry
+	Checksum Checksum
+	SSE      encrypt.ServerSide
 }
 
 // PutObjectFanOutResponse this is the response structure sent
 // by the server upon success or failure for each object
-// fan-out keys. Additionally this response carries ETag,
+// fan-out keys. Additionally, this response carries ETag,
 // VersionID and LastModified for each object fan-out.
 type PutObjectFanOutResponse struct {
 	Key          string     `json:"key"`
@@ -85,7 +85,7 @@ func (c *Client) PutObjectFanOut(ctx context.Context, bucket string, fanOutData 
 	policy.SetEncryption(fanOutReq.SSE)
 
 	// Set checksum headers if any.
-	policy.SetChecksums(fanOutReq.Checksums)
+	policy.SetChecksum(fanOutReq.Checksum)
 
 	url, formData, err := c.PresignedPostPolicy(ctx, policy)
 	if err != nil {
