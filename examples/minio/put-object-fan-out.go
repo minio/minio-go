@@ -22,9 +22,7 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
-	"hash/crc32"
 	"io"
 	"log"
 	"os"
@@ -57,6 +55,9 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	// Enable tracing.
+	minioClient.TraceOn(os.Stdout)
+
 	filePath := "my-testfile" // Specify a local file that we will upload
 
 	// Open a local file that we will upload
@@ -66,14 +67,13 @@ func main() {
 	}
 	defer file.Close()
 
-	crc := crc32.New(crc32.MakeTable(crc32.Castagnoli))
-	_, err = io.Copy(crc, file)
+	cs, err := minio.ChecksumCRC32C.ChecksumReader(file)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
 	// Seek to beginning before upload.
-	file.Seek(0, 0)
+	file.Seek(0, io.SeekStart)
 
 	fanOutReq := minio.PutObjectFanOutRequest{
 		Entries: []minio.PutObjectFanOutEntry{
@@ -84,14 +84,11 @@ func main() {
 			{Key: "my1-prefix/5.txt"},
 			{Key: "my1-prefix/6.txt"},
 		},
-		SSE: encrypt.NewSSE(),
-		Checksums: map[string]string{
-			"algorithm": "CRC32C",
-			"crc32c":    base64.StdEncoding.EncodeToString(crc.Sum(nil)),
-		},
+		SSE:      encrypt.NewSSE(),
+		Checksum: cs,
 	}
 
-	fanOutResp, err := minioClient.PutObjectFanOut(context.Background(), "testbucket", file, fanOutReq)
+	fanOutResp, err := minioClient.PutObjectFanOut(context.Background(), YOURBUCKET, file, fanOutReq)
 	if err != nil {
 		log.Fatalln(err)
 	}

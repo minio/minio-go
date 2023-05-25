@@ -261,35 +261,11 @@ func (p *PostPolicy) SetUserMetadata(key string, value string) error {
 	return nil
 }
 
-// SetChecksums sets additional S3 specific checksums
-// x-amz-checksum-algorithm: [CRC32, CRC32C, SHA1, and SHA256]
-// x-amz-checksum-crc32: xxx
-// x-amz-checksum-crc32c: xxx
-// x-amz-checksum-sha1: xxx
-// x-amz-checksum-sha256: xxx
-func (p *PostPolicy) SetChecksums(cksum map[string]string) {
-	if cksum == nil {
-		return
-	}
-	supportedFields := map[string]struct{}{
-		"algorithm": {},
-		"crc32":     {},
-		"crc32c":    {},
-		"sha1":      {},
-		"sha256":    {},
-	}
-	for k, v := range cksum {
-		if strings.HasPrefix(strings.ToLower(k), "x-amz-checksum-") {
-			p.formData[k] = v
-		} else {
-			if _, ok := supportedFields[strings.ToLower(k)]; ok {
-				if strings.ToLower(k) == "algorithm" {
-					p.formData["x-amz-checksum-"+strings.ToLower(k)] = strings.ToUpper(v)
-				} else {
-					p.formData["x-amz-checksum-"+strings.ToLower(k)] = v
-				}
-			}
-		}
+// SetChecksum sets the checksum of the request.
+func (p *PostPolicy) SetChecksum(c Checksum) {
+	if c.IsSet() {
+		p.formData[amzChecksumAlgo] = c.Type.String()
+		p.formData[c.Type.Key()] = c.Encoded()
 	}
 }
 
