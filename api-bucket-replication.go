@@ -299,9 +299,9 @@ func (c *Client) GetBucketReplicationMetricsV2(ctx context.Context, bucketName s
 	// Get resources properly escaped and lined up before
 	// using them in http request.
 	urlValues := make(url.Values)
-	urlValues.Set("replication-metrics", "v2")
+	urlValues.Set("replication-metrics", "2")
 
-	// Execute GET on bucket to get replication config.
+	// Execute GET on bucket to get replication metrics.
 	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
 		bucketName:  bucketName,
 		queryValues: urlValues,
