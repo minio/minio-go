@@ -504,6 +504,55 @@ if err != nil {
 }
 ```
 
+<a name="PutObjectFanOut"></a>
+### PutObjectFanOut(ctx context.Context, bucket string, body io.Reader, fanOutReq ...PutObjectFanOutRequest) ([]PutObjectFanOutResponse, error)
+A variant of PutObject instead of writing a single object from a single stream multiple objects are written, defined via a list of 
+*PutObjectFanOutRequest*. Each entry in *PutObjectFanOutRequest* carries an object keyname and its relevant metadata if any. 
+`Key` is mandatory, rest of the other options in *PutObjectFanOutRequest( are optional.
+
+__Parameters__
+
+| Param        | Type                           | Description                                                           |
+|:-------------|:-------------------------------|:----------------------------------------------------------------------|
+| `ctx`        | _context.Context_              | Custom context for timeout/cancellation of the call                   |
+| `bucketName` | _string_                       | Name of the bucket                                                    |
+| `fanOutData` | _io.Reader_                    | Any Go type that implements io.Reader                                 |
+| `fanOutReq`  | _minio.PutObjectFanOutRequest_ | User input list of all the objects that will be created on the server |
+|              |                                |                                                                       |
+
+__minio.PutObjectFanOutRequest__
+
+| Field       | Type                            | Description                                |
+|:------------|:--------------------------------|:-------------------------------------------|
+| `Entries`   | _[]minio.PutObjectFanOutEntyry_ | List of object fan out entries             |
+| `Checksums` | _map[string]string_             | Checksums for the input data               |
+| `SSE`       | _encrypt.ServerSide             | Encryption settings for the entire fan-out |
+
+__minio.PutObjectFanOutEntry__
+
+| Field                | Type                  | Description                                                                                        |
+|:---------------------|:----------------------|:---------------------------------------------------------------------------------------------------|
+| `Key`                | _string_              | Name of the object                                                                                 |
+| `UserMetadata`       | _map[string]string_   | Map of user metadata                                                                               |
+| `UserTags`           | _map[string]string_   | Map of user object tags                                                                            |
+| `ContentType`        | _string_              | Content type of object, e.g "application/text"                                                     |
+| `ContentEncoding`    | _string_              | Content encoding of object, e.g "gzip"                                                             |
+| `ContentDisposition` | _string_              | Content disposition of object, "inline"                                                            |
+| `ContentLanguage`    | _string_              | Content language of object, e.g "French"                                                           |
+| `CacheControl`       | _string_              | Used to specify directives for caching mechanisms in both requests and responses e.g "max-age=600" |
+| `Retention`          | _minio.RetentionMode_ | Retention mode to be set, e.g "COMPLIANCE"                                                         |
+| `RetainUntilDate`    | _time.Time_           | Time until which the retention applied is valid                                                    |
+
+__minio.PutObjectFanOutResponse__
+
+| Field          | Type       | Description                                                     |
+|:---------------|:-----------|:----------------------------------------------------------------|
+| `Key`          | _string_   | Name of the object                                              |
+| `ETag`         | _string_   | ETag opaque unique value of the object                          |
+| `VersionID`    | _string_   | VersionID of the uploaded object                                |
+| `LastModified` | _time.Time | Last modified time of the latest object                         |
+| `Error`        | _error_    | Is non `nil` only when the fan-out for a specific object failed |
+
 <a name="PutObject"></a>
 ### PutObject(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64,opts PutObjectOptions) (info UploadInfo, err error)
 Uploads objects that are less than 128MiB in a single PUT operation. For objects that are greater than 128MiB in size, PutObject seamlessly uploads the object as parts of 128MiB or more depending on the actual file size. The max upload size for an object is 5TB.
