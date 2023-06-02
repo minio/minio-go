@@ -4823,10 +4823,8 @@ func testPresignedPostPolicy() {
 	policy.SetUserMetadata(metadataKey, metadataValue)
 
 	// Add CRC32C
-	hasher := crc32.New(crc32.MakeTable(crc32.Castagnoli))
-	hasher.Write(buf)
-	policy.SetUserData("checksum-algorithm", "CRC32C")
-	policy.SetUserData("checksum-crc32c", base64.StdEncoding.EncodeToString(hasher.Sum(nil)))
+	checksum := minio.ChecksumCRC32C.ChecksumBytes(buf)
+	policy.SetChecksum(checksum)
 
 	args["policy"] = policy.String()
 
@@ -4940,7 +4938,7 @@ func testPresignedPostPolicy() {
 			return
 		}
 	}
-	want := base64.StdEncoding.EncodeToString(hasher.Sum(nil))
+	want := checksum.Encoded()
 	if got := res.Header.Get("X-Amz-Checksum-Crc32c"); got != want {
 		logError(testName, function, args, startTime, "", fmt.Sprintf("Want checksum %q, got %q", want, got), nil)
 		return
