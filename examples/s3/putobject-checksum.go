@@ -3,7 +3,7 @@
 
 /*
  * MinIO Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2015-2017 MinIO, Inc.
+ * Copyright 2015-2023 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,9 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
+	"hash/crc32"
+	"io"
 	"log"
 	"os"
 
@@ -46,7 +49,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	object, err := os.Open("my-testfile")
+	object, err := os.Open("putobject-checksum.go")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -55,10 +58,25 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-
-	info, err := s3Client.PutObject(context.Background(), "my-bucketname", "my-objectname", object, objectStat.Size(), minio.PutObjectOptions{ContentType: "application/octet-stream"})
+	// Create CRC32C:
+	crc := crc32.New(crc32.MakeTable(crc32.Castagnoli))
+	_, err = io.Copy(crc, object)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Println("Uploaded", "my-objectname", " of size: ", info.Size, "Successfully.")
+	meta := map[string]string{"x-amz-checksum-crc32c": base64.StdEncoding.EncodeToString(crc.Sum(nil))}
+
+	// Reset object.
+	_, err = object.Seek(0, io.SeekStart)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	// Upload object.
+	// Checksums are different with multipart, so we disable that.
+	info, err := s3Client.PutObject(context.Background(), "my-bucket", "my-objectname", object, objectStat.Size(), minio.PutObjectOptions{ContentType: "application/octet-stream", UserMetadata: meta, DisableMultipart: true})
+	if err != nil {
+		log.Fatalln(err)
+	}
+	log.Println("Uploaded", "my-objectname", "of size:", info.Size, "with CRC32C:", info.ChecksumCRC32C, "successfully.")
 }
