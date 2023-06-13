@@ -17,7 +17,13 @@
 package minio
 
 import (
+	"context"
+	"encoding/base64"
+	"net/http"
 	"testing"
+
+	"github.com/minio/minio-go/v7/pkg/encrypt"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPutObjectOptionsValidate(t *testing.T) {
@@ -60,4 +66,91 @@ func TestPutObjectOptionsValidate(t *testing.T) {
 			t.Errorf("Test %d - output did not match with reference results, %s", i+1, err)
 		}
 	}
+}
+
+type InterceptRouteTripper struct {
+	request *http.Request
+}
+
+func (i *InterceptRouteTripper) RoundTrip(request *http.Request) (*http.Response, error) {
+	i.request = request
+	return &http.Response{StatusCode: 200}, nil
+}
+
+func Test_SSEHeaders(t *testing.T) {
+	rt := &InterceptRouteTripper{}
+	c, err := New("s3.amazonaws.com", &Options{
+		Transport: rt,
+	})
+	require.NoError(t, err)
+
+	testCases := map[string]struct {
+		sse                            func() encrypt.ServerSide
+		initiateMultipartUploadHeaders http.Header
+		headerNotAllowedAfterInit      []string
+	}{
+		"noEncryption": {
+			sse:                            func() encrypt.ServerSide { return nil },
+			initiateMultipartUploadHeaders: http.Header{},
+		},
+		"sse": {
+			sse: func() encrypt.ServerSide {
+				s, err := encrypt.NewSSEKMS("keyId", nil)
+				require.NoError(t, err)
+				return s
+			},
+			initiateMultipartUploadHeaders: http.Header{
+				encrypt.SseGenericHeader: []string{"aws:kms"},
+				encrypt.SseKmsKeyID:      []string{"keyId"},
+			},
+			headerNotAllowedAfterInit: []string{encrypt.SseGenericHeader, encrypt.SseKmsKeyID, encrypt.SseEncryptionContext},
+		},
+		"sse with context": {
+			sse: func() encrypt.ServerSide {
+				s, err := encrypt.NewSSEKMS("keyId", "context")
+				require.NoError(t, err)
+				return s
+			},
+			initiateMultipartUploadHeaders: http.Header{
+				encrypt.SseGenericHeader:     []string{"aws:kms"},
+				encrypt.SseKmsKeyID:          []string{"keyId"},
+				encrypt.SseEncryptionContext: []string{base64.StdEncoding.EncodeToString([]byte("\"context\""))},
+			},
+			headerNotAllowedAfterInit: []string{encrypt.SseGenericHeader, encrypt.SseKmsKeyID, encrypt.SseEncryptionContext},
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			opts := PutObjectOptions{
+				ServerSideEncryption: tc.sse(),
+			}
+			c.bucketLocCache.Set("test", "region")
+			c.initiateMultipartUpload(context.Background(), "test", "test", opts)
+			for s, vls := range tc.initiateMultipartUploadHeaders {
+				require.Equal(t, rt.request.Header[s], vls, "Header not match %v", s)
+			}
+
+			_, err := c.uploadPart(context.Background(), uploadPartParams{
+				bucketName: "test",
+				objectName: "test",
+				partNumber: 1,
+				uploadID:   "upId",
+				sse:        opts.ServerSideEncryption,
+			})
+
+			require.NoError(t, err)
+
+			for _, k := range tc.headerNotAllowedAfterInit {
+				require.Empty(t, rt.request.Header.Get(k), "header set %v", k)
+			}
+
+			c.completeMultipartUpload(context.Background(), "test", "test", "upId", completeMultipartUpload{}, opts)
+
+			for _, k := range tc.headerNotAllowedAfterInit {
+				require.Empty(t, rt.request.Header.Get(k), "header set %v", k)
+			}
+		})
+	}
+
 }
