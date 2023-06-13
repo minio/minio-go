@@ -20,10 +20,10 @@ import (
 	"context"
 	"encoding/base64"
 	"net/http"
+	"reflect"
 	"testing"
 
 	"github.com/minio/minio-go/v7/pkg/encrypt"
-	"github.com/stretchr/testify/require"
 )
 
 func TestPutObjectOptionsValidate(t *testing.T) {
@@ -82,7 +82,10 @@ func Test_SSEHeaders(t *testing.T) {
 	c, err := New("s3.amazonaws.com", &Options{
 		Transport: rt,
 	})
-	require.NoError(t, err)
+
+	if err != nil {
+		t.Error(err)
+	}
 
 	testCases := map[string]struct {
 		sse                            func() encrypt.ServerSide
@@ -96,7 +99,9 @@ func Test_SSEHeaders(t *testing.T) {
 		"sse": {
 			sse: func() encrypt.ServerSide {
 				s, err := encrypt.NewSSEKMS("keyId", nil)
-				require.NoError(t, err)
+				if err != nil {
+					t.Error(err)
+				}
 				return s
 			},
 			initiateMultipartUploadHeaders: http.Header{
@@ -108,7 +113,9 @@ func Test_SSEHeaders(t *testing.T) {
 		"sse with context": {
 			sse: func() encrypt.ServerSide {
 				s, err := encrypt.NewSSEKMS("keyId", "context")
-				require.NoError(t, err)
+				if err != nil {
+					t.Error(err)
+				}
 				return s
 			},
 			initiateMultipartUploadHeaders: http.Header{
@@ -128,7 +135,9 @@ func Test_SSEHeaders(t *testing.T) {
 			c.bucketLocCache.Set("test", "region")
 			c.initiateMultipartUpload(context.Background(), "test", "test", opts)
 			for s, vls := range tc.initiateMultipartUploadHeaders {
-				require.Equal(t, rt.request.Header[s], vls, "Header not match %v", s)
+				if !reflect.DeepEqual(rt.request.Header[s], vls) {
+					t.Errorf("Header %v are not equal, want: %v got %v", s, vls, rt.request.Header[s])
+				}
 			}
 
 			_, err := c.uploadPart(context.Background(), uploadPartParams{
@@ -139,16 +148,22 @@ func Test_SSEHeaders(t *testing.T) {
 				sse:        opts.ServerSideEncryption,
 			})
 
-			require.NoError(t, err)
+			if err != nil {
+				t.Error(err)
+			}
 
 			for _, k := range tc.headerNotAllowedAfterInit {
-				require.Empty(t, rt.request.Header.Get(k), "header set %v", k)
+				if rt.request.Header.Get(k) != "" {
+					t.Errorf("header %v should not be set", k)
+				}
 			}
 
 			c.completeMultipartUpload(context.Background(), "test", "test", "upId", completeMultipartUpload{}, opts)
 
 			for _, k := range tc.headerNotAllowedAfterInit {
-				require.Empty(t, rt.request.Header.Get(k), "header set %v", k)
+				if rt.request.Header.Get(k) != "" {
+					t.Errorf("header %v should not be set", k)
+				}
 			}
 		})
 	}
