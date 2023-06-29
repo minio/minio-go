@@ -127,9 +127,6 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 				} else {
 					// First request is a Stat or Seek call.
 					// Only need to run a StatObject until an actual Read or ReadAt request comes through.
-
-					// Remove range header if already set, for stat Operations to get original file size.
-					delete(opts.headers, "Range")
 					objectInfo, err = c.StatObject(gctx, bucketName, objectName, StatObjectOptions(opts))
 					if err != nil {
 						resCh <- getResponse{
