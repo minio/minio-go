@@ -325,3 +325,31 @@ func (c *Client) GetBucketReplicationMetricsV2(ctx context.Context, bucketName s
 	}
 	return s, nil
 }
+
+// CheckBucketReplication validates if replication is set up properly for a bucket
+func (c *Client) CheckBucketReplication(ctx context.Context, bucketName string) (err error) {
+	// Input validation.
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		return err
+	}
+	// Get resources properly escaped and lined up before
+	// using them in http request.
+	urlValues := make(url.Values)
+	urlValues.Set("replication-check", "")
+
+	// Execute GET on bucket to get replication config.
+	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
+		bucketName:  bucketName,
+		queryValues: urlValues,
+	})
+
+	defer closeResponse(resp)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return httpRespToErrorResponse(resp, bucketName, "")
+	}
+	return nil
+}
