@@ -2021,7 +2021,7 @@ func testObjectTaggingWithVersioning() {
 	successLogger(testName, function, args, startTime).Info()
 }
 
-// Test PutObject with custom checksums.
+// testPutObjectWithChecksums tests PutObject with custom checksums.
 func testPutObjectWithChecksums() {
 	// initialize logging params
 	startTime := time.Now()
@@ -2120,7 +2120,7 @@ func testPutObjectWithChecksums() {
 		})
 		if err == nil {
 			if i == 0 && resp.ChecksumCRC32 == "" {
-				ignoredLog(testName, function, args, startTime, "Checksums does not appear to be supported by backend").Info()
+				ignoredLog(testName, function, args, startTime, "Checksums do not appear to be supported by backend").Info()
 				return
 			}
 			logError(testName, function, args, startTime, "", "PutObject failed", err)
@@ -2128,6 +2128,7 @@ func testPutObjectWithChecksums() {
 		}
 
 		// Set correct CRC.
+		h.Reset()
 		h.Write(b)
 		meta[test.header] = base64.StdEncoding.EncodeToString(h.Sum(nil))
 		reader.Close()
