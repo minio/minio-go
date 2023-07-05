@@ -127,20 +127,31 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 				} else {
 					// First request is a Stat or Seek call.
 					// Only need to run a StatObject until an actual Read or ReadAt request comes through.
-					// Remove range header if already set, for stat Operations to get original file size.
-					delete(opts.headers, "Range")
-					objectInfo, err = c.StatObject(gctx, bucketName, objectName, StatObjectOptions(opts))
-					if err != nil {
-						resCh <- getResponse{
-							Error: err,
+					// Check if the range header is present.
+					_, rangeHeaderPresent := opts.headers["Range"]
+					if rangeHeaderPresent {
+						delete(opts.headers, "Range")
+						objectInfo, err = c.StatObject(gctx, bucketName, objectName, StatObjectOptions(opts))
+
+						if err != nil {
+							resCh <- getResponse{
+								Error: err,
+							}
+							// Exit the go-routine.
+							return
 						}
-						// Exit the go-routine.
-						return
-					}
-					etag = objectInfo.ETag
-					// Send back the first response.
-					resCh <- getResponse{
-						objectInfo: objectInfo,
+						etag = objectInfo.ETag
+						// Send back the first response.
+						resCh <- getResponse{
+							objectInfo: objectInfo,
+						}
+					} else {
+						// The range header is not present, continue with the existing objectInfo.
+						etag = objectInfo.ETag
+						// Send back the first response.
+						resCh <- getResponse{
+							objectInfo: objectInfo,
+						}
 					}
 				}
 			} else if req.settingObjectInfo { // Request is just to get objectInfo.
@@ -416,6 +427,7 @@ func (o *Object) Stat() (ObjectInfo, error) {
 	}
 	o.isStarted = false
 	o.objectInfoSet = false
+
 	// This is the first request.
 	if !o.isStarted || !o.objectInfoSet {
 		// Send the request and get the response.
