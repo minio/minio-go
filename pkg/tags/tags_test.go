@@ -36,7 +36,7 @@ func TestParseTags(t *testing.T) {
 			false,
 		},
 		{
-			" store forever =false&factory=true",
+			"_store_forever_=false&factory=true",
 			false,
 		},
 		{
