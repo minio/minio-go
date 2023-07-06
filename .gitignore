@@ -5,3 +5,6 @@ golangci-lint
 functional_tests
 .idea
 .DS_Store
+
+# Go workspace file
+go.work
