@@ -26,47 +26,58 @@ func TestParseTags(t *testing.T) {
 	testCases := []struct {
 		tags        string
 		expectedErr bool
+		count       int
 	}{
 		{
 			"key1=value1&key2=value2",
 			false,
+			2,
 		},
 		{
 			"store+forever=false&factory=true",
 			false,
+			2,
 		},
 		{
 			" store forever =false&factory=true",
 			false,
+			2,
 		},
 		{
 			fmt.Sprintf("%0128d=%0256d", 1, 1),
 			false,
+			1,
 		},
 		// Failure cases - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions
 		{
 			"key1=value1&key1=value2",
 			true,
+			0,
 		},
 		{
 			"key$=value1",
 			true,
+			0,
 		},
 		{
 			"key1=value$",
 			true,
+			0,
 		},
 		{
 			fmt.Sprintf("%0128d=%0257d", 1, 1),
 			true,
+			0,
 		},
 		{
 			fmt.Sprintf("%0129d=%0256d", 1, 1),
 			true,
+			0,
 		},
 		{
 			fmt.Sprintf("%0129d=%0257d", 1, 1),
 			true,
+			0,
 		},
 	}
 
@@ -81,7 +92,11 @@ func TestParseTags(t *testing.T) {
 				t.Error("Expected failure but found success")
 			}
 			if err == nil {
-				t.Logf("%s", tt)
+				if tt.Count() != testCase.count {
+					t.Errorf("Expected count %d, got %d", testCase.count, tt.Count())
+				} else {
+					t.Logf("%s", tt)
+				}
 			}
 		})
 	}
