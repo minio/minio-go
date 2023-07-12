@@ -61,7 +61,7 @@ func CopyConditionKeyMap(condKeyMap ConditionKeyMap) ConditionKeyMap {
 }
 
 // mergeConditionKeyMap - returns a new ConditionKeyMap which contains merged key/value of given two ConditionKeyMap.
-func mergeConditionKeyMap(condKeyMap1 ConditionKeyMap, condKeyMap2 ConditionKeyMap) ConditionKeyMap {
+func mergeConditionKeyMap(condKeyMap1, condKeyMap2 ConditionKeyMap) ConditionKeyMap {
 	out := CopyConditionKeyMap(condKeyMap1)
 
 	for k, v := range condKeyMap2 {
@@ -93,7 +93,7 @@ func (cond ConditionMap) Remove(condKey string) {
 }
 
 // mergeConditionMap - returns new ConditionMap which contains merged key/value of two ConditionMap.
-func mergeConditionMap(condMap1 ConditionMap, condMap2 ConditionMap) ConditionMap {
+func mergeConditionMap(condMap1, condMap2 ConditionMap) ConditionMap {
 	out := make(ConditionMap)
 
 	for k, v := range condMap1 {

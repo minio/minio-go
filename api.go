@@ -278,7 +278,7 @@ func privateNew(endpoint string, opts *Options) (*Client, error) {
 }
 
 // SetAppInfo - add application details to user agent.
-func (c *Client) SetAppInfo(appName string, appVersion string) {
+func (c *Client) SetAppInfo(appName, appVersion string) {
 	// if app name and version not set, we do not set a new user agent.
 	if appName != "" && appVersion != "" {
 		c.appInfo.appName = appName
