@@ -1,6 +1,6 @@
 /*
  * MinIO Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2015-2018 MinIO, Inc.
+ * Copyright 2015-2023 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/cookiejar"
+	"net/http/httptrace"
 	"net/http/httputil"
 	"net/url"
 	"os"
@@ -69,6 +70,7 @@ type Client struct {
 
 	// Needs allocation.
 	httpClient     *http.Client
+	httpTrace      *httptrace.ClientTrace
 	bucketLocCache *bucketLocationCache
 
 	// Advanced functionality.
@@ -103,6 +105,7 @@ type Options struct {
 	Creds        *credentials.Credentials
 	Secure       bool
 	Transport    http.RoundTripper
+	Trace        *httptrace.ClientTrace
 	Region       string
 	BucketLookup BucketLookupType
 
@@ -228,6 +231,8 @@ func privateNew(endpoint string, opts *Options) (*Client, error) {
 			return nil, err
 		}
 	}
+
+	clnt.httpTrace = opts.Trace
 
 	// Instantiate http client and bucket location cache.
 	clnt.httpClient = &http.Client{
@@ -769,6 +774,10 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 		isVirtualHost, metadata.queryValues)
 	if err != nil {
 		return nil, err
+	}
+
+	if c.httpTrace != nil {
+		ctx = httptrace.WithClientTrace(ctx, c.httpTrace)
 	}
 
 	// Initialize a new HTTP request for the method.
