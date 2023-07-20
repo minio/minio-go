@@ -831,7 +831,7 @@ func (q ReplQueueStats) QStats() (r ReplQStats) {
 	for _, node := range q.Nodes {
 		r.Workers += int64(node.ActiveWorkers)
 		for arn := range node.TgtXferStats {
-			xmap, ok := r.TgtXferStats[arn]
+			xmap, ok := node.TgtXferStats[arn]
 			if !ok {
 				xmap = make(map[MetricName]XferStats)
 			}
@@ -843,6 +843,9 @@ func (q ReplQueueStats) QStats() (r ReplQStats) {
 				st.AvgRate += v.AvgRate
 				st.CurrRate += v.CurrRate
 				st.PeakRate = math.Max(st.PeakRate, v.PeakRate)
+				if _, ok := r.TgtXferStats[arn]; !ok {
+					r.TgtXferStats[arn] = make(map[MetricName]XferStats)
+				}
 				r.TgtXferStats[arn][m] = st
 			}
 		}
