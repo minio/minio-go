@@ -126,11 +126,11 @@ func TestStringSetFuncMatch(t *testing.T) {
 		expectedResult string
 	}{
 		// Test to check match function doing case insensive compare.
-		{func(setValue string, compareValue string) bool {
+		{func(setValue, compareValue string) bool {
 			return strings.EqualFold(setValue, compareValue)
 		}, "Bar", `[bar]`},
 		// Test to check match function doing prefix check.
-		{func(setValue string, compareValue string) bool {
+		{func(setValue, compareValue string) bool {
 			return strings.HasPrefix(compareValue, setValue)
 		}, "foobar", `[foo]`},
 	}
