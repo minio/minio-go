@@ -84,7 +84,9 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 						// Range is set with respect to the offset and length of the buffer requested.
 						// Do not set objectInfo from the first readAt request because it will not get
 						// the whole object.
-						opts.SetRange(req.Offset, req.Offset+int64(len(req.Buffer))-1)
+						rangeStart := req.Offset
+						rangeEnd := req.Offset + int64(len(req.Buffer)) - 1
+						opts.SetRange(rangeStart, rangeEnd)
 					} else if req.Offset > 0 {
 						opts.SetRange(req.Offset, 0)
 					}
