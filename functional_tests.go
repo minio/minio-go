@@ -11391,6 +11391,71 @@ func testPutObject0ByteV2() {
 	successLogger(testName, function, args, startTime).Info()
 }
 
+// Test put object with precalculated content md5.
+func testPutObjectContentMD5() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "PutObject(bucketName, objectName, reader, size, opts)"
+	opts := minio.PutObjectOptions{
+		SendContentMd5: false,
+		UserMetadata: map[string]string{
+			"Content-MD5": "acbd18db4cc2f85cedef654fccc4a4d8", // md5("foo")
+		},
+	}
+	args := map[string]interface{}{
+		"bucketName": "",
+		"objectName": "",
+		"size":       3,
+		"opts":       opts,
+	}
+
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:  credentials.NewStaticV2(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure: mustParseBool(os.Getenv(enableHTTPS)),
+		})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client v2 object creation failed", err)
+		return
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("MinIO-go-FunctionalTest", "0.1.0")
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	defer cleanupBucket(bucketName, c)
+
+	objectName := bucketName + "unique"
+	args["objectName"] = objectName
+
+	// Upload an object.
+	_, err = c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader([]byte("foo")), 3, opts)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObjectContentMD5 failed", err)
+		return
+	}
+
+	successLogger(testName, function, args, startTime).Info()
+}
+
 // Test expected error cases
 func testComposeObjectErrorCases() {
 	// initialize logging params
@@ -12906,6 +12971,7 @@ func main() {
 		testPutObjectWithChecksums()
 		testPutMultipartObjectWithChecksums()
 		testPutObject0ByteV2()
+		testPutObjectContentMD5()
 		testPutObjectNoLengthV2()
 		testPutObjectsUnknownV2()
 		testGetObjectContextV2()

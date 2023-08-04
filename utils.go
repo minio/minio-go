@@ -467,6 +467,7 @@ var supportedHeaders = map[string]bool{
 	"content-encoding":                    true,
 	"content-disposition":                 true,
 	"content-language":                    true,
+	"content-md5":                         true,
 	"x-amz-website-redirect-location":     true,
 	"x-amz-object-lock-mode":              true,
 	"x-amz-metadata-directive":            true,
