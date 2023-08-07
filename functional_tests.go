@@ -2170,7 +2170,28 @@ func testPutObjectWithChecksums() {
 			logError(testName, function, args, startTime, "", "Number of bytes returned by PutObject does not match GetObject, expected "+string(bufSize)+" got "+string(st.Size), err)
 			return
 		}
+		if err := r.Close(); err != nil {
+			logError(testName, function, args, startTime, "", "Object Close failed", err)
+			return
+		}
+		if err := r.Close(); err == nil {
+			logError(testName, function, args, startTime, "", "Object already closed, should respond with error", err)
+			return
+		}
 
+		args["range"] = "true"
+		err = gopts.SetRange(100, 1000)
+		if err != nil {
+			logError(testName, function, args, startTime, "", "SetRange failed", err)
+			return
+		}
+		r, err = c.GetObject(context.Background(), bucketName, objectName, gopts)
+		if err != nil {
+			logError(testName, function, args, startTime, "", "GetObject failed", err)
+			return
+		}
+
+		b, err = io.ReadAll(r)
 		// Discard the object
 		_, err = r.Stat()
 		if err != nil {
