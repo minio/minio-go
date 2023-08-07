@@ -437,9 +437,6 @@ func (o *Object) Stat() (ObjectInfo, error) {
 	if o.prevErr != nil && o.prevErr != io.EOF || o.isClosed {
 		return ObjectInfo{}, o.prevErr
 	}
-	o.isStarted = false
-	o.objectInfoSet = false
-
 	// This is the first request.
 	if !o.isStarted || !o.objectInfoSet {
 		// Send the request and get the response.
