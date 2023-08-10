@@ -158,10 +158,6 @@ func New(endpoint string, opts *Options) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Google cloud storage should be set to signature V2, force it if not.
-	if s3utils.IsGoogleEndpoint(*clnt.endpointURL) {
-		clnt.overrideSignerType = credentials.SignatureV2
-	}
 	// If Amazon S3 set to signature v4.
 	if s3utils.IsAmazonEndpoint(*clnt.endpointURL) {
 		clnt.overrideSignerType = credentials.SignatureV4
