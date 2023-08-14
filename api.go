@@ -584,6 +584,12 @@ func (c *Client) executeMethod(ctx context.Context, method string, metadata requ
 	var bodySeeker io.Seeker // Extracted seeker from io.Reader.
 	reqRetry := MaxRetry     // Indicates how many times we can retry the request
 
+	// GET and HEAD are idempotent and should be retried
+	if method == http.MethodGet || method == http.MethodHead {
+		retryable = true
+	}
+
+	// If we have a body we can only retry if we can rewind it properly
 	if metadata.contentBody != nil {
 		// Check if body is seekable then it is retryable.
 		bodySeeker, retryable = metadata.contentBody.(io.Seeker)
@@ -616,7 +622,7 @@ func (c *Client) executeMethod(ctx context.Context, method string, metadata requ
 		// error until maxRetries have been exhausted, retry attempts are
 		// performed after waiting for a given period of time in a
 		// binomial fashion.
-		if retryable {
+		if retryable && metadata.contentBody != nil {
 			// Seek back to beginning for each attempt.
 			if _, err = bodySeeker.Seek(0, 0); err != nil {
 				// If seek failed, no need to retry.
