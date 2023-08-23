@@ -122,6 +122,9 @@ func GetRegionFromURL(endpointURL url.URL) string {
 		return ""
 	}
 	if IsAmazonGovCloudEndpoint(endpointURL) {
+		if endpointURL.Host == "s3-fips.us-gov-east-1.amazonaws.com" {
+			return "us-gov-east-1"
+		}
 		return "us-gov-west-1"
 	}
 	// if elb's are used we cannot calculate which region it may be, just return empty.
