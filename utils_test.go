@@ -165,6 +165,7 @@ func TestIsValidEndpointURL(t *testing.T) {
 		{"https://s3-us-gov-west-1.amazonaws.com", nil, true},
 		{"https://s3-fips-us-gov-west-1.amazonaws.com", nil, true},
 		{"https://s3-fips.us-gov-west-1.amazonaws.com", nil, true},
+		{"https://s3-fips.us-gov-east-1.amazonaws.com", nil, true},
 		{"https://s3.amazonaws.com/", nil, true},
 		{"https://storage.googleapis.com/", nil, true},
 		{"https://z3.amazonaws.com", nil, true},
