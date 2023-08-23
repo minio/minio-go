@@ -699,6 +699,17 @@ type TargetMetrics struct {
 	CurrentBandwidthInBytesPerSecond float64 `json:"currentBandwidth,omitempty"`
 	// errors seen in replication in last minute, hour and total
 	Failed TimedErrStats `json:"failed,omitempty"`
+	// Deprecated fields
+	// Pending size in bytes
+	PendingSize uint64 `json:"pendingReplicationSize,omitempty"`
+	// Total Replica size in bytes
+	ReplicaSize uint64 `json:"replicaSize,omitempty"`
+	// Failed size in bytes
+	FailedSize uint64 `json:"failedReplicationSize,omitempty"`
+	// Total number of pending operations including metadata updates
+	PendingCount uint64 `json:"pendingReplicationCount,omitempty"`
+	// Total number of failed operations including metadata updates
+	FailedCount uint64 `json:"failedReplicationCount,omitempty"`
 }
 
 // Metrics represents inline replication metrics for a bucket.
@@ -716,6 +727,15 @@ type Metrics struct {
 	Errors TimedErrStats `json:"failed,omitempty"`
 	// Total number of entries that are queued for replication
 	QStats InQueueMetric `json:"queued"`
+	// Deprecated fields
+	// Total Pending size in bytes across targets
+	PendingSize uint64 `json:"pendingReplicationSize,omitempty"`
+	// Failed size in bytes  across targets
+	FailedSize uint64 `json:"failedReplicationSize,omitempty"`
+	// Total number of pending operations including metadata updates across targets
+	PendingCount uint64 `json:"pendingReplicationCount,omitempty"`
+	// Total number of failed operations including metadata updates across targets
+	FailedCount uint64 `json:"failedReplicationCount,omitempty"`
 }
 
 // RStat - has count and bytes for replication metrics
