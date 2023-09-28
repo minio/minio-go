@@ -101,7 +101,7 @@ type STSAssumeRoleOptions struct {
 	// Optional only valid if using with AWS STS
 	RoleARN         string
 	RoleSessionName string
-	ExternalId      string
+	ExternalID      string
 }
 
 // NewSTSAssumeRole returns a pointer to a new
@@ -162,8 +162,8 @@ func getAssumeRoleCredentials(clnt *http.Client, endpoint string, opts STSAssume
 	if opts.Policy != "" {
 		v.Set("Policy", opts.Policy)
 	}
-	if opts.ExternalId != "" {
-		v.Set("ExternalId", opts.ExternalId)
+	if opts.ExternalID != "" {
+		v.Set("ExternalId", opts.ExternalID)
 	}
 
 	u, err := url.Parse(endpoint)
