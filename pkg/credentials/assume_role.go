@@ -93,7 +93,8 @@ type STSAssumeRoleOptions struct {
 	AccessKey string
 	SecretKey string
 
-	Policy string // Optional to assign a policy to the assumed role
+	SessionToken string // Optional if the first request is made with temporary credentials.
+	Policy       string // Optional to assign a policy to the assumed role
 
 	Location        string // Optional commonly needed with AWS STS.
 	DurationSeconds int    // Optional defaults to 1 hour.
@@ -185,6 +186,9 @@ func getAssumeRoleCredentials(clnt *http.Client, endpoint string, opts STSAssume
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("X-Amz-Content-Sha256", hex.EncodeToString(hash.Sum(nil)))
+	if opts.SessionToken != "" {
+		req.Header.Set("X-Amz-Security-Token", opts.SessionToken)
+	}
 	req = signer.SignV4STS(*req, opts.AccessKey, opts.SecretKey, opts.Location)
 
 	resp, err := clnt.Do(req)
