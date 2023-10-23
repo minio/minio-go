@@ -24,6 +24,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/minio/minio-go/v7/pkg/lifecycle"
@@ -31,7 +32,7 @@ import (
 )
 
 // SetBucketLifecycle set the lifecycle on an existing bucket.
-func (c *Client) SetBucketLifecycle(ctx context.Context, bucketName string, config *lifecycle.Configuration) error {
+func (c *Client) SetBucketLifecycle(ctx context.Context, bucketName string, config *lifecycle.Configuration, expiryRuleRemoved bool) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return err
@@ -48,15 +49,16 @@ func (c *Client) SetBucketLifecycle(ctx context.Context, bucketName string, conf
 	}
 
 	// Save the updated lifecycle.
-	return c.putBucketLifecycle(ctx, bucketName, buf)
+	return c.putBucketLifecycle(ctx, bucketName, buf, expiryRuleRemoved)
 }
 
 // Saves a new bucket lifecycle.
-func (c *Client) putBucketLifecycle(ctx context.Context, bucketName string, buf []byte) error {
+func (c *Client) putBucketLifecycle(ctx context.Context, bucketName string, buf []byte, expiryRuleRemoved bool) error {
 	// Get resources properly escaped and lined up before
 	// using them in http request.
 	urlValues := make(url.Values)
 	urlValues.Set("lifecycle", "")
+	urlValues.Set("expiryRuleRemoved", strconv.FormatBool(expiryRuleRemoved))
 
 	// Content-length is mandatory for put lifecycle request
 	reqMetadata := requestMetadata{
