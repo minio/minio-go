@@ -2,7 +2,8 @@
 
 The MinIO Go Client SDK provides simple APIs to access any Amazon S3 compatible object storage.
 
-This quickstart guide will show you how to install the MinIO client SDK, connect to MinIO, and provide a walkthrough for a simple file uploader. For a complete list of APIs and examples, please take a look at the [Go Client API Reference](https://min.io/docs/minio/linux/developers/go/API.html).
+This quickstart guide will show you how to install the MinIO client SDK, connect to MinIO, and provide a walkthrough for a simple file uploader.
+For a complete list of APIs and examples, please take a look at the [godoc documentation](https://pkg.go.dev/github.com/minio/minio-go/v7) or [Go Client API Reference](https://min.io/docs/minio/linux/developers/go/API.html).
 
 This document assumes that you have a working [Go development environment](https://golang.org/doc/install).
 
@@ -236,6 +237,7 @@ The full API Reference is available here.
 * [presignedpostpolicy.go](https://github.com/minio/minio-go/blob/master/examples/s3/presignedpostpolicy.go)
 
 ## Explore Further
+* [Godoc Documentation](https://pkg.go.dev/github.com/minio/minio-go/v7)
 * [Complete Documentation](https://min.io/docs/minio/kubernetes/upstream/index.html)
 * [MinIO Go Client SDK API Reference](https://min.io/docs/minio/linux/developers/go/API.html)
 
