@@ -451,7 +451,7 @@ type Rule struct {
 type Configuration struct {
 	XMLName           xml.Name `xml:"LifecycleConfiguration,omitempty" json:"-"`
 	Rules             []Rule   `xml:"Rule"`
-	ExpiryRuleRemoved bool     `xml:"ExpiryRuleRemoved,omitempty" json:"-"`
+	ExpiryRuleRemoved *bool    `xml:"ExpiryRuleRemoved,omitempty" json:"-"`
 }
 
 // Empty check if lifecycle configuration is empty
