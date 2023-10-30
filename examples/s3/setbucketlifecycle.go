@@ -59,7 +59,7 @@ func main() {
 			},
 		},
 	}
-	err = s3Client.SetBucketLifecycle(context.Background(), "my-bucketname", config, false)
+	err = s3Client.SetBucketLifecycle(context.Background(), "my-bucketname", config)
 	if err != nil {
 		log.Fatalln(err)
 	}
