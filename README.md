@@ -9,8 +9,10 @@ These examples presume a working [Go development environment](https://golang.org
 
 ## Download from Github
 
+From your project directory:
+
 ```sh
-go install github.com/minio/minio-go/v7@latest
+go get github.com/minio/minio-go/v7
 ```
 
 ## Initialize a MinIO Client Object
