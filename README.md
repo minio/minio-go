@@ -1,8 +1,8 @@
 # MinIO Go Client SDK for Amazon S3 Compatible Cloud Storage [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io) [![Sourcegraph](https://sourcegraph.com/github.com/minio/minio-go/-/badge.svg)](https://sourcegraph.com/github.com/minio/minio-go?badge) [![Apache V2 License](https://img.shields.io/badge/license-Apache%20V2-blue.svg)](https://github.com/minio/minio-go/blob/master/LICENSE)
 
-The MinIO Go Client SDK provides APIs to access any Amazon S3 compatible object storage.
+The MinIO Go Client SDK provides straightforward APIs to access any Amazon S3 compatible object storage.
 
-This Quickstart Guide covers how to install the MinIO client SDK, connect to MinIO, and a walkthrough for a basic file uploader.
+This Quickstart Guide covers how to install the MinIO client SDK, connect to MinIO, and create a sample file uploader.
 For a complete list of APIs and examples, see the [godoc documentation](https://pkg.go.dev/github.com/minio/minio-go/v7) or [Go Client API Reference](https://min.io/docs/minio/linux/developers/go/API.html).
 
 These examples presume a working [Go development environment](https://golang.org/doc/install) and the [MinIO `mc` command line tool](https://min.io/docs/minio/linux/reference/minio-mc.html).
@@ -114,6 +114,7 @@ func main() {
 	}
 
 	// Upload the test file
+	// Change the value of filePath if the file is in another location
 	objectName := "testdata"
 	filePath := "/tmp/testdata"
 	contentType := "application/octet-stream"
@@ -130,9 +131,16 @@ func main() {
 
 **1. Create a test file containing data:**
 
-On Linux systems, you may do this with `dd`:
-```
+You can do this with `dd` on Linux or macOS systems:
+
+```sh
 dd if=/dev/urandom of=/tmp/testdata bs=2048 count=10
+```
+
+or `fsutil` on Windows:
+
+```sh
+fsutil file createnew "C:\Users\<username>\Desktop\sample.txt" 20480
 ```
 
 **2. Run FileUploader with the following commands:**
@@ -143,15 +151,17 @@ go get github.com/minio/minio-go/v7
 go get github.com/minio/minio-go/v7/pkg/credentials
 go run FileUploader.go
 ```
+
 The output resembles the following:
-```
+
+```sh
 2023/11/01 14:27:55 Successfully created testbucket
 2023/11/01 14:27:55 Successfully uploaded testdata of size 20480
 ```
 
 **3. Verify the Uploaded File With `mc ls`:**
 
-```
+```sh
 mc ls play/testbucket
 [2023-11-01 14:27:55 UTC]  20KiB STANDARD TestDataFile
 ```
