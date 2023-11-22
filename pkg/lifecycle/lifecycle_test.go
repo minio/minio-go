@@ -116,6 +116,63 @@ func TestLifecycleUnmarshalJSON(t *testing.T) {
 			}`,
 			err: nil,
 		},
+		{
+			input: `{
+				"Rules": [
+					{
+						"ID": "transition-lt",
+						"Status": "Enabled",
+						"Filter": {
+							"ObjectSizeLessThan": 1048576
+						},
+						"Transition": {
+							"StorageClass": "S3TIER-1",
+							"Days": 1
+						}
+					}
+				]
+			}`,
+			err: nil,
+		},
+		{
+			input: `{
+				"Rules": [
+					{
+						"ID": "noncurrent-transition-gt",
+						"Status": "Enabled",
+						"Filter": {
+							"ObjectSizeGreaterThan": 10485760
+						},
+						"NoncurrentVersionTransition": {
+							"StorageClass": "S3TIER-1",
+							"NoncurrentDays": 1
+						}
+					}
+				]
+			}`,
+			err: nil,
+		},
+		{
+			input: `{
+				"Rules": [
+					{
+						"ID": "noncurrent-transition-lt-and-gt",
+						"Status": "Enabled",
+						"Filter": {
+							"And": {
+								"ObjectSizeGreaterThan": 10485760,
+								"ObjectSizeLessThan": 1048576
+							}
+						},
+						"NoncurrentVersionTransition": {
+							"StorageClass": "S3TIER-1",
+							"NoncurrentDays": 1
+						}
+					}
+				]
+			}`,
+			err: nil,
+		},
 	}
 
 	for i, tc := range testCases {
