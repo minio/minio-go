@@ -408,3 +408,24 @@ func TestIsAmzHeader(t *testing.T) {
 		}
 	}
 }
+
+// Tests if query parameter starts with "x-" and will be ignored by S3.
+func TestIsCustomQueryValue(t *testing.T) {
+	testCases := []struct {
+		// Input.
+		queryParamKey string
+		// Expected result.
+		expectedValue bool
+	}{
+		{"x-custom-key", true},
+		{"xcustom-key", false},
+		{"random-header", false},
+	}
+
+	for i, testCase := range testCases {
+		actual := isCustomQueryValue(testCase.queryParamKey)
+		if actual != testCase.expectedValue {
+			t.Errorf("Test %d: Expected to pass, but failed", i+1)
+		}
+	}
+}
