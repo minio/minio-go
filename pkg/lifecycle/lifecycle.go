@@ -281,19 +281,21 @@ func (f Filter) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 			return err
 		}
 	default:
-		// Always print Prefix field when both And & Tag are empty
-		if err := e.EncodeElement(f.Prefix, xml.StartElement{Name: xml.Name{Local: "Prefix"}}); err != nil {
-			return err
-		}
 		if f.ObjectSizeLessThan > 0 {
 			if err := e.EncodeElement(f.ObjectSizeLessThan, xml.StartElement{Name: xml.Name{Local: "ObjectSizeLessThan"}}); err != nil {
 				return err
 			}
+			break
 		}
 		if f.ObjectSizeGreaterThan > 0 {
 			if err := e.EncodeElement(f.ObjectSizeGreaterThan, xml.StartElement{Name: xml.Name{Local: "ObjectSizeGreaterThan"}}); err != nil {
 				return err
 			}
+			break
+		}
+		// Print empty Prefix field only when everything else is empty
+		if err := e.EncodeElement(f.Prefix, xml.StartElement{Name: xml.Name{Local: "Prefix"}}); err != nil {
+			return err
 		}
 	}
 
