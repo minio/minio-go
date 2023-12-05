@@ -57,3 +57,45 @@ func TestSetHeader(t *testing.T) {
 		}
 	}
 }
+
+func TestCustomQueryParameters(t *testing.T) {
+	var (
+		paramKey   = "x-test-param"
+		paramValue = "test-value"
+
+		invalidParamKey   = "invalid-test-param"
+		invalidParamValue = "invalid-test-param"
+	)
+
+	testCases := []struct {
+		setParamsFunc func(o *GetObjectOptions)
+	}{
+		{func(o *GetObjectOptions) {
+			o.AddReqParam(paramKey, paramValue)
+			o.AddReqParam(invalidParamKey, invalidParamValue)
+		}},
+		{func(o *GetObjectOptions) {
+			o.SetReqParam(paramKey, paramValue)
+			o.SetReqParam(invalidParamKey, invalidParamValue)
+		}},
+	}
+
+	for i, testCase := range testCases {
+		opts := GetObjectOptions{}
+		testCase.setParamsFunc(&opts)
+
+		// This and the following checks indirectly ensure that only the expected
+		// valid header is added.
+		if len(opts.reqParams) != 1 {
+			t.Errorf("Test %d: Expected 1 kv-pair in query parameters, got %v", i+1, len(opts.reqParams))
+		}
+
+		if v, ok := opts.reqParams[paramKey]; !ok {
+			t.Errorf("Test %d: Expected query parameter with key %s missing", i+1, paramKey)
+		} else if len(v) != 1 {
+			t.Errorf("Test %d: Expected 1 value for query parameter with key %s, got %d values", i+1, paramKey, len(v))
+		} else if v[0] != paramValue {
+			t.Errorf("Test %d: Expected query value %s for key %s, got %s", i+1, paramValue, paramKey, v[0])
+		}
+	}
+}
