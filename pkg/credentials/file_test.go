@@ -18,10 +18,15 @@
 package credentials
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 )
 
 func TestFileAWS(t *testing.T) {
@@ -129,6 +134,67 @@ func TestFileAWS(t *testing.T) {
 
 	creds = NewFileAWSCredentials("credentials.sample", "with_process")
 	credValues, err = creds.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if credValues.AccessKeyID != "accessKey" {
+		t.Errorf("Expected 'accessKey', got %s'", credValues.AccessKeyID)
+	}
+	if credValues.SecretAccessKey != "secret" {
+		t.Errorf("Expected 'secret', got %s'", credValues.SecretAccessKey)
+	}
+	if credValues.SessionToken != "token" {
+		t.Errorf("Expected 'token', got %s'", credValues.SessionToken)
+	}
+	if creds.IsExpired() {
+		t.Error("Should not be expired")
+	}
+}
+
+func TestFileAWSSSO(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "minio-sso-")
+	if err != nil {
+		t.Errorf("Creating temp dir: %+v", err)
+	}
+
+	// the file path is the sso-profile, "main", sha1-ed
+	os.WriteFile(
+		path.Join(tmpDir, "b28b7af69320201d1cf206ebf28373980add1451.json"),
+		[]byte(`{"startUrl": "https://testacct.awsapps.com/start", "region": "us-test-2", "accessToken": "my-access-token", "expiresAt": "2020-01-11T00:00:00Z"}`),
+		0755,
+	)
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if urlPath := r.URL.Path; urlPath != "/federation/credentials" {
+			t.Errorf("Expected path /federation/credentials, got %s", urlPath)
+		}
+
+		if accountID := r.URL.Query().Get("account_id"); accountID != "123456789" {
+			t.Errorf("Expected account ID 123456789, got %s", accountID)
+		}
+
+		if roleName := r.URL.Query().Get("role_name"); roleName != "myrole" {
+			t.Errorf("Expected role name myrole, got %s", roleName)
+		}
+
+		if xAuthHeader := r.Header.Get("x-amz-sso_bearer_token"); xAuthHeader != "my-access-token" {
+			t.Errorf("Expected bearer token my-access-token, got %s", xAuthHeader)
+		}
+
+		fmt.Fprintln(w, `{"roleCredentials": {"accessKeyId": "accessKey", "secretAccessKey": "secret", "sessionToken": "token", "expiration":1702317362000}}`)
+	}))
+	defer ts.Close()
+
+	creds := New(&FileAWSCredentials{
+		Filename: "credentials-sso.sample",
+		Profile:  "p1",
+
+		overrideSSOPortalURL: ts.URL,
+		overrideSSOCacheDir:  tmpDir,
+		timeNow:              func() time.Time { return time.Date(2020, time.January, 10, 1, 1, 1, 1, time.UTC) },
+	})
+	credValues, err := creds.Get()
 	if err != nil {
 		t.Fatal(err)
 	}
