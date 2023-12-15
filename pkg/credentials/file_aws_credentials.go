@@ -34,7 +34,14 @@ import (
 	ini "gopkg.in/ini.v1"
 )
 
+// ErrNoExternalProcessDefined is returned when attempting to get credentials
+// from the credential_process config but no credential_process is defined
+// in the config provided.
 var ErrNoExternalProcessDefined = errors.New("config file does not specify credential_process")
+
+// ErrNoSSOConfig is returned when attempting to get credentials
+// from the sso config but no sso configuration is defined
+// in the config provided.
 var ErrNoSSOConfig = errors.New("the specified config does not have sso configurations")
 
 // A externalProcessCredentials stores the output of a credential_process
