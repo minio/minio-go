@@ -66,6 +66,12 @@ const (
 	// Website redirect location header
 	amzWebsiteRedirectLocation = "X-Amz-Website-Redirect-Location"
 
+	// GetObjectAttributes headers
+	amzPartNumberMarker    = "X-Amz-Part-Number-Marker"
+	amzExpectedBucketOnwer = "X-Amz-Expected-Bucket-Owner"
+	amzMaxParts            = "X-Amz-Max-Parts"
+	amzObjectAttributes    = "X-Amz-Object-Attributes"
+
 	// Object Tagging headers
 	amzTaggingHeader          = "X-Amz-Tagging"
 	amzTaggingHeaderDirective = "X-Amz-Tagging-Directive"

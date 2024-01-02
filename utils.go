@@ -514,6 +514,7 @@ func isAmzHeader(headerKey string) bool {
 
 // supportedQueryValues is a list of query strings that can be passed in when using GetObject.
 var supportedQueryValues = map[string]bool{
+	"attributes":                   true,
 	"partNumber":                   true,
 	"versionId":                    true,
 	"response-cache-control":       true,
