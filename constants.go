@@ -60,6 +60,11 @@ const (
 )
 
 const (
+	GetObjectAttributesTags = "ETag,Checksum,StorageClass,ObjectSize,ObjectParts"
+)
+
+const (
+
 	// Storage class header.
 	amzStorageClass = "X-Amz-Storage-Class"
 

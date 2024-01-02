@@ -2862,14 +2862,7 @@ func testGetObjectAttributes() {
 	defer cleanupVersionedBucket(bucketNameV, c)
 
 	testFiles := make(map[string]*objectAttributesNewObject)
-	testFiles["file-1-version-1"] = &objectAttributesNewObject{
-		Object:           "file1",
-		ObjectReaderType: "datafile-100-kB",
-		Bucket:           bucketNameV,
-		ContentType:      "custom/contenttype",
-		SendContentMd5:   false,
-	}
-	testFiles["file-1-version-2"] = &objectAttributesNewObject{
+	testFiles["file-1"] = &objectAttributesNewObject{
 		Object:           "file1",
 		ObjectReaderType: "datafile-1.03-MB",
 		Bucket:           bucketNameV,
@@ -2902,12 +2895,8 @@ func testGetObjectAttributes() {
 
 	testTable := make(map[string]objectAttributesTableTest)
 
-	testTable["0-to-0-marker"] = objectAttributesTableTest{
-		opts: minio.ObjectAttributesOptions{
-			ObjectAttributes: "ETag,Checksum,ObjectParts,StorageClass,ObjectSize",
-			PartNumberMarker: 0,
-			MaxParts:         0,
-		},
+	testTable["none-versioned"] = objectAttributesTableTest{
+		opts: minio.ObjectAttributesOptions{},
 		test: objectAttributesTestOptions{
 			TestFileName:     "file2",
 			StorageClass:     "STANDARD",
@@ -2917,122 +2906,10 @@ func testGetObjectAttributes() {
 		},
 	}
 
-	testTable["0-marker-to-max"] = objectAttributesTableTest{
-		opts: minio.ObjectAttributesOptions{
-			ObjectAttributes: "ETag,Checksum,ObjectParts,StorageClass,ObjectSize",
-			PartNumberMarker: 0,
-			MaxParts:         10000,
-		},
+	testTable["versioned"] = objectAttributesTableTest{
+		opts: minio.ObjectAttributesOptions{},
 		test: objectAttributesTestOptions{
-			TestFileName:     "file2",
-			StorageClass:     "STANDARD",
-			HasFullChecksum:  true,
-			HasPartChecksums: true,
-			HasParts:         true,
-		},
-	}
-
-	testTable["0-to-1-marker"] = objectAttributesTableTest{
-		opts: minio.ObjectAttributesOptions{
-			ObjectAttributes: "ETag,Checksum,ObjectParts,StorageClass,ObjectSize",
-			PartNumberMarker: 0,
-			MaxParts:         1,
-		},
-		test: objectAttributesTestOptions{
-			TestFileName:     "file2",
-			StorageClass:     "STANDARD",
-			HasFullChecksum:  true,
-			HasPartChecksums: true,
-			HasParts:         true,
-		},
-	}
-
-	testTable["0-to-5-marker"] = objectAttributesTableTest{
-		opts: minio.ObjectAttributesOptions{
-			ObjectAttributes: "ETag,Checksum,ObjectParts,StorageClass,ObjectSize",
-			PartNumberMarker: 0,
-			MaxParts:         5,
-		},
-		test: objectAttributesTestOptions{
-			TestFileName:     "file2",
-			StorageClass:     "STANDARD",
-			HasFullChecksum:  true,
-			HasPartChecksums: true,
-			HasParts:         true,
-		},
-	}
-
-	testTable["0-to-9-marker"] = objectAttributesTableTest{
-		opts: minio.ObjectAttributesOptions{
-			ObjectAttributes: "ETag,Checksum,ObjectParts,StorageClass,ObjectSize",
-			PartNumberMarker: 0,
-			MaxParts:         9,
-		},
-		test: objectAttributesTestOptions{
-			TestFileName:     "file2",
-			StorageClass:     "STANDARD",
-			HasFullChecksum:  true,
-			HasPartChecksums: true,
-			HasParts:         true,
-		},
-	}
-
-	testTable["attributes-etag-only"] = objectAttributesTableTest{
-		opts: minio.ObjectAttributesOptions{
-			ObjectAttributes: "ETag",
-			PartNumberMarker: 0,
-			MaxParts:         0,
-		},
-		test: objectAttributesTestOptions{
-			TestFileName: "file2",
-		},
-	}
-
-	testTable["attributes-checksum-only"] = objectAttributesTableTest{
-		opts: minio.ObjectAttributesOptions{
-			ObjectAttributes: "Checksum",
-			PartNumberMarker: 0,
-			MaxParts:         0,
-		},
-		test: objectAttributesTestOptions{
-			TestFileName:    "file2",
-			HasFullChecksum: true,
-		},
-	}
-
-	testTable["attributes-objectparts-only"] = objectAttributesTableTest{
-		opts: minio.ObjectAttributesOptions{
-			ObjectAttributes: "ObjectParts",
-			PartNumberMarker: 0,
-			MaxParts:         0,
-		},
-		test: objectAttributesTestOptions{
-			TestFileName:     "file2",
-			HasPartChecksums: true,
-			HasParts:         true,
-		},
-	}
-
-	testTable["attributes-storageclass-only"] = objectAttributesTableTest{
-		opts: minio.ObjectAttributesOptions{
-			ObjectAttributes: "StorageClass",
-			PartNumberMarker: 0,
-			MaxParts:         0,
-		},
-		test: objectAttributesTestOptions{
-			TestFileName: "file2",
-			StorageClass: "STANDARD",
-		},
-	}
-
-	testTable["attributes-storageclass-etag-checksum"] = objectAttributesTableTest{
-		opts: minio.ObjectAttributesOptions{
-			ObjectAttributes: "StorageClass,ETag,Checksum",
-			PartNumberMarker: 0,
-			MaxParts:         0,
-		},
-		test: objectAttributesTestOptions{
-			TestFileName:    "file2",
+			TestFileName:    "file1",
 			StorageClass:    "STANDARD",
 			HasFullChecksum: true,
 		},
@@ -3056,7 +2933,7 @@ func testGetObjectAttributes() {
 			logError(testName, function, args, startTime, "", "GetObjectAttributes failed", err)
 		}
 
-		v.test.NumberOfParts = s.ObjectParts.PartsCount - s.ObjectParts.PartNumberMarker
+		v.test.NumberOfParts = s.ObjectParts.PartsCount
 		v.test.ETag = tf.UploadInfo.ETag
 		v.test.ObjectSize = int(tf.UploadInfo.Size)
 
@@ -3130,7 +3007,6 @@ func testGetObjectAttributesSSECEncryption() {
 	}
 
 	opts := minio.ObjectAttributesOptions{
-		ObjectAttributes:     "ETag,Checksum,ObjectSize,ObjectParts,StorageClass",
 		ServerSideEncryption: sse,
 	}
 	attr, err := c.GetObjectAttributes(context.Background(), bucketName, objectName, opts)
@@ -3182,9 +3058,7 @@ func testGetObjectAttributesErrorCases() {
 
 	c.SetAppInfo("MinIO-go-FunctionalTest", appVersion)
 
-	_, err = c.GetObjectAttributes(context.Background(), "unknown-bucket", "unknown-object", minio.ObjectAttributesOptions{
-		ObjectAttributes: "ETag",
-	})
+	_, err = c.GetObjectAttributes(context.Background(), "unknown-bucket", "unknown-object", minio.ObjectAttributesOptions{})
 	if err == nil {
 		logError(testName, function, args, startTime, "", "GetObjectAttributes failed", nil)
 		return
@@ -3228,9 +3102,7 @@ func testGetObjectAttributesErrorCases() {
 	defer cleanupVersionedBucket(bucketNameV, c)
 
 	fmt.Println("do")
-	_, err = c.GetObjectAttributes(context.Background(), bucketName, "unknown-object", minio.ObjectAttributesOptions{
-		ObjectAttributes: "ETag",
-	})
+	_, err = c.GetObjectAttributes(context.Background(), bucketName, "unknown-object", minio.ObjectAttributesOptions{})
 	if err == nil {
 		logError(testName, function, args, startTime, "", "GetObjectAttributes failed", nil)
 		return
@@ -3242,38 +3114,20 @@ func testGetObjectAttributesErrorCases() {
 		return
 	}
 
-	_, err = c.GetObjectAttributes(context.Background(), bucketName, "", minio.ObjectAttributesOptions{
-		ObjectAttributes: "ETag",
-	})
+	_, err = c.GetObjectAttributes(context.Background(), bucketName, "", minio.ObjectAttributesOptions{})
 	if err == nil {
 		logError(testName, function, args, startTime, "", "GetObjectAttributes with empty object name should have failed", nil)
 		return
 	}
 
-	_, err = c.GetObjectAttributes(context.Background(), "", "unknown-object", minio.ObjectAttributesOptions{
-		ObjectAttributes: "ETag",
-	})
+	_, err = c.GetObjectAttributes(context.Background(), "", "unknown-object", minio.ObjectAttributesOptions{})
 	if err == nil {
 		logError(testName, function, args, startTime, "", "GetObjectAttributes with empty bucket name should have failed", nil)
-		return
-	}
-
-	_, err = c.GetObjectAttributes(context.Background(), bucketName, "unknown-object", minio.ObjectAttributesOptions{
-		ObjectAttributes: "kljsdlf",
-	})
-	if err == nil {
-		logError(testName, function, args, startTime, "", "GetObjectAttributes with empty bucket name should have failed", nil)
-		return
-	}
-	errorResponse = err.(minio.ErrorResponse)
-	if errorResponse.Code != "InvalidArgument" {
-		logError(testName, function, args, startTime, "", "Invalid error code, expected InvalidArgument but got "+errorResponse.Code, nil)
 		return
 	}
 
 	_, err = c.GetObjectAttributes(context.Background(), bucketNameV, "unknown-object", minio.ObjectAttributesOptions{
-		ObjectAttributes: "ETag",
-		VersionID:        uuid.NewString(),
+		VersionID: uuid.NewString(),
 	})
 	if err == nil {
 		logError(testName, function, args, startTime, "", "GetObjectAttributes with empty bucket name should have failed", nil)
@@ -3376,16 +3230,9 @@ func validateObjectAttributeRequest(OA *minio.ObjectAttributes, opts *minio.Obje
 		}
 	}
 
-	if strings.Contains(opts.ObjectAttributes, "ETag") {
-		if OA.ETag != test.ETag {
-			err = fmt.Errorf("Etags do not match, got %s but expected %s", OA.ETag, test.ETag)
-			return
-		}
-	} else if !strings.Contains(opts.ObjectAttributes, "ETag") {
-		if OA.ETag != "" {
-			err = fmt.Errorf("Was not expecting an ETag but got %s", OA.ETag)
-			return
-		}
+	if OA.ETag != test.ETag {
+		err = fmt.Errorf("Etags do not match, got %s but expected %s", OA.ETag, test.ETag)
+		return
 	}
 
 	if test.HasParts {
@@ -3395,47 +3242,19 @@ func validateObjectAttributeRequest(OA *minio.ObjectAttributes, opts *minio.Obje
 		}
 	}
 
-	if strings.Contains(opts.ObjectAttributes, "StorageClass") {
-		if OA.StorageClass == "" {
-			err = fmt.Errorf("Was expecting a StorageClass but got none")
-			return
-		}
-	} else if !strings.Contains(opts.ObjectAttributes, "StorageClass") {
-		if OA.StorageClass != "" {
-			err = fmt.Errorf("Was NOT expecting a StorageClass but got %s", OA.StorageClass)
-			return
-		}
+	if OA.StorageClass == "" {
+		err = fmt.Errorf("Was expecting a StorageClass but got none")
+		return
 	}
 
-	if strings.Contains(opts.ObjectAttributes, "ObjectSize") {
-		if OA.ObjectSize != test.ObjectSize {
-			err = fmt.Errorf("Was expecting a ObjectSize but got none")
-			return
-		}
-	} else if !strings.Contains(opts.ObjectAttributes, "ObjectSize") {
-		if OA.ObjectSize != 0 {
-			err = fmt.Errorf("Was NOT expecting a ObjectSize but got %d", OA.ObjectSize)
-			return
-		}
+	if OA.ObjectSize != test.ObjectSize {
+		err = fmt.Errorf("Was expecting a ObjectSize but got none")
+		return
 	}
 
 	if OA.ObjectParts.PartsCount != test.NumberOfParts {
 		err = fmt.Errorf("Was expecting %d parts but got %d", test.NumberOfParts, OA.ObjectParts.PartsCount)
 		return
-	}
-
-	if OA.ObjectParts.NextPartNumberMarker == OA.ObjectParts.PartsCount {
-		if OA.ObjectParts.IsTruncated {
-			err = fmt.Errorf("Expected ObjectParts to NOT be truncated, but it was")
-			return
-		}
-	}
-
-	if OA.ObjectParts.NextPartNumberMarker != OA.ObjectParts.PartsCount {
-		if !OA.ObjectParts.IsTruncated {
-			err = fmt.Errorf("Expected ObjectParts to be truncated, but it was NOT")
-			return
-		}
 	}
 
 	return
