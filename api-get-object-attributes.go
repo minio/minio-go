@@ -23,7 +23,7 @@ type ObjectAttributesOptions struct {
 
 // ObjectAttributes ...
 type ObjectAttributes struct {
-	objectAttributesResponse
+	ObjectAttributesResponse
 	LastModified time.Time
 	VersionID    string
 }
@@ -36,16 +36,17 @@ func (o *ObjectAttributes) parseResponse(resp *http.Response) (err error) {
 	o.LastModified = mod
 	o.VersionID = resp.Header.Get(amzVersionID)
 
-	response := new(objectAttributesResponse)
+	response := new(ObjectAttributesResponse)
 	if err := xml.NewDecoder(resp.Body).Decode(response); err != nil {
 		return err
 	}
-	o.objectAttributesResponse = *response
+	o.ObjectAttributesResponse = *response
 
 	return
 }
 
-type objectAttributesResponse struct {
+// ObjectAttributesResponse ...
+type ObjectAttributesResponse struct {
 	ETag         string `xml:",omitempty"`
 	StorageClass string
 	ObjectSize   int
@@ -57,11 +58,12 @@ type objectAttributesResponse struct {
 	}
 	ObjectParts struct {
 		PartsCount int
-		Parts      []*objectPart `xml:"Part"`
+		Parts      []*ObjectAttributePart `xml:"Part"`
 	}
 }
 
-type objectPart struct {
+// ObjectAttributesResponse ...
+type ObjectAttributePart struct {
 	ChecksumCRC32  string `xml:",omitempty"`
 	ChecksumCRC32C string `xml:",omitempty"`
 	ChecksumSHA1   string `xml:",omitempty"`
@@ -107,6 +109,7 @@ func (c *Client) GetObjectAttributes(ctx context.Context, bucketName, objectName
 	if err != nil {
 		return ObjectAttributes{}, err
 	}
+	defer closeResponse(resp)
 
 	if resp.StatusCode != http.StatusOK {
 		ER := new(ErrorResponse)
@@ -116,8 +119,6 @@ func (c *Client) GetObjectAttributes(ctx context.Context, bucketName, objectName
 
 		return ObjectAttributes{}, *ER
 	}
-
-	defer closeResponse(resp)
 
 	OA := new(ObjectAttributes)
 	err = OA.parseResponse(resp)
