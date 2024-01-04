@@ -60,6 +60,8 @@ const (
 )
 
 const (
+	// GetObjectAttributesTags are tags used to defined
+	// return values for the GetObjectAttributes API
 	GetObjectAttributesTags = "ETag,Checksum,StorageClass,ObjectSize,ObjectParts"
 )
 

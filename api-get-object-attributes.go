@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/minio/minio-go/v7/pkg/encrypt"
@@ -62,7 +63,7 @@ type ObjectAttributesResponse struct {
 	}
 }
 
-// ObjectAttributesResponse ...
+// ObjectAttributePart ...
 type ObjectAttributePart struct {
 	ChecksumCRC32  string `xml:",omitempty"`
 	ChecksumCRC32C string `xml:",omitempty"`
@@ -91,6 +92,11 @@ func (c *Client) GetObjectAttributes(ctx context.Context, bucketName, objectName
 
 	headers := make(http.Header)
 	headers.Set(amzObjectAttributes, GetObjectAttributesTags)
+
+	// Setting maxPartsCount here will ensure we always get
+	// all objecrt parts back. AWS S3 limits each request to
+	// 1000 parts unless told to retrieve more.
+	headers.Set(amzMaxParts, strconv.Itoa(maxPartsCount))
 
 	if opts.ServerSideEncryption != nil {
 		opts.ServerSideEncryption.Marshal(headers)
