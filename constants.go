@@ -63,6 +63,9 @@ const (
 	// GetObjectAttributesTags are tags used to defined
 	// return values for the GetObjectAttributes API
 	GetObjectAttributesTags = "ETag,Checksum,StorageClass,ObjectSize,ObjectParts"
+	// GetObjectAttributesMaxParts defined the default maximum
+	// number of parts returned by GetObjectAttributes
+	GetObjectAttributesMaxParts = 1000
 )
 
 const (

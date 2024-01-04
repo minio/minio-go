@@ -2909,6 +2909,62 @@ func testGetObjectAttributes() {
 		},
 	}
 
+	testTable["0-to-0-marker"] = objectAttributesTableTest{
+		opts: minio.ObjectAttributesOptions{
+			PartNumberMarker: 0,
+			MaxParts:         0,
+		},
+		test: objectAttributesTestOptions{
+			TestFileName:     "file2",
+			StorageClass:     "STANDARD",
+			HasFullChecksum:  true,
+			HasPartChecksums: true,
+			HasParts:         true,
+		},
+	}
+
+	testTable["0-marker-to-max"] = objectAttributesTableTest{
+		opts: minio.ObjectAttributesOptions{
+			PartNumberMarker: 0,
+			MaxParts:         10000,
+		},
+		test: objectAttributesTestOptions{
+			TestFileName:     "file2",
+			StorageClass:     "STANDARD",
+			HasFullChecksum:  true,
+			HasPartChecksums: true,
+			HasParts:         true,
+		},
+	}
+
+	testTable["0-to-1-marker"] = objectAttributesTableTest{
+		opts: minio.ObjectAttributesOptions{
+			PartNumberMarker: 0,
+			MaxParts:         1,
+		},
+		test: objectAttributesTestOptions{
+			TestFileName:     "file2",
+			StorageClass:     "STANDARD",
+			HasFullChecksum:  true,
+			HasPartChecksums: true,
+			HasParts:         true,
+		},
+	}
+
+	testTable["7-to-6-marker"] = objectAttributesTableTest{
+		opts: minio.ObjectAttributesOptions{
+			PartNumberMarker: 7,
+			MaxParts:         6,
+		},
+		test: objectAttributesTestOptions{
+			TestFileName:     "file2",
+			StorageClass:     "STANDARD",
+			HasFullChecksum:  true,
+			HasPartChecksums: true,
+			HasParts:         true,
+		},
+	}
+
 	testTable["versioned"] = objectAttributesTableTest{
 		opts: minio.ObjectAttributesOptions{},
 		test: objectAttributesTestOptions{
@@ -3111,7 +3167,6 @@ func testGetObjectAttributesErrorCases() {
 	defer cleanupBucket(bucketName, c)
 	defer cleanupVersionedBucket(bucketNameV, c)
 
-	fmt.Println("do")
 	_, err = c.GetObjectAttributes(context.Background(), bucketName, unknownObject, minio.ObjectAttributesOptions{})
 	if err == nil {
 		logError(testName, function, args, startTime, "", "GetObjectAttributes failed", nil)
@@ -3262,9 +3317,37 @@ func validateObjectAttributeRequest(OA *minio.ObjectAttributes, opts *minio.Obje
 		return
 	}
 
-	if OA.ObjectParts.PartsCount != test.NumberOfParts {
-		err = fmt.Errorf("Was expecting %d parts but got %d", test.NumberOfParts, OA.ObjectParts.PartsCount)
-		return
+	if test.HasParts {
+		if opts.MaxParts == 0 {
+			if len(OA.ObjectParts.Parts) != OA.ObjectParts.PartsCount {
+				err = fmt.Errorf("expected %s parts but got %d", OA.ObjectParts.PartsCount, len(OA.ObjectParts.Parts))
+				return
+			}
+		} else if (opts.MaxParts + opts.PartNumberMarker) > OA.ObjectParts.PartsCount {
+			if len(OA.ObjectParts.Parts) != (OA.ObjectParts.PartsCount - opts.PartNumberMarker) {
+				err = fmt.Errorf("expected %d parts but got %d", (OA.ObjectParts.PartsCount - opts.PartNumberMarker), len(OA.ObjectParts.Parts))
+				return
+			}
+		} else if opts.MaxParts != 0 {
+			if opts.MaxParts != len(OA.ObjectParts.Parts) {
+				err = fmt.Errorf("expected %d parts but got %d", opts.MaxParts, len(OA.ObjectParts.Parts))
+				return
+			}
+		}
+	}
+
+	if OA.ObjectParts.NextPartNumberMarker == OA.ObjectParts.PartsCount {
+		if OA.ObjectParts.IsTruncated {
+			err = fmt.Errorf("Expected ObjectParts to NOT be truncated, but it was")
+			return
+		}
+	}
+
+	if OA.ObjectParts.NextPartNumberMarker != OA.ObjectParts.PartsCount {
+		if !OA.ObjectParts.IsTruncated {
+			err = fmt.Errorf("Expected ObjectParts to be truncated, but it was NOT")
+			return
+		}
 	}
 
 	return

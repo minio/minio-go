@@ -15,11 +15,16 @@ import (
 // ObjectAttributesOptions is an API call that combines
 // HeadObject and ListParts.
 //
+// MaxParts - defines how many parts the caller wants to be returned (default: 1000)
+// PartNumberMarker - defined which part the listing will start at (the part with the number equal to the
+// PartNumberMarker will not be included)
 // VersionID - The object version you want to attributes for
 // ServerSideEncryption - The server-side encryption algorithm used when storing this object in Minio
 type ObjectAttributesOptions struct {
 	VersionID            string
 	ServerSideEncryption encrypt.ServerSide
+	MaxParts             int
+	PartNumberMarker     int
 }
 
 // ObjectAttributes ...
@@ -58,8 +63,12 @@ type ObjectAttributesResponse struct {
 		ChecksumSHA256 string `xml:",omitempty"`
 	}
 	ObjectParts struct {
-		PartsCount int
-		Parts      []*ObjectAttributePart `xml:"Part"`
+		PartsCount           int
+		PartNumberMarker     int
+		NextPartNumberMarker int
+		MaxParts             int
+		IsTruncated          bool
+		Parts                []*ObjectAttributePart `xml:"Part"`
 	}
 }
 
@@ -93,10 +102,15 @@ func (c *Client) GetObjectAttributes(ctx context.Context, bucketName, objectName
 	headers := make(http.Header)
 	headers.Set(amzObjectAttributes, GetObjectAttributesTags)
 
-	// Setting maxPartsCount here will ensure we always get
-	// all objecrt parts back. AWS S3 limits each request to
-	// 1000 parts unless told to retrieve more.
-	headers.Set(amzMaxParts, strconv.Itoa(maxPartsCount))
+	if opts.PartNumberMarker > 0 {
+		headers.Set(amzPartNumberMarker, strconv.Itoa(opts.PartNumberMarker))
+	}
+
+	if opts.MaxParts > 0 {
+		headers.Set(amzMaxParts, strconv.Itoa(opts.MaxParts))
+	} else {
+		headers.Set(amzMaxParts, strconv.Itoa(GetObjectAttributesMaxParts))
+	}
 
 	if opts.ServerSideEncryption != nil {
 		opts.ServerSideEncryption.Marshal(headers)
