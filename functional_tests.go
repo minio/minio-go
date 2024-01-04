@@ -289,10 +289,10 @@ func cleanupVersionedBucket(bucketName string, c *minio.Client) error {
 	// objects are already deleted, clear the buckets now
 	err := c.RemoveBucket(context.Background(), bucketName)
 	if err != nil {
-		// for obj := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{WithVersions: true, Recursive: true}) {
-		// 	log.Println("found", obj.Key, obj.VersionID)
-		// 	logError("bucket-cleanup", getFuncName(), nil, time.Now(), "", "", err)
-		// }
+		for obj := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{WithVersions: true, Recursive: true}) {
+			log.Println("found", obj.Key, obj.VersionID)
+			logError("bucket-cleanup", getFuncName(), nil, time.Now(), "", "", err)
+		}
 		logError("bucket-cleanup", getFuncName(), nil, time.Now(), "", "", err)
 		return err
 	}
@@ -2818,9 +2818,10 @@ func testGetObjectAttributes() {
 
 	c, err := minio.New(os.Getenv(serverEndpoint),
 		&minio.Options{
-			Creds:     credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
-			Transport: createHTTPTransport(),
-			Secure:    mustParseBool(os.Getenv(enableHTTPS)),
+			TrailingHeaders: true,
+			Creds:           credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Transport:       createHTTPTransport(),
+			Secure:          mustParseBool(os.Getenv(enableHTTPS)),
 		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
@@ -2854,7 +2855,7 @@ func testGetObjectAttributes() {
 	}
 	err = c.EnableVersioning(context.Background(), bucketNameV)
 	if err != nil {
-		logError(testName, function, args, startTime, "", "Make bucket failed", err)
+		logError(testName, function, args, startTime, "", "Unable to enable versioning", err)
 		return
 	}
 
@@ -2862,7 +2863,7 @@ func testGetObjectAttributes() {
 	defer cleanupVersionedBucket(bucketNameV, c)
 
 	testFiles := make(map[string]*objectAttributesNewObject)
-	testFiles["file-1"] = &objectAttributesNewObject{
+	testFiles["file1"] = &objectAttributesNewObject{
 		Object:           "file1",
 		ObjectReaderType: "datafile-1.03-MB",
 		Bucket:           bucketNameV,
@@ -2880,7 +2881,9 @@ func testGetObjectAttributes() {
 
 	for i, v := range testFiles {
 		bufSize := dataFileMap[v.ObjectReaderType]
+
 		reader := getDataReader(v.ObjectReaderType)
+
 		args["objectName"] = v.Object
 		testFiles[i].UploadInfo, err = c.PutObject(context.Background(), v.Bucket, v.Object, reader, int64(bufSize), minio.PutObjectOptions{
 			ContentType:    v.ContentType,
@@ -2911,7 +2914,7 @@ func testGetObjectAttributes() {
 		test: objectAttributesTestOptions{
 			TestFileName:    "file1",
 			StorageClass:    "STANDARD",
-			HasFullChecksum: true,
+			HasFullChecksum: false,
 		},
 	}
 
@@ -2931,6 +2934,7 @@ func testGetObjectAttributes() {
 		s, err := c.GetObjectAttributes(context.Background(), tf.Bucket, tf.Object, v.opts)
 		if err != nil {
 			logError(testName, function, args, startTime, "", "GetObjectAttributes failed", err)
+			return
 		}
 
 		v.test.NumberOfParts = s.ObjectParts.PartsCount
@@ -2940,6 +2944,7 @@ func testGetObjectAttributes() {
 		err = validateObjectAttributeRequest(&s, &v.opts, &v.test)
 		if err != nil {
 			logError(testName, function, args, startTime, "", "Validating GetObjectsAttributes response failed, table test: "+i, err)
+			return
 		}
 
 	}
@@ -2964,9 +2969,10 @@ func testGetObjectAttributesSSECEncryption() {
 
 	c, err := minio.New(os.Getenv(serverEndpoint),
 		&minio.Options{
-			Creds:     credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
-			Secure:    mustParseBool(os.Getenv(enableHTTPS)),
-			Transport: createHTTPTransport(),
+			TrailingHeaders: true,
+			Creds:           credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Secure:          mustParseBool(os.Getenv(enableHTTPS)),
+			Transport:       createHTTPTransport(),
 		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
@@ -3025,6 +3031,7 @@ func testGetObjectAttributesSSECEncryption() {
 	})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "Validating GetObjectsAttributes response failed", err)
+		return
 	}
 
 	successLogger(testName, function, args, startTime).Info()
@@ -3047,9 +3054,10 @@ func testGetObjectAttributesErrorCases() {
 
 	c, err := minio.New(os.Getenv(serverEndpoint),
 		&minio.Options{
-			Creds:     credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
-			Transport: createHTTPTransport(),
-			Secure:    mustParseBool(os.Getenv(enableHTTPS)),
+			TrailingHeaders: true,
+			Creds:           credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Transport:       createHTTPTransport(),
+			Secure:          mustParseBool(os.Getenv(enableHTTPS)),
 		})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
@@ -3057,8 +3065,10 @@ func testGetObjectAttributesErrorCases() {
 	}
 
 	c.SetAppInfo("MinIO-go-FunctionalTest", appVersion)
+	unknownBucket := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-bucket-")
+	unknownObject := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-object-")
 
-	_, err = c.GetObjectAttributes(context.Background(), "unknown-bucket", "unknown-object", minio.ObjectAttributesOptions{})
+	_, err = c.GetObjectAttributes(context.Background(), unknownBucket, unknownObject, minio.ObjectAttributesOptions{})
 	if err == nil {
 		logError(testName, function, args, startTime, "", "GetObjectAttributes failed", nil)
 		return
@@ -3102,7 +3112,7 @@ func testGetObjectAttributesErrorCases() {
 	defer cleanupVersionedBucket(bucketNameV, c)
 
 	fmt.Println("do")
-	_, err = c.GetObjectAttributes(context.Background(), bucketName, "unknown-object", minio.ObjectAttributesOptions{})
+	_, err = c.GetObjectAttributes(context.Background(), bucketName, unknownObject, minio.ObjectAttributesOptions{})
 	if err == nil {
 		logError(testName, function, args, startTime, "", "GetObjectAttributes failed", nil)
 		return
@@ -3120,13 +3130,13 @@ func testGetObjectAttributesErrorCases() {
 		return
 	}
 
-	_, err = c.GetObjectAttributes(context.Background(), "", "unknown-object", minio.ObjectAttributesOptions{})
+	_, err = c.GetObjectAttributes(context.Background(), "", unknownObject, minio.ObjectAttributesOptions{})
 	if err == nil {
 		logError(testName, function, args, startTime, "", "GetObjectAttributes with empty bucket name should have failed", nil)
 		return
 	}
 
-	_, err = c.GetObjectAttributes(context.Background(), bucketNameV, "unknown-object", minio.ObjectAttributesOptions{
+	_, err = c.GetObjectAttributes(context.Background(), bucketNameV, unknownObject, minio.ObjectAttributesOptions{
 		VersionID: uuid.NewString(),
 	})
 	if err == nil {

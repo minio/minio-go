@@ -92,9 +92,6 @@ func (c *Client) GetObjectAttributes(ctx context.Context, bucketName, objectName
 	headers := make(http.Header)
 	headers.Set(amzObjectAttributes, GetObjectAttributesTags)
 
-	headers.Set(amzPartNumberMarker, "0")
-	headers.Set(amzMaxParts, "0")
-
 	if opts.ServerSideEncryption != nil {
 		opts.ServerSideEncryption.Marshal(headers)
 	}
