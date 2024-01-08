@@ -177,7 +177,7 @@ func (c *Client) GetObjectAttributes(ctx context.Context, bucketName, objectName
 
 	defer closeResponse(resp)
 
-	hasEtag := resp.Header.Get(Etag)
+	hasEtag := resp.Header.Get(ETag)
 	if hasEtag != "" {
 		return ObjectAttributes{}, errors.New("getObjectAttributes is not supported by the current endpoint version")
 	}

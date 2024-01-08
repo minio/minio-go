@@ -70,7 +70,9 @@ const (
 
 const (
 	// Response Headers
-	Etag = "ETag"
+
+	// ETag is a common response header
+	ETag = "ETag"
 
 	// Storage class header.
 	amzStorageClass = "X-Amz-Storage-Class"
