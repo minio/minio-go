@@ -1,3 +1,19 @@
+/*
+ * MinIO Go Library for Amazon S3 Compatible Cloud Storage
+ * Copyright 2020 MinIO, Inc.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package minio
 
 import (
@@ -12,46 +28,60 @@ import (
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
-// ObjectAttributesOptions is an API call that combines
-// HeadObject and ListParts.
+// ObjectAttributesOptions are options used for the GetObjectAttributes API
 //
-// MaxParts - defines how many parts the caller wants to be returned (default: 1000)
-// PartNumberMarker - defined which part the listing will start at (the part with the number equal to the
-// PartNumberMarker will not be included)
-// VersionID - The object version you want to attributes for
-// ServerSideEncryption - The server-side encryption algorithm used when storing this object in Minio
+// - MaxParts
+// How many parts the caller wants to be returned (default: 1000)
+//
+// - VersionID
+// The object version you want to attributes for
+//
+// - PartNumberMarker
+// the listing will start AFTER the part matching PartNumberMarker
+//
+// - ServerSideEncryption
+// The server-side encryption algorithm used when storing this object in Minio
 type ObjectAttributesOptions struct {
-	VersionID            string
-	ServerSideEncryption encrypt.ServerSide
 	MaxParts             int
+	VersionID            string
 	PartNumberMarker     int
+	ServerSideEncryption encrypt.ServerSide
 }
 
-// ObjectAttributes ...
+// ObjectAttributes is the response object returned by the GetObjectAttributes API
+//
+// - VersionID
+// The object version
+//
+// - LastModified
+// The last time the object was modified
+//
+// - ObjectAttributesResponse
+// Contains more information about the object
 type ObjectAttributes struct {
-	ObjectAttributesResponse
-	LastModified time.Time
 	VersionID    string
+	LastModified time.Time
+	ObjectAttributesResponse
 }
 
-func (o *ObjectAttributes) parseResponse(resp *http.Response) (err error) {
-	mod, err := parseRFC7231Time(resp.Header.Get("Last-Modified"))
-	if err != nil {
-		return err
-	}
-	o.LastModified = mod
-	o.VersionID = resp.Header.Get(amzVersionID)
-
-	response := new(ObjectAttributesResponse)
-	if err := xml.NewDecoder(resp.Body).Decode(response); err != nil {
-		return err
-	}
-	o.ObjectAttributesResponse = *response
-
-	return
-}
-
-// ObjectAttributesResponse ...
+// ObjectAttributesResponse contains details returned by the GetObjectAttributes API
+//
+// Noteworthy fields:
+//
+// - ObjectParts.PartsCount
+// Contains the total part count for the object (not the current response)
+//
+// - ObjectParts.PartNumberMarker
+// Pagination of parts will begin at (but not include) PartNumberMarker
+//
+// - ObjectParts.NextPartNumberMarket
+// The next PartNumberMarker to be used in order to continue pagination
+//
+// - ObjectParts.IsTruncated
+// Indicates if the last part is included in the request (does not check if parts are missing from the start of the list, ONLY the end)
+//
+// - ObjectParts.MaxParts
+// Reflects the MaxParts used by the caller or the default MaxParts value of the API
 type ObjectAttributesResponse struct {
 	ETag         string `xml:",omitempty"`
 	StorageClass string
@@ -72,7 +102,7 @@ type ObjectAttributesResponse struct {
 	}
 }
 
-// ObjectAttributePart ...
+// ObjectAttributePart is used by ObjectAttributesResponse to describe an object part
 type ObjectAttributePart struct {
 	ChecksumCRC32  string `xml:",omitempty"`
 	ChecksumCRC32C string `xml:",omitempty"`
@@ -82,8 +112,25 @@ type ObjectAttributePart struct {
 	Size           int
 }
 
-// GetObjectAttributes ...
-// This API combines HeadObject and ListParts.
+func (o *ObjectAttributes) parseResponse(resp *http.Response) (err error) {
+	mod, err := parseRFC7231Time(resp.Header.Get("Last-Modified"))
+	if err != nil {
+		return err
+	}
+	o.LastModified = mod
+	o.VersionID = resp.Header.Get(amzVersionID)
+
+	response := new(ObjectAttributesResponse)
+	if err := xml.NewDecoder(resp.Body).Decode(response); err != nil {
+		return err
+	}
+	o.ObjectAttributesResponse = *response
+
+	return
+}
+
+// GetObjectAttributes API combines HeadObject and ListParts.
+// More details on usage can be found in the documentation for ObjectAttributesOptions{}
 func (c *Client) GetObjectAttributes(ctx context.Context, bucketName, objectName string, opts ObjectAttributesOptions) (ObjectAttributes, error) {
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return ObjectAttributes{}, err
