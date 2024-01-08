@@ -69,6 +69,8 @@ const (
 )
 
 const (
+	// Response Headers
+	Etag = "ETag"
 
 	// Storage class header.
 	amzStorageClass = "X-Amz-Storage-Class"

@@ -19,6 +19,7 @@ package minio
 import (
 	"context"
 	"encoding/xml"
+	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -173,7 +174,13 @@ func (c *Client) GetObjectAttributes(ctx context.Context, bucketName, objectName
 	if err != nil {
 		return ObjectAttributes{}, err
 	}
+
 	defer closeResponse(resp)
+
+	hasEtag := resp.Header.Get(Etag)
+	if hasEtag != "" {
+		return ObjectAttributes{}, errors.New("getObjectAttributes is not supported by the current endpoint version")
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		ER := new(ErrorResponse)
