@@ -132,13 +132,13 @@ func (o *ObjectAttributes) parseResponse(resp *http.Response) (err error) {
 
 // GetObjectAttributes API combines HeadObject and ListParts.
 // More details on usage can be found in the documentation for ObjectAttributesOptions{}
-func (c *Client) GetObjectAttributes(ctx context.Context, bucketName, objectName string, opts ObjectAttributesOptions) (ObjectAttributes, error) {
+func (c *Client) GetObjectAttributes(ctx context.Context, bucketName, objectName string, opts ObjectAttributesOptions) (*ObjectAttributes, error) {
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
-		return ObjectAttributes{}, err
+		return nil, err
 	}
 
 	if err := s3utils.CheckValidObjectName(objectName); err != nil {
-		return ObjectAttributes{}, err
+		return nil, err
 	}
 
 	urlValues := make(url.Values)
@@ -172,30 +172,30 @@ func (c *Client) GetObjectAttributes(ctx context.Context, bucketName, objectName
 		customHeader:     headers,
 	})
 	if err != nil {
-		return ObjectAttributes{}, err
+		return nil, err
 	}
 
 	defer closeResponse(resp)
 
 	hasEtag := resp.Header.Get(ETag)
 	if hasEtag != "" {
-		return ObjectAttributes{}, errors.New("getObjectAttributes is not supported by the current endpoint version")
+		return nil, errors.New("getObjectAttributes is not supported by the current endpoint version")
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		ER := new(ErrorResponse)
 		if err := xml.NewDecoder(resp.Body).Decode(ER); err != nil {
-			return ObjectAttributes{}, err
+			return nil, err
 		}
 
-		return ObjectAttributes{}, *ER
+		return nil, *ER
 	}
 
 	OA := new(ObjectAttributes)
 	err = OA.parseResponse(resp)
 	if err != nil {
-		return ObjectAttributes{}, err
+		return nil, err
 	}
 
-	return *OA, nil
+	return OA, nil
 }

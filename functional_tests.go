@@ -2986,7 +2986,7 @@ func testGetObjectAttributes() {
 		v.test.ETag = tf.UploadInfo.ETag
 		v.test.ObjectSize = int(tf.UploadInfo.Size)
 
-		err = validateObjectAttributeRequest(&s, &v.opts, &v.test)
+		err = validateObjectAttributeRequest(s, &v.opts, &v.test)
 		if err != nil {
 			logError(testName, function, args, startTime, "", "Validating GetObjectsAttributes response failed, table test: "+i, err)
 			return
@@ -3065,7 +3065,7 @@ func testGetObjectAttributesSSECEncryption() {
 		logError(testName, function, args, startTime, "", "GetObjectAttributes with empty bucket name should have failed", nil)
 		return
 	}
-	err = validateObjectAttributeRequest(&attr, &opts, &objectAttributesTestOptions{
+	err = validateObjectAttributeRequest(attr, &opts, &objectAttributesTestOptions{
 		TestFileName:     info.Key,
 		ETag:             info.ETag,
 		NumberOfParts:    2,
