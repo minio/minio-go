@@ -81,6 +81,7 @@ func main() {
 |                                                       | [`GetObjectTagging`](#GetObjectTagging)             |                                               |                                                               |                                                       |
 |                                                       | [`RemoveObjectTagging`](#RemoveObjectTagging)       |                                               |                                                               |                                                       |
 |                                                       | [`RestoreObject`](#RestoreObject)                   |                                               |                                                               |                                                       |
+|                                                       | [`GetObjectAttributes`](#GetObjectAttributes)                   |                                               |                                                               |                                                       |
 
 ## 1. Constructor
 <a name="MinIO"></a>
@@ -445,8 +446,8 @@ __minio.GetObjectOptions__
 |:---|:---|:---|
 | `opts.ServerSideEncryption` | _encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go/v7) |
 | `opts.Internal`                | _minio.AdvancedGetOptions_               | This option is intended for internal use by MinIO server. This option should not be set unless the application is aware of intended use.
-__Return Value__
 
+__Return Value__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
@@ -1192,6 +1193,59 @@ err = s3Client.RestoreObject(context.Background(), "your-bucket", "your-object",
 if err != nil {
     log.Fatalln(err)
 }
+```
+
+<a name="GetObjectAttributes"></a>
+### GetObjectAttributes(ctx context.Context, bucketName, objectName string, opts ObjectAttributesOptions) (*ObjectAttributes, error)
+Returns a stream of the object data. Most of the common errors occur when reading the stream.
+
+
+__Parameters__
+
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
+|`bucketName`  | _string_  |Name of the bucket  |
+|`objectName` | _string_  |Name of the object  |
+|`opts` | _minio.ObjectAttributesOptions_ | Configuration for pagination and selection of object attributes |
+
+
+__minio.ObjectAttributesOptions__
+
+|Field | Type | Description |
+|:---|:---|:---|
+| `opts.ServerSideEncryption` | _encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go/v7) |
+| `opts.MaxParts`                | _int               | This option defines how many parts should be returned by the API
+| `opts.VersionID`                | _string               | VersionID defines which version of the object will be used
+| `opts.PartNumberMarker`                | _int               | This options defines which part number pagination will start after, the part which number is equal to PartNumberMarker will not be included in the response
+
+__Return Value__
+
+|Param   |Type   |Description   |
+|:---|:---| :---|
+|`objectAttributes`  | _*minio.ObjectAttributes_ |_minio.ObjectAttributes_ contains the information about the object and it's parts. |
+
+__Example__
+
+
+```go
+objectAttributes, err := c.GetObjectAttributes(
+    context.Background(), 
+    "your-bucket", 
+    "your-object", 
+    minio.ObjectAttributesOptions{
+        VersionID:"object-version-id",
+        NextPartMarker:0,
+        MaxParts:100,
+    })
+
+if err != nil {
+    fmt.Println(err)
+	return
+}
+
+fmt.Println(objectAttributes)
 ```
 
 
