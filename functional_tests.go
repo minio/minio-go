@@ -13574,7 +13574,6 @@ func main() {
 	if isFullMode() {
 		testGetObjectAttributes()
 		testGetObjectAttributesErrorCases()
-		testGetObjectAttributesSSECEncryption()
 		testMakeBucketErrorV2()
 		testGetObjectClosedTwiceV2()
 		testFPutObjectV2()
@@ -13646,6 +13645,7 @@ func main() {
 
 		// SSE-C tests will only work over TLS connection.
 		if tls {
+			testGetObjectAttributesSSECEncryption()
 			testSSECEncryptionPutGet()
 			testSSECEncryptionFPut()
 			testSSECEncryptedGetObjectReadAtFunctional()
