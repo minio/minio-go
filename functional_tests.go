@@ -223,26 +223,22 @@ func cleanupBucket(bucketName string, c *minio.Client) error {
 	// Iterate over all objects in the bucket via listObjectsV2 and delete
 	for objCh := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{Recursive: true}) {
 		if objCh.Err != nil {
-			logError("bucket-cleanup", getFuncName(), nil, time.Now(), "", "", objCh.Err)
 			return objCh.Err
 		}
 		if objCh.Key != "" {
 			err := c.RemoveObject(context.Background(), bucketName, objCh.Key, minio.RemoveObjectOptions{})
 			if err != nil {
-				logError("bucket-cleanup", getFuncName(), nil, time.Now(), "", "", err)
 				return err
 			}
 		}
 	}
 	for objPartInfo := range c.ListIncompleteUploads(context.Background(), bucketName, "", true) {
 		if objPartInfo.Err != nil {
-			logError("bucket-cleanup", getFuncName(), nil, time.Now(), "", "", objPartInfo.Err)
 			return objPartInfo.Err
 		}
 		if objPartInfo.Key != "" {
 			err := c.RemoveIncompleteUpload(context.Background(), bucketName, objPartInfo.Key)
 			if err != nil {
-				logError("bucket-cleanup", getFuncName(), nil, time.Now(), "", "", err)
 				return err
 			}
 		}
@@ -250,7 +246,6 @@ func cleanupBucket(bucketName string, c *minio.Client) error {
 	// objects are already deleted, clear the buckets now
 	err := c.RemoveBucket(context.Background(), bucketName)
 	if err != nil {
-		logError("bucket-cleanup", getFuncName(), nil, time.Now(), "", "", err)
 		return err
 	}
 	return err
@@ -261,26 +256,22 @@ func cleanupVersionedBucket(bucketName string, c *minio.Client) error {
 	defer close(doneCh)
 	for obj := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{WithVersions: true, Recursive: true}) {
 		if obj.Err != nil {
-			logError("bucket-cleanup", getFuncName(), nil, time.Now(), "", "", obj.Err)
 			return obj.Err
 		}
 		if obj.Key != "" {
 			err := c.RemoveObject(context.Background(), bucketName, obj.Key,
 				minio.RemoveObjectOptions{VersionID: obj.VersionID, GovernanceBypass: true})
 			if err != nil {
-				logError("bucket-cleanup", getFuncName(), nil, time.Now(), "", "", err)
 				return err
 			}
 		}
 	}
 	for objPartInfo := range c.ListIncompleteUploads(context.Background(), bucketName, "", true) {
 		if objPartInfo.Err != nil {
-			logError("bucket-cleanup", getFuncName(), nil, time.Now(), "", "", objPartInfo.Err)
 			return objPartInfo.Err
 		}
 		if objPartInfo.Key != "" {
 			err := c.RemoveIncompleteUpload(context.Background(), bucketName, objPartInfo.Key)
-			logError("bucket-cleanup", getFuncName(), nil, time.Now(), "", "", err)
 			if err != nil {
 				return err
 			}
@@ -291,9 +282,7 @@ func cleanupVersionedBucket(bucketName string, c *minio.Client) error {
 	if err != nil {
 		for obj := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{WithVersions: true, Recursive: true}) {
 			log.Println("found", obj.Key, obj.VersionID)
-			logError("bucket-cleanup", getFuncName(), nil, time.Now(), "", "", err)
 		}
-		logError("bucket-cleanup", getFuncName(), nil, time.Now(), "", "", err)
 		return err
 	}
 	return err
