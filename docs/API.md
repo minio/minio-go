@@ -1224,9 +1224,7 @@ __Return Value__
 
 |Param   |Type   |Description   |
 |:---|:---| :---|
-|`objectAttributes`  | _*minio.ObjectAttributes_ |_minio.ObjectAttributes_ contains the information about the object
-and it's parts. |
-
+|`objectAttributes`  | _*minio.ObjectAttributes_ |_minio.ObjectAttributes_ contains the information about the object and it's parts. |
 
 __Example__
 
