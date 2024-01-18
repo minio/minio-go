@@ -236,6 +236,26 @@ func TestUnmarshalBucketPolicy(t *testing.T) {
 		}
 	}]
 }`, shouldSucceed: true},
+		// Test 11
+		{policyData: `{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": "s3:PutObject",
+            "Resource": [
+                "arn:aws:s3:::DOC-EXAMPLE-BUCKET1",
+                "arn:aws:s3:::DOC-EXAMPLE-BUCKET1/*"
+            ],
+            "Condition": {
+                "NumericLessThan": {
+                    "s3:TlsVersion": 1.2
+                }
+            }
+        }
+    ]
+}`, shouldSucceed: true},
 	}
 
 	for i, testCase := range testCases {
