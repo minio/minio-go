@@ -19,6 +19,8 @@ package set
 
 import (
 	"fmt"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -344,5 +346,108 @@ func TestStringSetToSlice(t *testing.T) {
 		if str := fmt.Sprintf("%s", sslice); str != testCase.expectedResult {
 			t.Fatalf("expected: %s, got: %s", testCase.expectedResult, str)
 		}
+	}
+}
+
+func TestStringSet_UnmarshalJSON(t *testing.T) {
+	type args struct {
+		data         []byte
+		expectResult []string
+	}
+	tests := []struct {
+		name    string
+		set     StringSet
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "test strings",
+			set:  NewStringSet(),
+			args: args{
+				data:         []byte(`["foo","bar"]`),
+				expectResult: []string{"foo", "bar"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test string",
+			set:  NewStringSet(),
+			args: args{
+				data:         []byte(`"foo"`),
+				expectResult: []string{"foo"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test bools",
+			set:  NewStringSet(),
+			args: args{
+				data:         []byte(`[false,true]`),
+				expectResult: []string{"false", "true"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test bool",
+			set:  NewStringSet(),
+			args: args{
+				data:         []byte(`false`),
+				expectResult: []string{"false"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test ints",
+			set:  NewStringSet(),
+			args: args{
+				data:         []byte(`[1,2]`),
+				expectResult: []string{"1", "2"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test int",
+			set:  NewStringSet(),
+			args: args{
+				data:         []byte(`1`),
+				expectResult: []string{"1"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test floats",
+			set:  NewStringSet(),
+			args: args{
+				data:         []byte(`[1.1,2.2]`),
+				expectResult: []string{"1.1", "2.2"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test float",
+			set:  NewStringSet(),
+			args: args{
+				data:         []byte(`1.1`),
+				expectResult: []string{"1.1"},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.set.UnmarshalJSON(tt.args.data); (err != nil) != tt.wantErr {
+				t.Errorf("UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			slice := tt.set.ToSlice()
+			sort.Slice(slice, func(i, j int) bool {
+				return slice[i] < slice[j]
+			})
+			sort.Slice(tt.args.expectResult, func(i, j int) bool {
+				return tt.args.expectResult[i] < tt.args.expectResult[j]
+			})
+			if !reflect.DeepEqual(slice, tt.args.expectResult) {
+				t.Errorf("StringSet() get %v, want %v", tt.set.ToSlice(), tt.args.expectResult)
+			}
+		})
 	}
 }
