@@ -414,6 +414,24 @@ func TestStringSet_UnmarshalJSON(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "test floats",
+			set:  NewStringSet(),
+			args: args{
+				data:         []byte(`[1.1,2.2]`),
+				expectResult: []string{"1.1", "2.2"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test float",
+			set:  NewStringSet(),
+			args: args{
+				data:         []byte(`1.1`),
+				expectResult: []string{"1.1"},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
