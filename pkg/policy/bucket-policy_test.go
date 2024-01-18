@@ -211,6 +211,31 @@ func TestUnmarshalBucketPolicy(t *testing.T) {
     }
   ]
 }`, shouldSucceed: true},
+		// Test 10
+		{policyData: `{
+	"Version": "2012-10-17",
+	"Statement": [{
+		"Effect": "Deny",
+		"Principal": {
+			"AWS": [
+				"*"
+			]
+		},
+		"Action": [
+			"s3:PutObject"
+		],
+		"Resource": [
+			"arn:aws:s3:::mytest/*"
+		],
+		"Condition": {
+			"Null": {
+				"s3:x-amz-server-side-encryption": [
+					true
+				]
+			}
+		}
+	}]
+}`, shouldSucceed: true},
 	}
 
 	for i, testCase := range testCases {
