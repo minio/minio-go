@@ -75,14 +75,14 @@ const credsRespStsImpl = `<AssumeRoleWithWebIdentityResponse xmlns="https://sts.
 </AssumeRoleWithWebIdentityResponse>`
 
 func initTestFailServer() *httptest.Server {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "Not allowed", http.StatusBadRequest)
 	}))
 	return server
 }
 
 func initTestServerNoRoles() *httptest.Server {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte(""))
 	}))
 	return server
@@ -127,7 +127,7 @@ func initIMDSv2Server(expireOn string, failAssume bool) *httptest.Server {
 }
 
 func initEcsTaskTestServer(expireOn string) *httptest.Server {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintf(w, credsRespEcsTaskTmpl, expireOn)
 	}))
 
