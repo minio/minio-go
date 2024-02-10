@@ -234,7 +234,7 @@ func privateNew(endpoint string, opts *Options) (*Client, error) {
 	clnt.httpClient = &http.Client{
 		Jar:       jar,
 		Transport: transport,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}

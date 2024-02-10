@@ -27,7 +27,7 @@ import (
 )
 
 func TestGetObjectReturnSuccess(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Last-Modified", "Wed, 21 Oct 2015 07:28:00 GMT")
 		w.Header().Set("Content-Length", "5")
 
@@ -61,7 +61,7 @@ func TestGetObjectReturnSuccess(t *testing.T) {
 }
 
 func TestGetObjectReturnErrorIfServerTruncatesResponse(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Last-Modified", "Wed, 21 Oct 2015 07:28:00 GMT")
 		w.Header().Set("Content-Length", "100")
 
@@ -90,7 +90,7 @@ func TestGetObjectReturnErrorIfServerTruncatesResponse(t *testing.T) {
 }
 
 func TestGetObjectReturnErrorIfServerTruncatesResponseDouble(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Last-Modified", "Wed, 21 Oct 2015 07:28:00 GMT")
 		w.Header().Set("Content-Length", "1024")
 
@@ -119,7 +119,7 @@ func TestGetObjectReturnErrorIfServerTruncatesResponseDouble(t *testing.T) {
 }
 
 func TestGetObjectReturnErrorIfServerSendsMore(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Last-Modified", "Wed, 21 Oct 2015 07:28:00 GMT")
 		w.Header().Set("Content-Length", "1")
 
