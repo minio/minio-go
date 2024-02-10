@@ -6,7 +6,7 @@ require (
 	github.com/cheggaaa/pb v1.0.29
 	github.com/minio/minio-go/v7 v7.0.49
 	github.com/minio/sio v0.3.0
-	golang.org/x/crypto v0.16.0
+	golang.org/x/crypto v0.17.0
 )
 
 require (
