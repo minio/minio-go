@@ -209,6 +209,7 @@ func (m *IAM) Retrieve() (Value, error) {
 		AccessKeyID:     roleCreds.AccessKeyID,
 		SecretAccessKey: roleCreds.SecretAccessKey,
 		SessionToken:    roleCreds.Token,
+		Expiration:      roleCreds.Expiration,
 		SignerType:      SignatureV4,
 	}, nil
 }
