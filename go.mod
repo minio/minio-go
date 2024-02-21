@@ -10,7 +10,6 @@ require (
 	github.com/minio/md5-simd v1.1.2
 	github.com/minio/sha256-simd v1.0.1
 	github.com/rs/xid v1.5.0
-	github.com/sirupsen/logrus v1.9.3
 	golang.org/x/crypto v0.19.0
 	golang.org/x/net v0.21.0
 	gopkg.in/ini.v1 v1.67.0
