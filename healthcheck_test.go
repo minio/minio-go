@@ -24,8 +24,6 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/require"
 )
 
 func TestHealthCheck(t *testing.T) {
@@ -38,7 +36,9 @@ func TestHealthCheck(t *testing.T) {
 	clnt, err := New(srv.Listener.Addr().String(), &Options{
 		Region: "us-east-1",
 	})
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	hcancel, err := clnt.HealthCheck(1 * time.Second)
 	if err != nil {
