@@ -514,7 +514,6 @@ func isAmzHeader(headerKey string) bool {
 
 var supportedReplicationHeaders = map[string]bool{
 	"x-minio-replication-server-side-encryption-sealed-key":     true,
-	"x-minio-replication-inline-data":                           true,
 	"x-minio-replication-server-side-encryption-seal-algorithm": true,
 	"x-minio-replication-server-side-encryption-iv":             true,
 	// Add more supported headers here.
