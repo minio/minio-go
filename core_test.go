@@ -381,9 +381,6 @@ func TestCoreCopyObject(t *testing.T) {
 		t.Skip("skipping functional tests for short runs")
 	}
 
-	// Seed random based on current time.
-	rand.Seed(time.Now().Unix())
-
 	// Instantiate new minio client object.
 	c, err := NewCore(
 		os.Getenv(serverEndpoint),
@@ -506,9 +503,6 @@ func TestCoreCopyObjectPart(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping functional tests for short runs")
 	}
-
-	// Seed random based on current time.
-	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
 	c, err := NewCore(
@@ -662,9 +656,6 @@ func TestCorePutObject(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping functional tests for short runs")
 	}
-
-	// Seed random based on current time.
-	rand.Seed(time.Now().Unix())
 
 	// Instantiate new minio client object.
 	c, err := NewCore(
