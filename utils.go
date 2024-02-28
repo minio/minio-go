@@ -516,6 +516,7 @@ var supportedReplicationEncryptionHeaders = map[string]bool{
 	"x-minio-replication-server-side-encryption-sealed-key":     true,
 	"x-minio-replication-server-side-encryption-seal-algorithm": true,
 	"x-minio-replication-server-side-encryption-iv":             true,
+	"x-minio-replication-encrypted-multipart":                   true,
 	// Add more supported headers here.
 	// Must be lower case.
 }
