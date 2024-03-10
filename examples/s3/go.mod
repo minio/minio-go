@@ -2,8 +2,6 @@ module github.com/minio/minio-go/examples/s3
 
 go 1.21
 
-toolchain go1.21.7
-
 require (
 	github.com/cheggaaa/pb v1.0.29
 	github.com/minio/minio-go/v7 v7.0.49

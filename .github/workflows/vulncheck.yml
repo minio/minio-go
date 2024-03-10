@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [ 1.21.7 ]
+        go-version: [ 1.21.8 ]
     steps:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v3
