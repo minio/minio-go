@@ -71,7 +71,6 @@ func (c *Client) FGetObject(ctx context.Context, bucketName, objectName, filePat
 	// Write to a temporary file "fileName.part.minio" before saving.
 	filePartPath := filePath + sum256Hex([]byte(objectStat.ETag)) + ".part.minio"
 
-
 	// If exists, open in append mode. If not create it as a part file.
 	filePart, err := os.OpenFile(filePartPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
