@@ -266,6 +266,13 @@ func TestLifecycleJSONRoundtrip(t *testing.T) {
 				ID:     "rule-6",
 				Status: "Enabled",
 			},
+			{
+				DelMarkerExpiration: DelMarkerExpiration{
+					Days: 10,
+				},
+				ID:     "rule-7",
+				Status: "Enabled",
+			},
 		},
 	}
 
@@ -289,6 +296,9 @@ func TestLifecycleJSONRoundtrip(t *testing.T) {
 		}
 		if lc.Rules[i].Expiration != got.Rules[i].Expiration {
 			t.Fatalf("expected %#v got %#v", lc.Rules[i].Expiration, got.Rules[i].Expiration)
+		}
+		if !lc.Rules[i].DelMarkerExpiration.equals(got.Rules[i].DelMarkerExpiration) {
+			t.Fatalf("expected %#v got %#v", lc.Rules[i].DelMarkerExpiration, got.Rules[i].DelMarkerExpiration)
 		}
 	}
 }
@@ -335,6 +345,13 @@ func TestLifecycleXMLRoundtrip(t *testing.T) {
 					NewerNoncurrentVersions: 5,
 				},
 			},
+			{
+				ID:     "delmarker-expiration",
+				Status: "Enabled",
+				DelMarkerExpiration: DelMarkerExpiration{
+					Days: 5,
+				},
+			},
 		},
 	}
 
@@ -366,6 +383,10 @@ func (n NoncurrentVersionTransition) equals(m NoncurrentVersionTransition) bool 
 
 func (t Transition) equals(u Transition) bool {
 	return t.Days == u.Days && t.Date.Equal(u.Date.Time) && t.StorageClass == u.StorageClass
+}
+
+func (a DelMarkerExpiration) equals(b DelMarkerExpiration) bool {
+	return a.Days == b.Days
 }
 
 func TestExpiredObjectDeleteMarker(t *testing.T) {
