@@ -494,6 +494,7 @@ var sseHeaders = map[string]bool{
 	"x-amz-server-side-encryption-customer-algorithm": true,
 	"x-amz-server-side-encryption-customer-key":       true,
 	"x-amz-server-side-encryption-customer-key-md5":   true,
+	"x-amz-server-side-encryption-aws-kms-key-id":     true,
 	// Add more supported headers here.
 	// Must be lower case.
 }
