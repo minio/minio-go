@@ -211,6 +211,12 @@ func (c *Client) getBucketLocationRequest(ctx context.Context, bucketName string
 	// Set UserAgent for the request.
 	c.setUserAgent(req)
 
+	// Set global request headers.
+	// Applied as last to allow overwrite header set by setUserAgent
+	for k, v := range c.CustomRequestHeaders {
+		req.Header.Set(k, v[0])
+	}
+
 	// Get credentials from the configured credentials provider.
 	value, err := c.credsProvider.Get()
 	if err != nil {

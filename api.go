@@ -100,6 +100,9 @@ type Client struct {
 	healthStatus int32
 
 	trailingHeaderSupport bool
+
+	// Custom headers to be used for all requests. Leave nil to use standard.
+	CustomRequestHeaders http.Header
 }
 
 // Options for New method
@@ -124,6 +127,9 @@ type Options struct {
 	// Custom hash routines. Leave nil to use standard.
 	CustomMD5    func() md5simd.Hasher
 	CustomSHA256 func() md5simd.Hasher
+
+	// Custom headers to be used for all requests. Leave nil to use standard.
+	CustomRequestHeaders http.Header
 }
 
 // Global constants.
@@ -166,6 +172,11 @@ func New(endpoint string, opts *Options) (*Client, error) {
 		// Amazon S3 endpoints are resolved into dual-stack endpoints by default
 		// for backwards compatibility.
 		clnt.s3DualstackEnabled = true
+	}
+
+	// Custom headers to be used for all requests. Leave nil to use standard.
+	if opts.CustomRequestHeaders != nil {
+		clnt.CustomRequestHeaders = opts.CustomRequestHeaders
 	}
 
 	return clnt, nil
@@ -850,6 +861,12 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 
 	// Set all headers.
 	for k, v := range metadata.customHeader {
+		req.Header.Set(k, v[0])
+	}
+
+	// Set global request headers.
+	// Applied as last to allow overwrite headers set by setUserAgent and metadata.customHeader
+	for k, v := range c.CustomRequestHeaders {
 		req.Header.Set(k, v[0])
 	}
 
