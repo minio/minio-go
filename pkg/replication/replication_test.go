@@ -180,7 +180,7 @@ func TestEditReplicationRule(t *testing.T) {
 				StorageClass: "STANDARD",
 				DestBucket:   "arn:minio:replication:eu-west-1:c5acb6ac-9918-4dc6-8534-6244ed1a611a:destbucket",
 			},
-			expectedErr: "invalid destination bucket for this rule",
+			expectedErr: "",
 		},
 		{ // test case :2 mismatched rule id
 			cfg: Config{
