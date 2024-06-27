@@ -19,7 +19,7 @@ package signer
 
 import (
 	"bytes"
-	fipssha256 "crypto/sha256"
+	"crypto/sha256"
 	"encoding/hex"
 	"hash"
 	"io"
@@ -28,7 +28,6 @@ import (
 	"time"
 
 	md5simd "github.com/minio/md5-simd"
-	"github.com/minio/sha256-simd"
 )
 
 // hashWrapper implements the md5simd.Hasher interface.
@@ -37,7 +36,7 @@ type hashWrapper struct {
 }
 
 func newSHA256Hasher() md5simd.Hasher {
-	return &hashWrapper{Hash: fipssha256.New()}
+	return &hashWrapper{Hash: sha256.New()}
 }
 
 func (m *hashWrapper) Close() {
