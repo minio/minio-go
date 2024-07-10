@@ -284,6 +284,8 @@ func TestIsGoogleEndpoint(t *testing.T) {
 		// valid inputs.
 		{"http://storage.googleapis.com", true},
 		{"https://storage.googleapis.com", true},
+		{"http://storage.googleapis.com:80", true},
+		{"https://storage.googleapis.com:443", true},
 	}
 
 	for i, testCase := range testCases {
