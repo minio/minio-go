@@ -114,6 +114,7 @@ func TestGetEndpointURL(t *testing.T) {
 		{"192.168.1.1:9000", false, "http://192.168.1.1:9000", nil, true},
 		{"192.168.1.1:9000", true, "https://192.168.1.1:9000", nil, true},
 		{"s3.amazonaws.com:443", true, "https://s3.amazonaws.com:443", nil, true},
+		{"storage.googleapis.com:443", true, "https://storage.googleapis.com:443", nil, true},
 		{"[::1]", false, "http://[::1]", nil, true},
 		{"[::1]", true, "https://[::1]", nil, true},
 		{"[::1]:80", false, "http://[::1]:80", nil, true},
@@ -122,7 +123,6 @@ func TestGetEndpointURL(t *testing.T) {
 		{"[::1]:9000", true, "https://[::1]:9000", nil, true},
 		{"13333.123123.-", true, "", errInvalidArgument(fmt.Sprintf("Endpoint: %s does not follow ip address or domain name standards.", "13333.123123.-")), false},
 		{"13333.123123.-", true, "", errInvalidArgument(fmt.Sprintf("Endpoint: %s does not follow ip address or domain name standards.", "13333.123123.-")), false},
-		{"storage.googleapis.com:4000", true, "", errInvalidArgument("Google Cloud Storage endpoint should be 'storage.googleapis.com'."), false},
 		{"s3.aamzza.-", true, "", errInvalidArgument(fmt.Sprintf("Endpoint: %s does not follow ip address or domain name standards.", "s3.aamzza.-")), false},
 		{"", true, "", errInvalidArgument("Endpoint:  does not follow ip address or domain name standards."), false},
 	}
