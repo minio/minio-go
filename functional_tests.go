@@ -13627,6 +13627,245 @@ func testRemoveObjects() {
 	logSuccess(testName, function, args, startTime)
 }
 
+// Test get bucket tags
+func testGetBucketTagging() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "GetBucketTagging(bucketName)"
+	args := map[string]interface{}{
+		"bucketName": "",
+	}
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:     credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Transport: createHTTPTransport(),
+			Secure:    mustParseBool(os.Getenv(enableHTTPS)),
+		})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client v4 object creation failed", err)
+		return
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("MinIO-go-FunctionalTest", appVersion)
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1", ObjectLocking: true})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	_, err = c.GetBucketTagging(context.Background(), bucketName)
+	if minio.ToErrorResponse(err).Code != "NoSuchTagSet" {
+		logError(testName, function, args, startTime, "", "Invalid error from server failed", err)
+		return
+	}
+
+	if err = cleanupVersionedBucket(bucketName, c); err != nil {
+		logError(testName, function, args, startTime, "", "CleanupBucket failed", err)
+		return
+	}
+
+	logSuccess(testName, function, args, startTime)
+}
+
+// Test setting tags for bucket
+func testSetBucketTagging() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "SetBucketTagging(bucketName, tags)"
+	args := map[string]interface{}{
+		"bucketName": "",
+		"tags":       "",
+	}
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:     credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Transport: createHTTPTransport(),
+			Secure:    mustParseBool(os.Getenv(enableHTTPS)),
+		})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client v4 object creation failed", err)
+		return
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("MinIO-go-FunctionalTest", appVersion)
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1", ObjectLocking: true})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	_, err = c.GetBucketTagging(context.Background(), bucketName)
+	if minio.ToErrorResponse(err).Code != "NoSuchTagSet" {
+		logError(testName, function, args, startTime, "", "Invalid error from server", err)
+		return
+	}
+
+	tag := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	expectedValue := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+
+	t, err := tags.MapToBucketTags(map[string]string{
+		tag: expectedValue,
+	})
+	args["tags"] = t.String()
+	if err != nil {
+		logError(testName, function, args, startTime, "", "tags.MapToBucketTags failed", err)
+		return
+	}
+
+	err = c.SetBucketTagging(context.Background(), bucketName, t)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "SetBucketTagging failed", err)
+		return
+	}
+
+	tagging, err := c.GetBucketTagging(context.Background(), bucketName)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "GetBucketTagging failed", err)
+		return
+	}
+
+	if tagging.ToMap()[tag] != expectedValue {
+		msg := fmt.Sprintf("Tag %s; got value %s; wanted %s", tag, tagging.ToMap()[tag], expectedValue)
+		logError(testName, function, args, startTime, "", msg, err)
+		return
+	}
+
+	// Delete all objects and buckets
+	if err = cleanupVersionedBucket(bucketName, c); err != nil {
+		logError(testName, function, args, startTime, "", "CleanupBucket failed", err)
+		return
+	}
+
+	logSuccess(testName, function, args, startTime)
+}
+
+// Test removing bucket tags
+func testRemoveBucketTagging() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "RemoveBucketTagging(bucketName)"
+	args := map[string]interface{}{
+		"bucketName": "",
+	}
+	// Seed random based on current time.
+	rand.Seed(time.Now().Unix())
+
+	// Instantiate new minio client object.
+	c, err := minio.New(os.Getenv(serverEndpoint),
+		&minio.Options{
+			Creds:     credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
+			Transport: createHTTPTransport(),
+			Secure:    mustParseBool(os.Getenv(enableHTTPS)),
+		})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client v4 object creation failed", err)
+		return
+	}
+
+	// Enable tracing, write to stderr.
+	// c.TraceOn(os.Stderr)
+
+	// Set user agent.
+	c.SetAppInfo("MinIO-go-FunctionalTest", appVersion)
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1", ObjectLocking: true})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	_, err = c.GetBucketTagging(context.Background(), bucketName)
+	if minio.ToErrorResponse(err).Code != "NoSuchTagSet" {
+		logError(testName, function, args, startTime, "", "Invalid error from server", err)
+		return
+	}
+
+	tag := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	expectedValue := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+
+	t, err := tags.MapToBucketTags(map[string]string{
+		tag: expectedValue,
+	})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "tags.MapToBucketTags failed", err)
+		return
+	}
+
+	err = c.SetBucketTagging(context.Background(), bucketName, t)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "SetBucketTagging failed", err)
+		return
+	}
+
+	tagging, err := c.GetBucketTagging(context.Background(), bucketName)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "GetBucketTagging failed", err)
+		return
+	}
+
+	if tagging.ToMap()[tag] != expectedValue {
+		msg := fmt.Sprintf("Tag %s; got value %s; wanted %s", tag, tagging.ToMap()[tag], expectedValue)
+		logError(testName, function, args, startTime, "", msg, err)
+		return
+	}
+
+	err = c.RemoveBucketTagging(context.Background(), bucketName)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "RemoveBucketTagging failed", err)
+		return
+	}
+
+	_, err = c.GetBucketTagging(context.Background(), bucketName)
+	if minio.ToErrorResponse(err).Code != "NoSuchTagSet" {
+		logError(testName, function, args, startTime, "", "Invalid error from server", err)
+		return
+	}
+
+	// Delete all objects and buckets
+	if err = cleanupVersionedBucket(bucketName, c); err != nil {
+		logError(testName, function, args, startTime, "", "CleanupBucket failed", err)
+		return
+	}
+
+	logSuccess(testName, function, args, startTime)
+}
+
 // Convert string to bool and always return false if any error
 func mustParseBool(str string) bool {
 	b, err := strconv.ParseBool(str)
@@ -13731,6 +13970,9 @@ func main() {
 		testObjectTaggingWithVersioning()
 		testTrailingChecksums()
 		testPutObjectWithAutomaticChecksums()
+		testGetBucketTagging()
+		testSetBucketTagging()
+		testRemoveBucketTagging()
 
 		// SSE-C tests will only work over TLS connection.
 		if tls {
