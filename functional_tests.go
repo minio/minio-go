@@ -166,7 +166,7 @@ func logError(testName, function string, args map[string]interface{}, startTime 
 	}
 }
 
-// log failed test runs
+// Log failed test runs, do not call this directly, use logError instead, as that correctly stops the test run
 func logFailure(testName, function string, args map[string]interface{}, startTime time.Time, alert, message string, err error) {
 	l := baseLogger(testName, function, args, startTime).With(
 		"status", "FAIL",
@@ -13500,7 +13500,7 @@ func testCors() {
 			Secure:    mustParseBool(os.Getenv(enableHTTPS)),
 		})
 	if err != nil {
-		logFailure(testName, function, args, startTime, "", "MinIO client object creation failed", err)
+		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
 	}
 
@@ -13516,7 +13516,7 @@ func testCors() {
 		bucketName = randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
 		err = c.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{Region: "us-east-1"})
 		if err != nil {
-			logFailure(testName, function, args, startTime, "", "MakeBucket failed", err)
+			logError(testName, function, args, startTime, "", "MakeBucket failed", err)
 			return
 		}
 	}
@@ -13526,7 +13526,7 @@ func testCors() {
 	publicPolicy := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:*"],"Resource":["arn:aws:s3:::` + bucketName + `", "arn:aws:s3:::` + bucketName + `/*"]}]}`
 	err = c.SetBucketPolicy(ctx, bucketName, publicPolicy)
 	if err != nil {
-		logFailure(testName, function, args, startTime, "", "SetBucketPolicy failed", err)
+		logError(testName, function, args, startTime, "", "SetBucketPolicy failed", err)
 		return
 	}
 
@@ -13540,7 +13540,7 @@ func testCors() {
 
 	_, err = c.PutObject(ctx, bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
-		logFailure(testName, function, args, startTime, "", "PutObject call failed", err)
+		logError(testName, function, args, startTime, "", "PutObject call failed", err)
 		return
 	}
 	bucketURL := c.EndpointURL().String() + "/" + bucketName + "/"
@@ -13548,7 +13548,7 @@ func testCors() {
 
 	transport, err := minio.DefaultTransport(mustParseBool(os.Getenv(enableHTTPS)))
 	if err != nil {
-		logFailure(testName, function, args, startTime, "", "DefaultTransport failed", err)
+		logError(testName, function, args, startTime, "", "DefaultTransport failed", err)
 		return
 	}
 	httpClient := &http.Client{
@@ -14156,7 +14156,7 @@ func testCors() {
 			}
 			err = c.SetBucketCors(ctx, bucketName, corsConfig)
 			if err != nil {
-				logFailure(testName, function, args, startTime, "", "SetBucketCors failed to apply", err)
+				logError(testName, function, args, startTime, "", "SetBucketCors failed to apply", err)
 				return
 			}
 		}
@@ -14165,7 +14165,7 @@ func testCors() {
 		if test.method != "" && test.url != "" {
 			req, err := http.NewRequestWithContext(ctx, test.method, test.url, nil)
 			if err != nil {
-				logFailure(testName, function, args, startTime, "", "HTTP request creation failed", err)
+				logError(testName, function, args, startTime, "", "HTTP request creation failed", err)
 				return
 			}
 			req.Header.Set("User-Agent", "MinIO-go-FunctionalTest/"+appVersion)
@@ -14175,7 +14175,7 @@ func testCors() {
 			}
 			resp, err := httpClient.Do(req)
 			if err != nil {
-				logFailure(testName, function, args, startTime, "", "HTTP request failed", err)
+				logError(testName, function, args, startTime, "", "HTTP request failed", err)
 				return
 			}
 			defer resp.Body.Close()
@@ -14183,7 +14183,7 @@ func testCors() {
 			// Check returned status code
 			if resp.StatusCode != test.wantStatus {
 				errStr := fmt.Sprintf(" incorrect status code in response, want: %d, got: %d", test.wantStatus, resp.StatusCode)
-				logFailure(testName, function, args, startTime, "", errStr, nil)
+				logError(testName, function, args, startTime, "", errStr, nil)
 				return
 			}
 
@@ -14191,12 +14191,12 @@ func testCors() {
 			if test.wantBodyContains != "" {
 				body, err := io.ReadAll(resp.Body)
 				if err != nil {
-					logFailure(testName, function, args, startTime, "", "Failed to read response body", err)
+					logError(testName, function, args, startTime, "", "Failed to read response body", err)
 					return
 				}
 				if !strings.Contains(string(body), test.wantBodyContains) {
 					errStr := fmt.Sprintf(" incorrect body in response, want: %s, in got: %s", test.wantBodyContains, string(body))
-					logFailure(testName, function, args, startTime, "", errStr, nil)
+					logError(testName, function, args, startTime, "", errStr, nil)
 					return
 				}
 			}
@@ -14213,7 +14213,7 @@ func testCors() {
 				gotVal = strings.ReplaceAll(gotVal, " ", "")
 				if gotVal != v {
 					errStr := fmt.Sprintf(" incorrect header in response, want: %s: '%s', got: '%s'", k, v, gotVal)
-					logFailure(testName, function, args, startTime, "", errStr, nil)
+					logError(testName, function, args, startTime, "", errStr, nil)
 					return
 				}
 			}
@@ -14241,7 +14241,7 @@ func testCorsSetGetDelete() {
 			Secure:    mustParseBool(os.Getenv(enableHTTPS)),
 		})
 	if err != nil {
-		logFailure(testName, function, args, startTime, "", "MinIO client object creation failed", err)
+		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
 	}
 
@@ -14258,7 +14258,7 @@ func testCorsSetGetDelete() {
 	// Make a new bucket.
 	err = c.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{Region: "us-east-1"})
 	if err != nil {
-		logFailure(testName, function, args, startTime, "", "MakeBucket failed", err)
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
 		return
 	}
 	defer cleanupBucket(bucketName, c)
@@ -14284,37 +14284,37 @@ func testCorsSetGetDelete() {
 	corsConfig := cors.NewConfig(corsRules)
 	err = c.SetBucketCors(ctx, bucketName, corsConfig)
 	if err != nil {
-		logFailure(testName, function, args, startTime, "", "SetBucketCors failed to apply", err)
+		logError(testName, function, args, startTime, "", "SetBucketCors failed to apply", err)
 		return
 	}
 
 	// Get the rules and check they match what we set
 	gotCorsConfig, err := c.GetBucketCors(ctx, bucketName)
 	if err != nil {
-		logFailure(testName, function, args, startTime, "", "GetBucketCors failed", err)
+		logError(testName, function, args, startTime, "", "GetBucketCors failed", err)
 		return
 	}
 	if !reflect.DeepEqual(corsConfig, gotCorsConfig) {
 		msg := fmt.Sprintf("GetBucketCors returned unexpected rules, expected: %+v, got: %+v", corsConfig, gotCorsConfig)
-		logFailure(testName, function, args, startTime, "", msg, nil)
+		logError(testName, function, args, startTime, "", msg, nil)
 		return
 	}
 
 	// Delete the rules
 	err = c.SetBucketCors(ctx, bucketName, nil)
 	if err != nil {
-		logFailure(testName, function, args, startTime, "", "SetBucketCors failed to delete", err)
+		logError(testName, function, args, startTime, "", "SetBucketCors failed to delete", err)
 		return
 	}
 
 	// Get the rules and check they are now empty
 	gotCorsConfig, err = c.GetBucketCors(ctx, bucketName)
 	if err != nil {
-		logFailure(testName, function, args, startTime, "", "GetBucketCors failed", err)
+		logError(testName, function, args, startTime, "", "GetBucketCors failed", err)
 		return
 	}
 	if gotCorsConfig != nil {
-		logFailure(testName, function, args, startTime, "", "GetBucketCors returned unexpected rules", nil)
+		logError(testName, function, args, startTime, "", "GetBucketCors returned unexpected rules", nil)
 		return
 	}
 
