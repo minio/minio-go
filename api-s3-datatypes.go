@@ -340,6 +340,20 @@ type CompletePart struct {
 	ChecksumSHA256 string `xml:"ChecksumSHA256,omitempty"`
 }
 
+func (c CompletePart) Checksum(t ChecksumType) string {
+	switch {
+	case t.Is(ChecksumCRC32C):
+		return c.ChecksumCRC32C
+	case t.Is(ChecksumCRC32):
+		return c.ChecksumCRC32
+	case t.Is(ChecksumSHA1):
+		return c.ChecksumSHA1
+	case t.Is(ChecksumSHA256):
+		return c.ChecksumSHA256
+	}
+	return ""
+}
+
 // completeMultipartUpload container for completing multipart upload.
 type completeMultipartUpload struct {
 	XMLName xml.Name       `xml:"http://s3.amazonaws.com/doc/2006-03-01/ CompleteMultipartUpload" json:"-"`
