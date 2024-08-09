@@ -340,6 +340,8 @@ type CompletePart struct {
 	ChecksumSHA256 string `xml:"ChecksumSHA256,omitempty"`
 }
 
+// Checksum will return the checksum for the given type.
+// Will return the empty string if not set.
 func (c CompletePart) Checksum(t ChecksumType) string {
 	switch {
 	case t.Is(ChecksumCRC32C):
