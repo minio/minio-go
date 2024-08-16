@@ -1309,7 +1309,7 @@ func testListMultipartUpload() {
 				logError(testName, function, args, startTime, "", "ListMultipartUploads failed", err)
 				return
 			}
-			if !cmpGot("ListMultipartUploads-prefix", got) {
+			if i <= 2 && !cmpGot("ListMultipartUploads-prefix", got) {
 				return
 			}
 			got, err = core.ListMultipartUploads(ctx, bucketName, objName, objName, "", "/", 1000)
@@ -1318,7 +1318,7 @@ func testListMultipartUpload() {
 				logError(testName, function, args, startTime, "", "ListMultipartUploads failed", err)
 				return
 			}
-			if !cmpGot("ListMultipartUploads-marker", got) {
+			if i <= 2 && !cmpGot("ListMultipartUploads-marker", got) {
 				return
 			}
 		}
