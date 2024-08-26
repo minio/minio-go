@@ -8,7 +8,7 @@ require github.com/minio/minio-go/v7 v7.0.73
 require (
 	github.com/cheggaaa/pb v1.0.29
 	github.com/minio/sio v0.3.0
-	golang.org/x/crypto v0.24.0
+	golang.org/x/crypto v0.26.0
 )
 
 require (
@@ -23,10 +23,10 @@ require (
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
-	github.com/rs/xid v1.5.0 // indirect
-	golang.org/x/net v0.26.0 // indirect
-	golang.org/x/sys v0.21.0 // indirect
-	golang.org/x/text v0.16.0 // indirect
+	github.com/rs/xid v1.6.0 // indirect
+	golang.org/x/net v0.28.0 // indirect
+	golang.org/x/sys v0.24.0 // indirect
+	golang.org/x/text v0.17.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
