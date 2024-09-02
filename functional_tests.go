@@ -160,7 +160,7 @@ func logError(testName, function string, args map[string]interface{}, startTime 
 	} else {
 		logFailure(testName, function, args, startTime, alert, message, err)
 		if !isRunOnFail() {
-			panic(err)
+			panic(fmt.Sprintf("Test failed with message: %s, err: %v", message, err))
 		}
 	}
 }
@@ -2032,7 +2032,7 @@ func testPutObjectWithChecksums() {
 		h := test.cs.Hasher()
 		h.Reset()
 
-		// Test with Wrong CRC.
+		// Test with a bad CRC - we haven't called h.Write(b), so this is a checksum of empty data
 		meta[test.cs.Key()] = base64.StdEncoding.EncodeToString(h.Sum(nil))
 		args["metadata"] = meta
 		args["range"] = "false"
@@ -2690,6 +2690,8 @@ func testTrailingChecksums() {
 
 		delete(args, "metadata")
 	}
+
+	logSuccess(testName, function, args, startTime)
 }
 
 // Test PutObject with custom checksums.
@@ -5146,13 +5148,6 @@ func testPresignedPostPolicy() {
 		return
 	}
 
-	// Save the data
-	_, err = c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
-	if err != nil {
-		logError(testName, function, args, startTime, "", "PutObject failed", err)
-		return
-	}
-
 	policy := minio.NewPostPolicy()
 
 	if err := policy.SetBucket(""); err == nil {
@@ -5189,7 +5184,11 @@ func testPresignedPostPolicy() {
 
 	// Add CRC32C
 	checksum := minio.ChecksumCRC32C.ChecksumBytes(buf)
-	policy.SetChecksum(checksum)
+	err = policy.SetChecksum(checksum)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "SetChecksum failed", err)
+		return
+	}
 
 	args["policy"] = policy.String()
 
@@ -5285,7 +5284,7 @@ func testPresignedPostPolicy() {
 	expectedLocation := scheme + os.Getenv(serverEndpoint) + "/" + bucketName + "/" + objectName
 	expectedLocationBucketDNS := scheme + bucketName + "." + os.Getenv(serverEndpoint) + "/" + objectName
 
-	if !strings.Contains(expectedLocation, "s3.amazonaws.com/") {
+	if !strings.Contains(expectedLocation, ".amazonaws.com/") {
 		// Test when not against AWS S3.
 		if val, ok := res.Header["Location"]; ok {
 			if val[0] != expectedLocation && val[0] != expectedLocationBucketDNS {
@@ -5297,9 +5296,26 @@ func testPresignedPostPolicy() {
 			return
 		}
 	}
-	want := checksum.Encoded()
-	if got := res.Header.Get("X-Amz-Checksum-Crc32c"); got != want {
-		logError(testName, function, args, startTime, "", fmt.Sprintf("Want checksum %q, got %q", want, got), nil)
+	wantChecksumCrc32c := checksum.Encoded()
+	if got := res.Header.Get("X-Amz-Checksum-Crc32c"); got != wantChecksumCrc32c {
+		logError(testName, function, args, startTime, "", fmt.Sprintf("Want checksum %q, got %q", wantChecksumCrc32c, got), nil)
+		return
+	}
+
+	// Ensure that when we subsequently GetObject, the checksum is returned
+	gopts := minio.GetObjectOptions{Checksum: true}
+	r, err := c.GetObject(context.Background(), bucketName, objectName, gopts)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "GetObject failed", err)
+		return
+	}
+	st, err := r.Stat()
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Stat failed", err)
+		return
+	}
+	if st.ChecksumCRC32C != wantChecksumCrc32c {
+		logError(testName, function, args, startTime, "", fmt.Sprintf("Want checksum %s, got %s", wantChecksumCrc32c, st.ChecksumCRC32C), nil)
 		return
 	}
 

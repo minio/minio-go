@@ -321,11 +321,31 @@ func (p *PostPolicy) SetUserMetadataStartsWith(key, value string) error {
 }
 
 // SetChecksum sets the checksum of the request.
-func (p *PostPolicy) SetChecksum(c Checksum) {
+func (p *PostPolicy) SetChecksum(c Checksum) error {
 	if c.IsSet() {
 		p.formData[amzChecksumAlgo] = c.Type.String()
 		p.formData[c.Type.Key()] = c.Encoded()
+
+		// Needed for S3 compatibility. MinIO ignores the checksum keys in the policy.
+		// https://github.com/minio/minio/blob/RELEASE.2024-08-29T01-40-52Z/cmd/postpolicyform.go#L60-L65
+		policyCond := policyCondition{
+			matchType: "eq",
+			condition: fmt.Sprintf("$%s", amzChecksumAlgo),
+			value:     c.Type.String(),
+		}
+		if err := p.addNewPolicy(policyCond); err != nil {
+			return err
+		}
+		policyCond = policyCondition{
+			matchType: "eq",
+			condition: fmt.Sprintf("$%s", c.Type.Key()),
+			value:     c.Encoded(),
+		}
+		if err := p.addNewPolicy(policyCond); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // SetEncryption - sets encryption headers for POST API
