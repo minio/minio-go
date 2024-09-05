@@ -661,7 +661,7 @@ func (c *Client) executeMethod(ctx context.Context, method string, metadata requ
 		// Initiate the request.
 		res, err = c.do(req)
 		if err != nil {
-			if isRequestErrorRetryable(err) {
+			if isRequestErrorRetryable(ctx, err) {
 				// Retry the request
 				continue
 			}
