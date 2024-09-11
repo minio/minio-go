@@ -496,8 +496,9 @@ type Rule struct {
 
 // Configuration is a collection of Rule objects.
 type Configuration struct {
-	XMLName xml.Name `xml:"LifecycleConfiguration,omitempty" json:"-"`
-	Rules   []Rule   `xml:"Rule"`
+	XMLName                xml.Name `xml:"LifecycleConfiguration,omitempty" json:"-"`
+	Rules                  []Rule   `xml:"Rule"`
+	ExpireAfterReplication string   `xml:"-" json:"-"`
 }
 
 // Empty check if lifecycle configuration is empty

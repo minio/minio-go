@@ -127,4 +127,7 @@ const (
 	minioTgtReplicationReady = "X-Minio-Replication-Ready"
 	// Header asks if delete marker replication request can be sent by source now.
 	isMinioTgtReplicationReady = "X-Minio-Check-Replication-Ready"
+
+	// Header indicating if ilm expiry ignores replication status
+	minioLifecycleExpiryAfterReplication = "X-Minio-Lifecycle-Expiry-After-Replication"
 )
