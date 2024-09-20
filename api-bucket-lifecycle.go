@@ -41,23 +41,28 @@ func (c *Client) SetBucketLifecycle(ctx context.Context, bucketName string, conf
 	if config.Empty() {
 		return c.removeBucketLifecycle(ctx, bucketName)
 	}
-
+	expAfterRepl := config.ExpireAfterReplication
+	config.ExpireAfterReplication = ""
 	buf, err := xml.Marshal(config)
 	if err != nil {
 		return err
 	}
 
 	// Save the updated lifecycle.
-	return c.putBucketLifecycle(ctx, bucketName, buf)
+	return c.putBucketLifecycle(ctx, bucketName, buf, expAfterRepl)
 }
 
 // Saves a new bucket lifecycle.
-func (c *Client) putBucketLifecycle(ctx context.Context, bucketName string, buf []byte) error {
+func (c *Client) putBucketLifecycle(ctx context.Context, bucketName string, buf []byte, expAfterRepl string) error {
 	// Get resources properly escaped and lined up before
 	// using them in http request.
 	urlValues := make(url.Values)
 	urlValues.Set("lifecycle", "")
-
+	var cheaders http.Header
+	if expAfterRepl != "" {
+		cheaders = make(http.Header)
+		cheaders.Set(minioLifecycleExpiryAfterReplication, expAfterRepl)
+	}
 	// Content-length is mandatory for put lifecycle request
 	reqMetadata := requestMetadata{
 		bucketName:       bucketName,
@@ -65,6 +70,7 @@ func (c *Client) putBucketLifecycle(ctx context.Context, bucketName string, buf 
 		contentBody:      bytes.NewReader(buf),
 		contentLength:    int64(len(buf)),
 		contentMD5Base64: sumMD5Base64(buf),
+		customHeader:     cheaders,
 	}
 
 	// Execute PUT to upload a new bucket lifecycle.
@@ -114,7 +120,7 @@ func (c *Client) GetBucketLifecycleWithInfo(ctx context.Context, bucketName stri
 		return nil, time.Time{}, err
 	}
 
-	bucketLifecycle, updatedAt, err := c.getBucketLifecycle(ctx, bucketName)
+	bucketLifecycle, updatedAt, expAfterRepl, err := c.getBucketLifecycle(ctx, bucketName)
 	if err != nil {
 		return nil, time.Time{}, err
 	}
@@ -123,11 +129,12 @@ func (c *Client) GetBucketLifecycleWithInfo(ctx context.Context, bucketName stri
 	if err = xml.Unmarshal(bucketLifecycle, config); err != nil {
 		return nil, time.Time{}, err
 	}
+	config.ExpireAfterReplication = expAfterRepl
 	return config, updatedAt, nil
 }
 
 // Request server for current bucket lifecycle.
-func (c *Client) getBucketLifecycle(ctx context.Context, bucketName string) ([]byte, time.Time, error) {
+func (c *Client) getBucketLifecycle(ctx context.Context, bucketName string) ([]byte, time.Time, string, error) {
 	// Get resources properly escaped and lined up before
 	// using them in http request.
 	urlValues := make(url.Values)
@@ -142,18 +149,18 @@ func (c *Client) getBucketLifecycle(ctx context.Context, bucketName string) ([]b
 
 	defer closeResponse(resp)
 	if err != nil {
-		return nil, time.Time{}, err
+		return nil, time.Time{}, "", err
 	}
 
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
-			return nil, time.Time{}, httpRespToErrorResponse(resp, bucketName, "")
+			return nil, time.Time{}, "", httpRespToErrorResponse(resp, bucketName, "")
 		}
 	}
 
 	lcBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, time.Time{}, err
+		return nil, time.Time{}, "", err
 	}
 
 	const minIOLifecycleCfgUpdatedAt = "X-Minio-LifecycleConfig-UpdatedAt"
@@ -161,9 +168,9 @@ func (c *Client) getBucketLifecycle(ctx context.Context, bucketName string) ([]b
 	if timeStr := resp.Header.Get(minIOLifecycleCfgUpdatedAt); timeStr != "" {
 		updatedAt, err = time.Parse(iso8601DateFormat, timeStr)
 		if err != nil {
-			return nil, time.Time{}, err
+			return nil, time.Time{}, "", err
 		}
 	}
-
-	return lcBytes, updatedAt, nil
+	expAfterRepl := resp.Header.Get(minioLifecycleExpiryAfterReplication)
+	return lcBytes, updatedAt, expAfterRepl, nil
 }
