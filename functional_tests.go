@@ -83,7 +83,7 @@ func createHTTPTransport() (transport *http.Transport) {
 		return nil
 	}
 
-	if mustParseBool(os.Getenv(skipCERTValidation)) {
+	if mustParseBool(os.Getenv(enableHTTPS)) && mustParseBool(os.Getenv(skipCERTValidation)) {
 		transport.TLSClientConfig.InsecureSkipVerify = true
 	}
 
@@ -3180,6 +3180,7 @@ func testGetObjectAttributes() {
 		testFiles[i].UploadInfo, err = c.PutObject(context.Background(), v.Bucket, v.Object, reader, int64(bufSize), minio.PutObjectOptions{
 			ContentType:    v.ContentType,
 			SendContentMd5: v.SendContentMd5,
+			Checksum:       minio.ChecksumCRC32C,
 		})
 		if err != nil {
 			logError(testName, function, args, startTime, "", "PutObject failed", err)
@@ -3261,7 +3262,7 @@ func testGetObjectAttributes() {
 		test: objectAttributesTestOptions{
 			TestFileName:    "file1",
 			StorageClass:    "STANDARD",
-			HasFullChecksum: false,
+			HasFullChecksum: true,
 		},
 	}
 
@@ -3350,9 +3351,10 @@ func testGetObjectAttributesSSECEncryption() {
 
 	info, err := c.PutObject(context.Background(), bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{
 		ContentType:          "content/custom",
-		SendContentMd5:       true,
+		SendContentMd5:       false,
 		ServerSideEncryption: sse,
 		PartSize:             uint64(bufSize) / 2,
+		Checksum:             minio.ChecksumCRC32C,
 	})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "PutObject failed", err)
@@ -3372,9 +3374,9 @@ func testGetObjectAttributesSSECEncryption() {
 		ETag:             info.ETag,
 		NumberOfParts:    2,
 		ObjectSize:       int(info.Size),
-		HasFullChecksum:  false,
+		HasFullChecksum:  true,
 		HasParts:         true,
-		HasPartChecksums: false,
+		HasPartChecksums: true,
 	})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "Validating GetObjectsAttributes response failed", err)
@@ -5792,18 +5794,12 @@ func testPresignedPostPolicy() {
 	}
 	writer.Close()
 
-	transport, err := minio.DefaultTransport(mustParseBool(os.Getenv(enableHTTPS)))
-	if err != nil {
-		logError(testName, function, args, startTime, "", "DefaultTransport failed", err)
-		return
-	}
-
 	httpClient := &http.Client{
 		// Setting a sensible time out of 30secs to wait for response
 		// headers. Request is pro-actively canceled after 30secs
 		// with no response.
 		Timeout:   30 * time.Second,
-		Transport: transport,
+		Transport: createHTTPTransport(),
 	}
 	args["url"] = presignedPostPolicyURL.String()
 
@@ -7717,7 +7713,7 @@ func testFunctional() {
 		return
 	}
 
-	transport, err := minio.DefaultTransport(mustParseBool(os.Getenv(enableHTTPS)))
+	transport := createHTTPTransport()
 	if err != nil {
 		logError(testName, function, args, startTime, "", "DefaultTransport failed", err)
 		return
@@ -12648,18 +12644,12 @@ func testFunctionalV2() {
 		return
 	}
 
-	transport, err := minio.DefaultTransport(mustParseBool(os.Getenv(enableHTTPS)))
-	if err != nil {
-		logError(testName, function, args, startTime, "", "DefaultTransport failed", err)
-		return
-	}
-
 	httpClient := &http.Client{
 		// Setting a sensible time out of 30secs to wait for response
 		// headers. Request is pro-actively canceled after 30secs
 		// with no response.
 		Timeout:   30 * time.Second,
-		Transport: transport,
+		Transport: createHTTPTransport(),
 	}
 
 	req, err := http.NewRequest(http.MethodHead, presignedHeadURL.String(), nil)
@@ -13754,14 +13744,9 @@ func testCors() {
 	bucketURL := c.EndpointURL().String() + "/" + bucketName + "/"
 	objectURL := bucketURL + objectName
 
-	transport, err := minio.DefaultTransport(mustParseBool(os.Getenv(enableHTTPS)))
-	if err != nil {
-		logError(testName, function, args, startTime, "", "DefaultTransport failed", err)
-		return
-	}
 	httpClient := &http.Client{
 		Timeout:   30 * time.Second,
-		Transport: transport,
+		Transport: createHTTPTransport(),
 	}
 
 	errStrAccessForbidden := `<Error><Code>AccessForbidden</Code><Message>CORSResponse: This CORS request is not allowed. This is usually because the evalution of Origin, request method / Access-Control-Request-Method or Access-Control-Request-Headers are not whitelisted`
