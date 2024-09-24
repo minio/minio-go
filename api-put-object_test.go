@@ -61,7 +61,7 @@ func TestPutObjectOptionsValidate(t *testing.T) {
 	for i, testCase := range testCases {
 		err := PutObjectOptions{UserMetadata: map[string]string{
 			testCase.name: testCase.value,
-		}}.validate()
+		}}.validate(nil)
 		if testCase.shouldPass && err != nil {
 			t.Errorf("Test %d - output did not match with reference results, %s", i+1, err)
 		}
