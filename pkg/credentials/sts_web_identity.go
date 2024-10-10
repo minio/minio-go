@@ -25,6 +25,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -112,6 +113,21 @@ func NewSTSWebIdentity(stsEndpoint string, getWebIDTokenExpiry func() (*WebIdent
 		o(i)
 	}
 	return New(i), nil
+}
+
+// NewKubernetesIdentity returns a pointer to a new
+// Credentials object using the Kubernetes service account
+func NewKubernetesIdentity(stsEndpoint string, opts ...func(*STSWebIdentity)) (*Credentials, error) {
+	return NewSTSWebIdentity(stsEndpoint, func() (*WebIdentityToken, error) {
+		token, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
+		if err != nil {
+			return nil, err
+		}
+
+		return &WebIdentityToken{
+			Token: string(token),
+		}, nil
+	}, opts...)
 }
 
 // WithPolicy option will enforce that the returned credentials
