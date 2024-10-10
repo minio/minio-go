@@ -85,6 +85,9 @@ type STSWebIdentity struct {
 	// assuming.
 	RoleARN string
 
+	// Policy is the policy where the credentials should be limited too.
+	Policy string
+
 	// roleSessionName is the identifier for the assumed role session.
 	roleSessionName string
 }
@@ -92,6 +95,20 @@ type STSWebIdentity struct {
 // NewSTSWebIdentity returns a pointer to a new
 // Credentials object wrapping the STSWebIdentity.
 func NewSTSWebIdentity(stsEndpoint string, getWebIDTokenExpiry func() (*WebIdentityToken, error)) (*Credentials, error) {
+	return newSTSWebIdentity(stsEndpoint, "", getWebIDTokenExpiry)
+}
+
+// NewSTSWebIdentityWithPolicy returns a pointer to a new
+// Credentials object wrapping the STSWebIdentity that is
+// scoped to the specified policy
+func NewSTSWebIdentityWithPolicy(stsEndpoint, policy string, getWebIDTokenExpiry func() (*WebIdentityToken, error)) (*Credentials, error) {
+	if policy == "" {
+		return nil, errors.New("policy cannot be empty")
+	}
+	return newSTSWebIdentity(stsEndpoint, policy, getWebIDTokenExpiry)
+}
+
+func newSTSWebIdentity(stsEndpoint, policy string, getWebIDTokenExpiry func() (*WebIdentityToken, error)) (*Credentials, error) {
 	if stsEndpoint == "" {
 		return nil, errors.New("STS endpoint cannot be empty")
 	}
@@ -103,11 +120,12 @@ func NewSTSWebIdentity(stsEndpoint string, getWebIDTokenExpiry func() (*WebIdent
 			Transport: http.DefaultTransport,
 		},
 		STSEndpoint:         stsEndpoint,
+		Policy:              policy,
 		GetWebIDTokenExpiry: getWebIDTokenExpiry,
 	}), nil
 }
 
-func getWebIdentityCredentials(clnt *http.Client, endpoint, roleARN, roleSessionName string,
+func getWebIdentityCredentials(clnt *http.Client, endpoint, roleARN, roleSessionName string, policy string,
 	getWebIDTokenExpiry func() (*WebIdentityToken, error),
 ) (AssumeRoleWithWebIdentityResponse, error) {
 	idToken, err := getWebIDTokenExpiry()
@@ -132,6 +150,9 @@ func getWebIdentityCredentials(clnt *http.Client, endpoint, roleARN, roleSession
 	}
 	if idToken.Expiry > 0 {
 		v.Set("DurationSeconds", fmt.Sprintf("%d", idToken.Expiry))
+	}
+	if policy != "" {
+		v.Set("Policy", policy)
 	}
 	v.Set("Version", STSVersion)
 
@@ -183,7 +204,7 @@ func getWebIdentityCredentials(clnt *http.Client, endpoint, roleARN, roleSession
 // Retrieve retrieves credentials from the MinIO service.
 // Error will be returned if the request fails.
 func (m *STSWebIdentity) Retrieve() (Value, error) {
-	a, err := getWebIdentityCredentials(m.Client, m.STSEndpoint, m.RoleARN, m.roleSessionName, m.GetWebIDTokenExpiry)
+	a, err := getWebIdentityCredentials(m.Client, m.STSEndpoint, m.RoleARN, m.roleSessionName, m.Policy, m.GetWebIDTokenExpiry)
 	if err != nil {
 		return Value{}, err
 	}
