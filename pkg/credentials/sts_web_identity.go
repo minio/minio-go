@@ -94,35 +94,32 @@ type STSWebIdentity struct {
 
 // NewSTSWebIdentity returns a pointer to a new
 // Credentials object wrapping the STSWebIdentity.
-func NewSTSWebIdentity(stsEndpoint string, getWebIDTokenExpiry func() (*WebIdentityToken, error)) (*Credentials, error) {
-	return newSTSWebIdentity(stsEndpoint, "", getWebIDTokenExpiry)
-}
-
-// NewSTSWebIdentityWithPolicy returns a pointer to a new
-// Credentials object wrapping the STSWebIdentity that is
-// scoped to the specified policy
-func NewSTSWebIdentityWithPolicy(stsEndpoint, policy string, getWebIDTokenExpiry func() (*WebIdentityToken, error)) (*Credentials, error) {
-	if policy == "" {
-		return nil, errors.New("policy cannot be empty")
-	}
-	return newSTSWebIdentity(stsEndpoint, policy, getWebIDTokenExpiry)
-}
-
-func newSTSWebIdentity(stsEndpoint, policy string, getWebIDTokenExpiry func() (*WebIdentityToken, error)) (*Credentials, error) {
+func NewSTSWebIdentity(stsEndpoint string, getWebIDTokenExpiry func() (*WebIdentityToken, error), opts ...func(*STSWebIdentity)) (*Credentials, error) {
 	if stsEndpoint == "" {
 		return nil, errors.New("STS endpoint cannot be empty")
 	}
 	if getWebIDTokenExpiry == nil {
 		return nil, errors.New("Web ID token and expiry retrieval function should be defined")
 	}
-	return New(&STSWebIdentity{
+	i := &STSWebIdentity{
 		Client: &http.Client{
 			Transport: http.DefaultTransport,
 		},
 		STSEndpoint:         stsEndpoint,
-		Policy:              policy,
 		GetWebIDTokenExpiry: getWebIDTokenExpiry,
-	}), nil
+	}
+	for _, o := range opts {
+		o(i)
+	}
+	return New(i), nil
+}
+
+// WithPolicy option will enforce that the returned credentials
+// will be scoped down to the specified policy
+func WithPolicy(policy string) func(*STSWebIdentity) {
+	return func(i *STSWebIdentity) {
+		i.Policy = policy
+	}
 }
 
 func getWebIdentityCredentials(clnt *http.Client, endpoint, roleARN, roleSessionName string, policy string,
