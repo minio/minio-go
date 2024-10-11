@@ -44,6 +44,11 @@ func TestParseTags(t *testing.T) {
 			2,
 		},
 		{
+			"key=value=",
+			false,
+			1,
+		},
+		{
 			fmt.Sprintf("%0128d=%0256d", 1, 1),
 			false,
 			1,
