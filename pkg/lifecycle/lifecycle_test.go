@@ -273,6 +273,28 @@ func TestLifecycleJSONRoundtrip(t *testing.T) {
 				ID:     "rule-7",
 				Status: "Enabled",
 			},
+			{
+				AllVersionsExpiration: AllVersionsExpiration{
+					Days: 10,
+				},
+				ID:     "rule-8",
+				Status: "Enabled",
+			},
+			{
+				AllVersionsExpiration: AllVersionsExpiration{
+					Days: 0,
+				},
+				ID:     "rule-9",
+				Status: "Enabled",
+			},
+			{
+				AllVersionsExpiration: AllVersionsExpiration{
+					Days:         7,
+					DeleteMarker: ExpireDeleteMarker(true),
+				},
+				ID:     "rule-10",
+				Status: "Enabled",
+			},
 		},
 	}
 
@@ -291,6 +313,10 @@ func TestLifecycleJSONRoundtrip(t *testing.T) {
 			t.Fatalf("expected %#v got %#v", lc.Rules[i].NoncurrentVersionTransition, got.Rules[i].NoncurrentVersionTransition)
 		}
 
+		if !lc.Rules[i].NoncurrentVersionExpiration.equals(got.Rules[i].NoncurrentVersionExpiration) {
+			t.Fatalf("expected %#v got %#v", lc.Rules[i].NoncurrentVersionExpiration, got.Rules[i].NoncurrentVersionExpiration)
+		}
+
 		if !lc.Rules[i].Transition.equals(got.Rules[i].Transition) {
 			t.Fatalf("expected %#v got %#v", lc.Rules[i].Transition, got.Rules[i].Transition)
 		}
@@ -299,6 +325,9 @@ func TestLifecycleJSONRoundtrip(t *testing.T) {
 		}
 		if !lc.Rules[i].DelMarkerExpiration.equals(got.Rules[i].DelMarkerExpiration) {
 			t.Fatalf("expected %#v got %#v", lc.Rules[i].DelMarkerExpiration, got.Rules[i].DelMarkerExpiration)
+		}
+		if !lc.Rules[i].AllVersionsExpiration.equals(got.Rules[i].AllVersionsExpiration) {
+			t.Fatalf("expected %#v got %#v", lc.Rules[i].AllVersionsExpiration, got.Rules[i].AllVersionsExpiration)
 		}
 	}
 }
@@ -352,6 +381,27 @@ func TestLifecycleXMLRoundtrip(t *testing.T) {
 					Days: 5,
 				},
 			},
+			{
+				ID:     "all-versions-expiration-1",
+				Status: "Enabled",
+				AllVersionsExpiration: AllVersionsExpiration{
+					Days: 5,
+				},
+			},
+			{
+				ID:     "all-versions-expiration-2",
+				Status: "Enabled",
+				AllVersionsExpiration: AllVersionsExpiration{
+					Days:         10,
+					DeleteMarker: ExpireDeleteMarker(true),
+				},
+				RuleFilter: Filter{
+					Tag: Tag{
+						Key:   "key-1",
+						Value: "value-1",
+					},
+				},
+			},
 		},
 	}
 
@@ -374,11 +424,27 @@ func TestLifecycleXMLRoundtrip(t *testing.T) {
 		if !lc.Rules[i].Transition.equals(got.Rules[i].Transition) {
 			t.Fatalf("%d: expected %#v got %#v", i+1, lc.Rules[i].Transition, got.Rules[i].Transition)
 		}
+
+		if !lc.Rules[i].NoncurrentVersionExpiration.equals(got.Rules[i].NoncurrentVersionExpiration) {
+			t.Fatalf("%d: expected %#v got %#v", i+1, lc.Rules[i].NoncurrentVersionExpiration, got.Rules[i].NoncurrentVersionExpiration)
+		}
+
+		if !lc.Rules[i].DelMarkerExpiration.equals(got.Rules[i].DelMarkerExpiration) {
+			t.Fatalf("%d: expected %#v got %#v", i+1, lc.Rules[i].DelMarkerExpiration, got.Rules[i].DelMarkerExpiration)
+		}
+
+		if !lc.Rules[i].AllVersionsExpiration.equals(got.Rules[i].AllVersionsExpiration) {
+			t.Fatalf("%d: expected %#v got %#v", i+1, lc.Rules[i].AllVersionsExpiration, got.Rules[i].AllVersionsExpiration)
+		}
 	}
 }
 
 func (n NoncurrentVersionTransition) equals(m NoncurrentVersionTransition) bool {
 	return n.NoncurrentDays == m.NoncurrentDays && n.StorageClass == m.StorageClass
+}
+
+func (n NoncurrentVersionExpiration) equals(m NoncurrentVersionExpiration) bool {
+	return n.NoncurrentDays == m.NoncurrentDays && n.NewerNoncurrentVersions == m.NewerNoncurrentVersions
 }
 
 func (t Transition) equals(u Transition) bool {
@@ -387,6 +453,10 @@ func (t Transition) equals(u Transition) bool {
 
 func (a DelMarkerExpiration) equals(b DelMarkerExpiration) bool {
 	return a.Days == b.Days
+}
+
+func (a AllVersionsExpiration) equals(b AllVersionsExpiration) bool {
+	return a.Days == b.Days && a.DeleteMarker == b.DeleteMarker
 }
 
 func TestExpiredObjectDeleteMarker(t *testing.T) {
@@ -398,6 +468,30 @@ func TestExpiredObjectDeleteMarker(t *testing.T) {
 					DeleteMarker: true,
 				},
 				ID:     "expired-object-delete-marker",
+				Status: "Enabled",
+			},
+		},
+	}
+
+	got, err := json.Marshal(lc)
+	if err != nil {
+		t.Fatalf("Failed to marshal due to %v", err)
+	}
+	if !bytes.Equal(expected, got) {
+		t.Fatalf("Expected %s but got %s", expected, got)
+	}
+}
+
+func TestAllVersionsExpiration(t *testing.T) {
+	expected := []byte(`{"Rules":[{"AllVersionsExpiration":{"Days":2,"DeleteMarker":true},"ID":"all-versions-expiration","Status":"Enabled"}]}`)
+	lc := Configuration{
+		Rules: []Rule{
+			{
+				AllVersionsExpiration: AllVersionsExpiration{
+					Days:         2,
+					DeleteMarker: ExpireDeleteMarker(true),
+				},
+				ID:     "all-versions-expiration",
 				Status: "Enabled",
 			},
 		},
