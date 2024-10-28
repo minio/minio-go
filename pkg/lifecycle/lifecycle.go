@@ -441,21 +441,18 @@ type AllVersionsExpiration struct {
 	DeleteMarker ExpireDeleteMarker `xml:"DeleteMarker,omitempty" json:"DeleteMarker,omitempty"`
 }
 
-// IsDaysNull returns true if days field is null
-func (e AllVersionsExpiration) IsDaysNull() bool {
+// IsNull returns true if days field is 0
+func (e AllVersionsExpiration) IsNull() bool {
 	return e.Days == 0
 }
 
-func (e AllVersionsExpiration) IsNull() bool {
-	return e.IsDaysNull()
-}
-
-func (ave AllVersionsExpiration) MarshalXML(enc *xml.Encoder, start xml.StartElement) error {
-	if ave.IsNull() {
+// MarshalXML satisfies xml.Marshaler to provide custom encoding
+func (e AllVersionsExpiration) MarshalXML(enc *xml.Encoder, start xml.StartElement) error {
+	if e.IsNull() {
 		return nil
 	}
 	type allVersionsExp AllVersionsExpiration
-	return enc.EncodeElement(allVersionsExp(ave), start)
+	return enc.EncodeElement(allVersionsExp(e), start)
 }
 
 // MarshalJSON customizes json encoding by omitting empty values
