@@ -68,10 +68,10 @@ func (c *Client) PromptObject(ctx context.Context, bucketName, objectName, promp
 	if err != nil {
 		return nil, err
 	}
-	if resp != nil {
-		if resp.StatusCode != http.StatusOK {
-			return nil, httpRespToErrorResponse(resp, bucketName, objectName)
-		}
+
+	if resp.StatusCode != http.StatusOK {
+		defer closeResponse(resp)
+		return nil, httpRespToErrorResponse(resp, bucketName, objectName)
 	}
 
 	return resp.Body, nil
