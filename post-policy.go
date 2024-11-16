@@ -228,18 +228,18 @@ func (p *PostPolicy) SetContentDisposition(contentDisposition string) error {
 
 // SetContentLengthRange - Set new min and max content length
 // condition for all incoming uploads.
-func (p *PostPolicy) SetContentLengthRange(min, max int64) error {
-	if min > max {
+func (p *PostPolicy) SetContentLengthRange(minLen, maxLen int64) error {
+	if minLen > maxLen {
 		return errInvalidArgument("Minimum limit is larger than maximum limit.")
 	}
-	if min < 0 {
+	if minLen < 0 {
 		return errInvalidArgument("Minimum limit cannot be negative.")
 	}
-	if max <= 0 {
+	if maxLen <= 0 {
 		return errInvalidArgument("Maximum limit cannot be non-positive.")
 	}
-	p.contentLengthRange.min = min
-	p.contentLengthRange.max = max
+	p.contentLengthRange.min = minLen
+	p.contentLengthRange.max = maxLen
 	return nil
 }
 
