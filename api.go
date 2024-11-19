@@ -203,6 +203,67 @@ func (r *lockedRandSource) Seed(seed int64) {
 	r.lk.Unlock()
 }
 
+// Redirect requests by re signing the request.
+func (c *Client) redirectHeaders(req *http.Request, via []*http.Request) error {
+	if len(via) >= 5 {
+		return errors.New("stopped after 5 redirects")
+	}
+	if len(via) == 0 {
+		return nil
+	}
+	lastRequest := via[len(via)-1]
+	var reAuth bool
+	for attr, val := range lastRequest.Header {
+		// if hosts do not match do not copy Authorization header
+		if attr == "Authorization" && req.Host != lastRequest.Host {
+			reAuth = true
+			continue
+		}
+		if _, ok := req.Header[attr]; !ok {
+			req.Header[attr] = val
+		}
+	}
+
+	*c.endpointURL = *req.URL
+
+	value, err := c.credsProvider.Get()
+	if err != nil {
+		return err
+	}
+	var (
+		signerType      = value.SignerType
+		accessKeyID     = value.AccessKeyID
+		secretAccessKey = value.SecretAccessKey
+		sessionToken    = value.SessionToken
+		region          = c.region
+	)
+
+	// Custom signer set then override the behavior.
+	if c.overrideSignerType != credentials.SignatureDefault {
+		signerType = c.overrideSignerType
+	}
+
+	// If signerType returned by credentials helper is anonymous,
+	// then do not sign regardless of signerType override.
+	if value.SignerType == credentials.SignatureAnonymous {
+		signerType = credentials.SignatureAnonymous
+	}
+
+	if reAuth {
+		// Check if there is no region override, if not get it from the URL if possible.
+		if region == "" {
+			region = s3utils.GetRegionFromURL(*c.endpointURL)
+		}
+		switch {
+		case signerType.IsV2():
+			return errors.New("signature V2 cannot support redirection")
+		case signerType.IsV4():
+			signer.SignV4(*req, accessKeyID, secretAccessKey, sessionToken, getDefaultLocation(*c.endpointURL, region))
+		}
+	}
+	return nil
+}
+
 func privateNew(endpoint string, opts *Options) (*Client, error) {
 	// construct endpoint.
 	endpointURL, err := getEndpointURL(endpoint, opts.Secure)
@@ -247,6 +308,10 @@ func privateNew(endpoint string, opts *Options) (*Client, error) {
 			return http.ErrUseLastResponse
 		},
 	}
+
+        if envValue := os.Getenv("ENABLE_REDIRECT_HANDLING"); envValue == "true" {
+                clnt.httpClient.CheckRedirect = clnt.redirectHeaders
+        }
 
 	// Sets custom region, if region is empty bucket location cache is used automatically.
 	if opts.Region == "" {
