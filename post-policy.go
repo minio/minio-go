@@ -85,7 +85,7 @@ func (p *PostPolicy) SetExpires(t time.Time) error {
 
 // SetKey - Sets an object name for the policy based upload.
 func (p *PostPolicy) SetKey(key string) error {
-	if strings.TrimSpace(key) == "" || key == "" {
+	if strings.TrimSpace(key) == "" {
 		return errInvalidArgument("Object name is empty.")
 	}
 	policyCond := policyCondition{
@@ -118,7 +118,7 @@ func (p *PostPolicy) SetKeyStartsWith(keyStartsWith string) error {
 
 // SetBucket - Sets bucket at which objects will be uploaded to.
 func (p *PostPolicy) SetBucket(bucketName string) error {
-	if strings.TrimSpace(bucketName) == "" || bucketName == "" {
+	if strings.TrimSpace(bucketName) == "" {
 		return errInvalidArgument("Bucket name is empty.")
 	}
 	policyCond := policyCondition{
@@ -135,7 +135,7 @@ func (p *PostPolicy) SetBucket(bucketName string) error {
 
 // SetCondition - Sets condition for credentials, date and algorithm
 func (p *PostPolicy) SetCondition(matchType, condition, value string) error {
-	if strings.TrimSpace(value) == "" || value == "" {
+	if strings.TrimSpace(value) == "" {
 		return errInvalidArgument("No value specified for condition")
 	}
 
@@ -156,7 +156,7 @@ func (p *PostPolicy) SetCondition(matchType, condition, value string) error {
 
 // SetTagging - Sets tagging for the object for this policy based upload.
 func (p *PostPolicy) SetTagging(tagging string) error {
-	if strings.TrimSpace(tagging) == "" || tagging == "" {
+	if strings.TrimSpace(tagging) == "" {
 		return errInvalidArgument("No tagging specified.")
 	}
 	_, err := tags.ParseObjectXML(strings.NewReader(tagging))
@@ -178,7 +178,7 @@ func (p *PostPolicy) SetTagging(tagging string) error {
 // SetContentType - Sets content-type of the object for this policy
 // based upload.
 func (p *PostPolicy) SetContentType(contentType string) error {
-	if strings.TrimSpace(contentType) == "" || contentType == "" {
+	if strings.TrimSpace(contentType) == "" {
 		return errInvalidArgument("No content type specified.")
 	}
 	policyCond := policyCondition{
@@ -211,7 +211,7 @@ func (p *PostPolicy) SetContentTypeStartsWith(contentTypeStartsWith string) erro
 
 // SetContentDisposition - Sets content-disposition of the object for this policy
 func (p *PostPolicy) SetContentDisposition(contentDisposition string) error {
-	if strings.TrimSpace(contentDisposition) == "" || contentDisposition == "" {
+	if strings.TrimSpace(contentDisposition) == "" {
 		return errInvalidArgument("No content disposition specified.")
 	}
 	policyCond := policyCondition{
@@ -223,6 +223,23 @@ func (p *PostPolicy) SetContentDisposition(contentDisposition string) error {
 		return err
 	}
 	p.formData["Content-Disposition"] = contentDisposition
+	return nil
+}
+
+// SetContentEncoding - Sets content-encoding of the object for this policy
+func (p *PostPolicy) SetContentEncoding(contentEncoding string) error {
+	if strings.TrimSpace(contentEncoding) == "" {
+		return errInvalidArgument("No content encoding specified.")
+	}
+	policyCond := policyCondition{
+		matchType: "eq",
+		condition: "$Content-Encoding",
+		value:     contentEncoding,
+	}
+	if err := p.addNewPolicy(policyCond); err != nil {
+		return err
+	}
+	p.formData["Content-Encoding"] = contentEncoding
 	return nil
 }
 
@@ -246,7 +263,7 @@ func (p *PostPolicy) SetContentLengthRange(minLen, maxLen int64) error {
 // SetSuccessActionRedirect - Sets the redirect success url of the object for this policy
 // based upload.
 func (p *PostPolicy) SetSuccessActionRedirect(redirect string) error {
-	if strings.TrimSpace(redirect) == "" || redirect == "" {
+	if strings.TrimSpace(redirect) == "" {
 		return errInvalidArgument("Redirect is empty")
 	}
 	policyCond := policyCondition{
@@ -264,7 +281,7 @@ func (p *PostPolicy) SetSuccessActionRedirect(redirect string) error {
 // SetSuccessStatusAction - Sets the status success code of the object for this policy
 // based upload.
 func (p *PostPolicy) SetSuccessStatusAction(status string) error {
-	if strings.TrimSpace(status) == "" || status == "" {
+	if strings.TrimSpace(status) == "" {
 		return errInvalidArgument("Status is empty")
 	}
 	policyCond := policyCondition{
@@ -282,10 +299,10 @@ func (p *PostPolicy) SetSuccessStatusAction(status string) error {
 // SetUserMetadata - Set user metadata as a key/value couple.
 // Can be retrieved through a HEAD request or an event.
 func (p *PostPolicy) SetUserMetadata(key, value string) error {
-	if strings.TrimSpace(key) == "" || key == "" {
+	if strings.TrimSpace(key) == "" {
 		return errInvalidArgument("Key is empty")
 	}
-	if strings.TrimSpace(value) == "" || value == "" {
+	if strings.TrimSpace(value) == "" {
 		return errInvalidArgument("Value is empty")
 	}
 	headerName := fmt.Sprintf("x-amz-meta-%s", key)
@@ -304,7 +321,7 @@ func (p *PostPolicy) SetUserMetadata(key, value string) error {
 // SetUserMetadataStartsWith - Set how an user metadata should starts with.
 // Can be retrieved through a HEAD request or an event.
 func (p *PostPolicy) SetUserMetadataStartsWith(key, value string) error {
-	if strings.TrimSpace(key) == "" || key == "" {
+	if strings.TrimSpace(key) == "" {
 		return errInvalidArgument("Key is empty")
 	}
 	headerName := fmt.Sprintf("x-amz-meta-%s", key)
@@ -326,8 +343,6 @@ func (p *PostPolicy) SetChecksum(c Checksum) error {
 		p.formData[amzChecksumAlgo] = c.Type.String()
 		p.formData[c.Type.Key()] = c.Encoded()
 
-		// Needed for S3 compatibility. MinIO ignores the checksum keys in the policy.
-		// https://github.com/minio/minio/blob/RELEASE.2024-08-29T01-40-52Z/cmd/postpolicyform.go#L60-L65
 		policyCond := policyCondition{
 			matchType: "eq",
 			condition: fmt.Sprintf("$%s", amzChecksumAlgo),

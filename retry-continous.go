@@ -39,7 +39,7 @@ func (c *Client) newRetryTimerContinous(baseSleep, maxSleep time.Duration, jitte
 		if attempt > maxAttempt {
 			attempt = maxAttempt
 		}
-		// sleep = random_between(0, min(cap, base * 2 ** attempt))
+		// sleep = random_between(0, min(maxSleep, base * 2 ** attempt))
 		sleep := baseSleep * time.Duration(1<<uint(attempt))
 		if sleep > maxSleep {
 			sleep = maxSleep
