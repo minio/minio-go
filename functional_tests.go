@@ -160,7 +160,7 @@ func logError(testName, function string, args map[string]interface{}, startTime 
 	} else {
 		logFailure(testName, function, args, startTime, alert, message, err)
 		if !isRunOnFail() {
-			panic(err)
+			panic(fmt.Sprintf("Test failed with message: %s, err: %v", message, err))
 		}
 	}
 }
@@ -2032,7 +2032,7 @@ func testPutObjectWithChecksums() {
 		h := test.cs.Hasher()
 		h.Reset()
 
-		// Test with Wrong CRC.
+		// Test with a bad CRC - we haven't called h.Write(b), so this is a checksum of empty data
 		meta[test.cs.Key()] = base64.StdEncoding.EncodeToString(h.Sum(nil))
 		args["metadata"] = meta
 		args["range"] = "false"
@@ -2638,7 +2638,6 @@ func testTrailingChecksums() {
 		test.ChecksumCRC32C = hashMultiPart(b, int(test.PO.PartSize), test.hasher)
 
 		// Set correct CRC.
-		// c.TraceOn(os.Stderr)
 		resp, err := c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(b), int64(bufSize), test.PO)
 		if err != nil {
 			logError(testName, function, args, startTime, "", "PutObject failed", err)
@@ -2690,6 +2689,8 @@ func testTrailingChecksums() {
 
 		delete(args, "metadata")
 	}
+
+	logSuccess(testName, function, args, startTime)
 }
 
 // Test PutObject with custom checksums.
@@ -5146,50 +5147,22 @@ func testPresignedPostPolicy() {
 		return
 	}
 
-	// Save the data
-	_, err = c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
-	if err != nil {
-		logError(testName, function, args, startTime, "", "PutObject failed", err)
-		return
-	}
-
 	policy := minio.NewPostPolicy()
-
-	if err := policy.SetBucket(""); err == nil {
-		logError(testName, function, args, startTime, "", "SetBucket did not fail for invalid conditions", err)
-		return
-	}
-	if err := policy.SetKey(""); err == nil {
-		logError(testName, function, args, startTime, "", "SetKey did not fail for invalid conditions", err)
-		return
-	}
-	if err := policy.SetExpires(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)); err == nil {
-		logError(testName, function, args, startTime, "", "SetExpires did not fail for invalid conditions", err)
-		return
-	}
-	if err := policy.SetContentType(""); err == nil {
-		logError(testName, function, args, startTime, "", "SetContentType did not fail for invalid conditions", err)
-		return
-	}
-	if err := policy.SetContentLengthRange(1024*1024, 1024); err == nil {
-		logError(testName, function, args, startTime, "", "SetContentLengthRange did not fail for invalid conditions", err)
-		return
-	}
-	if err := policy.SetUserMetadata("", ""); err == nil {
-		logError(testName, function, args, startTime, "", "SetUserMetadata did not fail for invalid conditions", err)
-		return
-	}
-
 	policy.SetBucket(bucketName)
 	policy.SetKey(objectName)
 	policy.SetExpires(time.Now().UTC().AddDate(0, 0, 10)) // expires in 10 days
 	policy.SetContentType("binary/octet-stream")
 	policy.SetContentLengthRange(10, 1024*1024)
 	policy.SetUserMetadata(metadataKey, metadataValue)
+	policy.SetContentEncoding("gzip")
 
 	// Add CRC32C
 	checksum := minio.ChecksumCRC32C.ChecksumBytes(buf)
-	policy.SetChecksum(checksum)
+	err = policy.SetChecksum(checksum)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "SetChecksum failed", err)
+		return
+	}
 
 	args["policy"] = policy.String()
 
@@ -5285,7 +5258,7 @@ func testPresignedPostPolicy() {
 	expectedLocation := scheme + os.Getenv(serverEndpoint) + "/" + bucketName + "/" + objectName
 	expectedLocationBucketDNS := scheme + bucketName + "." + os.Getenv(serverEndpoint) + "/" + objectName
 
-	if !strings.Contains(expectedLocation, "s3.amazonaws.com/") {
+	if !strings.Contains(expectedLocation, ".amazonaws.com/") {
 		// Test when not against AWS S3.
 		if val, ok := res.Header["Location"]; ok {
 			if val[0] != expectedLocation && val[0] != expectedLocationBucketDNS {
@@ -5297,9 +5270,194 @@ func testPresignedPostPolicy() {
 			return
 		}
 	}
-	want := checksum.Encoded()
-	if got := res.Header.Get("X-Amz-Checksum-Crc32c"); got != want {
-		logError(testName, function, args, startTime, "", fmt.Sprintf("Want checksum %q, got %q", want, got), nil)
+	wantChecksumCrc32c := checksum.Encoded()
+	if got := res.Header.Get("X-Amz-Checksum-Crc32c"); got != wantChecksumCrc32c {
+		logError(testName, function, args, startTime, "", fmt.Sprintf("Want checksum %q, got %q", wantChecksumCrc32c, got), nil)
+		return
+	}
+
+	// Ensure that when we subsequently GetObject, the checksum is returned
+	gopts := minio.GetObjectOptions{Checksum: true}
+	r, err := c.GetObject(context.Background(), bucketName, objectName, gopts)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "GetObject failed", err)
+		return
+	}
+	st, err := r.Stat()
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Stat failed", err)
+		return
+	}
+	if st.ChecksumCRC32C != wantChecksumCrc32c {
+		logError(testName, function, args, startTime, "", fmt.Sprintf("Want checksum %s, got %s", wantChecksumCrc32c, st.ChecksumCRC32C), nil)
+		return
+	}
+
+	logSuccess(testName, function, args, startTime)
+}
+
+// testPresignedPostPolicyWrongFile tests that when we have a policy with a checksum, we cannot POST the wrong file
+func testPresignedPostPolicyWrongFile() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "PresignedPostPolicy(policy)"
+	args := map[string]interface{}{
+		"policy": "",
+	}
+
+	c, err := NewClient(ClientConfig{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
+		return
+	}
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+
+	// Make a new bucket in 'us-east-1' (source bucket).
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	defer cleanupBucket(bucketName, c)
+
+	// Generate 33K of data.
+	reader := getDataReader("datafile-33-kB")
+	defer reader.Close()
+
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	// Azure requires the key to not start with a number
+	metadataKey := randString(60, rand.NewSource(time.Now().UnixNano()), "user")
+	metadataValue := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+
+	buf, err := io.ReadAll(reader)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "ReadAll failed", err)
+		return
+	}
+
+	policy := minio.NewPostPolicy()
+	policy.SetBucket(bucketName)
+	policy.SetKey(objectName)
+	policy.SetExpires(time.Now().UTC().AddDate(0, 0, 10)) // expires in 10 days
+	policy.SetContentType("binary/octet-stream")
+	policy.SetContentLengthRange(10, 1024*1024)
+	policy.SetUserMetadata(metadataKey, metadataValue)
+
+	// Add CRC32C of the 33kB file that the policy will explicitly allow.
+	checksum := minio.ChecksumCRC32C.ChecksumBytes(buf)
+	err = policy.SetChecksum(checksum)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "SetChecksum failed", err)
+		return
+	}
+
+	args["policy"] = policy.String()
+
+	presignedPostPolicyURL, formData, err := c.PresignedPostPolicy(context.Background(), policy)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PresignedPostPolicy failed", err)
+		return
+	}
+
+	// At this stage, we have a policy that allows us to upload datafile-33-kB.
+	// Test that uploading datafile-10-kB, with a different checksum, fails as expected
+	filePath := getMintDataDirFilePath("datafile-10-kB")
+	if filePath == "" {
+		// Make a temp file with 10 KB data.
+		file, err := os.CreateTemp(os.TempDir(), "PresignedPostPolicyTest")
+		if err != nil {
+			logError(testName, function, args, startTime, "", "TempFile creation failed", err)
+			return
+		}
+		if _, err = io.Copy(file, getDataReader("datafile-10-kB")); err != nil {
+			logError(testName, function, args, startTime, "", "Copy failed", err)
+			return
+		}
+		if err = file.Close(); err != nil {
+			logError(testName, function, args, startTime, "", "File Close failed", err)
+			return
+		}
+		filePath = file.Name()
+	}
+	fileReader := getDataReader("datafile-10-kB")
+	defer fileReader.Close()
+	buf10k, err := io.ReadAll(fileReader)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "ReadAll failed", err)
+		return
+	}
+	otherChecksum := minio.ChecksumCRC32C.ChecksumBytes(buf10k)
+
+	var formBuf bytes.Buffer
+	writer := multipart.NewWriter(&formBuf)
+	for k, v := range formData {
+		if k == "x-amz-checksum-crc32c" {
+			v = otherChecksum.Encoded()
+		}
+		writer.WriteField(k, v)
+	}
+
+	// Add file to post request
+	f, err := os.Open(filePath)
+	defer f.Close()
+	if err != nil {
+		logError(testName, function, args, startTime, "", "File open failed", err)
+		return
+	}
+	w, err := writer.CreateFormFile("file", filePath)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "CreateFormFile failed", err)
+		return
+	}
+	_, err = io.Copy(w, f)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Copy failed", err)
+		return
+	}
+	writer.Close()
+
+	httpClient := &http.Client{
+		Timeout:   30 * time.Second,
+		Transport: createHTTPTransport(),
+	}
+	args["url"] = presignedPostPolicyURL.String()
+
+	req, err := http.NewRequest(http.MethodPost, presignedPostPolicyURL.String(), bytes.NewReader(formBuf.Bytes()))
+	if err != nil {
+		logError(testName, function, args, startTime, "", "HTTP request failed", err)
+		return
+	}
+
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	// Make the POST request with the form data.
+	res, err := httpClient.Do(req)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "HTTP request failed", err)
+		return
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusForbidden {
+		logError(testName, function, args, startTime, "", "HTTP request unexpected status", errors.New(res.Status))
+		return
+	}
+
+	// Read the response body, ensure it has checksum failure message
+	resBody, err := io.ReadAll(res.Body)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "ReadAll failed", err)
+		return
+	}
+
+	// Normalize the response body, because S3 uses quotes around the policy condition components
+	// in the error message, MinIO does not.
+	resBodyStr := strings.ReplaceAll(string(resBody), `"`, "")
+	if !strings.Contains(resBodyStr, "Policy Condition failed: [eq, $x-amz-checksum-crc32c, aHnJMw==]") {
+		logError(testName, function, args, startTime, "", "Unexpected response body", errors.New(resBodyStr))
 		return
 	}
 
@@ -8581,7 +8739,7 @@ func testEncryptedCopyObjectWrapper(c *minio.Client, bucketName string, sseSrc, 
 		dstEncryption = sseDst
 	}
 	// 3. get copied object and check if content is equal
-	coreClient := minio.Core{c}
+	coreClient := minio.Core{Client: c}
 	reader, _, _, err := coreClient.GetObject(context.Background(), bucketName, "dstObject", minio.GetObjectOptions{ServerSideEncryption: dstEncryption})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObject failed", err)
@@ -8697,7 +8855,6 @@ func testUnencryptedToSSECCopyObject() {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
 
 	sseDst := encrypt.DefaultPBKDF([]byte("correct horse battery staple"), []byte(bucketName+"dstObject"))
-	// c.TraceOn(os.Stderr)
 	testEncryptedCopyObjectWrapper(c, bucketName, nil, sseDst)
 }
 
@@ -8719,7 +8876,6 @@ func testUnencryptedToSSES3CopyObject() {
 
 	var sseSrc encrypt.ServerSide
 	sseDst := encrypt.NewSSE()
-	// c.TraceOn(os.Stderr)
 	testEncryptedCopyObjectWrapper(c, bucketName, sseSrc, sseDst)
 }
 
@@ -8740,7 +8896,6 @@ func testUnencryptedToUnencryptedCopyObject() {
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
 
 	var sseSrc, sseDst encrypt.ServerSide
-	// c.TraceOn(os.Stderr)
 	testEncryptedCopyObjectWrapper(c, bucketName, sseSrc, sseDst)
 }
 
@@ -8762,7 +8917,6 @@ func testEncryptedSSECToSSECCopyObject() {
 
 	sseSrc := encrypt.DefaultPBKDF([]byte("correct horse battery staple"), []byte(bucketName+"srcObject"))
 	sseDst := encrypt.DefaultPBKDF([]byte("correct horse battery staple"), []byte(bucketName+"dstObject"))
-	// c.TraceOn(os.Stderr)
 	testEncryptedCopyObjectWrapper(c, bucketName, sseSrc, sseDst)
 }
 
@@ -8784,7 +8938,6 @@ func testEncryptedSSECToSSES3CopyObject() {
 
 	sseSrc := encrypt.DefaultPBKDF([]byte("correct horse battery staple"), []byte(bucketName+"srcObject"))
 	sseDst := encrypt.NewSSE()
-	// c.TraceOn(os.Stderr)
 	testEncryptedCopyObjectWrapper(c, bucketName, sseSrc, sseDst)
 }
 
@@ -8806,7 +8959,6 @@ func testEncryptedSSECToUnencryptedCopyObject() {
 
 	sseSrc := encrypt.DefaultPBKDF([]byte("correct horse battery staple"), []byte(bucketName+"srcObject"))
 	var sseDst encrypt.ServerSide
-	// c.TraceOn(os.Stderr)
 	testEncryptedCopyObjectWrapper(c, bucketName, sseSrc, sseDst)
 }
 
@@ -8828,7 +8980,6 @@ func testEncryptedSSES3ToSSECCopyObject() {
 
 	sseSrc := encrypt.NewSSE()
 	sseDst := encrypt.DefaultPBKDF([]byte("correct horse battery staple"), []byte(bucketName+"dstObject"))
-	// c.TraceOn(os.Stderr)
 	testEncryptedCopyObjectWrapper(c, bucketName, sseSrc, sseDst)
 }
 
@@ -8850,7 +9001,6 @@ func testEncryptedSSES3ToSSES3CopyObject() {
 
 	sseSrc := encrypt.NewSSE()
 	sseDst := encrypt.NewSSE()
-	// c.TraceOn(os.Stderr)
 	testEncryptedCopyObjectWrapper(c, bucketName, sseSrc, sseDst)
 }
 
@@ -8872,7 +9022,6 @@ func testEncryptedSSES3ToUnencryptedCopyObject() {
 
 	sseSrc := encrypt.NewSSE()
 	var sseDst encrypt.ServerSide
-	// c.TraceOn(os.Stderr)
 	testEncryptedCopyObjectWrapper(c, bucketName, sseSrc, sseDst)
 }
 
@@ -8894,7 +9043,6 @@ func testEncryptedCopyObjectV2() {
 
 	sseSrc := encrypt.DefaultPBKDF([]byte("correct horse battery staple"), []byte(bucketName+"srcObject"))
 	sseDst := encrypt.DefaultPBKDF([]byte("correct horse battery staple"), []byte(bucketName+"dstObject"))
-	// c.TraceOn(os.Stderr)
 	testEncryptedCopyObjectWrapper(c, bucketName, sseSrc, sseDst)
 }
 
@@ -10619,7 +10767,6 @@ func testUserMetadataCopying() {
 		return
 	}
 
-	// c.TraceOn(os.Stderr)
 	testUserMetadataCopyingWrapper(c)
 }
 
@@ -10790,7 +10937,6 @@ func testUserMetadataCopyingV2() {
 		return
 	}
 
-	// c.TraceOn(os.Stderr)
 	testUserMetadataCopyingWrapper(c)
 }
 
@@ -13637,6 +13783,7 @@ func main() {
 		testGetObjectReadAtFunctional()
 		testGetObjectReadAtWhenEOFWasReached()
 		testPresignedPostPolicy()
+		testPresignedPostPolicyWrongFile()
 		testCopyObject()
 		testComposeObjectErrorCases()
 		testCompose10KSources()
