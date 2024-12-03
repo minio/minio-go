@@ -302,6 +302,7 @@ func (c ObjectPart) Checksum(t ChecksumType) string {
 	return ""
 }
 
+// ChecksumRaw returns the decoded checksum from the part.
 func (c ObjectPart) ChecksumRaw(t ChecksumType) ([]byte, error) {
 	b64 := c.Checksum(t)
 	if b64 == "" {
