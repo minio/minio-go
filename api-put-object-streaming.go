@@ -330,7 +330,6 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 
 	// Create checksums
 	// CRC32C is ~50% faster on AMD64 @ 30GB/s
-	var crcBytes []byte
 	customHeader := make(http.Header)
 	crc := opts.AutoChecksum.Hasher()
 	md5Hash := c.md5Hasher()
@@ -377,7 +376,6 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 			crc.Write(buf[:length])
 			cSum := crc.Sum(nil)
 			customHeader.Set(opts.AutoChecksum.KeyCapitalized(), base64.StdEncoding.EncodeToString(cSum))
-			crcBytes = append(crcBytes, cSum...)
 		}
 
 		// Update progress reader appropriately to the latest offset

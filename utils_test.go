@@ -446,7 +446,7 @@ func TestFullObjectChecksum64(t *testing.T) {
 			want := sum(b)
 			var parts []ObjectPart
 			for len(b) > 0 {
-				sz := len(b) / 2
+				sz := rng.Intn(len(b) / 2)
 				if len(b)-sz < 1024 {
 					sz = len(b)
 				}
