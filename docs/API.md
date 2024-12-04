@@ -667,7 +667,7 @@ dstOpts := minio.CopyDestOptions{
 }
 
 // Copy object call
-uploadInfo, err := minioClient.CopyObject(context.Background(), dst, src)
+uploadInfo, err := minioClient.CopyObject(context.Background(), dstOpts, srcOpts)
 if err != nil {
     fmt.Println(err)
     return
@@ -703,7 +703,7 @@ dstOpts := minio.CopyDestOptions{
 }
 
 // Copy object call
-_, err = minioClient.CopyObject(context.Background(), dst, src)
+_, err = minioClient.CopyObject(context.Background(), dstOpts, srcOpts)
 if err != nil {
     fmt.Println(err)
     return
