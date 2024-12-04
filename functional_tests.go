@@ -5324,20 +5324,10 @@ func testPresignedPostPolicyWrongFile() {
 
 	defer cleanupBucket(bucketName, c)
 
-	// Generate 33K of data.
-	reader := getDataReader("datafile-33-kB")
-	defer reader.Close()
-
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	// Azure requires the key to not start with a number
 	metadataKey := randString(60, rand.NewSource(time.Now().UnixNano()), "user")
 	metadataValue := randString(60, rand.NewSource(time.Now().UnixNano()), "")
-
-	buf, err := io.ReadAll(reader)
-	if err != nil {
-		logError(testName, function, args, startTime, "", "ReadAll failed", err)
-		return
-	}
 
 	policy := minio.NewPostPolicy()
 	policy.SetBucket(bucketName)
@@ -5347,8 +5337,8 @@ func testPresignedPostPolicyWrongFile() {
 	policy.SetContentLengthRange(10, 1024*1024)
 	policy.SetUserMetadata(metadataKey, metadataValue)
 
-	// Add CRC32C of the 33kB file that the policy will explicitly allow.
-	checksum := minio.ChecksumCRC32C.ChecksumBytes(buf)
+	// Add CRC32C of some data that the policy will explicitly allow.
+	checksum := minio.ChecksumCRC32C.ChecksumBytes([]byte{0x01, 0x02, 0x03})
 	err = policy.SetChecksum(checksum)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "SetChecksum failed", err)
@@ -5363,7 +5353,7 @@ func testPresignedPostPolicyWrongFile() {
 		return
 	}
 
-	// At this stage, we have a policy that allows us to upload datafile-33-kB.
+	// At this stage, we have a policy that allows us to upload for a specific checksum.
 	// Test that uploading datafile-10-kB, with a different checksum, fails as expected
 	filePath := getMintDataDirFilePath("datafile-10-kB")
 	if filePath == "" {
@@ -5456,7 +5446,7 @@ func testPresignedPostPolicyWrongFile() {
 	// Normalize the response body, because S3 uses quotes around the policy condition components
 	// in the error message, MinIO does not.
 	resBodyStr := strings.ReplaceAll(string(resBody), `"`, "")
-	if !strings.Contains(resBodyStr, "Policy Condition failed: [eq, $x-amz-checksum-crc32c, aHnJMw==]") {
+	if !strings.Contains(resBodyStr, "Policy Condition failed: [eq, $x-amz-checksum-crc32c, 8TDyHg=") {
 		logError(testName, function, args, startTime, "", "Unexpected response body", errors.New(resBodyStr))
 		return
 	}
