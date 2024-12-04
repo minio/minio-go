@@ -465,7 +465,7 @@ func TestFullObjectChecksum64(t *testing.T) {
 				t.Fatal(err)
 			}
 			if gotCRC.Encoded() != want {
-				t.Errorf("Checksum CRC64NVME does not match the expected CRC got:%s want:%s", gotCRC.Encoded(), want)
+				t.Errorf("Checksum %v does not match the expected CRC got:%s want:%s", cs.String(), gotCRC.Encoded(), want)
 			}
 		})
 	}

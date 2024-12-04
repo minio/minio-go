@@ -700,7 +700,7 @@ func (h *hashReaderWrapper) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
-// Followis is ported from C to Go in 2016 by Justin Ruggles, with minimal alteration.
+// Following is ported from C to Go in 2016 by Justin Ruggles, with minimal alteration.
 // Used uint for unsigned long. Used uint32 for input arguments in order to match
 // the Go hash/crc32 package. zlib CRC32 combine (https://github.com/madler/zlib)
 // Modified for hash/crc64 by Klaus Post, 2024.

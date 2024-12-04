@@ -2407,10 +2407,6 @@ func testPutMultipartObjectWithChecksums(trailing bool) {
 
 		args["section"] = "prep"
 		bufSize := dataFileMap["datafile-129-MB"]
-		if false && test.cs.Is(minio.ChecksumFullObjectCRC32) {
-			c.TraceOn(os.Stdout)
-			defer c.TraceOff()
-		}
 		// Save the data
 		objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 		args["objectName"] = objectName
