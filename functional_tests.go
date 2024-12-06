@@ -2542,8 +2542,10 @@ func testPutMultipartObjectWithChecksums(trailing bool) {
 		case minio.ChecksumSHA256:
 			cmpChecksum(st.ChecksumSHA256, want)
 		case minio.ChecksumCRC64NVME:
-			// AWS does not send this.
-			cmpChecksum(st.ChecksumCRC64NVME, "")
+			// AWS doesn't return part checksum, but may in the future.
+			if st.ChecksumCRC64NVME != "" {
+				cmpChecksum(st.ChecksumCRC64NVME, want)
+			}
 		}
 
 		delete(args, "metadata")
