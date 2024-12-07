@@ -20,6 +20,7 @@ package minio
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/url"
 	"testing"
 	"time"
@@ -427,5 +428,45 @@ func TestIsCustomQueryValue(t *testing.T) {
 		if actual != testCase.expectedValue {
 			t.Errorf("Test %d: Expected to pass, but failed", i+1)
 		}
+	}
+}
+
+func TestFullObjectChecksum64(t *testing.T) {
+	tests := []ChecksumType{
+		ChecksumCRC32,
+		ChecksumCRC32C,
+		ChecksumCRC64NVME,
+	}
+	for _, cs := range tests {
+		t.Run(cs.String(), func(t *testing.T) {
+			b := make([]byte, 1024000)
+			rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+			rng.Read(b)
+			sum := cs.EncodeToString
+			want := sum(b)
+			var parts []ObjectPart
+			for len(b) > 0 {
+				sz := rng.Intn(len(b) / 2)
+				if len(b)-sz < 1024 {
+					sz = len(b)
+				}
+				switch cs {
+				case ChecksumCRC32:
+					parts = append(parts, ObjectPart{PartNumber: len(parts) + 1, ChecksumCRC32: cs.EncodeToString(b[:sz]), Size: int64(sz)})
+				case ChecksumCRC32C:
+					parts = append(parts, ObjectPart{PartNumber: len(parts) + 1, ChecksumCRC32C: cs.EncodeToString(b[:sz]), Size: int64(sz)})
+				case ChecksumCRC64NVME:
+					parts = append(parts, ObjectPart{PartNumber: len(parts) + 1, ChecksumCRC64NVME: cs.EncodeToString(b[:sz]), Size: int64(sz)})
+				}
+				b = b[sz:]
+			}
+			gotCRC, err := cs.FullObjectChecksum(parts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if gotCRC.Encoded() != want {
+				t.Errorf("Checksum %v does not match the expected CRC got:%s want:%s", cs.String(), gotCRC.Encoded(), want)
+			}
+		})
 	}
 }
