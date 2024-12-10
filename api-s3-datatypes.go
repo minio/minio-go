@@ -332,6 +332,12 @@ type ListObjectPartsResult struct {
 	NextPartNumberMarker int
 	MaxParts             int
 
+	// ChecksumAlgorithm will be CRC32, CRC32C, etc.
+	ChecksumAlgorithm string
+
+	// ChecksumType is FULL_OBJECT or COMPOSITE (assume COMPOSITE when unset)
+	ChecksumType string
+
 	// Indicates whether the returned list of parts is truncated.
 	IsTruncated bool
 	ObjectParts []ObjectPart `xml:"Part"`
