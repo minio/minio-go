@@ -5,6 +5,9 @@ on:
     branches:
     - master
 
+permissions:
+  contents: read
+
 # This ensures that previous jobs for the PR are canceled when the PR is
 # updated.
 concurrency:
@@ -20,14 +23,12 @@ jobs:
         go-version: [1.22.x, 1.23.x]
         os: [ubuntu-latest]
     steps:
+      - uses: actions/checkout@v4
       - name: Set up Go ${{ matrix.go-version }} on ${{ matrix.os }}
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
         id: go
-
-      - name: Check out code into the Go module directory
-        uses: actions/checkout@v1
 
       - name: Build on ${{ matrix.os }}
         env:
@@ -37,15 +38,15 @@ jobs:
           SECRET_KEY: minioadmin
           ENABLE_HTTPS: 1
           MINIO_KMS_MASTER_KEY: my-minio-key:6368616e676520746869732070617373776f726420746f206120736563726574
+          MINIO_LICENSE: ${{ secrets.MINIO_LICENSE }}
           SSL_CERT_FILE: /tmp/certs-dir/public.crt
           MINIO_CI_CD: true
-          MINT_NO_FULL_OBJECT: true
         run: |
           sudo apt update -y
           sudo apt install devscripts -y
-          wget -O /tmp/minio https://dl.minio.io/server/minio/release/linux-amd64/minio
+          wget -O /tmp/minio https://dl.minio.io/aistor/minio/release/linux-amd64/minio
           chmod +x /tmp/minio
           mkdir -p /tmp/certs-dir
           cp testcerts/* /tmp/certs-dir
-          /tmp/minio server --quiet -S /tmp/certs-dir /tmp/fs{1...4} &
+          /tmp/minio server -S /tmp/certs-dir /tmp/fs{1...4} &
           make
