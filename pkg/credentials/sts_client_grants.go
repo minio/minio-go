@@ -72,9 +72,6 @@ type ClientGrantsToken struct {
 type STSClientGrants struct {
 	Expiry
 
-	// Required http Client to use when connecting to MinIO STS service.
-	Client *http.Client
-
 	// MinIO endpoint to fetch STS credentials.
 	STSEndpoint string
 
@@ -97,9 +94,6 @@ func NewSTSClientGrants(stsEndpoint string, getClientGrantsTokenExpiry func() (*
 		return nil, errors.New("Client grants access token and expiry retrieval function should be defined")
 	}
 	return New(&STSClientGrants{
-		Client: &http.Client{
-			Transport: http.DefaultTransport,
-		},
 		STSEndpoint:                stsEndpoint,
 		GetClientGrantsTokenExpiry: getClientGrantsTokenExpiry,
 	}), nil
@@ -164,8 +158,8 @@ func getClientGrantsCredentials(clnt *http.Client, endpoint string,
 
 // Retrieve retrieves credentials from the MinIO service.
 // Error will be returned if the request fails.
-func (m *STSClientGrants) Retrieve() (Value, error) {
-	a, err := getClientGrantsCredentials(m.Client, m.STSEndpoint, m.GetClientGrantsTokenExpiry)
+func (m *STSClientGrants) Retrieve(cc *CredContext) (Value, error) {
+	a, err := getClientGrantsCredentials(cc.Client, m.STSEndpoint, m.GetClientGrantsTokenExpiry)
 	if err != nil {
 		return Value{}, err
 	}

@@ -73,7 +73,7 @@ func NewFileAWSCredentials(filename, profile string) *Credentials {
 
 // Retrieve reads and extracts the shared credentials from the current
 // users home directory.
-func (p *FileAWSCredentials) Retrieve() (Value, error) {
+func (p *FileAWSCredentials) Retrieve(_ *CredContext) (Value, error) {
 	if p.Filename == "" {
 		p.Filename = os.Getenv("AWS_SHARED_CREDENTIALS_FILE")
 		if p.Filename == "" {

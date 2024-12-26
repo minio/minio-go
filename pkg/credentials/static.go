@@ -51,7 +51,7 @@ func NewStatic(id, secret, token string, signerType SignatureType) *Credentials 
 }
 
 // Retrieve returns the static credentials.
-func (s *Static) Retrieve() (Value, error) {
+func (s *Static) Retrieve(_ *CredContext) (Value, error) {
 	if s.AccessKeyID == "" || s.SecretAccessKey == "" {
 		// Anonymous is not an error
 		return Value{SignerType: SignatureAnonymous}, nil

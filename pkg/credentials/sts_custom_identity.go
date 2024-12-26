@@ -53,8 +53,6 @@ type AssumeRoleWithCustomTokenResponse struct {
 type CustomTokenIdentity struct {
 	Expiry
 
-	Client *http.Client
-
 	// MinIO server STS endpoint to fetch STS credentials.
 	STSEndpoint string
 
@@ -70,7 +68,7 @@ type CustomTokenIdentity struct {
 }
 
 // Retrieve - to satisfy Provider interface; fetches credentials from MinIO.
-func (c *CustomTokenIdentity) Retrieve() (value Value, err error) {
+func (c *CustomTokenIdentity) Retrieve(cc *CredContext) (value Value, err error) {
 	u, err := url.Parse(c.STSEndpoint)
 	if err != nil {
 		return value, err
@@ -92,7 +90,7 @@ func (c *CustomTokenIdentity) Retrieve() (value Value, err error) {
 		return value, err
 	}
 
-	resp, err := c.Client.Do(req)
+	resp, err := cc.Client.Do(req)
 	if err != nil {
 		return value, err
 	}
@@ -122,7 +120,6 @@ func (c *CustomTokenIdentity) Retrieve() (value Value, err error) {
 // AssumeRoleWithCustomToken STS API.
 func NewCustomTokenCredentials(stsEndpoint, token, roleArn string, optFuncs ...CustomTokenOpt) (*Credentials, error) {
 	c := CustomTokenIdentity{
-		Client:      &http.Client{Transport: http.DefaultTransport},
 		STSEndpoint: stsEndpoint,
 		Token:       token,
 		RoleArn:     roleArn,

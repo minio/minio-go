@@ -20,8 +20,8 @@ import (
 	"crypto/tls"
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -32,12 +32,6 @@ import (
 // parameter - e.g. a custom HTTP transport configuration or S3 credental
 // livetime.
 type CertificateIdentityOption func(*STSCertificateIdentity)
-
-// CertificateIdentityWithTransport returns a CertificateIdentityOption that
-// customizes the STSCertificateIdentity with the given http.RoundTripper.
-func CertificateIdentityWithTransport(t http.RoundTripper) CertificateIdentityOption {
-	return CertificateIdentityOption(func(i *STSCertificateIdentity) { i.Client.Transport = t })
-}
 
 // CertificateIdentityWithExpiry returns a CertificateIdentityOption that
 // customizes the STSCertificateIdentity with the given livetime.
@@ -68,17 +62,9 @@ type STSCertificateIdentity struct {
 	// The default livetime is one hour.
 	S3CredentialLivetime time.Duration
 
-	// Client is the HTTP client used to authenticate and fetch
-	// S3 credentials.
-	//
-	// A custom TLS client configuration can be specified by
-	// using a custom http.Transport:
-	//   Client: http.Client {
-	//       Transport: &http.Transport{
-	//           TLSClientConfig: &tls.Config{},
-	//       },
-	//   }
-	Client http.Client
+	// Certificate is the client certificate that is used for
+	// STS authentication.
+	Certificate tls.Certificate
 }
 
 var _ Provider = (*STSWebIdentity)(nil) // compiler check
@@ -95,23 +81,7 @@ func NewSTSCertificateIdentity(endpoint string, certificate tls.Certificate, opt
 	}
 	identity := &STSCertificateIdentity{
 		STSEndpoint: endpoint,
-		Client: http.Client{
-			Transport: &http.Transport{
-				Proxy: http.ProxyFromEnvironment,
-				DialContext: (&net.Dialer{
-					Timeout:   30 * time.Second,
-					KeepAlive: 30 * time.Second,
-				}).DialContext,
-				ForceAttemptHTTP2:     true,
-				MaxIdleConns:          100,
-				IdleConnTimeout:       90 * time.Second,
-				TLSHandshakeTimeout:   10 * time.Second,
-				ExpectContinueTimeout: 5 * time.Second,
-				TLSClientConfig: &tls.Config{
-					Certificates: []tls.Certificate{certificate},
-				},
-			},
-		},
+		Certificate: certificate,
 	}
 	for _, option := range options {
 		option(identity)
@@ -121,7 +91,7 @@ func NewSTSCertificateIdentity(endpoint string, certificate tls.Certificate, opt
 
 // Retrieve fetches a new set of S3 credentials from the configured
 // STS API endpoint.
-func (i *STSCertificateIdentity) Retrieve() (Value, error) {
+func (i *STSCertificateIdentity) Retrieve(cc *CredContext) (Value, error) {
 	endpointURL, err := url.Parse(i.STSEndpoint)
 	if err != nil {
 		return Value{}, err
@@ -145,7 +115,19 @@ func (i *STSCertificateIdentity) Retrieve() (Value, error) {
 	}
 	req.Form.Add("DurationSeconds", strconv.FormatUint(uint64(livetime.Seconds()), 10))
 
-	resp, err := i.Client.Do(req)
+	tr, ok := cc.Client.Transport.(*http.Transport)
+	if !ok {
+		return Value{}, fmt.Errorf("CredContext should contain an http.Transport value")
+	}
+
+	trCopy := tr.Clone()
+	trCopy.TLSClientConfig.Certificates = []tls.Certificate{i.Certificate}
+
+	client := http.Client{
+		Transport: trCopy,
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return Value{}, err
 	}

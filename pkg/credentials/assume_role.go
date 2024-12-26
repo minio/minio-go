@@ -76,9 +76,6 @@ type AssumeRoleResult struct {
 type STSAssumeRole struct {
 	Expiry
 
-	// Required http Client to use when connecting to MinIO STS service.
-	Client *http.Client
-
 	// STS endpoint to fetch STS credentials.
 	STSEndpoint string
 
@@ -115,9 +112,6 @@ func NewSTSAssumeRole(stsEndpoint string, opts STSAssumeRoleOptions) (*Credentia
 		return nil, errors.New("AssumeRole credentials access/secretkey is mandatory")
 	}
 	return New(&STSAssumeRole{
-		Client: &http.Client{
-			Transport: http.DefaultTransport,
-		},
 		STSEndpoint: stsEndpoint,
 		Options:     opts,
 	}), nil
@@ -224,8 +218,8 @@ func getAssumeRoleCredentials(clnt *http.Client, endpoint string, opts STSAssume
 
 // Retrieve retrieves credentials from the MinIO service.
 // Error will be returned if the request fails.
-func (m *STSAssumeRole) Retrieve() (Value, error) {
-	a, err := getAssumeRoleCredentials(m.Client, m.STSEndpoint, m.Options)
+func (m *STSAssumeRole) Retrieve(cc *CredContext) (Value, error) {
+	a, err := getAssumeRoleCredentials(cc.Client, m.STSEndpoint, m.Options)
 	if err != nil {
 		return Value{}, err
 	}

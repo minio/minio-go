@@ -38,7 +38,7 @@ func NewEnvAWS() *Credentials {
 }
 
 // Retrieve retrieves the keys from the environment.
-func (e *EnvAWS) Retrieve() (Value, error) {
+func (e *EnvAWS) Retrieve(_ *CredContext) (Value, error) {
 	e.retrieved = false
 
 	id := os.Getenv("AWS_ACCESS_KEY_ID")

@@ -21,7 +21,7 @@ import "testing"
 
 func TestStaticGet(t *testing.T) {
 	creds := NewStatic("UXHW", "SECRET", "", SignatureV4)
-	credValues, err := creds.Get()
+	credValues, err := creds.GetWithContext(defaultCredContext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestStaticGet(t *testing.T) {
 	}
 
 	creds = NewStatic("", "", "", SignatureDefault)
-	credValues, err = creds.Get()
+	credValues, err = creds.GetWithContext(defaultCredContext)
 	if err != nil {
 		t.Fatal(err)
 	}

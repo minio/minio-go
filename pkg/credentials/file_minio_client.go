@@ -58,7 +58,7 @@ func NewFileMinioClient(filename, alias string) *Credentials {
 
 // Retrieve reads and extracts the shared credentials from the current
 // users home directory.
-func (p *FileMinioClient) Retrieve() (Value, error) {
+func (p *FileMinioClient) Retrieve(_ *CredContext) (Value, error) {
 	if p.Filename == "" {
 		if value, ok := os.LookupEnv("MINIO_SHARED_CREDENTIALS_FILE"); ok {
 			p.Filename = value

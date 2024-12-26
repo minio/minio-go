@@ -28,7 +28,7 @@ type credProvider struct {
 	err     error
 }
 
-func (s *credProvider) Retrieve() (Value, error) {
+func (s *credProvider) Retrieve(_ *CredContext) (Value, error) {
 	s.expired = false
 	return s.creds, s.err
 }
@@ -47,7 +47,7 @@ func TestCredentialsGet(t *testing.T) {
 		expired: true,
 	})
 
-	creds, err := c.Get()
+	creds, err := c.GetWithContext(defaultCredContext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestCredentialsGet(t *testing.T) {
 func TestCredentialsGetWithError(t *testing.T) {
 	c := New(&credProvider{err: errors.New("Custom error")})
 
-	_, err := c.Get()
+	_, err := c.GetWithContext(defaultCredContext)
 	if err != nil {
 		if err.Error() != "Custom error" {
 			t.Errorf("Expected \"Custom error\", got %s", err.Error())
