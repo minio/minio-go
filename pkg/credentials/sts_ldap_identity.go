@@ -55,6 +55,10 @@ type LDAPIdentityResult struct {
 type LDAPIdentity struct {
 	Expiry
 
+	// Optional http Client to use when connecting to MinIO STS service.
+	// (overrides default client in CredContext)
+	Client *http.Client
+
 	// Exported STS endpoint to fetch STS credentials.
 	STSEndpoint string
 
@@ -143,7 +147,12 @@ func (k *LDAPIdentity) Retrieve(cc *CredContext) (value Value, err error) {
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := cc.Client.Do(req)
+	client := k.Client
+	if client == nil {
+		client = cc.Client
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return value, err
 	}

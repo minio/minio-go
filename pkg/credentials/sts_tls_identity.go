@@ -33,6 +33,17 @@ import (
 // livetime.
 type CertificateIdentityOption func(*STSCertificateIdentity)
 
+// CertificateIdentityWithTransport returns a CertificateIdentityOption that
+// customizes the STSCertificateIdentity with the given http.RoundTripper.
+func CertificateIdentityWithTransport(t http.RoundTripper) CertificateIdentityOption {
+	return CertificateIdentityOption(func(i *STSCertificateIdentity) {
+		if i.Client == nil {
+			i.Client = &http.Client{}
+		}
+		i.Client.Transport = t
+	})
+}
+
 // CertificateIdentityWithExpiry returns a CertificateIdentityOption that
 // customizes the STSCertificateIdentity with the given livetime.
 //
@@ -46,6 +57,10 @@ func CertificateIdentityWithExpiry(livetime time.Duration) CertificateIdentityOp
 // rotates those credentials once they expire.
 type STSCertificateIdentity struct {
 	Expiry
+
+	// Optional http Client to use when connecting to MinIO STS service.
+	// (overrides default client in CredContext)
+	Client *http.Client
 
 	// STSEndpoint is the base URL endpoint of the STS API.
 	// For example, https://minio.local:9000
@@ -115,19 +130,25 @@ func (i *STSCertificateIdentity) Retrieve(cc *CredContext) (Value, error) {
 	}
 	req.Form.Add("DurationSeconds", strconv.FormatUint(uint64(livetime.Seconds()), 10))
 
-	tr, ok := cc.Client.Transport.(*http.Transport)
+	client := i.Client
+	if client == nil {
+		client = cc.Client
+	}
+
+	tr, ok := client.Transport.(*http.Transport)
 	if !ok {
 		return Value{}, fmt.Errorf("CredContext should contain an http.Transport value")
 	}
 
+	// Clone the HTTP transport (patch the TLS client certificate)
 	trCopy := tr.Clone()
 	trCopy.TLSClientConfig.Certificates = []tls.Certificate{i.Certificate}
 
-	client := http.Client{
-		Transport: trCopy,
-	}
+	// Clone the HTTP client (patch the HTTP transport)
+	clientCopy := *client
+	clientCopy.Transport = trCopy
 
-	resp, err := client.Do(req)
+	resp, err := clientCopy.Do(req)
 	if err != nil {
 		return Value{}, err
 	}

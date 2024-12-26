@@ -49,6 +49,10 @@ const DefaultExpiryWindow = -1
 type IAM struct {
 	Expiry
 
+	// Optional http Client to use when connecting to IAM metadata service
+	// (overrides default client in CredContext)
+	Client *http.Client
+
 	// Custom endpoint to fetch IAM role credentials.
 	Endpoint string
 
@@ -138,6 +142,11 @@ func (m *IAM) Retrieve(cc *CredContext) (Value, error) {
 	var roleCreds ec2RoleCredRespBody
 	var err error
 
+	client := m.Client
+	if client == nil {
+		client = cc.Client
+	}
+
 	endpoint := m.Endpoint
 	switch {
 	case identityFile != "":
@@ -154,6 +163,7 @@ func (m *IAM) Retrieve(cc *CredContext) (Value, error) {
 		}
 
 		creds := &STSWebIdentity{
+			Client:      client,
 			STSEndpoint: endpoint,
 			GetWebIDTokenExpiry: func() (*WebIdentityToken, error) {
 				token, err := os.ReadFile(identityFile)
@@ -178,11 +188,11 @@ func (m *IAM) Retrieve(cc *CredContext) (Value, error) {
 			endpoint = fmt.Sprintf("%s%s", DefaultECSRoleEndpoint, relativeURI)
 		}
 
-		roleCreds, err = getEcsTaskCredentials(cc.Client, endpoint, token)
+		roleCreds, err = getEcsTaskCredentials(client, endpoint, token)
 
 	case tokenFile != "" && fullURI != "":
 		endpoint = fullURI
-		roleCreds, err = getEKSPodIdentityCredentials(cc.Client, endpoint, tokenFile)
+		roleCreds, err = getEKSPodIdentityCredentials(client, endpoint, tokenFile)
 
 	case fullURI != "":
 		if len(endpoint) == 0 {
@@ -196,10 +206,10 @@ func (m *IAM) Retrieve(cc *CredContext) (Value, error) {
 			}
 		}
 
-		roleCreds, err = getEcsTaskCredentials(cc.Client, endpoint, token)
+		roleCreds, err = getEcsTaskCredentials(client, endpoint, token)
 
 	default:
-		roleCreds, err = getCredentials(cc.Client, endpoint)
+		roleCreds, err = getCredentials(client, endpoint)
 	}
 
 	if err != nil {

@@ -53,6 +53,10 @@ type AssumeRoleWithCustomTokenResponse struct {
 type CustomTokenIdentity struct {
 	Expiry
 
+	// Optional http Client to use when connecting to MinIO STS service.
+	// (overrides default client in CredContext)
+	Client *http.Client
+
 	// MinIO server STS endpoint to fetch STS credentials.
 	STSEndpoint string
 
@@ -90,7 +94,12 @@ func (c *CustomTokenIdentity) Retrieve(cc *CredContext) (value Value, err error)
 		return value, err
 	}
 
-	resp, err := cc.Client.Do(req)
+	client := c.Client
+	if client == nil {
+		client = cc.Client
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return value, err
 	}

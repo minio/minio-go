@@ -69,6 +69,10 @@ type WebIdentityToken struct {
 type STSWebIdentity struct {
 	Expiry
 
+	// Optional http Client to use when connecting to MinIO STS service.
+	// (overrides default client in CredContext)
+	Client *http.Client
+
 	// Exported STS endpoint to fetch STS credentials.
 	STSEndpoint string
 
@@ -216,7 +220,12 @@ func getWebIdentityCredentials(clnt *http.Client, endpoint, roleARN, roleSession
 // Retrieve retrieves credentials from the MinIO service.
 // Error will be returned if the request fails.
 func (m *STSWebIdentity) Retrieve(cc *CredContext) (Value, error) {
-	a, err := getWebIdentityCredentials(cc.Client, m.STSEndpoint, m.RoleARN, m.roleSessionName, m.Policy, m.GetWebIDTokenExpiry)
+	client := m.Client
+	if client == nil {
+		client = cc.Client
+	}
+
+	a, err := getWebIdentityCredentials(client, m.STSEndpoint, m.RoleARN, m.roleSessionName, m.Policy, m.GetWebIDTokenExpiry)
 	if err != nil {
 		return Value{}, err
 	}
