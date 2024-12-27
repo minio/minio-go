@@ -55,7 +55,8 @@ type LDAPIdentityResult struct {
 type LDAPIdentity struct {
 	Expiry
 
-	// Required http Client to use when connecting to MinIO STS service.
+	// Optional http Client to use when connecting to MinIO STS service.
+	// (overrides default client in CredContext)
 	Client *http.Client
 
 	// Exported STS endpoint to fetch STS credentials.
@@ -77,7 +78,6 @@ type LDAPIdentity struct {
 // Identity.
 func NewLDAPIdentity(stsEndpoint, ldapUsername, ldapPassword string, optFuncs ...LDAPIdentityOpt) (*Credentials, error) {
 	l := LDAPIdentity{
-		Client:       &http.Client{Transport: http.DefaultTransport},
 		STSEndpoint:  stsEndpoint,
 		LDAPUsername: ldapUsername,
 		LDAPPassword: ldapPassword,
@@ -113,7 +113,6 @@ func LDAPIdentityExpiryOpt(d time.Duration) LDAPIdentityOpt {
 // Deprecated: Use the `LDAPIdentityPolicyOpt` with `NewLDAPIdentity` instead.
 func NewLDAPIdentityWithSessionPolicy(stsEndpoint, ldapUsername, ldapPassword, policy string) (*Credentials, error) {
 	return New(&LDAPIdentity{
-		Client:       &http.Client{Transport: http.DefaultTransport},
 		STSEndpoint:  stsEndpoint,
 		LDAPUsername: ldapUsername,
 		LDAPPassword: ldapPassword,
@@ -123,7 +122,7 @@ func NewLDAPIdentityWithSessionPolicy(stsEndpoint, ldapUsername, ldapPassword, p
 
 // Retrieve gets the credential by calling the MinIO STS API for
 // LDAP on the configured stsEndpoint.
-func (k *LDAPIdentity) Retrieve() (value Value, err error) {
+func (k *LDAPIdentity) Retrieve(cc *CredContext) (value Value, err error) {
 	u, err := url.Parse(k.STSEndpoint)
 	if err != nil {
 		return value, err
@@ -148,7 +147,12 @@ func (k *LDAPIdentity) Retrieve() (value Value, err error) {
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := k.Client.Do(req)
+	client := k.Client
+	if client == nil {
+		client = cc.Client
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return value, err
 	}

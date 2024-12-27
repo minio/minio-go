@@ -31,7 +31,7 @@ func TestFileAWS(t *testing.T) {
 	os.Clearenv()
 
 	creds := NewFileAWSCredentials("credentials.sample", "")
-	credValues, err := creds.Get()
+	credValues, err := creds.GetWithContext(defaultCredContext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestFileAWS(t *testing.T) {
 
 	os.Setenv("AWS_SHARED_CREDENTIALS_FILE", "credentials.sample")
 	creds = NewFileAWSCredentials("", "")
-	credValues, err = creds.Get()
+	credValues, err = creds.GetWithContext(defaultCredContext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestFileAWS(t *testing.T) {
 
 	os.Setenv("AWS_SHARED_CREDENTIALS_FILE", filepath.Join(wd, "credentials.sample"))
 	creds = NewFileAWSCredentials("", "")
-	credValues, err = creds.Get()
+	credValues, err = creds.GetWithContext(defaultCredContext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func TestFileAWS(t *testing.T) {
 	os.Setenv("AWS_PROFILE", "no_token")
 
 	creds = NewFileAWSCredentials("credentials.sample", "")
-	credValues, err = creds.Get()
+	credValues, err = creds.GetWithContext(defaultCredContext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +104,7 @@ func TestFileAWS(t *testing.T) {
 	os.Clearenv()
 
 	creds = NewFileAWSCredentials("credentials.sample", "no_token")
-	credValues, err = creds.Get()
+	credValues, err = creds.GetWithContext(defaultCredContext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func TestFileAWS(t *testing.T) {
 	}
 
 	creds = NewFileAWSCredentials("credentials-non-existent.sample", "no_token")
-	_, err = creds.Get()
+	_, err = creds.GetWithContext(defaultCredContext)
 	if !os.IsNotExist(err) {
 		t.Errorf("Expected open non-existent.json: no such file or directory, got %s", err)
 	}
@@ -128,7 +128,7 @@ func TestFileAWS(t *testing.T) {
 	os.Clearenv()
 
 	creds = NewFileAWSCredentials("credentials.sample", "with_process")
-	credValues, err = creds.Get()
+	credValues, err = creds.GetWithContext(defaultCredContext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +151,7 @@ func TestFileMinioClient(t *testing.T) {
 	os.Clearenv()
 
 	creds := NewFileMinioClient("config.json.sample", "")
-	credValues, err := creds.Get()
+	credValues, err := creds.GetWithContext(defaultCredContext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +170,7 @@ func TestFileMinioClient(t *testing.T) {
 	os.Setenv("MINIO_ALIAS", "play")
 
 	creds = NewFileMinioClient("config.json.sample", "")
-	credValues, err = creds.Get()
+	credValues, err = creds.GetWithContext(defaultCredContext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +188,7 @@ func TestFileMinioClient(t *testing.T) {
 	os.Clearenv()
 
 	creds = NewFileMinioClient("config.json.sample", "play")
-	credValues, err = creds.Get()
+	credValues, err = creds.GetWithContext(defaultCredContext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,7 +204,7 @@ func TestFileMinioClient(t *testing.T) {
 	}
 
 	creds = NewFileMinioClient("non-existent.json", "play")
-	_, err = creds.Get()
+	_, err = creds.GetWithContext(defaultCredContext)
 	if !os.IsNotExist(err) {
 		t.Errorf("Expected open non-existent.json: no such file or directory, got %s", err)
 	}

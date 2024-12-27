@@ -60,9 +60,9 @@ func NewChainCredentials(providers []Provider) *Credentials {
 //
 // If a provider is found with credentials, it will be cached and any calls
 // to IsExpired() will return the expired state of the cached provider.
-func (c *Chain) Retrieve() (Value, error) {
+func (c *Chain) Retrieve(cc *CredContext) (Value, error) {
 	for _, p := range c.Providers {
-		creds, _ := p.Retrieve()
+		creds, _ := p.Retrieve(cc)
 		// Always prioritize non-anonymous providers, if any.
 		if creds.AccessKeyID == "" && creds.SecretAccessKey == "" {
 			continue

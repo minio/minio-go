@@ -39,7 +39,7 @@ func NewEnvMinio() *Credentials {
 }
 
 // Retrieve retrieves the keys from the environment.
-func (e *EnvMinio) Retrieve() (Value, error) {
+func (e *EnvMinio) Retrieve(_ *CredContext) (Value, error) {
 	e.retrieved = false
 
 	id := os.Getenv("MINIO_ROOT_USER")
