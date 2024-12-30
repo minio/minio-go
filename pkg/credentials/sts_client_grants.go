@@ -160,9 +160,7 @@ func getClientGrantsCredentials(clnt *http.Client, endpoint string,
 	return a, nil
 }
 
-// Retrieve retrieves credentials from the MinIO service.
-// Error will be returned if the request fails.
-func (m *STSClientGrants) Retrieve(cc *CredContext) (Value, error) {
+func (m *STSClientGrants) retrieve(cc *CredContext) (Value, error) {
 	client := m.Client
 	if client == nil {
 		client = cc.Client
@@ -182,4 +180,15 @@ func (m *STSClientGrants) Retrieve(cc *CredContext) (Value, error) {
 		Expiration:      a.Result.Credentials.Expiration,
 		SignerType:      SignatureV4,
 	}, nil
+}
+
+// RetrieveWithCredContext is like Retrieve() with cred context
+func (m *STSClientGrants) RetrieveWithCredContext(cc *CredContext) (Value, error) {
+	return m.retrieve(cc)
+}
+
+// Retrieve retrieves credentials from the MinIO service.
+// Error will be returned if the request fails.
+func (m *STSClientGrants) Retrieve() (Value, error) {
+	return m.retrieve(defaultCredContext)
 }

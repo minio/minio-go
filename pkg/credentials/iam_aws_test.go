@@ -199,7 +199,7 @@ func TestIAM(t *testing.T) {
 		Endpoint: server.URL,
 	}
 
-	creds, err := p.Retrieve(defaultCredContext)
+	creds, err := p.RetrieveWithCredContext(defaultCredContext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,7 +229,7 @@ func TestIAMFailAssume(t *testing.T) {
 		Endpoint: server.URL,
 	}
 
-	_, err := p.Retrieve(defaultCredContext)
+	_, err := p.RetrieveWithCredContext(defaultCredContext)
 	if err == nil {
 		t.Fatal("Unexpected success, should fail")
 	}
@@ -253,7 +253,7 @@ func TestIAMIsExpired(t *testing.T) {
 		t.Error("Expected creds to be expired before retrieve.")
 	}
 
-	_, err := p.Retrieve(defaultCredContext)
+	_, err := p.RetrieveWithCredContext(defaultCredContext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -278,7 +278,7 @@ func TestEcsTask(t *testing.T) {
 		Endpoint: server.URL,
 	}
 	os.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "/v2/credentials?id=task_credential_id")
-	creds, err := p.Retrieve(defaultCredContext)
+	creds, err := p.RetrieveWithCredContext(defaultCredContext)
 	os.Unsetenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI")
 	if err != nil {
 		t.Errorf("Unexpected failure %s", err)
@@ -306,7 +306,7 @@ func TestEcsTaskFullURI(t *testing.T) {
 	p := &IAM{}
 	os.Setenv("AWS_CONTAINER_CREDENTIALS_FULL_URI",
 		fmt.Sprintf("%s%s", server.URL, "/v2/credentials?id=task_credential_id"))
-	creds, err := p.Retrieve(defaultCredContext)
+	creds, err := p.RetrieveWithCredContext(defaultCredContext)
 	os.Unsetenv("AWS_CONTAINER_CREDENTIALS_FULL_URI")
 	if err != nil {
 		t.Errorf("Unexpected failure %s", err)
@@ -345,7 +345,7 @@ func TestSts(t *testing.T) {
 
 	os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", f.Name())
 	os.Setenv("AWS_ROLE_ARN", "arn:aws:sts::123456789012:assumed-role/FederatedWebIdentityRole/app1")
-	creds, err := p.Retrieve(defaultCredContext)
+	creds, err := p.RetrieveWithCredContext(defaultCredContext)
 	os.Unsetenv("AWS_WEB_IDENTITY_TOKEN_FILE")
 	os.Unsetenv("AWS_ROLE_ARN")
 	if err != nil {
@@ -386,7 +386,7 @@ func TestStsCn(t *testing.T) {
 	os.Setenv("AWS_REGION", "cn-northwest-1")
 	os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", f.Name())
 	os.Setenv("AWS_ROLE_ARN", "arn:aws:sts::123456789012:assumed-role/FederatedWebIdentityRole/app1")
-	creds, err := p.Retrieve(defaultCredContext)
+	creds, err := p.RetrieveWithCredContext(defaultCredContext)
 	os.Unsetenv("AWS_WEB_IDENTITY_TOKEN_FILE")
 	os.Unsetenv("AWS_ROLE_ARN")
 	if err != nil {
@@ -414,7 +414,7 @@ func TestIMDSv1Blocked(t *testing.T) {
 	p := &IAM{
 		Endpoint: server.URL,
 	}
-	_, err := p.Retrieve(defaultCredContext)
+	_, err := p.RetrieveWithCredContext(defaultCredContext)
 	if err != nil {
 		t.Errorf("Unexpected IMDSv2 failure %s", err)
 	}

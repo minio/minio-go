@@ -71,8 +71,7 @@ type CustomTokenIdentity struct {
 	RequestedExpiry time.Duration
 }
 
-// Retrieve - to satisfy Provider interface; fetches credentials from MinIO.
-func (c *CustomTokenIdentity) Retrieve(cc *CredContext) (value Value, err error) {
+func (c *CustomTokenIdentity) retrieve(cc *CredContext) (value Value, err error) {
 	u, err := url.Parse(c.STSEndpoint)
 	if err != nil {
 		return value, err
@@ -123,6 +122,16 @@ func (c *CustomTokenIdentity) Retrieve(cc *CredContext) (value Value, err error)
 		Expiration:      cr.Expiration,
 		SignerType:      SignatureV4,
 	}, nil
+}
+
+// Retrieve - to satisfy Provider interface; fetches credentials from MinIO.
+func (c *CustomTokenIdentity) Retrieve() (value Value, err error) {
+	return c.retrieve(defaultCredContext)
+}
+
+// RetrieveWithCredContext with Retrieve optionally cred context
+func (c *CustomTokenIdentity) RetrieveWithCredContext(cc *CredContext) (value Value, err error) {
+	return c.retrieve(cc)
 }
 
 // NewCustomTokenCredentials - returns credentials using the

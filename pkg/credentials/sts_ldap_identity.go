@@ -120,9 +120,7 @@ func NewLDAPIdentityWithSessionPolicy(stsEndpoint, ldapUsername, ldapPassword, p
 	}), nil
 }
 
-// Retrieve gets the credential by calling the MinIO STS API for
-// LDAP on the configured stsEndpoint.
-func (k *LDAPIdentity) Retrieve(cc *CredContext) (value Value, err error) {
+func (k *LDAPIdentity) retrieve(cc *CredContext) (value Value, err error) {
 	u, err := url.Parse(k.STSEndpoint)
 	if err != nil {
 		return value, err
@@ -191,4 +189,16 @@ func (k *LDAPIdentity) Retrieve(cc *CredContext) (value Value, err error) {
 		Expiration:      cr.Expiration,
 		SignerType:      SignatureV4,
 	}, nil
+}
+
+// Retrieve gets the credential by calling the MinIO STS API for
+// LDAP on the configured stsEndpoint.
+func (k *LDAPIdentity) Retrieve() (value Value, err error) {
+	return k.retrieve(defaultCredContext)
+}
+
+// RetrieveWithCredContext gets the credential by calling the MinIO STS API for
+// LDAP on the configured stsEndpoint.
+func (k *LDAPIdentity) RetrieveWithCredContext(cc *CredContext) (value Value, err error) {
+	return k.retrieve(cc)
 }

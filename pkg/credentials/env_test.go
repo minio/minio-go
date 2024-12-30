@@ -34,7 +34,7 @@ func TestEnvAWSRetrieve(t *testing.T) {
 		t.Error("Expect creds to be expired before retrieve.")
 	}
 
-	creds, err := e.Retrieve(defaultCredContext)
+	creds, err := e.RetrieveWithCredContext(defaultCredContext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestEnvAWSRetrieve(t *testing.T) {
 		SignerType:      SignatureV4,
 	}
 
-	creds, err = e.Retrieve(defaultCredContext)
+	creds, err = e.RetrieveWithCredContext(defaultCredContext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestEnvMinioRetrieve(t *testing.T) {
 		t.Error("Expect creds to be expired before retrieve.")
 	}
 
-	creds, err := e.Retrieve(defaultCredContext)
+	creds, err := e.RetrieveWithCredContext(defaultCredContext)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -95,10 +95,7 @@ func NewIAM(endpoint string) *Credentials {
 	})
 }
 
-// Retrieve retrieves credentials from the EC2 service.
-// Error will be returned if the request fails, or unable to extract
-// the desired
-func (m *IAM) Retrieve(cc *CredContext) (Value, error) {
+func (m *IAM) retrieve(cc *CredContext) (Value, error) {
 	token := os.Getenv("AWS_CONTAINER_AUTHORIZATION_TOKEN")
 	if token == "" {
 		token = m.Container.AuthorizationToken
@@ -177,7 +174,7 @@ func (m *IAM) Retrieve(cc *CredContext) (Value, error) {
 			roleSessionName: roleSessionName,
 		}
 
-		stsWebIdentityCreds, err := creds.Retrieve(cc)
+		stsWebIdentityCreds, err := creds.RetrieveWithCredContext(cc)
 		if err == nil {
 			m.SetExpiration(creds.Expiration(), DefaultExpiryWindow)
 		}
@@ -225,6 +222,18 @@ func (m *IAM) Retrieve(cc *CredContext) (Value, error) {
 		Expiration:      roleCreds.Expiration,
 		SignerType:      SignatureV4,
 	}, nil
+}
+
+// Retrieve retrieves credentials from the EC2 service.
+// Error will be returned if the request fails, or unable to extract
+// the desired
+func (m *IAM) Retrieve() (Value, error) {
+	return m.retrieve(defaultCredContext)
+}
+
+// RetrieveWithCredContext is like Retrieve with Cred Context
+func (m *IAM) RetrieveWithCredContext(cc *CredContext) (Value, error) {
+	return m.retrieve(cc)
 }
 
 // A ec2RoleCredRespBody provides the shape for unmarshaling credential

@@ -57,9 +57,14 @@ type Value struct {
 // Value. A provider is required to manage its own Expired state, and what to
 // be expired means.
 type Provider interface {
+	// RetrieveWithCredContext returns nil if it successfully retrieved the
+	// value. Error is returned if the value were not obtainable, or empty.
+	// optionally takes CredContext for additional context to retrieve credentials.
+	RetrieveWithCredContext(cc *CredContext) (Value, error)
+
 	// Retrieve returns nil if it successfully retrieved the value.
 	// Error is returned if the value were not obtainable, or empty.
-	Retrieve(cc *CredContext) (Value, error)
+	Retrieve() (Value, error)
 
 	// IsExpired returns if the credentials are no longer valid, and need
 	// to be retrieved.
@@ -185,7 +190,7 @@ func (c *Credentials) GetWithContext(cc *CredContext) (Value, error) {
 	defer c.Unlock()
 
 	if c.isExpired() {
-		creds, err := c.provider.Retrieve(cc)
+		creds, err := c.provider.RetrieveWithCredContext(cc)
 		if err != nil {
 			return Value{}, err
 		}

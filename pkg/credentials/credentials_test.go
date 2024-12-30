@@ -28,7 +28,12 @@ type credProvider struct {
 	err     error
 }
 
-func (s *credProvider) Retrieve(_ *CredContext) (Value, error) {
+func (s *credProvider) Retrieve() (Value, error) {
+	s.expired = false
+	return s.creds, s.err
+}
+
+func (s *credProvider) RetrieveWithCredContext(_ *CredContext) (Value, error) {
 	s.expired = false
 	return s.creds, s.err
 }

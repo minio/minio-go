@@ -82,8 +82,6 @@ type STSCertificateIdentity struct {
 	Certificate tls.Certificate
 }
 
-var _ Provider = (*STSWebIdentity)(nil) // compiler check
-
 // NewSTSCertificateIdentity returns a STSCertificateIdentity that authenticates
 // to the given STS endpoint with the given TLS certificate and retrieves and
 // rotates S3 credentials.
@@ -104,9 +102,7 @@ func NewSTSCertificateIdentity(endpoint string, certificate tls.Certificate, opt
 	return New(identity), nil
 }
 
-// Retrieve fetches a new set of S3 credentials from the configured
-// STS API endpoint.
-func (i *STSCertificateIdentity) Retrieve(cc *CredContext) (Value, error) {
+func (i *STSCertificateIdentity) retrieve(cc *CredContext) (Value, error) {
 	endpointURL, err := url.Parse(i.STSEndpoint)
 	if err != nil {
 		return Value{}, err
@@ -194,6 +190,16 @@ func (i *STSCertificateIdentity) Retrieve(cc *CredContext) (Value, error) {
 		Expiration:      response.Result.Credentials.Expiration,
 		SignerType:      SignatureDefault,
 	}, nil
+}
+
+// RetrieveWithCredContext is Retrieve with cred context
+func (i *STSCertificateIdentity) RetrieveWithCredContext(cc *CredContext) (Value, error) {
+	return i.retrieve(cc)
+}
+
+// Retrieve fetches a new set of S3 credentials from the configured STS API endpoint.
+func (i *STSCertificateIdentity) Retrieve() (Value, error) {
+	return i.retrieve(defaultCredContext)
 }
 
 // Expiration returns the expiration time of the current S3 credentials.

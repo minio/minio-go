@@ -217,9 +217,7 @@ func getWebIdentityCredentials(clnt *http.Client, endpoint, roleARN, roleSession
 	return a, nil
 }
 
-// Retrieve retrieves credentials from the MinIO service.
-// Error will be returned if the request fails.
-func (m *STSWebIdentity) Retrieve(cc *CredContext) (Value, error) {
+func (m *STSWebIdentity) retrieve(cc *CredContext) (Value, error) {
 	client := m.Client
 	if client == nil {
 		client = cc.Client
@@ -240,6 +238,17 @@ func (m *STSWebIdentity) Retrieve(cc *CredContext) (Value, error) {
 		Expiration:      a.Result.Credentials.Expiration,
 		SignerType:      SignatureV4,
 	}, nil
+}
+
+// Retrieve retrieves credentials from the MinIO service.
+// Error will be returned if the request fails.
+func (m *STSWebIdentity) Retrieve() (Value, error) {
+	return m.retrieve(defaultCredContext)
+}
+
+// RetrieveWithCredContext is like Retrieve with optional cred context.
+func (m *STSWebIdentity) RetrieveWithCredContext(cc *CredContext) (Value, error) {
+	return m.retrieve(cc)
 }
 
 // Expiration returns the expiration time of the credentials
