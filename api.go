@@ -1026,6 +1026,7 @@ func (c *Client) CredContext() *credentials.CredContext {
 		httpClient = http.DefaultClient
 	}
 	return &credentials.CredContext{
-		Client: httpClient,
+		Client:   httpClient,
+		Endpoint: c.endpointURL.String(),
 	}
 }

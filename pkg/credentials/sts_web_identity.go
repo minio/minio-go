@@ -98,9 +98,6 @@ type STSWebIdentity struct {
 // NewSTSWebIdentity returns a pointer to a new
 // Credentials object wrapping the STSWebIdentity.
 func NewSTSWebIdentity(stsEndpoint string, getWebIDTokenExpiry func() (*WebIdentityToken, error), opts ...func(*STSWebIdentity)) (*Credentials, error) {
-	if stsEndpoint == "" {
-		return nil, errors.New("STS endpoint cannot be empty")
-	}
 	if getWebIDTokenExpiry == nil {
 		return nil, errors.New("Web ID token and expiry retrieval function should be defined")
 	}
@@ -217,13 +214,29 @@ func getWebIdentityCredentials(clnt *http.Client, endpoint, roleARN, roleSession
 	return a, nil
 }
 
-func (m *STSWebIdentity) retrieve(cc *CredContext) (Value, error) {
+// RetrieveWithCredContext is like Retrieve with optional cred context.
+func (m *STSWebIdentity) RetrieveWithCredContext(cc *CredContext) (Value, error) {
+	if cc == nil {
+		cc = defaultCredContext
+	}
+
 	client := m.Client
 	if client == nil {
 		client = cc.Client
 	}
+	if client == nil {
+		client = defaultCredContext.Client
+	}
 
-	a, err := getWebIdentityCredentials(client, m.STSEndpoint, m.RoleARN, m.roleSessionName, m.Policy, m.GetWebIDTokenExpiry)
+	stsEndpoint := m.STSEndpoint
+	if stsEndpoint == "" {
+		stsEndpoint = cc.Endpoint
+	}
+	if stsEndpoint == "" {
+		return Value{}, errors.New("STS endpoint unknown")
+	}
+
+	a, err := getWebIdentityCredentials(client, stsEndpoint, m.RoleARN, m.roleSessionName, m.Policy, m.GetWebIDTokenExpiry)
 	if err != nil {
 		return Value{}, err
 	}
@@ -243,12 +256,7 @@ func (m *STSWebIdentity) retrieve(cc *CredContext) (Value, error) {
 // Retrieve retrieves credentials from the MinIO service.
 // Error will be returned if the request fails.
 func (m *STSWebIdentity) Retrieve() (Value, error) {
-	return m.retrieve(defaultCredContext)
-}
-
-// RetrieveWithCredContext is like Retrieve with optional cred context.
-func (m *STSWebIdentity) RetrieveWithCredContext(cc *CredContext) (Value, error) {
-	return m.retrieve(cc)
+	return m.RetrieveWithCredContext(nil)
 }
 
 // Expiration returns the expiration time of the credentials
