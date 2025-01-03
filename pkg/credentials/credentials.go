@@ -64,6 +64,10 @@ type Provider interface {
 
 	// Retrieve returns nil if it successfully retrieved the value.
 	// Error is returned if the value were not obtainable, or empty.
+	//
+	// Deprecated: Retrieve() exists for historical compatibility and should not
+	// be used. To get new credentials use the RetrieveWithCredContext function
+	// to ensure the proper context (i.e. HTTP client) will be used.
 	Retrieve() (Value, error)
 
 	// IsExpired returns if the credentials are no longer valid, and need
@@ -77,6 +81,10 @@ type CredContext struct {
 	// Client specifies the HTTP client that should be used if an HTTP
 	// request is to be made to fetch the credentials.
 	Client *http.Client
+
+	// Endpoint specifies the MinIO endpoint that will be used if no
+	// explicit endpoint is provided.
+	Endpoint string
 }
 
 // A Expiry provides shared expiration logic to be used by credentials
@@ -169,7 +177,7 @@ func New(provider Provider) *Credentials {
 // used. To get new credentials use the Credentials.GetWithContext function
 // to ensure the proper context (i.e. HTTP client) will be used.
 func (c *Credentials) Get() (Value, error) {
-	return c.GetWithContext(defaultCredContext)
+	return c.GetWithContext(nil)
 }
 
 // GetWithContext returns the credentials value, or error if the
@@ -184,6 +192,9 @@ func (c *Credentials) Get() (Value, error) {
 func (c *Credentials) GetWithContext(cc *CredContext) (Value, error) {
 	if c == nil {
 		return Value{}, nil
+	}
+	if cc == nil {
+		cc = defaultCredContext
 	}
 
 	c.Lock()

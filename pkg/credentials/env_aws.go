@@ -69,7 +69,7 @@ func (e *EnvAWS) Retrieve() (Value, error) {
 	return e.retrieve()
 }
 
-// RetrieveWithContext is like Retrieve (no-op input of Cred Context)
+// RetrieveWithCredContext is like Retrieve (no-op input of Cred Context)
 func (e *EnvAWS) RetrieveWithCredContext(_ *CredContext) (Value, error) {
 	return e.retrieve()
 }

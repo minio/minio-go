@@ -109,9 +109,6 @@ type STSAssumeRoleOptions struct {
 // NewSTSAssumeRole returns a pointer to a new
 // Credentials object wrapping the STSAssumeRole.
 func NewSTSAssumeRole(stsEndpoint string, opts STSAssumeRoleOptions) (*Credentials, error) {
-	if stsEndpoint == "" {
-		return nil, errors.New("STS endpoint cannot be empty")
-	}
 	if opts.AccessKey == "" || opts.SecretKey == "" {
 		return nil, errors.New("AssumeRole credentials access/secretkey is mandatory")
 	}
@@ -220,12 +217,30 @@ func getAssumeRoleCredentials(clnt *http.Client, endpoint string, opts STSAssume
 	return a, nil
 }
 
-func (m *STSAssumeRole) retrieve(cc *CredContext) (Value, error) {
+// RetrieveWithCredContext retrieves credentials from the MinIO service.
+// Error will be returned if the request fails, optional cred context.
+func (m *STSAssumeRole) RetrieveWithCredContext(cc *CredContext) (Value, error) {
+	if cc == nil {
+		cc = defaultCredContext
+	}
+
 	client := m.Client
 	if client == nil {
 		client = cc.Client
 	}
-	a, err := getAssumeRoleCredentials(client, m.STSEndpoint, m.Options)
+	if client == nil {
+		client = defaultCredContext.Client
+	}
+
+	stsEndpoint := m.STSEndpoint
+	if stsEndpoint == "" {
+		stsEndpoint = cc.Endpoint
+	}
+	if stsEndpoint == "" {
+		return Value{}, errors.New("STS endpoint unknown")
+	}
+
+	a, err := getAssumeRoleCredentials(client, stsEndpoint, m.Options)
 	if err != nil {
 		return Value{}, err
 	}
@@ -242,14 +257,8 @@ func (m *STSAssumeRole) retrieve(cc *CredContext) (Value, error) {
 	}, nil
 }
 
-// RetrieveWithCredContext retrieves credentials from the MinIO service.
-// Error will be returned if the request fails, optional cred context.
-func (m *STSAssumeRole) RetrieveWithCredContext(cc *CredContext) (Value, error) {
-	return m.retrieve(cc)
-}
-
 // Retrieve retrieves credentials from the MinIO service.
 // Error will be returned if the request fails.
 func (m *STSAssumeRole) Retrieve() (Value, error) {
-	return m.retrieve(defaultCredContext)
+	return m.RetrieveWithCredContext(nil)
 }

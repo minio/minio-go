@@ -80,7 +80,7 @@ func (c *Chain) RetrieveWithCredContext(cc *CredContext) (Value, error) {
 // to IsExpired() will return the expired state of the cached provider.
 func (c *Chain) Retrieve() (Value, error) {
 	for _, p := range c.Providers {
-		creds, _ := p.RetrieveWithCredContext(defaultCredContext)
+		creds, _ := p.Retrieve()
 		// Always prioritize non-anonymous providers, if any.
 		if creds.AccessKeyID == "" && creds.SecretAccessKey == "" {
 			continue

@@ -20,6 +20,7 @@ package credentials
 import (
 	"bytes"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -120,8 +121,22 @@ func NewLDAPIdentityWithSessionPolicy(stsEndpoint, ldapUsername, ldapPassword, p
 	}), nil
 }
 
-func (k *LDAPIdentity) retrieve(cc *CredContext) (value Value, err error) {
-	u, err := url.Parse(k.STSEndpoint)
+// RetrieveWithCredContext gets the credential by calling the MinIO STS API for
+// LDAP on the configured stsEndpoint.
+func (k *LDAPIdentity) RetrieveWithCredContext(cc *CredContext) (value Value, err error) {
+	if cc == nil {
+		cc = defaultCredContext
+	}
+
+	stsEndpoint := k.STSEndpoint
+	if stsEndpoint == "" {
+		stsEndpoint = cc.Endpoint
+	}
+	if stsEndpoint == "" {
+		return Value{}, errors.New("STS endpoint unknown")
+	}
+
+	u, err := url.Parse(stsEndpoint)
 	if err != nil {
 		return value, err
 	}
@@ -148,6 +163,9 @@ func (k *LDAPIdentity) retrieve(cc *CredContext) (value Value, err error) {
 	client := k.Client
 	if client == nil {
 		client = cc.Client
+	}
+	if client == nil {
+		client = defaultCredContext.Client
 	}
 
 	resp, err := client.Do(req)
@@ -194,11 +212,5 @@ func (k *LDAPIdentity) retrieve(cc *CredContext) (value Value, err error) {
 // Retrieve gets the credential by calling the MinIO STS API for
 // LDAP on the configured stsEndpoint.
 func (k *LDAPIdentity) Retrieve() (value Value, err error) {
-	return k.retrieve(defaultCredContext)
-}
-
-// RetrieveWithCredContext gets the credential by calling the MinIO STS API for
-// LDAP on the configured stsEndpoint.
-func (k *LDAPIdentity) RetrieveWithCredContext(cc *CredContext) (value Value, err error) {
-	return k.retrieve(cc)
+	return k.RetrieveWithCredContext(defaultCredContext)
 }

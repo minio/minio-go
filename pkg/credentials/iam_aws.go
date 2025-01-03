@@ -95,7 +95,12 @@ func NewIAM(endpoint string) *Credentials {
 	})
 }
 
-func (m *IAM) retrieve(cc *CredContext) (Value, error) {
+// RetrieveWithCredContext is like Retrieve with Cred Context
+func (m *IAM) RetrieveWithCredContext(cc *CredContext) (Value, error) {
+	if cc == nil {
+		cc = defaultCredContext
+	}
+
 	token := os.Getenv("AWS_CONTAINER_AUTHORIZATION_TOKEN")
 	if token == "" {
 		token = m.Container.AuthorizationToken
@@ -143,8 +148,15 @@ func (m *IAM) retrieve(cc *CredContext) (Value, error) {
 	if client == nil {
 		client = cc.Client
 	}
+	if client == nil {
+		client = defaultCredContext.Client
+	}
 
 	endpoint := m.Endpoint
+	if endpoint == "" {
+		endpoint = cc.Endpoint
+	}
+
 	switch {
 	case identityFile != "":
 		if len(endpoint) == 0 {
@@ -228,12 +240,7 @@ func (m *IAM) retrieve(cc *CredContext) (Value, error) {
 // Error will be returned if the request fails, or unable to extract
 // the desired
 func (m *IAM) Retrieve() (Value, error) {
-	return m.retrieve(defaultCredContext)
-}
-
-// RetrieveWithCredContext is like Retrieve with Cred Context
-func (m *IAM) RetrieveWithCredContext(cc *CredContext) (Value, error) {
-	return m.retrieve(cc)
+	return m.RetrieveWithCredContext(nil)
 }
 
 // A ec2RoleCredRespBody provides the shape for unmarshaling credential

@@ -86,12 +86,6 @@ type STSCertificateIdentity struct {
 // to the given STS endpoint with the given TLS certificate and retrieves and
 // rotates S3 credentials.
 func NewSTSCertificateIdentity(endpoint string, certificate tls.Certificate, options ...CertificateIdentityOption) (*Credentials, error) {
-	if endpoint == "" {
-		return nil, errors.New("STS endpoint cannot be empty")
-	}
-	if _, err := url.Parse(endpoint); err != nil {
-		return nil, err
-	}
 	identity := &STSCertificateIdentity{
 		STSEndpoint: endpoint,
 		Certificate: certificate,
@@ -102,8 +96,21 @@ func NewSTSCertificateIdentity(endpoint string, certificate tls.Certificate, opt
 	return New(identity), nil
 }
 
-func (i *STSCertificateIdentity) retrieve(cc *CredContext) (Value, error) {
-	endpointURL, err := url.Parse(i.STSEndpoint)
+// RetrieveWithCredContext is Retrieve with cred context
+func (i *STSCertificateIdentity) RetrieveWithCredContext(cc *CredContext) (Value, error) {
+	if cc == nil {
+		cc = defaultCredContext
+	}
+
+	stsEndpoint := i.STSEndpoint
+	if stsEndpoint == "" {
+		stsEndpoint = cc.Endpoint
+	}
+	if stsEndpoint == "" {
+		return Value{}, errors.New("STS endpoint unknown")
+	}
+
+	endpointURL, err := url.Parse(stsEndpoint)
 	if err != nil {
 		return Value{}, err
 	}
@@ -129,6 +136,9 @@ func (i *STSCertificateIdentity) retrieve(cc *CredContext) (Value, error) {
 	client := i.Client
 	if client == nil {
 		client = cc.Client
+	}
+	if client == nil {
+		client = defaultCredContext.Client
 	}
 
 	tr, ok := client.Transport.(*http.Transport)
@@ -192,14 +202,9 @@ func (i *STSCertificateIdentity) retrieve(cc *CredContext) (Value, error) {
 	}, nil
 }
 
-// RetrieveWithCredContext is Retrieve with cred context
-func (i *STSCertificateIdentity) RetrieveWithCredContext(cc *CredContext) (Value, error) {
-	return i.retrieve(cc)
-}
-
 // Retrieve fetches a new set of S3 credentials from the configured STS API endpoint.
 func (i *STSCertificateIdentity) Retrieve() (Value, error) {
-	return i.retrieve(defaultCredContext)
+	return i.RetrieveWithCredContext(defaultCredContext)
 }
 
 // Expiration returns the expiration time of the current S3 credentials.
