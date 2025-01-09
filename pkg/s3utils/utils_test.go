@@ -27,114 +27,59 @@ import (
 // Tests get region from host URL.
 func TestGetRegionFromURL(t *testing.T) {
 	testCases := []struct {
-		u              url.URL
+		u              string
 		expectedRegion string
 	}{
-		{
-			u:              url.URL{Host: "storage.googleapis.com"},
-			expectedRegion: "",
-		},
-		{
-			u:              url.URL{Host: "s3.cn-north-1.amazonaws.com.cn"},
-			expectedRegion: "cn-north-1",
-		},
-		{
-			u:              url.URL{Host: "s3.dualstack.cn-north-1.amazonaws.com.cn"},
-			expectedRegion: "cn-north-1",
-		},
-		{
-			u:              url.URL{Host: "s3.cn-northwest-1.amazonaws.com.cn"},
-			expectedRegion: "cn-northwest-1",
-		},
-		{
-			u:              url.URL{Host: "s3.dualstack.cn-northwest-1.amazonaws.com.cn"},
-			expectedRegion: "cn-northwest-1",
-		},
-		{
-			u:              url.URL{Host: "s3-fips-us-gov-west-1.amazonaws.com"},
-			expectedRegion: "us-gov-west-1",
-		},
-		{
-			u:              url.URL{Host: "s3-fips.us-gov-west-1.amazonaws.com"},
-			expectedRegion: "us-gov-west-1",
-		},
-		{
-			u:              url.URL{Host: "s3-fips.us-gov-east-1.amazonaws.com"},
-			expectedRegion: "us-gov-east-1",
-		},
-		{
-			u:              url.URL{Host: "s3-us-gov-west-1.amazonaws.com"},
-			expectedRegion: "us-gov-west-1",
-		},
-		{
-			u:              url.URL{Host: "192.168.1.1"},
-			expectedRegion: "",
-		},
-		{
-			u:              url.URL{Host: "s3-eu-west-1.amazonaws.com"},
-			expectedRegion: "eu-west-1",
-		},
-		{
-			u:              url.URL{Host: "s3.eu-west-1.amazonaws.com"},
-			expectedRegion: "eu-west-1",
-		},
-		{
-			u:              url.URL{Host: "s3.dualstack.eu-west-1.amazonaws.com"},
-			expectedRegion: "eu-west-1",
-		},
-		{
-			u:              url.URL{Host: "s3.amazonaws.com"},
-			expectedRegion: "",
-		},
-		{
-			u:              url.URL{Host: "s3-external-1.amazonaws.com"},
-			expectedRegion: "",
-		},
-		{
-			u: url.URL{
-				Host: "s3.kubernetesfrontendlb-caf78da2b1f7516c.elb.us-west-2.amazonaws.com",
-			},
-			expectedRegion: "",
-		},
-		{
-			u: url.URL{
-				Host: "s3.kubernetesfrontendlb-caf78da2b1f7516c.elb.amazonaws.com",
-			},
-			expectedRegion: "",
-		},
-		{
-			u: url.URL{
-				Host: "s3.kubernetesfrontendlb-caf78da2b1f7516c.elb.amazonaws.com.cn",
-			},
-		},
-		{
-			u: url.URL{
-				Host: "bucket.vpce-1a2b3c4d-5e6f.s3.us-east-1.vpce.amazonaws.com",
-			},
-			expectedRegion: "us-east-1",
-		},
-		{
-			u: url.URL{
-				Host: "accesspoint.vpce-1a2b3c4d-5e6f.s3.us-east-1.vpce.amazonaws.com",
-			},
-			expectedRegion: "us-east-1",
-		},
-		{
-			u: url.URL{
-				Host: "s3-fips.us-east-1.amazonaws.com",
-			},
-			expectedRegion: "us-east-1",
-		},
-		{
-			u: url.URL{
-				Host: "s3-fips.dualstack.us-west-1.amazonaws.com",
-			},
-			expectedRegion: "us-west-1",
-		},
+		{u: "storage.googleapis.com", expectedRegion: ""},
+		{u: "s3.cn-north-1.amazonaws.com.cn", expectedRegion: "cn-north-1"},
+		{u: "s3.dualstack.cn-north-1.amazonaws.com.cn", expectedRegion: "cn-north-1"},
+		{u: "s3.cn-northwest-1.amazonaws.com.cn", expectedRegion: "cn-northwest-1"},
+		{u: "s3.dualstack.cn-northwest-1.amazonaws.com.cn", expectedRegion: "cn-northwest-1"},
+		{u: "s3-fips-us-gov-west-1.amazonaws.com", expectedRegion: "us-gov-west-1"},
+		{u: "s3-fips.us-gov-west-1.amazonaws.com", expectedRegion: "us-gov-west-1"},
+		{u: "s3-fips.us-gov-east-1.amazonaws.com", expectedRegion: "us-gov-east-1"},
+		{u: "s3-us-gov-west-1.amazonaws.com", expectedRegion: "us-gov-west-1"},
+		{u: "192.168.1.1", expectedRegion: ""},
+		{u: "s3-eu-west-1.amazonaws.com", expectedRegion: "eu-west-1"},
+		{u: "s3.eu-west-1.amazonaws.com", expectedRegion: "eu-west-1"},
+		{u: "s3.dualstack.eu-west-1.amazonaws.com", expectedRegion: "eu-west-1"},
+		{u: "s3.amazonaws.com", expectedRegion: ""},
+		{u: "s3-external-1.amazonaws.com", expectedRegion: ""},
+		{u: "s3.kubernetesfrontendlb-caf78da2b1f7516c.elb.us-west-2.amazonaws.com", expectedRegion: ""},
+		{u: "s3.kubernetesfrontendlb-caf78da2b1f7516c.elb.amazonaws.com", expectedRegion: ""},
+		{u: "s3.kubernetesfrontendlb-caf78da2b1f7516c.elb.amazonaws.com.cn", expectedRegion: ""},
+		{u: "bucket.vpce-1a2b3c4d-5e6f.s3.us-east-1.vpce.amazonaws.com", expectedRegion: "us-east-1"},
+		{u: "accesspoint.vpce-1a2b3c4d-5e6f.s3.us-east-1.vpce.amazonaws.com", expectedRegion: "us-east-1"},
+		{u: "s3-fips.us-east-1.amazonaws.com", expectedRegion: "us-east-1"},
+		{u: "s3-fips.dualstack.us-west-1.amazonaws.com", expectedRegion: "us-west-1"},
+
+		// Test cases with port numbers.
+		{u: "storage.googleapis.com:80", expectedRegion: ""},
+		{u: "s3.cn-north-1.amazonaws.com.cn:80", expectedRegion: "cn-north-1"},
+		{u: "s3.dualstack.cn-north-1.amazonaws.com.cn:80", expectedRegion: "cn-north-1"},
+		{u: "s3.cn-northwest-1.amazonaws.com.cn:80", expectedRegion: "cn-northwest-1"},
+		{u: "s3.dualstack.cn-northwest-1.amazonaws.com.cn:80", expectedRegion: "cn-northwest-1"},
+		{u: "s3-fips-us-gov-west-1.amazonaws.com:80", expectedRegion: "us-gov-west-1"},
+		{u: "s3-fips.us-gov-west-1.amazonaws.com:80", expectedRegion: "us-gov-west-1"},
+		{u: "s3-fips.us-gov-east-1.amazonaws.com:80", expectedRegion: "us-gov-east-1"},
+		{u: "s3-us-gov-west-1.amazonaws.com:80", expectedRegion: "us-gov-west-1"},
+		{u: "192.168.1.1:80", expectedRegion: ""},
+		{u: "s3-eu-west-1.amazonaws.com:80", expectedRegion: "eu-west-1"},
+		{u: "s3.eu-west-1.amazonaws.com:80", expectedRegion: "eu-west-1"},
+		{u: "s3.dualstack.eu-west-1.amazonaws.com:80", expectedRegion: "eu-west-1"},
+		{u: "s3.amazonaws.com:80", expectedRegion: ""},
+		{u: "s3-external-1.amazonaws.com:80", expectedRegion: ""},
+		{u: "s3.kubernetesfrontendlb-caf78da2b1f7516c.elb.us-west-2.amazonaws.com:80", expectedRegion: ""},
+		{u: "s3.kubernetesfrontendlb-caf78da2b1f7516c.elb.amazonaws.com:80", expectedRegion: ""},
+		{u: "s3.kubernetesfrontendlb-caf78da2b1f7516c.elb.amazonaws.com.cn:80", expectedRegion: ""},
+		{u: "bucket.vpce-1a2b3c4d-5e6f.s3.us-east-1.vpce.amazonaws.com:80", expectedRegion: "us-east-1"},
+		{u: "accesspoint.vpce-1a2b3c4d-5e6f.s3.us-east-1.vpce.amazonaws.com:80", expectedRegion: "us-east-1"},
+		{u: "s3-fips.us-east-1.amazonaws.com:80", expectedRegion: "us-east-1"},
+		{u: "s3-fips.dualstack.us-west-1.amazonaws.com:80", expectedRegion: "us-west-1"},
 	}
 
 	for i, testCase := range testCases {
-		region := GetRegionFromURL(testCase.u)
+		region := GetRegionFromURL(url.URL{Host: testCase.u})
 		if testCase.expectedRegion != region {
 			t.Errorf("Test %d: Expected region %s, got %s", i+1, testCase.expectedRegion, region)
 		}
