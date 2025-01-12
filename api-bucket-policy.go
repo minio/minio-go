@@ -88,7 +88,7 @@ func (c *Client) removeBucketPolicy(ctx context.Context, bucketName string) erro
 		return err
 	}
 
-	if resp.StatusCode != http.StatusNoContent {
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		return httpRespToErrorResponse(resp, bucketName, "")
 	}
 
