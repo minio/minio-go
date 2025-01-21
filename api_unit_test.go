@@ -38,6 +38,13 @@ func TestValidBucketLocation(t *testing.T) {
 		{"unknown", false, "s3.us-east-1.amazonaws.com"},
 		{"ap-southeast-1", true, "s3.dualstack.ap-southeast-1.amazonaws.com"},
 		{"ap-southeast-1", false, "s3.ap-southeast-1.amazonaws.com"},
+		// ISO regions without dualstack support
+		{"us-iso-east-1", true, "s3.us-iso-east-1.c2s.ic.gov"},
+		{"us-iso-east-1", false, "s3.us-iso-east-1.c2s.ic.gov"},
+		{"us-isob-east-1", true, "s3.us-isob-east-1.c2s.ic.gov"},
+		{"us-isob-east-1", false, "s3.us-isob-east-1.c2s.ic.gov"},
+		{"us-iso-west-1", true, "s3.us-iso-west-1.c2s.ic.gov"},
+		{"us-iso-west-1", false, "s3.us-iso-west-1.c2s.ic.gov"},
 	}
 	for _, s3Host := range s3Hosts {
 		endpoint := getS3Endpoint(s3Host.bucketLocation, s3Host.useDualstack)
