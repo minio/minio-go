@@ -37,8 +37,8 @@ var awsS3EndpointMap = map[string]awsS3Endpoint{
 		"s3.dualstack.us-iso-east-1.c2s.ic.gov",
 	},
 	"us-isob-east-1": {
-		"s3.us-isob-east-1.c2s.ic.gov",
-		"s3.dualstack.us-isob-east-1.c2s.ic.gov",
+		"s3.us-isob-east-1.sc2s.sgov.gov",
+		"s3.dualstack.us-isob-east-1.sc2s.sgov.gov",
 	},
 	"us-iso-west-1": {
 		"s3.us-iso-west-1.c2s.ic.gov",
