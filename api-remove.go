@@ -214,6 +214,10 @@ type RemoveObjectError struct {
 }
 
 func (err *RemoveObjectError) Error() string {
+	// This should never happen as we will have a non-nil error with no underlying error.
+	if err.Err == nil {
+		return "inconsistant remove object error result"
+	}
 	return err.Err.Error()
 }
 
