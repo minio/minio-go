@@ -213,6 +213,10 @@ type RemoveObjectError struct {
 	Err        error
 }
 
+func (err *RemoveObjectError) Error() string {
+	return err.Err.Error()
+}
+
 // RemoveObjectResult - container of Multi Delete S3 API result
 type RemoveObjectResult struct {
 	ObjectName      string
