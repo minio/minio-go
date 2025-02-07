@@ -145,6 +145,8 @@ func processBucketLocationResponse(resp *http.Response, bucketName string) (buck
 			}
 			return "", err
 		}
+	} else {
+		return "", errInvalidArgument("Response is empty.")
 	}
 
 	// Extract location.
