@@ -43,16 +43,17 @@ func (c *Client) ListBuckets(ctx context.Context) ([]BucketInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	listAllMyBucketsResult := listAllMyBucketsResult{}
 	if resp != nil {
 		if resp.StatusCode != http.StatusOK {
 			return nil, httpRespToErrorResponse(resp, "", "")
 		}
+		err = xmlDecoder(resp.Body, &listAllMyBucketsResult)
+		if err != nil {
+			return nil, err
+		}
 	}
-	listAllMyBucketsResult := listAllMyBucketsResult{}
-	err = xmlDecoder(resp.Body, &listAllMyBucketsResult)
-	if err != nil {
-		return nil, err
-	}
+
 	return listAllMyBucketsResult.Buckets.Bucket, nil
 }
 
