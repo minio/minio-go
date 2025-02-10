@@ -103,6 +103,9 @@ type Client struct {
 
 	trailingHeaderSupport bool
 	maxRetries            int
+
+	// Custom headers to be added to all requests.
+	customHeader http.Header
 }
 
 // Options for New method
@@ -150,6 +153,8 @@ type Options struct {
 	// Number of times a request is retried. Defaults to 10 retries if this option is not configured.
 	// Set to 1 to disable retries.
 	MaxRetries int
+
+	CustomHeader http.Header
 }
 
 // Global constants.
@@ -310,6 +315,9 @@ func privateNew(endpoint string, opts *Options) (*Client, error) {
 	if opts.MaxRetries > 0 {
 		clnt.maxRetries = opts.MaxRetries
 	}
+
+	// Set custom headers
+	clnt.customHeader = opts.CustomHeader
 
 	// Return.
 	return clnt, nil
@@ -881,6 +889,9 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 	c.setUserAgent(req)
 
 	// Set all headers.
+	for k, v := range c.customHeader {
+		req.Header.Set(k, v[0])
+	}
 	for k, v := range metadata.customHeader {
 		req.Header.Set(k, v[0])
 	}
