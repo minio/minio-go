@@ -2,6 +2,8 @@ module github.com/minio/minio-go/v7
 
 go 1.22
 
+toolchain go1.23.6
+
 require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/go-ini/ini v1.67.0
