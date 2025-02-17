@@ -488,3 +488,48 @@ func TestIsValidBucketNameStrict(t *testing.T) {
 
 	}
 }
+
+func TestIsAmazonPrivateLinkEndpoint(t *testing.T) {
+	testCases := []struct {
+		url string
+		// Expected result.
+		result bool
+	}{
+		{"https://192.168.1.1", false},
+		{"192.168.1.1", false},
+		{"http://storage.googleapis.com", false},
+		{"https://storage.googleapis.com", false},
+		{"storage.googleapis.com", false},
+		{"s3.amazonaws.com", false},
+		{"https://amazons3.amazonaws.com", false},
+		{"-192.168.1.1", false},
+		{"260.192.1.1", false},
+		{"https://s3-.amazonaws.com", false},
+		{"https://s3..amazonaws.com", false},
+		{"https://s3.dualstack.us-west-1.amazonaws.com.cn", false},
+		{"https://s3..us-west-1.amazonaws.com.cn", false},
+		{"https://s3.amazonaws.com", false},
+		{"https://s3-external-1.amazonaws.com", false},
+		{"https://s3.cn-north-1.amazonaws.com.cn", false},
+		{"https://s3-us-west-1.amazonaws.com", false},
+		{"https://s3.us-west-1.amazonaws.com", false},
+		{"https://s3.dualstack.us-west-1.amazonaws.com", false},
+		// valid inputs.
+		{"https://bucket.vpce-1a2b3c4d-5e6f.s3.us-east-1.vpce.amazonaws.com", true},
+		{"https://accesspoint.vpce-1a2b3c4d-5e6f.s3.us-east-1.vpce.amazonaws.com", true},
+		{"https://bucket.vpce-1a2b3c4d-5e6f.s3.us-east-1.vpce.amazonaws.com:443", true},
+		{"https://accesspoint.vpce-1a2b3c4d-5e6f.s3.us-east-1.vpce.amazonaws.com:443", true},
+	}
+
+	for i, testCase := range testCases {
+		u, err := url.Parse(testCase.url)
+		if err != nil {
+			t.Errorf("Test %d: Expected to pass, but failed with: <ERROR> %s", i+1, err)
+		}
+		result := IsAmazonPrivateLinkEndpoint(*u)
+		if testCase.result != result {
+			t.Errorf("Test %d: Expected IsAmazonPrivateLinkEndpoint to be '%v' for input \"%s\", but found it to be '%v' instead", i+1, testCase.result, testCase.url, result)
+		}
+	}
+
+}
