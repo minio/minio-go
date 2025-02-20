@@ -501,7 +501,7 @@ func TestTagsTagDecode(t *testing.T) {
 	tagNStr := TagEncode(tagsNMap)
 	_, err := tags.ParseObjectTags(tagNStr)
 	if err != nil {
-		t.Log("we got error here", err)
+		t.Log("TestTagsTagDecode: we got error here", err)
 	}
 }
 
@@ -515,6 +515,6 @@ func TestTagsTagDecodeAfter(t *testing.T) {
 	tagNStr := TagEncode(tagsNMap)
 	_, err := tags.ParseObjectTags(tagNStr)
 	if err != nil {
-		t.Log("we got error here", err)
+		t.Log("TestTagsTagDecodeAfter: we got error here", err)
 	}
 }
