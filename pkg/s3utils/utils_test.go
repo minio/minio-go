@@ -19,6 +19,7 @@ package s3utils
 
 import (
 	"errors"
+	"github.com/minio/minio-go/v7/pkg/tags"
 	"net/url"
 	"reflect"
 	"testing"
@@ -486,5 +487,33 @@ func TestIsValidBucketNameStrict(t *testing.T) {
 			}
 		}
 
+	}
+}
+
+func TestTagsTagDecode(t *testing.T) {
+	tagsOMap := map[string]string{"A": "B", "C": "D", "D:A": "A", "E": "PA"}
+	// putObject - mock mc cp file remote/path --tags="A=B&C=D&D:W=A&E=PA"
+	tagStr := TagEncode(tagsOMap)
+	// getObject - mock client getObject with tags return
+	tagsNMap := TagDecode(tagStr)
+	// putObject - mock put file to target
+	tagNStr := TagEncode(tagsNMap)
+	_, err := tags.ParseObjectTags(tagNStr)
+	if err != nil {
+		t.Log("we got error here", err)
+	}
+}
+
+func TestTagsTagDecodeAfter(t *testing.T) {
+	tagsOMap := map[string]string{"A": "B", "C": "D", "D:A": "A", "E": "PA"}
+	// putObject - mock mc cp file remote/path --tags="A=B&C=D&D:W=A&E=PA"
+	tagStr := TagEncode(tagsOMap)
+	// getObject - mock client getObject with tags return
+	tagsNMap := TagDecodeAfter(tagStr)
+	// putObject - mock put file to target
+	tagNStr := TagEncode(tagsNMap)
+	_, err := tags.ParseObjectTags(tagNStr)
+	if err != nil {
+		t.Log("we got error here", err)
 	}
 }

@@ -278,6 +278,31 @@ func TagDecode(ctag string) map[string]string {
 		if len(kvs) == 1 {
 			return map[string]string{}
 		}
+		tagMap[kvs[0]], err = url.PathUnescape(kvs[1])
+		if err != nil {
+			continue
+		}
+	}
+	return tagMap
+}
+
+// TagDecodeAfter - decodes canonical tag into map of key and value.
+func TagDecodeAfter(ctag string) map[string]string {
+	if ctag == "" {
+		return map[string]string{}
+	}
+	tags := strings.Split(ctag, "&")
+	tagMap := make(map[string]string, len(tags))
+	var err error
+	var key string
+	for _, tag := range tags {
+		kvs := strings.SplitN(tag, "=", 2)
+		if len(kvs) == 0 {
+			return map[string]string{}
+		}
+		if len(kvs) == 1 {
+			return map[string]string{}
+		}
 		key, err = url.PathUnescape(kvs[0])
 		if err != nil {
 			key = kvs[0]
