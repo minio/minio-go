@@ -218,7 +218,7 @@ func IsAmazonPrivateLinkEndpoint(endpointURL url.URL) bool {
 	if endpointURL == sentinelURL {
 		return false
 	}
-	return amazonS3HostPrivateLink.MatchString(endpointURL.Host)
+	return amazonS3HostPrivateLink.MatchString(endpointURL.Hostname())
 }
 
 // IsGoogleEndpoint - Match if it is exactly Google cloud storage endpoint.
