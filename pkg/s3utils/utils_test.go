@@ -501,7 +501,17 @@ func TestTagsTagDecode(t *testing.T) {
 	tagNStr := TagEncode(tagsNMap)
 	_, err := tags.ParseObjectTags(tagNStr)
 	if err != nil {
-		t.Log("TestTagsTagDecode: we got error here", err)
+		t.Log("TestTagsTagDecode: we got error here:", err)
+	}
+
+	// we must call url.PathUnescape here <--------------------
+	unescapeTags, err := url.PathUnescape(tagNStr)
+	if err != nil {
+		return
+	}
+	_, err = tags.ParseObjectTags(unescapeTags)
+	if err != nil {
+		t.Log("TestTagsTagDecode: we got error here:", err)
 	}
 }
 
@@ -515,6 +525,6 @@ func TestTagsTagDecodeAfter(t *testing.T) {
 	tagNStr := TagEncode(tagsNMap)
 	_, err := tags.ParseObjectTags(tagNStr)
 	if err != nil {
-		t.Log("TestTagsTagDecodeAfter: we got error here", err)
+		t.Log("TestTagsTagDecodeAfter: we got error here:", err)
 	}
 }
