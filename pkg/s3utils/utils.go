@@ -269,7 +269,6 @@ func TagDecode(ctag string) map[string]string {
 	tags := strings.Split(ctag, "&")
 	tagMap := make(map[string]string, len(tags))
 	var err error
-	var key string
 	for _, tag := range tags {
 		kvs := strings.SplitN(tag, "=", 2)
 		if len(kvs) == 0 {
