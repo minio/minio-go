@@ -19,10 +19,11 @@ package s3utils
 
 import (
 	"errors"
-	"github.com/minio/minio-go/v7/pkg/tags"
 	"net/url"
 	"reflect"
 	"testing"
+
+	"github.com/minio/minio-go/v7/pkg/tags"
 )
 
 // Tests get region from host URL.
