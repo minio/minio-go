@@ -269,6 +269,7 @@ func TagDecode(ctag string) map[string]string {
 	tags := strings.Split(ctag, "&")
 	tagMap := make(map[string]string, len(tags))
 	var err error
+	var key string
 	for _, tag := range tags {
 		kvs := strings.SplitN(tag, "=", 2)
 		if len(kvs) == 0 {
@@ -277,7 +278,11 @@ func TagDecode(ctag string) map[string]string {
 		if len(kvs) == 1 {
 			return map[string]string{}
 		}
-		tagMap[kvs[0]], err = url.PathUnescape(kvs[1])
+		key, err = url.PathUnescape(kvs[0])
+		if err != nil {
+			key = kvs[0]
+		}
+		tagMap[key], err = url.PathUnescape(kvs[1])
 		if err != nil {
 			continue
 		}
