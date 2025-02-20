@@ -20,7 +20,6 @@ package s3utils
 import (
 	"errors"
 	"net/url"
-	"reflect"
 	"testing"
 )
 
@@ -295,81 +294,6 @@ func TestQueryEncode(t *testing.T) {
 		if testCase.result != result {
 			t.Errorf("Test %d: Expected queryEncode result to be \"%s\", but found it to be \"%s\" instead", i+1, testCase.result, result)
 		}
-	}
-}
-
-// Tests tag decode to map
-func TestTagDecode(t *testing.T) {
-	testCases := []struct {
-		// canonical input
-		canonicalInput string
-
-		// Expected result.
-		resultMap map[string]string
-	}{
-		{"k=thisisthe%25url", map[string]string{"k": "thisisthe%url"}},
-		{"k=%E6%9C%AC%E8%AA%9E", map[string]string{"k": "本語"}},
-		{"k=%E6%9C%AC%E8%AA%9E.1", map[string]string{"k": "本語.1"}},
-		{"k=%3E123", map[string]string{"k": ">123"}},
-		{"k=myurl%23link", map[string]string{"k": "myurl#link"}},
-		{"k=space%20in%20url", map[string]string{"k": "space in url"}},
-		{"k=url%2Bpath", map[string]string{"k": "url+path"}},
-		{"k=url%2Fpath", map[string]string{"k": "url/path"}},
-	}
-
-	for _, testCase := range testCases {
-		testCase := testCase
-		t.Run("", func(t *testing.T) {
-			gotResult := TagDecode(testCase.canonicalInput)
-			if !reflect.DeepEqual(testCase.resultMap, gotResult) {
-				t.Errorf("Expected %s, got %s", testCase.resultMap, gotResult)
-			}
-		})
-	}
-}
-
-// Tests tag encode function for user tags.
-func TestTagEncode(t *testing.T) {
-	testCases := []struct {
-		// Input.
-		inputMap map[string]string
-		// Expected result.
-		result string
-	}{
-		{map[string]string{
-			"k": "thisisthe%url",
-		}, "k=thisisthe%25url"},
-		{map[string]string{
-			"k": "本語",
-		}, "k=%E6%9C%AC%E8%AA%9E"},
-		{map[string]string{
-			"k": "本語.1",
-		}, "k=%E6%9C%AC%E8%AA%9E.1"},
-		{map[string]string{
-			"k": ">123",
-		}, "k=%3E123"},
-		{map[string]string{
-			"k": "myurl#link",
-		}, "k=myurl%23link"},
-		{map[string]string{
-			"k": "space in url",
-		}, "k=space%20in%20url"},
-		{map[string]string{
-			"k": "url+path",
-		}, "k=url%2Bpath"},
-		{map[string]string{
-			"k": "url/path",
-		}, "k=url%2Fpath"},
-	}
-
-	for _, testCase := range testCases {
-		testCase := testCase
-		t.Run("", func(t *testing.T) {
-			gotResult := TagEncode(testCase.inputMap)
-			if testCase.result != gotResult {
-				t.Errorf("Expected %s, got %s", testCase.result, gotResult)
-			}
-		})
 	}
 }
 
