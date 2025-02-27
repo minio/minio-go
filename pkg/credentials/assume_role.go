@@ -104,6 +104,8 @@ type STSAssumeRoleOptions struct {
 	RoleARN         string
 	RoleSessionName string
 	ExternalID      string
+
+	TokenType string // Optional, used for token revokation
 }
 
 // NewSTSAssumeRole returns a pointer to a new
