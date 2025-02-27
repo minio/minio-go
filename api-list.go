@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 	"time"
 
 	"github.com/minio/minio-go/v7/pkg/s3utils"
@@ -421,20 +422,23 @@ func (c *Client) listObjectVersions(ctx context.Context, bucketName string, opts
 		var (
 			keyMarker       = ""
 			versionIDMarker = ""
+			preName         = ""
+			preKey          = ""
+			perVersions     []Version
 		)
-
-		for {
-			// Get list of objects a maximum of 1000 per request.
-			result, err := c.listObjectVersionsQuery(ctx, bucketName, opts, keyMarker, versionIDMarker, delimiter)
-			if err != nil {
-				sendObjectInfo(ObjectInfo{
-					Err: err,
+		send := func(vers []Version) {
+			if opts.ReverseVersions {
+				sort.Slice(vers, func(i, j int) bool {
+					if vers[i].IsLatest {
+						return false
+					}
+					if vers[j].IsLatest {
+						return true
+					}
+					return vers[i].LastModified.Before(vers[j].LastModified)
 				})
-				return
 			}
-
-			// If contents are available loop through and send over channel.
-			for _, version := range result.Versions {
+			for _, version := range vers {
 				info := ObjectInfo{
 					ETag:           trimEtag(version.ETag),
 					Key:            version.Key,
@@ -456,6 +460,38 @@ func (c *Client) listObjectVersions(ctx context.Context, bucketName string, opts
 				case <-ctx.Done():
 					return
 				}
+			}
+		}
+		for {
+			// Get list of objects a maximum of 1000 per request.
+			result, err := c.listObjectVersionsQuery(ctx, bucketName, opts, keyMarker, versionIDMarker, delimiter)
+			if err != nil {
+				sendObjectInfo(ObjectInfo{
+					Err: err,
+				})
+				return
+			}
+			if opts.ReverseVersions {
+				for _, version := range result.Versions {
+					if preName == "" {
+						preName = result.Name
+						preKey = version.Key
+					}
+					if result.Name == preName && preKey == version.Key {
+						// If the current name is same as previous name,
+						// we need to append the version to the previous version.
+						perVersions = append(perVersions, version)
+						continue
+					}
+					// Send the file versions.
+					send(perVersions)
+					perVersions = perVersions[:0]
+					perVersions = append(perVersions, version)
+					preName = result.Name
+					preKey = version.Key
+				}
+			} else {
+				send(result.Versions)
 			}
 
 			// Send all common prefixes if any.
@@ -480,10 +516,20 @@ func (c *Client) listObjectVersions(ctx context.Context, bucketName string, opts
 				versionIDMarker = result.NextVersionIDMarker
 			}
 
-			// Listing ends result is not truncated, return right here.
-			if !result.IsTruncated {
+			// If context is canceled, return here.
+			if contextCanceled(ctx) {
 				return
 			}
+
+			// Listing ends result is not truncated, return right here.
+			if !result.IsTruncated {
+				// sent the lasted file with versions
+				if opts.ReverseVersions && len(perVersions) > 0 {
+					send(perVersions)
+				}
+				return
+			}
+
 		}
 	}(resultCh)
 	return resultCh
@@ -683,6 +729,8 @@ func (c *Client) listObjectsQuery(ctx context.Context, bucketName, objectPrefix,
 
 // ListObjectsOptions holds all options of a list object request
 type ListObjectsOptions struct {
+	// ReverseVersions - reverse the order of the object versions
+	ReverseVersions bool
 	// Include objects versions in the listing
 	WithVersions bool
 	// Include objects metadata in the listing
