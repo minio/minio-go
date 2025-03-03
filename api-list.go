@@ -435,6 +435,9 @@ func (c *Client) listObjectVersions(ctx context.Context, bucketName string, opts
 					if vers[j].IsLatest {
 						return true
 					}
+					if vers[i].LastModified.Equal(vers[j].LastModified) {
+						return true
+					}
 					return vers[i].LastModified.Before(vers[j].LastModified)
 				})
 			}
