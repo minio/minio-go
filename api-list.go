@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/minio/minio-go/v7/pkg/s3utils"
@@ -429,18 +429,7 @@ func (c *Client) listObjectVersions(ctx context.Context, bucketName string, opts
 		)
 		send := func(vers []Version) {
 			if opts.ReverseVersions {
-				sort.Slice(vers, func(i, j int) bool {
-					if vers[i].IsLatest {
-						return false
-					}
-					if vers[j].IsLatest {
-						return true
-					}
-					if vers[i].LastModified.Equal(vers[j].LastModified) {
-						return true
-					}
-					return vers[i].LastModified.Before(vers[j].LastModified)
-				})
+				slices.Reverse(vers)
 				numVersions = len(vers)
 			}
 			for _, version := range vers {
