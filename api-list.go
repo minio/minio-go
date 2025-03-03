@@ -425,6 +425,7 @@ func (c *Client) listObjectVersions(ctx context.Context, bucketName string, opts
 			preName         = ""
 			preKey          = ""
 			perVersions     []Version
+			numVersions     int
 		)
 		send := func(vers []Version) {
 			if opts.ReverseVersions {
@@ -440,6 +441,7 @@ func (c *Client) listObjectVersions(ctx context.Context, bucketName string, opts
 					}
 					return vers[i].LastModified.Before(vers[j].LastModified)
 				})
+				numVersions = len(vers)
 			}
 			for _, version := range vers {
 				info := ObjectInfo{
@@ -455,6 +457,7 @@ func (c *Client) listObjectVersions(ctx context.Context, bucketName string, opts
 					UserTags:       version.UserTags,
 					UserMetadata:   version.UserMetadata,
 					Internal:       version.Internal,
+					NumVersions:    numVersions,
 				}
 				select {
 				// Send object version info.
