@@ -105,7 +105,7 @@ type STSAssumeRoleOptions struct {
 	RoleSessionName string
 	ExternalID      string
 
-	TokenType string // Optional, used for token revokation
+	TokenRevokeType string // Optional, used for token revokation
 }
 
 // NewSTSAssumeRole returns a pointer to a new
@@ -162,6 +162,9 @@ func getAssumeRoleCredentials(clnt *http.Client, endpoint string, opts STSAssume
 	}
 	if opts.ExternalID != "" {
 		v.Set("ExternalId", opts.ExternalID)
+	}
+	if opts.TokenRevokeType != "" {
+		v.Set("TokenRevokeType", opts.TokenRevokeType)
 	}
 
 	u, err := url.Parse(endpoint)
