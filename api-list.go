@@ -466,7 +466,7 @@ func (c *Client) listObjectVersions(ctx context.Context, bucketName string, opts
 				})
 				return
 			}
-			if opts.ReverseVersions {
+			if opts.WithVersions && opts.ReverseVersions {
 				for _, version := range result.Versions {
 					if preName == "" {
 						preName = result.Name
