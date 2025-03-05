@@ -428,7 +428,7 @@ func (c *Client) listObjectVersions(ctx context.Context, bucketName string, opts
 			numVersions     int
 		)
 		send := func(vers []Version) {
-			if opts.WithVersion && opts.ReverseVersions {
+			if opts.WithVersions && opts.ReverseVersions {
 				slices.Reverse(vers)
 				numVersions = len(vers)
 			}
