@@ -105,7 +105,7 @@ type STSAssumeRoleOptions struct {
 	RoleSessionName string
 	ExternalID      string
 
-	TokenRevokeType string // Optional, used for token revokation
+	TokenRevokeType string // Optional, used for token revokation (MinIO only extension)
 }
 
 // NewSTSAssumeRole returns a pointer to a new
