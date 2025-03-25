@@ -540,7 +540,7 @@ func TestGetInUsePolicy(t *testing.T) {
 
 	for _, testCase := range testCases {
 		result1, result2 := getInUsePolicy(testCase.statements, testCase.bucketName, testCase.prefix)
-		if !(result1 == testCase.expectedResult1 && result2 == testCase.expectedResult2) {
+		if result1 != testCase.expectedResult1 || result2 != testCase.expectedResult2 {
 			t.Fatalf("%+v: expected: [%t,%t], got: [%t,%t]", testCase,
 				testCase.expectedResult1, testCase.expectedResult2,
 				result1, result2)
@@ -1552,7 +1552,7 @@ func TestGetBucketPolicy(t *testing.T) {
 
 	for _, testCase := range testCases {
 		commonFound, readOnly, writeOnly := getBucketPolicy(testCase.statement, testCase.prefix)
-		if !(testCase.expectedResult1 == commonFound && testCase.expectedResult2 == readOnly && testCase.expectedResult3 == writeOnly) {
+		if testCase.expectedResult1 != commonFound || testCase.expectedResult2 != readOnly || testCase.expectedResult3 != writeOnly {
 			t.Fatalf("%+v: expected: [%t,%t,%t], got: [%t,%t,%t]", testCase,
 				testCase.expectedResult1, testCase.expectedResult2, testCase.expectedResult3,
 				commonFound, readOnly, writeOnly)
@@ -1614,7 +1614,7 @@ func TestGetObjectPolicy(t *testing.T) {
 
 	for _, testCase := range testCases {
 		readOnly, writeOnly := getObjectPolicy(testCase.statement)
-		if !(testCase.expectedResult1 == readOnly && testCase.expectedResult2 == writeOnly) {
+		if testCase.expectedResult1 != readOnly || testCase.expectedResult2 != writeOnly {
 			t.Fatalf("%+v: expected: [%t,%t], got: [%t,%t]", testCase,
 				testCase.expectedResult1, testCase.expectedResult2,
 				readOnly, writeOnly)

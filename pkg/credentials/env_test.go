@@ -25,9 +25,9 @@ import (
 
 func TestEnvAWSRetrieve(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("AWS_ACCESS_KEY_ID", "access")
-	os.Setenv("AWS_SECRET_ACCESS_KEY", "secret")
-	os.Setenv("AWS_SESSION_TOKEN", "token")
+	t.Setenv("AWS_ACCESS_KEY_ID", "access")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "secret")
+	t.Setenv("AWS_SESSION_TOKEN", "token")
 
 	e := EnvAWS{}
 	if !e.IsExpired() {
@@ -54,8 +54,8 @@ func TestEnvAWSRetrieve(t *testing.T) {
 	}
 
 	os.Clearenv()
-	os.Setenv("AWS_ACCESS_KEY", "access")
-	os.Setenv("AWS_SECRET_KEY", "secret")
+	t.Setenv("AWS_ACCESS_KEY", "access")
+	t.Setenv("AWS_SECRET_KEY", "secret")
 
 	expectedCreds = Value{
 		AccessKeyID:     "access",
@@ -76,8 +76,8 @@ func TestEnvAWSRetrieve(t *testing.T) {
 func TestEnvMinioRetrieve(t *testing.T) {
 	os.Clearenv()
 
-	os.Setenv("MINIO_ACCESS_KEY", "access")
-	os.Setenv("MINIO_SECRET_KEY", "secret")
+	t.Setenv("MINIO_ACCESS_KEY", "access")
+	t.Setenv("MINIO_SECRET_KEY", "secret")
 
 	e := EnvMinio{}
 	if !e.IsExpired() {

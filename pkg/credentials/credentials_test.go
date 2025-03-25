@@ -56,10 +56,10 @@ func TestCredentialsGet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if "UXHW" != creds.AccessKeyID {
+	if creds.AccessKeyID != "UXHW" {
 		t.Errorf("Expected \"UXHW\", got %s", creds.AccessKeyID)
 	}
-	if "MYSECRET" != creds.SecretAccessKey {
+	if creds.SecretAccessKey != "MYSECRET" {
 		t.Errorf("Expected \"MYSECRET\", got %s", creds.SecretAccessKey)
 	}
 	if creds.SessionToken != "" {

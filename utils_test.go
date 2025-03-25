@@ -204,7 +204,6 @@ func TestIsValidEndpointURL(t *testing.T) {
 				t.Errorf("Test %d: Expected to fail with error \"%s\", but instead failed with error \"%s\" instead", i+1, testCase.err, err)
 			}
 		}
-
 	}
 }
 
@@ -292,7 +291,6 @@ func TestIsValidExpiry(t *testing.T) {
 				t.Errorf("Test %d: Expected to fail with error \"%s\", but instead failed with error \"%s\" instead", i+1, testCase.err.Error(), err.Error())
 			}
 		}
-
 	}
 }
 
@@ -331,7 +329,6 @@ func TestIsValidBucketName(t *testing.T) {
 				t.Errorf("Test %d: Expected to fail with error \"%s\", but instead failed with error \"%s\" instead", i+1, testCase.err.Error(), err.Error())
 			}
 		}
-
 	}
 }
 

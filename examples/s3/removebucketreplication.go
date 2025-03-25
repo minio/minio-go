@@ -49,7 +49,6 @@ func main() {
 
 	// Remove replication configuration on a bucket
 	err = s3Client.RemoveBucketReplication(context.Background(), "my-bucketname")
-
 	if err != nil {
 		log.Fatalln(err)
 	}

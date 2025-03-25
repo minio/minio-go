@@ -86,7 +86,7 @@ func TestGetObjectCore(t *testing.T) {
 		t.Fatal("Error:", err, bucketName, objectName)
 	}
 
-	st, err := c.Client.StatObject(context.Background(), bucketName, objectName, StatObjectOptions{})
+	st, err := c.StatObject(context.Background(), bucketName, objectName, StatObjectOptions{})
 	if err != nil {
 		t.Fatal("Stat error:", err, bucketName, objectName)
 	}
