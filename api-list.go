@@ -285,7 +285,7 @@ func (c *Client) listObjectsV2Query(ctx context.Context, bucketName, objectPrefi
 	// sure proper responses are received.
 	if listBucketResult.IsTruncated && listBucketResult.NextContinuationToken == "" {
 		return listBucketResult, ErrorResponse{
-			Code:    "NotImplemented",
+			Code:    NotImplemented,
 			Message: "Truncated response should have continuation token set",
 		}
 	}
