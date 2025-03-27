@@ -366,7 +366,6 @@ func TestIsValidBucketName(t *testing.T) {
 				t.Errorf("Test %d: Expected to fail with error \"%s\", but instead failed with error \"%s\" instead", i+1, testCase.err.Error(), err.Error())
 			}
 		}
-
 	}
 }
 
@@ -409,7 +408,6 @@ func TestIsValidBucketNameStrict(t *testing.T) {
 				t.Errorf("Test %d: Expected to fail with error \"%s\", but instead failed with error \"%s\" instead", i+1, testCase.err.Error(), err.Error())
 			}
 		}
-
 	}
 }
 
@@ -455,5 +453,4 @@ func TestIsAmazonPrivateLinkEndpoint(t *testing.T) {
 			t.Errorf("Test %d: Expected IsAmazonPrivateLinkEndpoint to be '%v' for input \"%s\", but found it to be '%v' instead", i+1, testCase.result, testCase.url, result)
 		}
 	}
-
 }

@@ -26,10 +26,10 @@ func TestStaticGet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if "UXHW" != credValues.AccessKeyID {
+	if credValues.AccessKeyID != "UXHW" {
 		t.Errorf("Expected access key ID to match \"UXHW\", got %s", credValues.AccessKeyID)
 	}
-	if "SECRET" != credValues.SecretAccessKey {
+	if credValues.SecretAccessKey != "SECRET" {
 		t.Errorf("Expected secret access key to match \"SECRET\", got %s", credValues.SecretAccessKey)
 	}
 
@@ -51,10 +51,10 @@ func TestStaticGet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if "" != credValues.AccessKeyID {
+	if credValues.AccessKeyID != "" {
 		t.Errorf("Expected access key ID to match empty string, got %s", credValues.AccessKeyID)
 	}
-	if "" != credValues.SecretAccessKey {
+	if credValues.SecretAccessKey != "" {
 		t.Errorf("Expected secret access key to match empty string, got %s", credValues.SecretAccessKey)
 	}
 

@@ -433,17 +433,18 @@ func TestPostPolicySetEncryption(t *testing.T) {
 
 			var sse encrypt.ServerSide
 			var err error
-			if tt.sseType == "SSE-S3" {
+			switch tt.sseType {
+			case "SSE-S3":
 				sse, err = encrypt.NewSSEKMS(tt.keyID, nil)
 				if err != nil {
 					t.Fatalf("Failed to create SSE-KMS: %v", err)
 				}
-			} else if tt.sseType == "SSE-C" {
+			case "SSE-C":
 				sse, err = encrypt.NewSSEC([]byte("my-secret-key1234567890abcdefghi"))
 				if err != nil {
 					t.Fatalf("Failed to create SSE-C: %v", err)
 				}
-			} else {
+			default:
 				t.Fatalf("Unknown SSE type: %s", tt.sseType)
 			}
 

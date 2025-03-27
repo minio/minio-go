@@ -111,15 +111,16 @@ func initIMDSv2Server(expireOn string, failAssume bool) *httptest.Server {
 			return
 		}
 
-		if r.URL.Path == "/latest/meta-data/iam/security-credentials/" {
+		switch r.URL.Path {
+		case "/latest/meta-data/iam/security-credentials/":
 			fmt.Fprintln(w, "RoleName")
-		} else if r.URL.Path == "/latest/meta-data/iam/security-credentials/RoleName" {
+		case "/latest/meta-data/iam/security-credentials/RoleName":
 			if failAssume {
 				fmt.Fprint(w, credsFailRespTmpl)
 			} else {
 				fmt.Fprintf(w, credsRespTmpl, expireOn)
 			}
-		} else {
+		default:
 			http.Error(w, "bad request", http.StatusBadRequest)
 		}
 	}))
@@ -204,15 +205,15 @@ func TestIAM(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if "accessKey" != creds.AccessKeyID {
+	if creds.AccessKeyID != "accessKey" {
 		t.Errorf("Expected \"accessKey\", got %s", creds.AccessKeyID)
 	}
 
-	if "secret" != creds.SecretAccessKey {
+	if creds.SecretAccessKey != "secret" {
 		t.Errorf("Expected \"secret\", got %s", creds.SecretAccessKey)
 	}
 
-	if "token" != creds.SessionToken {
+	if creds.SessionToken != "token" {
 		t.Errorf("Expected \"token\", got %s", creds.SessionToken)
 	}
 
@@ -277,21 +278,21 @@ func TestEcsTask(t *testing.T) {
 	p := &IAM{
 		Endpoint: server.URL,
 	}
-	os.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "/v2/credentials?id=task_credential_id")
+	t.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "/v2/credentials?id=task_credential_id")
 	creds, err := p.RetrieveWithCredContext(defaultCredContext)
 	os.Unsetenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI")
 	if err != nil {
 		t.Errorf("Unexpected failure %s", err)
 	}
-	if "accessKey" != creds.AccessKeyID {
+	if creds.AccessKeyID != "accessKey" {
 		t.Errorf("Expected \"accessKey\", got %s", creds.AccessKeyID)
 	}
 
-	if "secret" != creds.SecretAccessKey {
+	if creds.SecretAccessKey != "secret" {
 		t.Errorf("Expected \"secret\", got %s", creds.SecretAccessKey)
 	}
 
-	if "token" != creds.SessionToken {
+	if creds.SessionToken != "token" {
 		t.Errorf("Expected \"token\", got %s", creds.SessionToken)
 	}
 
@@ -304,22 +305,22 @@ func TestEcsTaskFullURI(t *testing.T) {
 	server := initEcsTaskTestServer("2014-12-16T01:51:37Z")
 	defer server.Close()
 	p := &IAM{}
-	os.Setenv("AWS_CONTAINER_CREDENTIALS_FULL_URI",
+	t.Setenv("AWS_CONTAINER_CREDENTIALS_FULL_URI",
 		fmt.Sprintf("%s%s", server.URL, "/v2/credentials?id=task_credential_id"))
 	creds, err := p.RetrieveWithCredContext(defaultCredContext)
 	os.Unsetenv("AWS_CONTAINER_CREDENTIALS_FULL_URI")
 	if err != nil {
 		t.Errorf("Unexpected failure %s", err)
 	}
-	if "accessKey" != creds.AccessKeyID {
+	if creds.AccessKeyID != "accessKey" {
 		t.Errorf("Expected \"accessKey\", got %s", creds.AccessKeyID)
 	}
 
-	if "secret" != creds.SecretAccessKey {
+	if creds.SecretAccessKey != "secret" {
 		t.Errorf("Expected \"secret\", got %s", creds.SecretAccessKey)
 	}
 
-	if "token" != creds.SessionToken {
+	if creds.SessionToken != "token" {
 		t.Errorf("Expected \"token\", got %s", creds.SessionToken)
 	}
 
@@ -335,7 +336,7 @@ func TestSts(t *testing.T) {
 		Endpoint: server.URL,
 	}
 
-	f, err := os.CreateTemp("", "minio-go")
+	f, err := os.CreateTemp(t.TempDir(), "minio-go")
 	if err != nil {
 		t.Errorf("Unexpected failure %s", err)
 	}
@@ -343,23 +344,23 @@ func TestSts(t *testing.T) {
 	f.Write([]byte("token"))
 	f.Close()
 
-	os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", f.Name())
-	os.Setenv("AWS_ROLE_ARN", "arn:aws:sts::123456789012:assumed-role/FederatedWebIdentityRole/app1")
+	t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", f.Name())
+	t.Setenv("AWS_ROLE_ARN", "arn:aws:sts::123456789012:assumed-role/FederatedWebIdentityRole/app1")
 	creds, err := p.RetrieveWithCredContext(defaultCredContext)
 	os.Unsetenv("AWS_WEB_IDENTITY_TOKEN_FILE")
 	os.Unsetenv("AWS_ROLE_ARN")
 	if err != nil {
 		t.Errorf("Unexpected failure %s", err)
 	}
-	if "accessKey" != creds.AccessKeyID {
+	if creds.AccessKeyID != "accessKey" {
 		t.Errorf("Expected \"accessKey\", got %s", creds.AccessKeyID)
 	}
 
-	if "secret" != creds.SecretAccessKey {
+	if creds.SecretAccessKey != "secret" {
 		t.Errorf("Expected \"secret\", got %s", creds.SecretAccessKey)
 	}
 
-	if "token" != creds.SessionToken {
+	if creds.SessionToken != "token" {
 		t.Errorf("Expected \"token\", got %s", creds.SessionToken)
 	}
 
@@ -375,7 +376,7 @@ func TestStsCn(t *testing.T) {
 		Endpoint: server.URL,
 	}
 
-	f, err := os.CreateTemp("", "minio-go")
+	f, err := os.CreateTemp(t.TempDir(), "minio-go")
 	if err != nil {
 		t.Errorf("Unexpected failure %s", err)
 	}
@@ -383,24 +384,24 @@ func TestStsCn(t *testing.T) {
 	f.Write([]byte("token"))
 	f.Close()
 
-	os.Setenv("AWS_REGION", "cn-northwest-1")
-	os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", f.Name())
-	os.Setenv("AWS_ROLE_ARN", "arn:aws:sts::123456789012:assumed-role/FederatedWebIdentityRole/app1")
+	t.Setenv("AWS_REGION", "cn-northwest-1")
+	t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", f.Name())
+	t.Setenv("AWS_ROLE_ARN", "arn:aws:sts::123456789012:assumed-role/FederatedWebIdentityRole/app1")
 	creds, err := p.RetrieveWithCredContext(defaultCredContext)
 	os.Unsetenv("AWS_WEB_IDENTITY_TOKEN_FILE")
 	os.Unsetenv("AWS_ROLE_ARN")
 	if err != nil {
 		t.Errorf("Unexpected failure %s", err)
 	}
-	if "accessKey" != creds.AccessKeyID {
+	if creds.AccessKeyID != "accessKey" {
 		t.Errorf("Expected \"accessKey\", got %s", creds.AccessKeyID)
 	}
 
-	if "secret" != creds.SecretAccessKey {
+	if creds.SecretAccessKey != "secret" {
 		t.Errorf("Expected \"secret\", got %s", creds.SecretAccessKey)
 	}
 
-	if "token" != creds.SessionToken {
+	if creds.SessionToken != "token" {
 		t.Errorf("Expected \"token\", got %s", creds.SessionToken)
 	}
 

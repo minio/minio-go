@@ -46,7 +46,7 @@ func TestFileAWS(t *testing.T) {
 		t.Errorf("Expected 'token', got %s'", credValues.SessionToken)
 	}
 
-	os.Setenv("AWS_SHARED_CREDENTIALS_FILE", "credentials.sample")
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", "credentials.sample")
 	creds = NewFileAWSCredentials("", "")
 	credValues, err = creds.GetWithContext(defaultCredContext)
 	if err != nil {
@@ -68,7 +68,7 @@ func TestFileAWS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	os.Setenv("AWS_SHARED_CREDENTIALS_FILE", filepath.Join(wd, "credentials.sample"))
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", filepath.Join(wd, "credentials.sample"))
 	creds = NewFileAWSCredentials("", "")
 	credValues, err = creds.GetWithContext(defaultCredContext)
 	if err != nil {
@@ -86,7 +86,7 @@ func TestFileAWS(t *testing.T) {
 	}
 
 	os.Clearenv()
-	os.Setenv("AWS_PROFILE", "no_token")
+	t.Setenv("AWS_PROFILE", "no_token")
 
 	creds = NewFileAWSCredentials("credentials.sample", "")
 	credValues, err = creds.GetWithContext(defaultCredContext)
@@ -167,7 +167,7 @@ func TestFileMinioClient(t *testing.T) {
 	}
 
 	os.Clearenv()
-	os.Setenv("MINIO_ALIAS", "play")
+	t.Setenv("MINIO_ALIAS", "play")
 
 	creds = NewFileMinioClient("config.json.sample", "")
 	credValues, err = creds.GetWithContext(defaultCredContext)

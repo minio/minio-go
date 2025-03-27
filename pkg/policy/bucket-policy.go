@@ -217,11 +217,12 @@ func newObjectStatement(policy BucketPolicy, bucketName, prefix string) (stateme
 		Sid:       "",
 	}
 
-	if policy == BucketPolicyReadOnly {
+	switch policy {
+	case BucketPolicyReadOnly:
 		statement.Actions = readOnlyObjectActions
-	} else if policy == BucketPolicyWriteOnly {
+	case BucketPolicyWriteOnly:
 		statement.Actions = writeOnlyObjectActions
-	} else if policy == BucketPolicyReadWrite {
+	case BucketPolicyReadWrite:
 		statement.Actions = readWriteObjectActions
 	}
 
@@ -371,7 +372,6 @@ func removeStatements(statements []Statement, bucketName, prefix string) []State
 				statement.Actions.Intersection(readOnlyBucketActions).Equals(readOnlyBucketActions) &&
 				statement.Effect == "Allow" &&
 				statement.Principal.AWS.Contains("*") {
-
 				if statement.Conditions != nil {
 					stringEqualsValue := statement.Conditions["StringEquals"]
 					values := set.NewStringSet()
@@ -465,7 +465,7 @@ func appendStatement(statements []Statement, statement Statement) []Statement {
 		}
 	}
 
-	if !(statement.Actions.IsEmpty() && statement.Resources.IsEmpty()) {
+	if !statement.Actions.IsEmpty() || !statement.Resources.IsEmpty() {
 		return append(statements, statement)
 	}
 
@@ -483,7 +483,7 @@ func appendStatements(statements, appendStatements []Statement) []Statement {
 
 // Returns policy of given bucket statement.
 func getBucketPolicy(statement Statement, prefix string) (commonFound, readOnly, writeOnly bool) {
-	if !(statement.Effect == "Allow" && statement.Principal.AWS.Contains("*")) {
+	if statement.Effect != "Allow" || !statement.Principal.AWS.Contains("*") {
 		return commonFound, readOnly, writeOnly
 	}
 
