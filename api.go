@@ -455,7 +455,7 @@ func (c *Client) HealthCheck(hcDuration time.Duration) (context.CancelFunc, erro
 		gcancel()
 		if !IsNetworkOrHostDown(err, false) {
 			switch ToErrorResponse(err).Code {
-			case "NoSuchBucket", "AccessDenied", "":
+			case NoSuchBucket, AccessDenied, "":
 				atomic.CompareAndSwapInt32(&c.healthStatus, offline, online)
 			}
 		}
@@ -477,7 +477,7 @@ func (c *Client) HealthCheck(hcDuration time.Duration) (context.CancelFunc, erro
 					gcancel()
 					if !IsNetworkOrHostDown(err, false) {
 						switch ToErrorResponse(err).Code {
-						case "NoSuchBucket", "AccessDenied", "":
+						case NoSuchBucket, AccessDenied, "":
 							atomic.CompareAndSwapInt32(&c.healthStatus, offline, online)
 						}
 					}
@@ -736,11 +736,11 @@ func (c *Client) executeMethod(ctx context.Context, method string, metadata requ
 		// region is empty.
 		if c.region == "" {
 			switch errResponse.Code {
-			case "AuthorizationHeaderMalformed":
+			case AuthorizationHeaderMalformed:
 				fallthrough
-			case "InvalidRegion":
+			case InvalidRegion:
 				fallthrough
-			case "AccessDenied":
+			case AccessDenied:
 				if errResponse.Region == "" {
 					// Region is empty we simply return the error.
 					return res, err

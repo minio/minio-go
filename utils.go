@@ -280,7 +280,7 @@ func ToObjectInfo(bucketName, objectName string, h http.Header) (ObjectInfo, err
 		if err != nil {
 			// Content-Length is not valid
 			return ObjectInfo{}, ErrorResponse{
-				Code:       "InternalError",
+				Code:       InternalError,
 				Message:    fmt.Sprintf("Content-Length is not an integer, failed with %v", err),
 				BucketName: bucketName,
 				Key:        objectName,
@@ -295,7 +295,7 @@ func ToObjectInfo(bucketName, objectName string, h http.Header) (ObjectInfo, err
 	mtime, err := parseRFC7231Time(h.Get("Last-Modified"))
 	if err != nil {
 		return ObjectInfo{}, ErrorResponse{
-			Code:       "InternalError",
+			Code:       InternalError,
 			Message:    fmt.Sprintf("Last-Modified time format is invalid, failed with %v", err),
 			BucketName: bucketName,
 			Key:        objectName,
@@ -317,7 +317,7 @@ func ToObjectInfo(bucketName, objectName string, h http.Header) (ObjectInfo, err
 		expiry, err = parseRFC7231Time(expiryStr)
 		if err != nil {
 			return ObjectInfo{}, ErrorResponse{
-				Code:       "InternalError",
+				Code:       InternalError,
 				Message:    fmt.Sprintf("'Expiry' is not in supported format: %v", err),
 				BucketName: bucketName,
 				Key:        objectName,
@@ -339,7 +339,7 @@ func ToObjectInfo(bucketName, objectName string, h http.Header) (ObjectInfo, err
 	userTags, err := tags.ParseObjectTags(h.Get(amzTaggingHeader))
 	if err != nil {
 		return ObjectInfo{}, ErrorResponse{
-			Code: "InternalError",
+			Code: InternalError,
 		}
 	}
 
@@ -348,7 +348,7 @@ func ToObjectInfo(bucketName, objectName string, h http.Header) (ObjectInfo, err
 		tagCount, err = strconv.Atoi(count)
 		if err != nil {
 			return ObjectInfo{}, ErrorResponse{
-				Code:       "InternalError",
+				Code:       InternalError,
 				Message:    fmt.Sprintf("x-amz-tagging-count is not an integer, failed with %v", err),
 				BucketName: bucketName,
 				Key:        objectName,
