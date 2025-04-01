@@ -909,6 +909,11 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 
 	// For anonymous requests just return.
 	if signerType.IsAnonymous() {
+		if len(metadata.trailer) > 0 {
+			req.Header.Set("X-Amz-Content-Sha256", unsignedPayloadTrailer)
+			return signer.UnsignedTrailer(*req, metadata.trailer), nil
+		}
+
 		return req, nil
 	}
 
