@@ -358,7 +358,7 @@ func UnsignedTrailer(req http.Request, trailer http.Header) *http.Request {
 
 	// Use custom chunked encoding.
 	req.Trailer = trailer
-	return StreamingUnsignedV4(&req, "", req.ContentLength, time.Now().UTC())
+	return StreamingUnsignedV4(&req, "", req.ContentLength, t)
 }
 
 // SignV4 sign the request before Do(), in accordance with
