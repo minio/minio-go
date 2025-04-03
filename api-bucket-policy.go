@@ -145,3 +145,32 @@ func (c *Client) getBucketPolicy(ctx context.Context, bucketName string) (string
 	policy := string(bucketPolicyBuf)
 	return policy, err
 }
+
+// CheckObjectManagePermissions verifies if user has object permissions for given bucket
+func (c *Client) CheckObjectManagePermissions(ctx context.Context, bucket string, user string) error {
+	urlValues := make(url.Values)
+	urlValues.Set("user", user)
+
+	// Execute HEAD on bucketName.
+	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
+		bucketName:  bucket,
+		queryValues: urlValues,
+	})
+	defer closeResponse(resp)
+	if err != nil {
+		if ToErrorResponse(err).Code == "NoSuchBucket" {
+			return nil
+		}
+		return err
+	}
+	if resp != nil {
+		resperr := httpRespToErrorResponse(resp, bucket, "")
+		if ToErrorResponse(resperr).Code == "NoSuchBucket" {
+			return nil
+		}
+		if resp.StatusCode != http.StatusOK {
+			return httpRespToErrorResponse(resp, bucket, "")
+		}
+	}
+	return nil
+}
