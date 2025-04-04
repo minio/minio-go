@@ -14,7 +14,7 @@ require (
 	github.com/minio/md5-simd v1.1.2
 	github.com/rs/xid v1.6.0
 	golang.org/x/crypto v0.36.0
-	golang.org/x/net v0.37.0
+	golang.org/x/net v0.38.0
 )
 
 require (
