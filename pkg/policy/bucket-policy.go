@@ -18,11 +18,12 @@
 package policy
 
 import (
-	"encoding/json"
+	stdjson "encoding/json"
 	"errors"
 	"reflect"
 	"strings"
 
+	"github.com/minio/minio-go/v7/pkg/json"
 	"github.com/minio/minio-go/v7/pkg/set"
 )
 
@@ -119,6 +120,12 @@ type Statement struct {
 	Principal  User          `json:"Principal"`
 	Resources  set.StringSet `json:"Resource"`
 	Sid        string
+}
+
+func (s Statement) MarshalJSON() ([]byte, error) {
+	// use stdlib json marshaling, see https://github.com/goccy/go-json/pull/545
+	type AliasStatement Statement
+	return stdjson.Marshal(AliasStatement(s))
 }
 
 // BucketAccessPolicy - minio policy collection

@@ -17,7 +17,11 @@
 
 package policy
 
-import "github.com/minio/minio-go/v7/pkg/set"
+import (
+	"encoding/json"
+
+	"github.com/minio/minio-go/v7/pkg/set"
+)
 
 // ConditionKeyMap - map of policy condition key and value.
 type ConditionKeyMap map[string]set.StringSet
@@ -90,6 +94,11 @@ func (cond ConditionMap) Add(condKey string, condKeyMap ConditionKeyMap) {
 // Remove - removes condition key and its value.
 func (cond ConditionMap) Remove(condKey string) {
 	delete(cond, condKey)
+}
+
+func (cond ConditionMap) MarshalJSON() ([]byte, error) {
+	// Must be encoded with stdlib json due to https://github.com/goccy/go-json/issues/543
+	return json.Marshal(map[string]ConditionKeyMap(cond))
 }
 
 // mergeConditionMap - returns new ConditionMap which contains merged key/value of two ConditionMap.
