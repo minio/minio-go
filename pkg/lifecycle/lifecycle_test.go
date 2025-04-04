@@ -19,10 +19,11 @@ package lifecycle
 
 import (
 	"bytes"
-	"encoding/json"
 	"encoding/xml"
 	"testing"
 	"time"
+
+	"github.com/minio/minio-go/v7/internal/json"
 )
 
 func TestLifecycleUnmarshalJSON(t *testing.T) {
