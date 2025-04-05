@@ -1065,3 +1065,17 @@ func (c *Client) CredContext() *credentials.CredContext {
 		Endpoint: c.endpointURL.String(),
 	}
 }
+
+
+// GetCreds returns the access creds for the client
+func (c *Client) GetCreds() (*credentials.Value, error) {
+	if c.credsProvider == nil {
+		return nil, errors.New("no credentials provider")
+	}
+	value, err := c.credsProvider.GetWithContext(c.CredContext())
+	if err != nil {
+		return nil, err
+	}
+	return &value, nil
+}
+
