@@ -19,7 +19,6 @@ package minio
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"mime/multipart"
@@ -29,6 +28,7 @@ import (
 	"time"
 
 	"github.com/minio/minio-go/v7/pkg/encrypt"
+	"github.com/minio/minio-go/v7/pkg/json"
 )
 
 // PutObjectFanOutEntry is per object entry fan-out metadata
