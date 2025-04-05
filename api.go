@@ -1066,7 +1066,6 @@ func (c *Client) CredContext() *credentials.CredContext {
 	}
 }
 
-
 // GetCreds returns the access creds for the client
 func (c *Client) GetCreds() (*credentials.Value, error) {
 	if c.credsProvider == nil {
@@ -1078,4 +1077,3 @@ func (c *Client) GetCreds() (*credentials.Value, error) {
 	}
 	return &value, nil
 }
-
