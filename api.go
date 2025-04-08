@@ -1071,9 +1071,5 @@ func (c *Client) GetCreds() (credentials.Value, error) {
 	if c.credsProvider == nil {
 		return credentials.Value{}, errors.New("no credentials provider")
 	}
-	value, err := c.credsProvider.GetWithContext(c.CredContext())
-	if err != nil {
-		return credentials.Value{}, err
-	}
-	return value, nil
+	return c.credsProvider.GetWithContext(c.CredContext())
 }
