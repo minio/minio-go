@@ -20,7 +20,6 @@ package minio
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"encoding/xml"
 	"io"
 	"net/http"
@@ -28,6 +27,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/minio/minio-go/v7/internal/json"
 	"github.com/minio/minio-go/v7/pkg/replication"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )

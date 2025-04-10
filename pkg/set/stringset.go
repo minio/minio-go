@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/goccy/go-json"
+	"github.com/minio/minio-go/v7/internal/json"
 )
 
 // StringSet - uses map as set of strings.

@@ -42,6 +42,7 @@ func TestConditionKeyMapAdd(t *testing.T) {
 
 	for _, testCase := range testCases {
 		condKeyMap.Add(testCase.key, testCase.value)
+		// Must be encoded with stdlib json due to https://github.com/goccy/go-json/issues/543
 		if data, err := json.Marshal(condKeyMap); err != nil {
 			t.Fatalf("Unable to marshal ConditionKeyMap to JSON, %s", err)
 		} else {
