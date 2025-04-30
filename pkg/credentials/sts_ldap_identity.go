@@ -124,9 +124,9 @@ func LDAPIdentityTokenRevokeTypeOpt(tokenRevokeType string) LDAPIdentityOpt {
 
 // LDAPIdentityConfigNameOpt sets the LDAP configuration name for requested
 // credentials.
-func LDAPIdentityConfigNameOpt(configName string) LDAPIdentityOpt {
+func LDAPIdentityTargetNameOpt(targetName string) LDAPIdentityOpt {
 	return func(k *LDAPIdentity) {
-		k.LDAPConfigName = configName
+		k.LDAPTargetName = targetName
 	}
 }
 
@@ -178,8 +178,8 @@ func (k *LDAPIdentity) RetrieveWithCredContext(cc *CredContext) (value Value, er
 	if k.TokenRevokeType != "" {
 		v.Set("TokenRevokeType", k.TokenRevokeType)
 	}
-	if k.LDAPConfigName != "" {
-		v.Set("LDAPConfigName", k.LDAPConfigName)
+	if k.LDAPTargetName != "" {
+		v.Set("LDAPTargetName", k.LDAPTargetName)
 	}
 
 	req, err := http.NewRequest(http.MethodPost, u.String(), strings.NewReader(v.Encode()))
