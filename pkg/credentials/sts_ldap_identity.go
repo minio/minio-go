@@ -79,7 +79,7 @@ type LDAPIdentity struct {
 
 	// Optional, the LDAP configuration name to use for the LDAP identity
 	// provider.
-	LDAPConfigName string
+	LDAPTargetName string
 }
 
 // NewLDAPIdentity returns new credentials object that uses LDAP
