@@ -305,9 +305,10 @@ func EncodePath(pathName string) string {
 // We support '.' with bucket names but we fallback to using path
 // style requests instead for such buckets.
 var (
-	validBucketName       = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9\.\-\_\:]{1,61}[A-Za-z0-9]$`)
-	validBucketNameStrict = regexp.MustCompile(`^[a-z0-9][a-z0-9\.\-]{1,61}[a-z0-9]$`)
-	ipAddress             = regexp.MustCompile(`^(\d+\.){3}\d+$`)
+	validBucketName          = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9\.\-\_\:]{1,61}[A-Za-z0-9]$`)
+	validBucketNameStrict    = regexp.MustCompile(`^[a-z0-9][a-z0-9\.\-]{1,61}[a-z0-9]$`)
+	validBucketNameS3Express = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]--[a-z0-9]{3,7}-az[1-6]--x-s3$`)
+	ipAddress                = regexp.MustCompile(`^(\d+\.){3}\d+$`)
 )
 
 // Common checker for both stricter and basic validation.
@@ -342,6 +343,56 @@ func checkBucketNameCommon(bucketName string, strict bool) (err error) {
 // CheckValidBucketName - checks if we have a valid input bucket name.
 func CheckValidBucketName(bucketName string) (err error) {
 	return checkBucketNameCommon(bucketName, false)
+}
+
+// IsS3ExpressBucket is S3 express bucket?
+func IsS3ExpressBucket(bucketName string) bool {
+	return CheckValidBucketNameS3Express(bucketName) == nil
+}
+
+// CheckValidBucketNameS3Express - checks if we have a valid input bucket name for S3 Express.
+func CheckValidBucketNameS3Express(bucketName string) (err error) {
+	if strings.TrimSpace(bucketName) == "" {
+		return errors.New("Bucket name cannot be empty for S3 Express")
+	}
+
+	if len(bucketName) < 3 {
+		return errors.New("Bucket name cannot be shorter than 3 characters for S3 Express")
+	}
+
+	if len(bucketName) > 63 {
+		return errors.New("Bucket name cannot be longer than 63 characters for S3 Express")
+	}
+
+	// Check if the bucket matches the regex
+	if !validBucketNameS3Express.MatchString(bucketName) {
+		return errors.New("Bucket name contains invalid characters")
+	}
+
+	// Extract bucket name (before --<az-id>--x-s3)
+	parts := strings.Split(bucketName, "--")
+	if len(parts) != 3 || parts[2] != "x-s3" {
+		return errors.New("Bucket name pattern is wrong 'x-s3'")
+	}
+	bucketName = parts[0]
+
+	// Additional validation for bucket name
+	// 1. No consecutive periods or hyphens
+	if strings.Contains(bucketName, "..") || strings.Contains(bucketName, "--") {
+		return errors.New("Bucket name contains invalid characters")
+	}
+
+	// 2. No period-hyphen or hyphen-period
+	if strings.Contains(bucketName, ".-") || strings.Contains(bucketName, "-.") {
+		return errors.New("Bucket name has unexpected format or contains invalid characters")
+	}
+
+	// 3. No IP address format (e.g., 192.168.0.1)
+	if ipAddress.MatchString(bucketName) {
+		return errors.New("Bucket name cannot be an ip address")
+	}
+
+	return nil
 }
 
 // CheckValidBucketNameStrict - checks if we have a valid input bucket name.

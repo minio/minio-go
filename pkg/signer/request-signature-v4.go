@@ -229,7 +229,11 @@ func PreSignV4(req http.Request, accessKeyID, secretAccessKey, sessionToken, loc
 	query.Set("X-Amz-Credential", credential)
 	// Set session token if available.
 	if sessionToken != "" {
-		query.Set("X-Amz-Security-Token", sessionToken)
+		if v := req.Header.Get("x-amz-s3session-token"); v != "" {
+			query.Set("X-Amz-S3session-Token", sessionToken)
+		} else {
+			query.Set("X-Amz-Security-Token", sessionToken)
+		}
 	}
 	req.URL.RawQuery = query.Encode()
 
@@ -281,7 +285,11 @@ func signV4(req http.Request, accessKeyID, secretAccessKey, sessionToken, locati
 
 	// Set session token if available.
 	if sessionToken != "" {
-		req.Header.Set("X-Amz-Security-Token", sessionToken)
+		// S3 Express token if not set then set sessionToken
+		// with older x-amz-security-token header.
+		if v := req.Header.Get("x-amz-s3session-token"); v == "" {
+			req.Header.Set("X-Amz-Security-Token", sessionToken)
+		}
 	}
 
 	if len(trailer) > 0 {

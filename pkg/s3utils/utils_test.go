@@ -454,3 +454,30 @@ func TestIsAmazonPrivateLinkEndpoint(t *testing.T) {
 		}
 	}
 }
+
+func TestS3ExpressBucket(t *testing.T) {
+	tests := []struct {
+		bucket  string
+		wantErr bool
+	}{
+		{"my-express-bucket--usw2-az1--x-s3", true},
+		{"data.analytics--use1-az5--x-s3", true},
+		{"ml-training--apne1-az4--x-s3", true},
+		{"my-standard-bucket", false},
+		{"my-express-bucket--usw2-az1", false},
+		{"192.168.0.1--usw2-az1--x-s3", false},
+		{"my..bucket--usw2-az1--x-s3", false},
+		{"my--bucket--usw2-az1--x-s3", false},
+		{".mybucket--usw2-az1--x-s3", false},
+		{"my-bucket--invalid-az7--x-s3", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.bucket, func(t *testing.T) {
+			got := IsS3ExpressBucket(tt.bucket)
+			if got != tt.wantErr {
+				t.Errorf("IsS3ExpressBucket(%q) = %v, want %v", tt.bucket, got, tt.wantErr)
+			}
+		})
+	}
+}
