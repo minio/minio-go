@@ -40,8 +40,10 @@ import (
 
 	md5simd "github.com/minio/md5-simd"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/minio/minio-go/v7/pkg/kvcache"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 	"github.com/minio/minio-go/v7/pkg/signer"
+	"github.com/minio/minio-go/v7/pkg/singleflight"
 	"golang.org/x/net/publicsuffix"
 )
 
@@ -68,9 +70,11 @@ type Client struct {
 	secure bool
 
 	// Needs allocation.
-	httpClient     *http.Client
-	httpTrace      *httptrace.ClientTrace
-	bucketLocCache *bucketLocationCache
+	httpClient         *http.Client
+	httpTrace          *httptrace.ClientTrace
+	bucketLocCache     *kvcache.Cache[string, string]
+	bucketSessionCache *kvcache.Cache[string, credentials.Value]
+	credsGroup         singleflight.Group[string, credentials.Value]
 
 	// Advanced functionality.
 	isTraceEnabled  bool
@@ -280,8 +284,11 @@ func privateNew(endpoint string, opts *Options) (*Client, error) {
 	}
 	clnt.region = opts.Region
 
-	// Instantiate bucket location cache.
-	clnt.bucketLocCache = newBucketLocationCache()
+	// Initialize bucket region cache.
+	clnt.bucketLocCache = &kvcache.Cache[string, string]{}
+
+	// Initialize bucket session cache (s3 express).
+	clnt.bucketSessionCache = &kvcache.Cache[string, credentials.Value]{}
 
 	// Introduce a new locked random seed.
 	clnt.random = rand.New(&lockedRandSource{src: rand.NewSource(time.Now().UTC().UnixNano())})
@@ -818,14 +825,21 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 		ctx = httptrace.WithClientTrace(ctx, c.httpTrace)
 	}
 
-	// Initialize a new HTTP request for the method.
-	req, err = http.NewRequestWithContext(ctx, method, targetURL.String(), nil)
+	// make sure to de-dup calls to credential services, this reduces
+	// the overall load to the endpoint generating credential service.
+	value, err, _ := c.credsGroup.Do(metadata.bucketName, func() (credentials.Value, error) {
+		if s3utils.IsS3ExpressBucket(metadata.bucketName) {
+			return c.CreateSession(ctx, metadata.bucketName, SessionReadWrite)
+		}
+		// Get credentials from the configured credentials provider.
+		return c.credsProvider.GetWithContext(c.CredContext())
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	// Get credentials from the configured credentials provider.
-	value, err := c.credsProvider.GetWithContext(c.CredContext())
+	// Initialize a new HTTP request for the method.
+	req, err = http.NewRequestWithContext(ctx, method, targetURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -836,6 +850,10 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 		secretAccessKey = value.SecretAccessKey
 		sessionToken    = value.SessionToken
 	)
+
+	if s3utils.IsS3ExpressBucket(metadata.bucketName) {
+		req.Header.Set("x-amz-s3session-token", sessionToken)
+	}
 
 	// Custom signer set then override the behavior.
 	if c.overrideSignerType != credentials.SignatureDefault {
@@ -971,7 +989,7 @@ func (c *Client) makeTargetURL(bucketName, objectName, bucketLocation string, is
 			host = c.s3AccelerateEndpoint
 		} else {
 			// Do not change the host if the endpoint URL is a FIPS S3 endpoint or a S3 PrivateLink interface endpoint
-			if !s3utils.IsAmazonFIPSEndpoint(*c.endpointURL) && !s3utils.IsAmazonPrivateLinkEndpoint(*c.endpointURL) {
+			if !s3utils.IsAmazonFIPSEndpoint(*c.endpointURL) && !s3utils.IsAmazonPrivateLinkEndpoint(*c.endpointURL) && !s3utils.IsS3ExpressBucket(bucketName) {
 				// Fetch new host based on the bucket location.
 				host = getS3Endpoint(bucketLocation, c.s3DualstackEnabled)
 			}
