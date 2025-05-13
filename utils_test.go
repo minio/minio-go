@@ -523,6 +523,15 @@ func TestExtractObjMetadata(t *testing.T) {
 				"X-Minio-Meta-Test": []string{strings.Repeat("öha, das", 100)},
 			},
 		},
+		{
+			name: "Test with valid header with multi-BEncoding characters",
+			header: http.Header{
+				"X-Minio-Meta-Test": []string{mime.BEncoding.Encode("UTF-8", strings.Repeat("öha, das", 100)), mime.BEncoding.Encode("UTF-8", strings.Repeat("öha, das123", 100))},
+			},
+			want: http.Header{
+				"X-Minio-Meta-Test": []string{strings.Repeat("öha, das", 100), strings.Repeat("öha, das123", 100)},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

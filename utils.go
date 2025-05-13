@@ -225,14 +225,18 @@ func extractObjMetadata(header http.Header) http.Header {
 				continue
 			}
 			found = true
-			if len(v) == 1 && (prefix == "X-Amz-Meta-" || prefix == "X-Minio-Meta-") {
-				i := strings.Index(v[0], "=?")
-				if i == -1 {
-					break
-				}
-				decoder := mime.WordDecoder{}
-				if decoded, err := decoder.DecodeHeader(v[0]); err == nil {
-					v = []string{decoded}
+			if prefix == "X-Amz-Meta-" || prefix == "X-Minio-Meta-" {
+				for index, val := range v {
+					if strings.HasPrefix(val, "=?") {
+						i := strings.Index(val, "=?")
+						if i == -1 {
+							break
+						}
+						decoder := mime.WordDecoder{}
+						if decoded, err := decoder.DecodeHeader(val); err == nil {
+							v[index] = decoded
+						}
+					}
 				}
 			}
 			break
