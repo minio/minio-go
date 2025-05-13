@@ -193,7 +193,7 @@ func newBucketStatement(policy BucketPolicy, bucketName, prefix string) (stateme
 			condKeyMap := make(ConditionKeyMap)
 			condKeyMap.Add("s3:prefix", set.CreateStringSet(prefix))
 			condMap := make(ConditionMap)
-			condMap.Add("StringEquals", condKeyMap)
+			condMap.Add("StringLike", condKeyMap)
 			statement.Conditions = condMap
 		}
 		statements = append(statements, statement)
