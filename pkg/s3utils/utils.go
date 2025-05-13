@@ -95,6 +95,12 @@ var amazonS3HostFIPS = regexp.MustCompile(`^s3-fips.(.*?).amazonaws.com$`)
 // amazonS3HostFIPSDualStack - regular expression used to determine if an arg is s3 FIPS host dualstack.
 var amazonS3HostFIPSDualStack = regexp.MustCompile(`^s3-fips.dualstack.(.*?).amazonaws.com$`)
 
+// amazonS3HostExpress - regular expression used to determine if an arg is S3 Express zonal endpoint.
+var amazonS3HostExpress = regexp.MustCompile(`^s3express-[a-z0-9]{3,7}-az[1-6]\.([a-z0-9-]+)\.amazonaws\.com$`)
+
+// amazonS3HostExpressControl - regular expression used to determine if an arg is S3 express regional endpoint.
+var amazonS3HostExpressControl = regexp.MustCompile(`^s3express-control\.([a-z0-9-]+)\.amazonaws\.com$`)
+
 // amazonS3HostDot - regular expression used to determine if an arg is s3 host in . style.
 var amazonS3HostDot = regexp.MustCompile(`^s3.(.*?).amazonaws.com$`)
 
@@ -118,6 +124,7 @@ func GetRegionFromURL(endpointURL url.URL) string {
 	if endpointURL == sentinelURL {
 		return ""
 	}
+
 	if endpointURL.Hostname() == "s3-external-1.amazonaws.com" {
 		return ""
 	}
@@ -159,13 +166,29 @@ func GetRegionFromURL(endpointURL url.URL) string {
 		return parts[1]
 	}
 
-	parts = amazonS3HostDot.FindStringSubmatch(endpointURL.Hostname())
+	parts = amazonS3HostPrivateLink.FindStringSubmatch(endpointURL.Hostname())
 	if len(parts) > 1 {
 		return parts[1]
 	}
 
-	parts = amazonS3HostPrivateLink.FindStringSubmatch(endpointURL.Hostname())
+	parts = amazonS3HostExpress.FindStringSubmatch(endpointURL.Hostname())
 	if len(parts) > 1 {
+		return parts[1]
+	}
+
+	parts = amazonS3HostExpressControl.FindStringSubmatch(endpointURL.Hostname())
+	if len(parts) > 1 {
+		return parts[1]
+	}
+
+	parts = amazonS3HostDot.FindStringSubmatch(endpointURL.Hostname())
+	if len(parts) > 1 {
+		if strings.HasPrefix(parts[1], "xpress-") {
+			return ""
+		}
+		if strings.HasPrefix(parts[1], "dualstack.") || strings.HasPrefix(parts[1], "control.") || strings.HasPrefix(parts[1], "website-") {
+			return ""
+		}
 		return parts[1]
 	}
 
@@ -174,12 +197,22 @@ func GetRegionFromURL(endpointURL url.URL) string {
 
 // IsAliyunOSSEndpoint - Match if it is exactly Aliyun OSS endpoint.
 func IsAliyunOSSEndpoint(endpointURL url.URL) bool {
-	return strings.HasSuffix(endpointURL.Host, "aliyuncs.com")
+	return strings.HasSuffix(endpointURL.Hostname(), "aliyuncs.com")
+}
+
+// IsAmazonExpressRegionalEndpoint Match if the endpoint is S3 Express regional endpoint.
+func IsAmazonExpressRegionalEndpoint(endpointURL url.URL) bool {
+	return amazonS3HostExpressControl.MatchString(endpointURL.Hostname())
+}
+
+// IsAmazonExpressZonalEndpoint Match if the endpoint is S3 Express zonal endpoint.
+func IsAmazonExpressZonalEndpoint(endpointURL url.URL) bool {
+	return amazonS3HostExpress.MatchString(endpointURL.Hostname())
 }
 
 // IsAmazonEndpoint - Match if it is exactly Amazon S3 endpoint.
 func IsAmazonEndpoint(endpointURL url.URL) bool {
-	if endpointURL.Host == "s3-external-1.amazonaws.com" || endpointURL.Host == "s3.amazonaws.com" {
+	if endpointURL.Hostname() == "s3-external-1.amazonaws.com" || endpointURL.Hostname() == "s3.amazonaws.com" {
 		return true
 	}
 	return GetRegionFromURL(endpointURL) != ""
@@ -200,7 +233,7 @@ func IsAmazonFIPSGovCloudEndpoint(endpointURL url.URL) bool {
 	if endpointURL == sentinelURL {
 		return false
 	}
-	return IsAmazonFIPSEndpoint(endpointURL) && strings.Contains(endpointURL.Host, "us-gov-")
+	return IsAmazonFIPSEndpoint(endpointURL) && strings.Contains(endpointURL.Hostname(), "us-gov-")
 }
 
 // IsAmazonFIPSEndpoint - Match if it is exactly Amazon S3 FIPS endpoint.
@@ -209,7 +242,7 @@ func IsAmazonFIPSEndpoint(endpointURL url.URL) bool {
 	if endpointURL == sentinelURL {
 		return false
 	}
-	return strings.HasPrefix(endpointURL.Host, "s3-fips") && strings.HasSuffix(endpointURL.Host, ".amazonaws.com")
+	return strings.HasPrefix(endpointURL.Hostname(), "s3-fips") && strings.HasSuffix(endpointURL.Hostname(), ".amazonaws.com")
 }
 
 // IsAmazonPrivateLinkEndpoint - Match if it is exactly Amazon S3 PrivateLink interface endpoint

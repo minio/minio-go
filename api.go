@@ -828,7 +828,7 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 	// make sure to de-dup calls to credential services, this reduces
 	// the overall load to the endpoint generating credential service.
 	value, err, _ := c.credsGroup.Do(metadata.bucketName, func() (credentials.Value, error) {
-		if s3utils.IsS3ExpressBucket(metadata.bucketName) {
+		if s3utils.IsS3ExpressBucket(metadata.bucketName) && s3utils.IsAmazonEndpoint(*c.endpointURL) {
 			return c.CreateSession(ctx, metadata.bucketName, SessionReadWrite)
 		}
 		// Get credentials from the configured credentials provider.
@@ -851,7 +851,7 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 		sessionToken    = value.SessionToken
 	)
 
-	if s3utils.IsS3ExpressBucket(metadata.bucketName) {
+	if s3utils.IsS3ExpressBucket(metadata.bucketName) && sessionToken != "" {
 		req.Header.Set("x-amz-s3session-token", sessionToken)
 	}
 
@@ -940,8 +940,13 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 		// Streaming signature is used by default for a PUT object request.
 		// Additionally, we also look if the initialized client is secure,
 		// if yes then we don't need to perform streaming signature.
-		req = signer.StreamingSignV4(req, accessKeyID,
-			secretAccessKey, sessionToken, location, metadata.contentLength, time.Now().UTC(), c.sha256Hasher())
+		if s3utils.IsAmazonExpressRegionalEndpoint(*c.endpointURL) {
+			req = signer.StreamingSignV4Express(req, accessKeyID,
+				secretAccessKey, sessionToken, location, metadata.contentLength, time.Now().UTC(), c.sha256Hasher())
+		} else {
+			req = signer.StreamingSignV4(req, accessKeyID,
+				secretAccessKey, sessionToken, location, metadata.contentLength, time.Now().UTC(), c.sha256Hasher())
+		}
 	default:
 		// Set sha256 sum for signature calculation only with signature version '4'.
 		shaHeader := unsignedPayload
@@ -956,8 +961,12 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 		}
 		req.Header.Set("X-Amz-Content-Sha256", shaHeader)
 
-		// Add signature version '4' authorization header.
-		req = signer.SignV4Trailer(*req, accessKeyID, secretAccessKey, sessionToken, location, metadata.trailer)
+		if s3utils.IsAmazonExpressRegionalEndpoint(*c.endpointURL) {
+			req = signer.SignV4TrailerExpress(*req, accessKeyID, secretAccessKey, sessionToken, location, metadata.trailer)
+		} else {
+			// Add signature version '4' authorization header.
+			req = signer.SignV4Trailer(*req, accessKeyID, secretAccessKey, sessionToken, location, metadata.trailer)
+		}
 	}
 
 	// Return request.
@@ -989,9 +998,18 @@ func (c *Client) makeTargetURL(bucketName, objectName, bucketLocation string, is
 			host = c.s3AccelerateEndpoint
 		} else {
 			// Do not change the host if the endpoint URL is a FIPS S3 endpoint or a S3 PrivateLink interface endpoint
-			if !s3utils.IsAmazonFIPSEndpoint(*c.endpointURL) && !s3utils.IsAmazonPrivateLinkEndpoint(*c.endpointURL) && !s3utils.IsS3ExpressBucket(bucketName) {
-				// Fetch new host based on the bucket location.
-				host = getS3Endpoint(bucketLocation, c.s3DualstackEnabled)
+			if !s3utils.IsAmazonFIPSEndpoint(*c.endpointURL) && !s3utils.IsAmazonPrivateLinkEndpoint(*c.endpointURL) {
+				if s3utils.IsAmazonExpressRegionalEndpoint(*c.endpointURL) {
+					if bucketName == "" {
+						host = getS3ExpressEndpoint(bucketLocation, false)
+					} else {
+						// Fetch new host based on the bucket location.
+						host = getS3ExpressEndpoint(bucketLocation, s3utils.IsS3ExpressBucket(bucketName))
+					}
+				} else {
+					// Fetch new host based on the bucket location.
+					host = getS3Endpoint(bucketLocation, c.s3DualstackEnabled)
+				}
 			}
 		}
 	}

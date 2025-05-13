@@ -78,6 +78,10 @@ func (c *Client) CreateSession(ctx context.Context, bucketName string, sessionMo
 		return credentials.Value{}, err
 	}
 
+	if resp.StatusCode != http.StatusOK {
+		return credentials.Value{}, httpRespToErrorResponse(resp, bucketName, "")
+	}
+
 	credSession := &createSessionResult{}
 	dec := xml.NewDecoder(resp.Body)
 	if err = dec.Decode(credSession); err != nil {
@@ -103,12 +107,15 @@ func (c *Client) createSessionRequest(ctx context.Context, bucketName string, se
 	// Set get bucket location always as path style.
 	targetURL := *c.endpointURL
 
+	// Fetch new host based on the bucket location.
+	host := getS3ExpressEndpoint(c.region, s3utils.IsS3ExpressBucket(bucketName))
+
 	// as it works in makeTargetURL method from api.go file
-	if h, p, err := net.SplitHostPort(targetURL.Host); err == nil {
+	if h, p, err := net.SplitHostPort(host); err == nil {
 		if targetURL.Scheme == "http" && p == "80" || targetURL.Scheme == "https" && p == "443" {
-			targetURL.Host = h
+			host = h
 			if ip := net.ParseIP(h); ip != nil && ip.To16() != nil {
-				targetURL.Host = "[" + h + "]"
+				host = "[" + h + "]"
 			}
 		}
 	}
@@ -118,7 +125,7 @@ func (c *Client) createSessionRequest(ctx context.Context, bucketName string, se
 	var urlStr string
 
 	if isVirtualStyle {
-		urlStr = c.endpointURL.Scheme + "://" + bucketName + "." + targetURL.Host + "/?session"
+		urlStr = c.endpointURL.Scheme + "://" + bucketName + "." + host + "/?session"
 	} else {
 		targetURL.Path = path.Join(bucketName, "") + "/"
 		targetURL.RawQuery = urlValues.Encode()
@@ -170,6 +177,6 @@ func (c *Client) createSessionRequest(ctx context.Context, bucketName string, se
 
 	req.Header.Set("X-Amz-Content-Sha256", contentSha256)
 	req.Header.Set("x-amz-create-session-mode", string(sessionMode))
-	req = signer.SignV4(*req, accessKeyID, secretAccessKey, sessionToken, c.region)
+	req = signer.SignV4Express(*req, accessKeyID, secretAccessKey, sessionToken, c.region)
 	return req, nil
 }

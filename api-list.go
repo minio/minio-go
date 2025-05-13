@@ -58,6 +58,64 @@ func (c *Client) ListBuckets(ctx context.Context) ([]BucketInfo, error) {
 	return listAllMyBucketsResult.Buckets.Bucket, nil
 }
 
+// ListDirectoryBuckets list all buckets owned by this authenticated user.
+//
+// This call requires explicit authentication, no anonymous requests are
+// allowed for listing buckets.
+//
+// api := client.New(....)
+// dirBuckets, err := api.ListDirectoryBuckets(context.Background())
+func (c *Client) ListDirectoryBuckets(ctx context.Context) (iter.Seq2[BucketInfo, error], error) {
+	fetchBuckets := func(continuationToken string) ([]BucketInfo, string, error) {
+		metadata := requestMetadata{contentSHA256Hex: emptySHA256Hex}
+		metadata.queryValues = url.Values{}
+		metadata.queryValues.Set("max-directory-buckets", "1000")
+		if continuationToken != "" {
+			metadata.queryValues.Set("continuation-token", continuationToken)
+		}
+
+		// Execute GET on service.
+		resp, err := c.executeMethod(ctx, http.MethodGet, metadata)
+		defer closeResponse(resp)
+		if err != nil {
+			return nil, "", err
+		}
+		if resp != nil {
+			if resp.StatusCode != http.StatusOK {
+				return nil, "", httpRespToErrorResponse(resp, "", "")
+			}
+		}
+
+		results := listAllMyDirectoryBucketsResult{}
+		if err = xmlDecoder(resp.Body, &results); err != nil {
+			return nil, "", err
+		}
+
+		return results.Buckets.Bucket, results.ContinuationToken, nil
+	}
+
+	return func(yield func(BucketInfo, error) bool) {
+		var continuationToken string
+		for {
+			buckets, token, err := fetchBuckets(continuationToken)
+			if err != nil {
+				yield(BucketInfo{}, err)
+				return
+			}
+			for _, bucket := range buckets {
+				if !yield(bucket, nil) {
+					return
+				}
+			}
+			if token == "" {
+				// nothing to continue
+				return
+			}
+			continuationToken = token
+		}
+	}, nil
+}
+
 // Bucket List Operations.
 func (c *Client) listObjectsV2(ctx context.Context, bucketName string, opts ListObjectsOptions) iter.Seq[ObjectInfo] {
 	// Default listing is delimited at "/"
