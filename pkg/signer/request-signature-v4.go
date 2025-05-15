@@ -38,8 +38,9 @@ const (
 
 // Different service types
 const (
-	ServiceTypeS3  = "s3"
-	ServiceTypeSTS = "sts"
+	ServiceTypeS3        = "s3"
+	ServiceTypeSTS       = "sts"
+	ServiceTypeS3Express = "s3express"
 )
 
 // Excerpts from @lsegal -
@@ -373,6 +374,18 @@ func UnsignedTrailer(req http.Request, trailer http.Header) *http.Request {
 // http://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html.
 func SignV4(req http.Request, accessKeyID, secretAccessKey, sessionToken, location string) *http.Request {
 	return signV4(req, accessKeyID, secretAccessKey, sessionToken, location, ServiceTypeS3, nil)
+}
+
+// SignV4Express sign the request before Do(), in accordance with
+// http://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html.
+func SignV4Express(req http.Request, accessKeyID, secretAccessKey, sessionToken, location string) *http.Request {
+	return signV4(req, accessKeyID, secretAccessKey, sessionToken, location, ServiceTypeS3Express, nil)
+}
+
+// SignV4TrailerExpress sign the request before Do(), in accordance with
+// http://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html
+func SignV4TrailerExpress(req http.Request, accessKeyID, secretAccessKey, sessionToken, location string, trailer http.Header) *http.Request {
+	return signV4(req, accessKeyID, secretAccessKey, sessionToken, location, ServiceTypeS3Express, trailer)
 }
 
 // SignV4Trailer sign the request before Do(), in accordance with

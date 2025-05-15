@@ -51,6 +51,12 @@ func TestGetRegionFromURL(t *testing.T) {
 		{u: "accesspoint.vpce-1a2b3c4d-5e6f.s3.us-east-1.vpce.amazonaws.com", expectedRegion: "us-east-1"},
 		{u: "s3-fips.us-east-1.amazonaws.com", expectedRegion: "us-east-1"},
 		{u: "s3-fips.dualstack.us-west-1.amazonaws.com", expectedRegion: "us-west-1"},
+		{u: "s3express-usw2-az1.us-west-2.amazonaws.com", expectedRegion: "us-west-2"},
+		{u: "s3express-use1-az5.us-east-1.amazonaws.com", expectedRegion: "us-east-1"},
+		{u: "s3express-apne1-az4.ap-northeast-1.amazonaws.com", expectedRegion: "ap-northeast-1"},
+		{u: "s3express-euc1-az2.eu-central-1.amazonaws.com", expectedRegion: "eu-central-1"},
+		{u: "s3express-usgw1-az3.us-gov-west-1.amazonaws.com", expectedRegion: "us-gov-west-1"},
+		{u: "s3express-control.us-west-2.amazonaws.com", expectedRegion: "us-west-2"},
 
 		// Test cases with port numbers.
 		{u: "storage.googleapis.com:80", expectedRegion: ""},
@@ -62,12 +68,9 @@ func TestGetRegionFromURL(t *testing.T) {
 		{u: "s3-fips.us-gov-west-1.amazonaws.com:80", expectedRegion: "us-gov-west-1"},
 		{u: "s3-fips.us-gov-east-1.amazonaws.com:80", expectedRegion: "us-gov-east-1"},
 		{u: "s3-us-gov-west-1.amazonaws.com:80", expectedRegion: "us-gov-west-1"},
-		{u: "192.168.1.1:80", expectedRegion: ""},
 		{u: "s3-eu-west-1.amazonaws.com:80", expectedRegion: "eu-west-1"},
 		{u: "s3.eu-west-1.amazonaws.com:80", expectedRegion: "eu-west-1"},
 		{u: "s3.dualstack.eu-west-1.amazonaws.com:80", expectedRegion: "eu-west-1"},
-		{u: "s3.amazonaws.com:80", expectedRegion: ""},
-		{u: "s3-external-1.amazonaws.com:80", expectedRegion: ""},
 		{u: "s3.kubernetesfrontendlb-caf78da2b1f7516c.elb.us-west-2.amazonaws.com:80", expectedRegion: ""},
 		{u: "s3.kubernetesfrontendlb-caf78da2b1f7516c.elb.amazonaws.com:80", expectedRegion: ""},
 		{u: "s3.kubernetesfrontendlb-caf78da2b1f7516c.elb.amazonaws.com.cn:80", expectedRegion: ""},
@@ -75,6 +78,12 @@ func TestGetRegionFromURL(t *testing.T) {
 		{u: "accesspoint.vpce-1a2b3c4d-5e6f.s3.us-east-1.vpce.amazonaws.com:80", expectedRegion: "us-east-1"},
 		{u: "s3-fips.us-east-1.amazonaws.com:80", expectedRegion: "us-east-1"},
 		{u: "s3-fips.dualstack.us-west-1.amazonaws.com:80", expectedRegion: "us-west-1"},
+		// No region found.
+		{u: "192.168.1.1:80", expectedRegion: ""},
+		{u: "s3express-usw2-az7.us-west-2.amazonaws.com", expectedRegion: ""},
+		{u: "invalid-endpoint.com", expectedRegion: ""},
+		{u: "s3.amazonaws.com:80", expectedRegion: ""},
+		{u: "s3-external-1.amazonaws.com:80", expectedRegion: ""},
 	}
 
 	for i, testCase := range testCases {
@@ -196,6 +205,7 @@ func TestIsAmazonEndpoint(t *testing.T) {
 		{"https://s3.dualstack.us-west-1.amazonaws.com", true},
 		{"https://bucket.vpce-1a2b3c4d-5e6f.s3.us-east-1.vpce.amazonaws.com", true},
 		{"https://accesspoint.vpce-1a2b3c4d-5e6f.s3.us-east-1.vpce.amazonaws.com", true},
+		{"https://s3express-usw2-az1.us-west-2.amazonaws.com", true},
 	}
 
 	for i, testCase := range testCases {
