@@ -2156,7 +2156,7 @@ __Parameters__
 __Return Values__
 |Param |Type |Description |
 |:---|:--|:---|
-|`id`|_string_| Response Body|
+|`id`|_string_| Recieved upon successful cancellation of replication resync|
 |`err`| _error_| Standard Error|
 
 __Example__
