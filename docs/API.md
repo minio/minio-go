@@ -74,7 +74,7 @@ func main() {
 | [`SetBucketReplication`](#SetBucketReplication)       |                                                     |                                               | [`DisableVersioning`](#DisableVersioning)                     |                                                       |
 | [`GetBucketReplication`](#GetBucketReplication)       | [`PutObjectRetention`](#PutObjectRetention)         |                                               | [`GetBucketEncryption`](#GetBucketEncryption)                 |                                                       |
 | [`RemoveBucketReplication`](#RemoveBucketReplication) | [`GetObjectRetention`](#GetObjectRetention)         |                                               | [`RemoveBucketEncryption`](#RemoveBucketEncryption)           |                                                       |
-|                                                       | [`PutObjectLegalHold`](#PutObjectLegalHold)         |                                               |                                                               |                                                       |
+| [`CancelBucketReplicationResync`](#CancelBucketReplicationResync) | [`PutObjectLegalHold`](#PutObjectLegalHold)         |                                               |                                                               |                                                       |
 |                                                       | [`GetObjectLegalHold`](#GetObjectLegalHold)         |                                               |                                                               |                                                       |
 |                                                       | [`SelectObjectContent`](#SelectObjectContent)       |                                               |                                                               |                                                       |
 |                                                       | [`PutObjectTagging`](#PutObjectTagging)             |                                               |                                                               |                                                       |
@@ -2138,6 +2138,33 @@ err = minioClient.RemoveBucketReplication(context.Background(), "my-bucketname")
 if err != nil {
     fmt.Println(err)
     return
+}
+```
+
+<a name="CancelBucketReplicationResync"></a>
+### CancelBucketReplicationResync(ctx context.Context, bucketName string, tgtArn string) (id string, err error)
+Cancels in progress replication resync
+
+__Parameters__
+
+|Param  |Type |Description |
+|:---|:---|:---|
+|`ctx` | _context.Context_ | Custom context of timeout/cancellation of the call|
+|`bucketName` | _string_ | Name of the bucket |
+|`tgtArn` | _string_ | Target Amazon Resource Name |
+
+__Return Values__
+|Param |Type |Description |
+|:---|:--|:---|
+|`id`|_string_| Response Body|
+|`err`| _error_| Standard Error|
+
+__Example__
+```go
+id, err := minioClient.CancelBucketReplicationResync(context.Background(), "my-bucket-name", "my-target-arn")
+if err != nil {
+  fmt.Println(err)
+  return
 }
 ```
 
