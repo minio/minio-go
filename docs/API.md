@@ -460,7 +460,8 @@ __minio.UploadInfo__
 
 __Example__
 ```go
-info, err := minio.AppendObject(context.Background(), "my-bucket-name", "my-object-name", my_progress_reader, size)
+opt := minio.AppendObjectOptions{}
+info, err := minio.AppendObject(context.Background(), "my-bucket-name", "my-object-name", my_progress_reader, size, opt)
 if err != nil {
   log.Fatalln(err)
 }
