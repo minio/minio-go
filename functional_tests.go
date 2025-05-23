@@ -11415,6 +11415,70 @@ func testPutObject0ByteV2() {
 	logSuccess(testName, function, args, startTime)
 }
 
+// Test put object with 0 byte object with non-US-ASCII characters.
+func testPutObjectMetadataNonUSASCIIV2() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "PutObject(bucketName, objectName, reader, size, opts)"
+	args := map[string]interface{}{
+		"bucketName": "",
+		"objectName": "",
+		"size":       0,
+		"opts":       "",
+	}
+	metadata := map[string]string{
+		"test": "öha, das sollte",
+	}
+	c, err := NewClient(ClientConfig{CredsV2: true})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
+		return
+	}
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	defer cleanupBucket(bucketName, c)
+
+	objectName := bucketName + "unique"
+	args["objectName"] = objectName
+	args["opts"] = minio.PutObjectOptions{}
+
+	// Upload an object.
+	_, err = c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader([]byte("")), 0, minio.PutObjectOptions{
+		UserMetadata: metadata,
+	})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObjectWithSize failed", err)
+		return
+	}
+	st, err := c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "StatObjectWithSize failed", err)
+		return
+	}
+	if st.Size != 0 {
+		logError(testName, function, args, startTime, "", "Expected upload object size 0 but got "+string(st.Size), err)
+		return
+	}
+
+	if st.Metadata.Get("X-Amz-Meta-Test") != metadata["test"] {
+		logError(testName, function, args, startTime, "", "Expected upload object metadata test: öha, das sollte but got "+st.Metadata.Get("X-Amz-Meta-Test"), err)
+		return
+	}
+
+	logSuccess(testName, function, args, startTime)
+}
+
 // Test expected error cases
 func testComposeObjectErrorCases() {
 	// initialize logging params
@@ -13809,6 +13873,7 @@ func main() {
 		testPutMultipartObjectWithChecksums(false)
 		testPutMultipartObjectWithChecksums(true)
 		testPutObject0ByteV2()
+		testPutObjectMetadataNonUSASCIIV2()
 		testPutObjectNoLengthV2()
 		testPutObjectsUnknownV2()
 		testGetObjectContextV2()
