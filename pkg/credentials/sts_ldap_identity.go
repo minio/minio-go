@@ -122,7 +122,7 @@ func LDAPIdentityTokenRevokeTypeOpt(tokenRevokeType string) LDAPIdentityOpt {
 	}
 }
 
-// LDAPIdentityConfigNameOpt sets the LDAP configuration name for requested
+// LDAPIdentityTargetNameOpt sets the LDAP configuration name for requested
 // credentials.
 func LDAPIdentityTargetNameOpt(targetName string) LDAPIdentityOpt {
 	return func(k *LDAPIdentity) {
