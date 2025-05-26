@@ -2,7 +2,7 @@ module github.com/minio/minio-go/v7
 
 go 1.23.0
 
-toolchain go1.24.1
+toolchain go1.24.3
 
 require (
 	github.com/dustin/go-humanize v1.0.1
