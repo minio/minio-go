@@ -1073,7 +1073,7 @@ func testPutObjectWithVersioning() {
 	var results []minio.ObjectInfo
 	for info := range objectsInfo {
 		if info.Err != nil {
-			logError(testName, function, args, startTime, "", "Unexpected error during listing objects", err)
+			logError(testName, function, args, startTime, "", "Unexpected error during listing objects", info.Err)
 			return
 		}
 		results = append(results, info)

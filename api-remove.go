@@ -442,13 +442,14 @@ func (c *Client) removeObjects(ctx context.Context, bucketName string, objectsCh
 		removeBytes := generateRemoveMultiObjectsRequest(batch)
 		// Execute POST on bucket to remove objects.
 		resp, err := c.executeMethod(ctx, http.MethodPost, requestMetadata{
-			bucketName:       bucketName,
-			queryValues:      urlValues,
-			contentBody:      bytes.NewReader(removeBytes),
-			contentLength:    int64(len(removeBytes)),
-			contentMD5Base64: sumMD5Base64(removeBytes),
-			contentSHA256Hex: sum256Hex(removeBytes),
-			customHeader:     headers,
+			bucketName:           bucketName,
+			queryValues:          urlValues,
+			contentBody:          bytes.NewReader(removeBytes),
+			contentLength:        int64(len(removeBytes)),
+			contentMD5Base64:     sumMD5Base64(removeBytes),
+			contentSHA256Hex:     sum256Hex(removeBytes),
+			customHeader:         headers,
+			expect200OKWithError: true,
 		})
 		if resp != nil {
 			if resp.StatusCode != http.StatusOK {
