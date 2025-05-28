@@ -419,19 +419,25 @@ func (c *Client) listObjectVersions(ctx context.Context, bucketName string, opts
 			}
 			for _, version := range vers {
 				info := ObjectInfo{
-					ETag:           trimEtag(version.ETag),
-					Key:            version.Key,
-					LastModified:   version.LastModified.Truncate(time.Millisecond),
-					Size:           version.Size,
-					Owner:          version.Owner,
-					StorageClass:   version.StorageClass,
-					IsLatest:       version.IsLatest,
-					VersionID:      version.VersionID,
-					IsDeleteMarker: version.isDeleteMarker,
-					UserTags:       version.UserTags,
-					UserMetadata:   version.UserMetadata,
-					Internal:       version.Internal,
-					NumVersions:    numVersions,
+					ETag:              trimEtag(version.ETag),
+					Key:               version.Key,
+					LastModified:      version.LastModified.Truncate(time.Millisecond),
+					Size:              version.Size,
+					Owner:             version.Owner,
+					StorageClass:      version.StorageClass,
+					IsLatest:          version.IsLatest,
+					VersionID:         version.VersionID,
+					IsDeleteMarker:    version.isDeleteMarker,
+					UserTags:          version.UserTags,
+					UserMetadata:      version.UserMetadata,
+					Internal:          version.Internal,
+					NumVersions:       numVersions,
+					ChecksumMode:      version.ChecksumType,
+					ChecksumCRC32:     version.ChecksumCRC32,
+					ChecksumCRC32C:    version.ChecksumCRC32C,
+					ChecksumSHA1:      version.ChecksumSHA1,
+					ChecksumSHA256:    version.ChecksumSHA256,
+					ChecksumCRC64NVME: version.ChecksumCRC64NVME,
 				}
 				if !yield(info) {
 					return false
