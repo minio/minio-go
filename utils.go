@@ -30,6 +30,7 @@ import (
 	"hash"
 	"io"
 	"math/rand"
+	"mime"
 	"net"
 	"net/http"
 	"net/url"
@@ -210,6 +211,7 @@ func extractObjMetadata(header http.Header) http.Header {
 		"X-Amz-Server-Side-Encryption",
 		"X-Amz-Tagging-Count",
 		"X-Amz-Meta-",
+		"X-Minio-Meta-",
 		// Add new headers to be preserved.
 		// if you add new headers here, please extend
 		// PutObjectOptions{} to preserve them
@@ -223,6 +225,16 @@ func extractObjMetadata(header http.Header) http.Header {
 				continue
 			}
 			found = true
+			if prefix == "X-Amz-Meta-" || prefix == "X-Minio-Meta-" {
+				for index, val := range v {
+					if strings.HasPrefix(val, "=?") {
+						decoder := mime.WordDecoder{}
+						if decoded, err := decoder.DecodeHeader(val); err == nil {
+							v[index] = decoded
+						}
+					}
+				}
+			}
 			break
 		}
 		if found {
