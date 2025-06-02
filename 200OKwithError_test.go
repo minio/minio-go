@@ -89,7 +89,7 @@ func Test200MultipartUploadWithSpaces(t *testing.T) {
 
 func Test200MultipartUploadWithError(t *testing.T) {
 	const maxRetries = 3
-	var retries = maxRetries
+	retries := maxRetries
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		retries--
@@ -150,7 +150,7 @@ func Test200MultipartUploadWithError(t *testing.T) {
 
 func Test200DeleteObjectsWithError(t *testing.T) {
 	const maxRetries = 3
-	var retries = maxRetries
+	retries := maxRetries
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		retries--

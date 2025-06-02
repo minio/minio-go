@@ -39,6 +39,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	md5simd "github.com/minio/md5-simd"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/minio/minio-go/v7/pkg/kvcache"
@@ -624,7 +625,7 @@ func (c *Client) do(req *http.Request) (resp *http.Response, err error) {
 //   - Return the error XML bytes if an error is found
 //   - Make sure to always restablish the whole http response stream before returning
 func tryParseErrRespFromBody(resp *http.Response) ([]byte, error) {
-	peeker := internalutils.NewPeekReadCloser(resp.Body, 1024*1024)
+	peeker := internalutils.NewPeekReadCloser(resp.Body, 5*humanize.MiByte)
 	defer func() {
 		peeker.ReplayFromStart()
 		resp.Body = peeker

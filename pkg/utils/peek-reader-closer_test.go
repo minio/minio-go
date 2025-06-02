@@ -27,7 +27,6 @@ import (
 )
 
 func TestPeekReadCloser(t *testing.T) {
-
 	body := make([]byte, 1024*1024)
 	rand.Read(body)
 
