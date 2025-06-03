@@ -2186,7 +2186,7 @@ if err != nil {
 
 <a name="CancelBucketReplicationResync"></a>
 ### CancelBucketReplicationResync(ctx context.Context, bucketName string, tgtArn string) (id string, err error)
-Cancels in progress replication resync
+Cancels in progress replication resync (MinIO AiStor Only API)
 
 __Parameters__
 
