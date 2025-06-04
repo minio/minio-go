@@ -5586,6 +5586,161 @@ func testPresignedPostPolicyWrongFile() {
 	logSuccess(testName, function, args, startTime)
 }
 
+// testPresignedPostPolicyEmptyFileName tests that an empty file name in the presigned post policy
+func testPresignedPostPolicyEmptyFileName() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "PresignedPostPolicy(policy)"
+	args := map[string]interface{}{
+		"policy": "",
+	}
+
+	c, err := NewClient(ClientConfig{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
+		return
+	}
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+
+	// Make a new bucket in 'us-east-1' (source bucket).
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	defer cleanupBucket(bucketName, c)
+
+	// Generate 33K of data.
+	reader := getDataReader("datafile-33-kB")
+	defer reader.Close()
+
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	// Azure requires the key to not start with a number
+	metadataKey := randString(60, rand.NewSource(time.Now().UnixNano()), "user")
+	metadataValue := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+
+	buf, err := io.ReadAll(reader)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "ReadAll failed", err)
+		return
+	}
+
+	policy := minio.NewPostPolicy()
+	policy.SetBucket(bucketName)
+	policy.SetKey(objectName)
+	policy.SetExpires(time.Now().UTC().AddDate(0, 0, 10)) // expires in 10 days
+	policy.SetContentType("binary/octet-stream")
+	policy.SetContentLengthRange(10, 1024*1024)
+	policy.SetUserMetadata(metadataKey, metadataValue)
+	policy.SetContentEncoding("gzip")
+
+	// Add CRC32C
+	checksum := minio.ChecksumCRC32C.ChecksumBytes(buf)
+	err = policy.SetChecksum(checksum)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "SetChecksum failed", err)
+		return
+	}
+
+	args["policy"] = policy.String()
+
+	presignedPostPolicyURL, formData, err := c.PresignedPostPolicy(context.Background(), policy)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PresignedPostPolicy failed", err)
+		return
+	}
+
+	var formBuf bytes.Buffer
+	writer := multipart.NewWriter(&formBuf)
+	for k, v := range formData {
+		writer.WriteField(k, v)
+	}
+
+	// Get a 33KB file to upload and test if set post policy works
+	filePath := getMintDataDirFilePath("datafile-33-kB")
+	if filePath == "" {
+		// Make a temp file with 33 KB data.
+		file, err := os.CreateTemp(os.TempDir(), "PresignedPostPolicyTest")
+		if err != nil {
+			logError(testName, function, args, startTime, "", "TempFile creation failed", err)
+			return
+		}
+		if _, err = io.Copy(file, getDataReader("datafile-33-kB")); err != nil {
+			logError(testName, function, args, startTime, "", "Copy failed", err)
+			return
+		}
+		if err = file.Close(); err != nil {
+			logError(testName, function, args, startTime, "", "File Close failed", err)
+			return
+		}
+		filePath = file.Name()
+	}
+
+	// add file to post request
+	f, err := os.Open(filePath)
+	defer f.Close()
+	if err != nil {
+		logError(testName, function, args, startTime, "", "File open failed", err)
+		return
+	}
+	w, err := writer.CreateFormFile("", filePath)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "CreateFormFile failed", err)
+		return
+	}
+
+	_, err = io.Copy(w, f)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Copy failed", err)
+		return
+	}
+	writer.Close()
+
+	httpClient := &http.Client{
+		// Setting a sensible time out of 30secs to wait for response
+		// headers. Request is pro-actively canceled after 30secs
+		// with no response.
+		Timeout:   30 * time.Second,
+		Transport: createHTTPTransport(),
+	}
+	args["url"] = presignedPostPolicyURL.String()
+
+	req, err := http.NewRequest(http.MethodPost, presignedPostPolicyURL.String(), bytes.NewReader(formBuf.Bytes()))
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Http request failed", err)
+		return
+	}
+
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	// make post request with correct form data
+	res, err := httpClient.Do(req)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Http request failed", err)
+		return
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusBadRequest {
+		logError(testName, function, args, startTime, "", "Http request failed", errors.New(res.Status))
+		return
+	}
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "ReadAll failed", err)
+		return
+	}
+	if !strings.Contains(string(body), "MalformedPOSTRequest") {
+		logError(testName, function, args, startTime, "", "Invalid error from server", errors.New(string(body)))
+	}
+
+	logSuccess(testName, function, args, startTime)
+}
+
 // Tests copy object
 func testCopyObject() {
 	// initialize logging params
@@ -14016,6 +14171,7 @@ func main() {
 		testGetObjectReadAtWhenEOFWasReached()
 		testPresignedPostPolicy()
 		testPresignedPostPolicyWrongFile()
+		testPresignedPostPolicyEmptyFileName()
 		testCopyObject()
 		testComposeObjectErrorCases()
 		testCompose10KSources()
