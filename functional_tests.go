@@ -11501,7 +11501,22 @@ func testPutObjectMetadataNonUSASCIIV2() {
 		"opts":       "",
 	}
 	metadata := map[string]string{
-		"test": "öha, das sollte",
+		"test-zh": "你好",
+		"test-ja": "こんにちは",
+		"test-ko": "안녕하세요",
+		"test-ru": "Здравствуй",
+		"test-de": "Hallo",
+		"test-it": "Ciao",
+		"test-pt": "Olá",
+		"test-ar": "مرحبا",
+		"test-hi": "नमस्ते",
+		"test-hu": "Helló",
+		"test-ro": "Bună",
+		"test-be": "Прывiтанне",
+		"test-sl": "Pozdravljen",
+		"test-sr": "Здраво",
+		"test-bg": "Здравейте",
+		"test-uk": "Привіт",
 	}
 	c, err := NewClient(ClientConfig{CredsV2: true})
 	if err != nil {
@@ -11544,9 +11559,11 @@ func testPutObjectMetadataNonUSASCIIV2() {
 		return
 	}
 
-	if st.Metadata.Get("X-Amz-Meta-Test") != metadata["test"] {
-		logError(testName, function, args, startTime, "", "Expected upload object metadata test: öha, das sollte but got "+st.Metadata.Get("X-Amz-Meta-Test"), err)
-		return
+	for k, v := range metadata {
+		if st.Metadata.Get(http.CanonicalHeaderKey("X-Amz-Meta-"+k)) != v {
+			logError(testName, function, args, startTime, "", "Expected upload object metadata "+k+": "+v+" but got "+st.Metadata.Get("X-Amz-Meta-"+k), err)
+			return
+		}
 	}
 
 	logSuccess(testName, function, args, startTime)
