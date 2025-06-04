@@ -11716,7 +11716,7 @@ func testPutObjectMetadataNonUSASCIIV2() {
 
 	for k, v := range metadata {
 		if st.Metadata.Get(http.CanonicalHeaderKey("X-Amz-Meta-"+k)) != v {
-			logError(testName, function, args, startTime, "", "Expected upload object metadata "+k+": "+v+" but got "+st.Metadata.Get("X-Amz-Meta-"+k), err)
+			logError(testName, function, args, startTime, "", "Expected upload object metadata "+k+": "+v+" but got "+st.Metadata.Get(http.CanonicalHeaderKey("X-Amz-Meta-"+k)), err)
 			return
 		}
 	}
