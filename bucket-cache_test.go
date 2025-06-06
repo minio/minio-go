@@ -291,7 +291,7 @@ func TestProcessBucketLocationResponse(t *testing.T) {
 
 	APIErrors := []APIError{
 		{
-			Code:           "AccessDenied",
+			Code:           AccessDenied,
 			Description:    "Access Denied",
 			HTTPStatusCode: http.StatusUnauthorized,
 		},

@@ -260,7 +260,7 @@ func cleanupVersionedBucket(bucketName string, c *minio.Client) error {
 }
 
 func isErrNotImplemented(err error) bool {
-	return minio.ToErrorResponse(err).Code == "NotImplemented"
+	return minio.ToErrorResponse(err).Code == minio.NotImplemented
 }
 
 func isRunOnFail() bool {
@@ -466,8 +466,8 @@ func testMakeBucketError() {
 		return
 	}
 	// Verify valid error response from server.
-	if minio.ToErrorResponse(err).Code != "BucketAlreadyExists" &&
-		minio.ToErrorResponse(err).Code != "BucketAlreadyOwnedByYou" {
+	if minio.ToErrorResponse(err).Code != minio.BucketAlreadyExists &&
+		minio.ToErrorResponse(err).Code != minio.BucketAlreadyOwnedByYou {
 		logError(testName, function, args, startTime, "", "Invalid error returned by server", err)
 		return
 	}
@@ -3205,7 +3205,7 @@ func testGetObjectAttributesErrorCases() {
 	}
 
 	errorResponse := err.(minio.ErrorResponse)
-	if errorResponse.Code != "NoSuchBucket" {
+	if errorResponse.Code != minio.NoSuchBucket {
 		logError(testName, function, args, startTime, "", "Invalid error code, expected NoSuchBucket but got "+errorResponse.Code, nil)
 		return
 	}
@@ -3248,8 +3248,8 @@ func testGetObjectAttributesErrorCases() {
 	}
 
 	errorResponse = err.(minio.ErrorResponse)
-	if errorResponse.Code != "NoSuchKey" {
-		logError(testName, function, args, startTime, "", "Invalid error code, expected NoSuchKey but got "+errorResponse.Code, nil)
+	if errorResponse.Code != minio.NoSuchKey {
+		logError(testName, function, args, startTime, "", "Invalid error code, expected "+minio.NoSuchKey+" but got "+errorResponse.Code, nil)
 		return
 	}
 
@@ -3273,8 +3273,8 @@ func testGetObjectAttributesErrorCases() {
 		return
 	}
 	errorResponse = err.(minio.ErrorResponse)
-	if errorResponse.Code != "NoSuchVersion" {
-		logError(testName, function, args, startTime, "", "Invalid error code, expected NoSuchVersion but got "+errorResponse.Code, nil)
+	if errorResponse.Code != minio.NoSuchVersion {
+		logError(testName, function, args, startTime, "", "Invalid error code, expected "+minio.NoSuchVersion+" but got "+errorResponse.Code, nil)
 		return
 	}
 
@@ -7662,7 +7662,7 @@ func testGetObjectModified() {
 
 	// Confirm that a Stat() call in between doesn't change the Object's cached etag.
 	_, err = reader.Stat()
-	expectedError := "At least one of the pre-conditions you specified did not hold"
+	expectedError := "At least one of the pre-conditions you specified did not hold."
 	if err.Error() != expectedError {
 		logError(testName, function, args, startTime, "", "Expected Stat to fail with error "+expectedError+", but received "+err.Error(), err)
 		return
@@ -7824,8 +7824,8 @@ func testMakeBucketErrorV2() {
 		return
 	}
 	// Verify valid error response from server.
-	if minio.ToErrorResponse(err).Code != "BucketAlreadyExists" &&
-		minio.ToErrorResponse(err).Code != "BucketAlreadyOwnedByYou" {
+	if minio.ToErrorResponse(err).Code != minio.BucketAlreadyExists &&
+		minio.ToErrorResponse(err).Code != minio.BucketAlreadyOwnedByYou {
 		logError(testName, function, args, startTime, "", "Invalid error returned by server", err)
 		return
 	}
@@ -13848,7 +13848,7 @@ func testGetBucketTagging() {
 	}
 
 	_, err = c.GetBucketTagging(context.Background(), bucketName)
-	if minio.ToErrorResponse(err).Code != "NoSuchTagSet" {
+	if minio.ToErrorResponse(err).Code != minio.NoSuchTagSet {
 		logError(testName, function, args, startTime, "", "Invalid error from server failed", err)
 		return
 	}
@@ -13890,7 +13890,7 @@ func testSetBucketTagging() {
 	}
 
 	_, err = c.GetBucketTagging(context.Background(), bucketName)
-	if minio.ToErrorResponse(err).Code != "NoSuchTagSet" {
+	if minio.ToErrorResponse(err).Code != minio.NoSuchTagSet {
 		logError(testName, function, args, startTime, "", "Invalid error from server", err)
 		return
 	}
@@ -13962,7 +13962,7 @@ func testRemoveBucketTagging() {
 	}
 
 	_, err = c.GetBucketTagging(context.Background(), bucketName)
-	if minio.ToErrorResponse(err).Code != "NoSuchTagSet" {
+	if minio.ToErrorResponse(err).Code != minio.NoSuchTagSet {
 		logError(testName, function, args, startTime, "", "Invalid error from server", err)
 		return
 	}
@@ -14003,7 +14003,7 @@ func testRemoveBucketTagging() {
 	}
 
 	_, err = c.GetBucketTagging(context.Background(), bucketName)
-	if minio.ToErrorResponse(err).Code != "NoSuchTagSet" {
+	if minio.ToErrorResponse(err).Code != minio.NoSuchTagSet {
 		logError(testName, function, args, startTime, "", "Invalid error from server", err)
 		return
 	}
