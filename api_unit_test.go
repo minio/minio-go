@@ -51,17 +51,17 @@ func TestValidBucketLocation(t *testing.T) {
 func TestErrorResponse(t *testing.T) {
 	var err error
 	err = ErrorResponse{
-		Code: "Testing",
+		Code: Testing,
 	}
 	errResp := ToErrorResponse(err)
-	if errResp.Code != "Testing" {
+	if errResp.Code != Testing {
 		t.Fatal("Type conversion failed, we have an empty struct.")
 	}
 
 	// Should fail with invalid argument.
 	err = httpRespToErrorResponse(nil, "", "")
 	errResp = ToErrorResponse(err)
-	if errResp.Code != "InvalidArgument" {
+	if errResp.Code != InvalidArgument {
 		t.Fatal("Empty response input should return invalid argument.")
 	}
 }

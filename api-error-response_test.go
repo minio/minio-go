@@ -89,7 +89,7 @@ func TestHttpRespToErrorResponse(t *testing.T) {
 	genInvalidError := func(message string) error {
 		errResp := ErrorResponse{
 			StatusCode: http.StatusBadRequest,
-			Code:       "InvalidArgument",
+			Code:       InvalidArgument,
 			Message:    message,
 			RequestID:  "minio",
 		}
@@ -134,7 +134,7 @@ func TestHttpRespToErrorResponse(t *testing.T) {
 	// List of APIErrors used to generate/mock server side XML error response.
 	APIErrors := []APIError{
 		{
-			Code:           "NoSuchBucketPolicy",
+			Code:           NoSuchBucketPolicy,
 			Description:    "The specified bucket does not have a bucket policy.",
 			HTTPStatusCode: http.StatusNotFound,
 		},
@@ -145,10 +145,10 @@ func TestHttpRespToErrorResponse(t *testing.T) {
 	expectedErrResponse := []error{
 		genInvalidError("Empty http response. " + "Please report this issue at https://github.com/minio/minio-go/issues."),
 		decodeXMLError(createAPIErrorResponse(APIErrors[0], "minio-bucket")),
-		genErrResponse(setCommonHeaders(&http.Response{StatusCode: http.StatusNotFound}), "NoSuchBucket", "The specified bucket does not exist.", "minio-bucket", ""),
-		genErrResponse(setCommonHeaders(&http.Response{StatusCode: http.StatusNotFound}), "NoSuchKey", "The specified key does not exist.", "minio-bucket", "Asia/"),
-		genErrResponse(setCommonHeaders(&http.Response{StatusCode: http.StatusForbidden}), "AccessDenied", "Access Denied.", "minio-bucket", ""),
-		genErrResponse(setCommonHeaders(&http.Response{StatusCode: http.StatusConflict}), "Conflict", "Bucket not empty.", "minio-bucket", ""),
+		genErrResponse(setCommonHeaders(&http.Response{StatusCode: http.StatusNotFound}), NoSuchBucket, s3ErrorResponseMap[NoSuchBucket], "minio-bucket", ""),
+		genErrResponse(setCommonHeaders(&http.Response{StatusCode: http.StatusNotFound}), NoSuchKey, s3ErrorResponseMap[NoSuchKey], "minio-bucket", "Asia/"),
+		genErrResponse(setCommonHeaders(&http.Response{StatusCode: http.StatusForbidden}), AccessDenied, s3ErrorResponseMap[AccessDenied], "minio-bucket", ""),
+		genErrResponse(setCommonHeaders(&http.Response{StatusCode: http.StatusConflict}), Conflict, s3ErrorResponseMap[Conflict], "minio-bucket", ""),
 		genErrResponse(setCommonHeaders(&http.Response{StatusCode: http.StatusBadRequest}), "Bad Request", "Bad Request", "minio-bucket", ""),
 		genErrResponse(setCommonHeaders(&http.Response{StatusCode: http.StatusInternalServerError}), "Internal Server Error", "my custom object store error", "minio-bucket", ""),
 		genErrResponse(setCommonHeaders(&http.Response{StatusCode: http.StatusInternalServerError}), "Internal Server Error", "my custom object store error, with way too long body", "minio-bucket", ""),
@@ -199,7 +199,7 @@ func TestErrEntityTooLarge(t *testing.T) {
 	msg := fmt.Sprintf("Your proposed upload size ‘%d’ exceeds the maximum allowed object size ‘%d’ for single PUT operation.", 1000000, 99999)
 	expectedResult := ErrorResponse{
 		StatusCode: http.StatusBadRequest,
-		Code:       "EntityTooLarge",
+		Code:       EntityTooLarge,
 		Message:    msg,
 		BucketName: "minio-bucket",
 		Key:        "Asia/",
@@ -215,7 +215,7 @@ func TestErrEntityTooSmall(t *testing.T) {
 	msg := fmt.Sprintf("Your proposed upload size ‘%d’ is below the minimum allowed object size ‘0B’ for single PUT operation.", -1)
 	expectedResult := ErrorResponse{
 		StatusCode: http.StatusBadRequest,
-		Code:       "EntityTooSmall",
+		Code:       EntityTooSmall,
 		Message:    msg,
 		BucketName: "minio-bucket",
 		Key:        "Asia/",
@@ -232,7 +232,7 @@ func TestErrUnexpectedEOF(t *testing.T) {
 		strconv.FormatInt(100, 10), strconv.FormatInt(101, 10))
 	expectedResult := ErrorResponse{
 		StatusCode: http.StatusBadRequest,
-		Code:       "UnexpectedEOF",
+		Code:       UnexpectedEOF,
 		Message:    msg,
 		BucketName: "minio-bucket",
 		Key:        "Asia/",
@@ -247,7 +247,7 @@ func TestErrUnexpectedEOF(t *testing.T) {
 func TestErrInvalidArgument(t *testing.T) {
 	expectedResult := ErrorResponse{
 		StatusCode: http.StatusBadRequest,
-		Code:       "InvalidArgument",
+		Code:       InvalidArgument,
 		Message:    "Invalid Argument",
 		RequestID:  "minio",
 	}
@@ -260,20 +260,20 @@ func TestErrInvalidArgument(t *testing.T) {
 // Tests if the Message field is missing.
 func TestErrWithoutMessage(t *testing.T) {
 	errResp := ErrorResponse{
-		Code:      "AccessDenied",
+		Code:      AccessDenied,
 		RequestID: "minio",
 	}
 
-	if errResp.Error() != "Access Denied." {
-		t.Errorf("Expected \"Access Denied.\", got %s", errResp)
+	if errResp.Error() != s3ErrorResponseMap[AccessDenied] {
+		t.Errorf("Expected \"%s\", got %s", s3ErrorResponseMap[AccessDenied], errResp)
 	}
 
 	errResp = ErrorResponse{
-		Code:      "InvalidArgument",
+		Code:      InvalidArgument,
 		RequestID: "minio",
 	}
 	if errResp.Error() != fmt.Sprintf("Error response code %s.", errResp.Code) {
-		t.Errorf("Expected \"Error response code InvalidArgument.\", got \"%s\"", errResp)
+		t.Errorf("Expected \"Error response code %s.\", got \"%s\"", InvalidArgument, errResp)
 	}
 }
 
