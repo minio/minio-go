@@ -392,13 +392,14 @@ func (c *Client) completeMultipartUpload(ctx context.Context, bucketName, object
 	// Instantiate all the complete multipart buffer.
 	completeMultipartUploadBuffer := bytes.NewReader(completeMultipartUploadBytes)
 	reqMetadata := requestMetadata{
-		bucketName:       bucketName,
-		objectName:       objectName,
-		queryValues:      urlValues,
-		contentBody:      completeMultipartUploadBuffer,
-		contentLength:    int64(len(completeMultipartUploadBytes)),
-		contentSHA256Hex: sum256Hex(completeMultipartUploadBytes),
-		customHeader:     headers,
+		bucketName:           bucketName,
+		objectName:           objectName,
+		queryValues:          urlValues,
+		contentBody:          completeMultipartUploadBuffer,
+		contentLength:        int64(len(completeMultipartUploadBytes)),
+		contentSHA256Hex:     sum256Hex(completeMultipartUploadBytes),
+		customHeader:         headers,
+		expect200OKWithError: true,
 	}
 
 	// Execute POST to complete multipart upload for an objectName.
