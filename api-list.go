@@ -780,6 +780,7 @@ func (c *Client) ListObjects(ctx context.Context, bucketName string, opts ListOb
 		for obj := range objIter {
 			select {
 			case <-ctx.Done():
+				objectStatCh <- ObjectInfo{Err: ctx.Err()}
 				return
 			case objectStatCh <- obj:
 			}
