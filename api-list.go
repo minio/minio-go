@@ -760,6 +760,7 @@ func (c *Client) ListObjects(ctx context.Context, bucketName string, opts ListOb
 	go func() {
 		defer close(objectStatCh)
 		if contextCanceled(ctx) {
+			objectStatCh <- ObjectInfo{Err: ctx.Err()}
 			return
 		}
 
