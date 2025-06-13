@@ -762,14 +762,6 @@ func (c *Client) ListObjects(ctx context.Context, bucketName string, opts ListOb
 		if contextCanceled(ctx) {
 			return
 		}
-		send := func(obj ObjectInfo) bool {
-			select {
-			case <-ctx.Done():
-				return false
-			case objectStatCh <- obj:
-				return true
-			}
-		}
 
 		var objIter iter.Seq[ObjectInfo]
 		switch {
@@ -786,8 +778,10 @@ func (c *Client) ListObjects(ctx context.Context, bucketName string, opts ListOb
 			}
 		}
 		for obj := range objIter {
-			if !send(obj) {
+			select {
+			case <-ctx.Done():
 				return
+			case objectStatCh <- obj:
 			}
 		}
 	}()
