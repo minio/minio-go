@@ -759,6 +759,9 @@ func (c *Client) ListObjects(ctx context.Context, bucketName string, opts ListOb
 	objectStatCh := make(chan ObjectInfo, 1)
 	go func() {
 		defer close(objectStatCh)
+		if contextCanceled(ctx) {
+			return
+		}
 		send := func(obj ObjectInfo) bool {
 			select {
 			case <-ctx.Done():
