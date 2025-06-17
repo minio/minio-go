@@ -272,7 +272,7 @@ func processRemoveMultiObjectsResponse(body io.Reader, resultCh chan<- RemoveObj
 	for _, obj := range rmResult.UnDeletedObjects {
 		// Version does not exist is not an error ignore and continue.
 		switch obj.Code {
-		case "InvalidArgument", "NoSuchVersion":
+		case InvalidArgument, NoSuchVersion:
 			continue
 		}
 		resultCh <- RemoveObjectResult{
@@ -573,7 +573,7 @@ func (c *Client) removeObjects(ctx context.Context, bucketName string, objectsCh
 				if err := removeResult.Err; err != nil {
 					// Version does not exist is not an error ignore and continue.
 					switch ToErrorResponse(err).Code {
-					case "InvalidArgument", "NoSuchVersion":
+					case InvalidArgument, NoSuchVersion:
 						continue
 					}
 					resultCh <- removeResult
@@ -608,13 +608,14 @@ func (c *Client) removeObjects(ctx context.Context, bucketName string, objectsCh
 		removeBytes := generateRemoveMultiObjectsRequest(batch)
 		// Execute POST on bucket to remove objects.
 		resp, err := c.executeMethod(ctx, http.MethodPost, requestMetadata{
-			bucketName:       bucketName,
-			queryValues:      urlValues,
-			contentBody:      bytes.NewReader(removeBytes),
-			contentLength:    int64(len(removeBytes)),
-			contentMD5Base64: sumMD5Base64(removeBytes),
-			contentSHA256Hex: sum256Hex(removeBytes),
-			customHeader:     headers,
+			bucketName:           bucketName,
+			queryValues:          urlValues,
+			contentBody:          bytes.NewReader(removeBytes),
+			contentLength:        int64(len(removeBytes)),
+			contentMD5Base64:     sumMD5Base64(removeBytes),
+			contentSHA256Hex:     sum256Hex(removeBytes),
+			customHeader:         headers,
+			expect200OKWithError: true,
 		})
 		if resp != nil {
 			if resp.StatusCode != http.StatusOK {
@@ -701,7 +702,7 @@ func (c *Client) abortMultipartUpload(ctx context.Context, bucketName, objectNam
 				// This is needed specifically for abort and it cannot
 				// be converged into default case.
 				errorResponse = ErrorResponse{
-					Code:       "NoSuchUpload",
+					Code:       NoSuchUpload,
 					Message:    "The specified multipart upload does not exist.",
 					BucketName: bucketName,
 					Key:        objectName,

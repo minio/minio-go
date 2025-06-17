@@ -167,7 +167,7 @@ func TestGetObjectCore(t *testing.T) {
 	if err == nil {
 		t.Fatal("Unexpected GetObject should fail with mismatching etags")
 	}
-	if errResp := ToErrorResponse(err); errResp.Code != "PreconditionFailed" {
+	if errResp := ToErrorResponse(err); errResp.Code != PreconditionFailed {
 		t.Fatalf("Expected \"PreconditionFailed\" as code, got %s instead", errResp.Code)
 	}
 
@@ -358,7 +358,7 @@ func TestGetBucketPolicy(t *testing.T) {
 	bucketPolicy, err := c.GetBucketPolicy(context.Background(), bucketName)
 	if err != nil {
 		errResp := ToErrorResponse(err)
-		if errResp.Code != "NoSuchBucketPolicy" {
+		if errResp.Code != NoSuchBucketPolicy {
 			t.Error("Error:", err, bucketName)
 		}
 	}
