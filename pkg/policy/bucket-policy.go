@@ -191,7 +191,7 @@ func newBucketStatement(policy BucketPolicy, bucketName, prefix string) (stateme
 		}
 		if prefix != "" {
 			condKeyMap := make(ConditionKeyMap)
-			condKeyMap.Add("s3:prefix", set.CreateStringSet(prefix))
+			condKeyMap.Add("s3:prefix", set.CreateStringSet(prefix+"*"))
 			condMap := make(ConditionMap)
 			condMap.Add("StringLike", condKeyMap)
 			statement.Conditions = condMap
