@@ -1983,7 +1983,7 @@ func TestSetPolicy(t *testing.T) {
 			Principal:  User{AWS: set.CreateStringSet("*")},
 			Conditions: helloCondMap,
 			Resources:  set.CreateStringSet("arn:aws:s3:::mybucket"),
-		}}, BucketPolicyReadWrite, "mybucket", "hello", `[{"Action":["s3:GetBucketLocation","s3:ListBucketMultipartUploads"],"Effect":"Allow","Principal":{"AWS":["*"]},"Resource":["arn:aws:s3:::mybucket"],"Sid":""},{"Action":["s3:ListBucket"],"Condition":{"StringLike":{"s3:prefix":["hello/*"]}},"Effect":"Allow","Principal":{"AWS":["*"]},"Resource":["arn:aws:s3:::mybucket"],"Sid":""},{"Action":["s3:AbortMultipartUpload","s3:DeleteObject","s3:GetObject","s3:ListMultipartUploadParts","s3:PutObject"],"Effect":"Allow","Principal":{"AWS":["*"]},"Resource":["arn:aws:s3:::mybucket/hello*"],"Sid":""}]`},
+		}}, BucketPolicyReadWrite, "mybucket", "hello", `[{"Action":["s3:GetBucketLocation","s3:ListBucketMultipartUploads"],"Effect":"Allow","Principal":{"AWS":["*"]},"Resource":["arn:aws:s3:::mybucket"],"Sid":""},{"Action":["s3:ListBucket"],"Condition":{"StringLike":{"s3:prefix":["hello*"]}},"Effect":"Allow","Principal":{"AWS":["*"]},"Resource":["arn:aws:s3:::mybucket"],"Sid":""},{"Action":["s3:AbortMultipartUpload","s3:DeleteObject","s3:GetObject","s3:ListMultipartUploadParts","s3:PutObject"],"Effect":"Allow","Principal":{"AWS":["*"]},"Resource":["arn:aws:s3:::mybucket/hello*"],"Sid":""}]`},
 	}
 
 	for _, testCase := range testCases {
