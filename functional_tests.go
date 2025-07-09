@@ -1970,7 +1970,7 @@ func testPutObjectWithChecksums() {
 	// initialize logging params
 	startTime := time.Now()
 	testName := getFuncName()
-	function := "PutObject(bucketName, objectName, reader,size, opts)"
+	function := "PutObject(bucketName, objectName, reader, size, opts)"
 	args := map[string]interface{}{
 		"bucketName": "",
 		"objectName": "",
@@ -1982,7 +1982,7 @@ func testPutObjectWithChecksums() {
 		return
 	}
 
-	c, err := NewClient(ClientConfig{})
+	c, err := NewClient(ClientConfig{TrailingHeaders: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -2036,6 +2036,10 @@ func testPutObjectWithChecksums() {
 		}
 		h := test.cs.Hasher()
 		h.Reset()
+
+		if test.cs.IsSet() {
+			meta["x-amz-checksum-algorithm"] = test.cs.String()
+		}
 
 		// Test with a bad CRC - we haven't called h.Write(b), so this is a checksum of empty data
 		meta[test.cs.Key()] = base64.StdEncoding.EncodeToString(h.Sum(nil))
@@ -2323,7 +2327,7 @@ func testPutObjectWithTrailingChecksums() {
 }
 
 // Test PutObject with custom checksums.
-func testPutMultipartObjectWithChecksums(trailing bool) {
+func testPutMultipartObjectWithChecksums() {
 	// initialize logging params
 	startTime := time.Now()
 	testName := getFuncName()
@@ -2331,7 +2335,7 @@ func testPutMultipartObjectWithChecksums(trailing bool) {
 	args := map[string]interface{}{
 		"bucketName": "",
 		"objectName": "",
-		"opts":       fmt.Sprintf("minio.PutObjectOptions{UserMetadata: metadata, Trailing: %v}", trailing),
+		"opts":       "minio.PutObjectOptions{UserMetadata: metadata, Trailing: true}",
 	}
 
 	if !isFullMode() {
@@ -2339,7 +2343,7 @@ func testPutMultipartObjectWithChecksums(trailing bool) {
 		return
 	}
 
-	c, err := NewClient(ClientConfig{TrailingHeaders: trailing})
+	c, err := NewClient(ClientConfig{TrailingHeaders: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -2433,12 +2437,8 @@ func testPutMultipartObjectWithChecksums(trailing bool) {
 		h.Reset()
 		want := hashMultiPart(b, partSize, test.cs)
 
-		var cs minio.ChecksumType
-		rd := io.Reader(io.NopCloser(bytes.NewReader(b)))
-		if trailing {
-			cs = test.cs
-			rd = bytes.NewReader(b)
-		}
+		rd := bytes.NewReader(b)
+		cs := test.cs
 
 		// Set correct CRC.
 		args["section"] = "PutObject"
@@ -2589,11 +2589,10 @@ func testTrailingChecksums() {
 		return
 	}
 
-	hashMultiPart := func(b []byte, partSize int, hasher hash.Hash) string {
+	hashMultiPart := func(b []byte, partSize int, hasher hash.Hash) (oparts []minio.ObjectPart) {
 		r := bytes.NewReader(b)
 		tmp := make([]byte, partSize)
 		parts := 0
-		var all []byte
 		for {
 			n, err := io.ReadFull(r, tmp)
 			if err != nil && err != io.ErrUnexpectedEOF {
@@ -2605,14 +2604,16 @@ func testTrailingChecksums() {
 			parts++
 			hasher.Reset()
 			hasher.Write(tmp[:n])
-			all = append(all, hasher.Sum(nil)...)
+			oparts = append(oparts, minio.ObjectPart{
+				PartNumber:     parts,
+				Size:           int64(n),
+				ChecksumCRC32C: base64.StdEncoding.EncodeToString(hasher.Sum(nil)),
+			})
 			if err != nil {
 				break
 			}
 		}
-		hasher.Reset()
-		hasher.Write(all)
-		return fmt.Sprintf("%s-%d", base64.StdEncoding.EncodeToString(hasher.Sum(nil)), parts)
+		return oparts
 	}
 	defer cleanupBucket(bucketName, c)
 	tests := []struct {
@@ -2696,7 +2697,14 @@ func testTrailingChecksums() {
 		reader.Close()
 		h := test.hasher
 		h.Reset()
-		test.ChecksumCRC32C = hashMultiPart(b, int(test.PO.PartSize), test.hasher)
+
+		parts := hashMultiPart(b, int(test.PO.PartSize), test.hasher)
+		cksum, err := minio.ChecksumFullObjectCRC32C.FullObjectChecksum(parts)
+		if err != nil {
+			logError(testName, function, args, startTime, "", "checksum calculation failed", err)
+			return
+		}
+		test.ChecksumCRC32C = cksum.Encoded()
 
 		// Set correct CRC.
 		resp, err := c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(b), int64(bufSize), test.PO)
@@ -4172,7 +4180,7 @@ func testFPutObjectMultipart() {
 		"opts":       "",
 	}
 
-	c, err := NewClient(ClientConfig{})
+	c, err := NewClient(ClientConfig{TrailingHeaders: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
 		return
@@ -11715,6 +11723,9 @@ func testPutObjectMetadataNonUSASCIIV2() {
 	}
 
 	for k, v := range metadata {
+		if strings.HasPrefix(strings.ToLower(k), "x-amz-checksum-") {
+			continue
+		}
 		if st.Metadata.Get(http.CanonicalHeaderKey("X-Amz-Meta-"+k)) != v {
 			logError(testName, function, args, startTime, "", "Expected upload object metadata "+k+": "+v+" but got "+st.Metadata.Get(http.CanonicalHeaderKey("X-Amz-Meta-"+k)), err)
 			return
@@ -14224,8 +14235,7 @@ func main() {
 		testUserMetadataCopyingV2()
 		testPutObjectWithChecksums()
 		testPutObjectWithTrailingChecksums()
-		testPutMultipartObjectWithChecksums(false)
-		testPutMultipartObjectWithChecksums(true)
+		testPutMultipartObjectWithChecksums()
 		testPutObject0ByteV2()
 		testPutObjectMetadataNonUSASCIIV2()
 		testPutObjectNoLengthV2()

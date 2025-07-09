@@ -108,19 +108,14 @@ func (c *Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketN
 	if err != nil {
 		return UploadInfo{}, err
 	}
-	if opts.Checksum.IsSet() {
-		opts.AutoChecksum = opts.Checksum
-	}
-	withChecksum := c.trailingHeaderSupport
-	if withChecksum {
-		addAutoChecksumHeaders(&opts)
-	}
+
 	// Initiate a new multipart upload.
 	uploadID, err := c.newUploadID(ctx, bucketName, objectName, opts)
 	if err != nil {
 		return UploadInfo{}, err
 	}
-	delete(opts.UserMetadata, "X-Amz-Checksum-Algorithm")
+
+	withChecksum := c.trailingHeaderSupport
 
 	// Aborts the multipart upload in progress, if the
 	// function returns any error, since we do not resume
@@ -198,6 +193,7 @@ func (c *Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketN
 					sectionReader = newHashReaderWrapper(sectionReader, crc, func(hash []byte) {
 						trailer.Set(opts.AutoChecksum.Key(), base64.StdEncoding.EncodeToString(hash))
 					})
+					trailer.Set(amzChecksumAlgo, opts.AutoChecksum.String())
 				}
 
 				// Proceed to upload the part.
@@ -297,15 +293,6 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 		return UploadInfo{}, err
 	}
 
-	if opts.Checksum.IsSet() {
-		opts.AutoChecksum = opts.Checksum
-		opts.SendContentMd5 = false
-	}
-
-	if !opts.SendContentMd5 {
-		addAutoChecksumHeaders(&opts)
-	}
-
 	// Calculate the optimal parts info for a given size.
 	totalPartsCount, partSize, lastPartSize, err := OptimalPartInfo(size, opts.PartSize)
 	if err != nil {
@@ -316,7 +303,6 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 	if err != nil {
 		return UploadInfo{}, err
 	}
-	delete(opts.UserMetadata, "X-Amz-Checksum-Algorithm")
 
 	// Aborts the multipart upload if the function returns
 	// any error, since we do not resume we should purge
@@ -369,12 +355,14 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 			md5Hash.Reset()
 			md5Hash.Write(buf[:length])
 			md5Base64 = base64.StdEncoding.EncodeToString(md5Hash.Sum(nil))
-		} else {
+		}
+
+		if opts.AutoChecksum.IsSet() {
 			// Add CRC32C instead.
 			crc.Reset()
 			crc.Write(buf[:length])
 			cSum := crc.Sum(nil)
-			customHeader.Set(opts.AutoChecksum.KeyCapitalized(), base64.StdEncoding.EncodeToString(cSum))
+			customHeader.Set(opts.AutoChecksum.Key(), base64.StdEncoding.EncodeToString(cSum))
 		}
 
 		// Update progress reader appropriately to the latest offset
@@ -453,13 +441,6 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 	if err = s3utils.CheckValidObjectName(objectName); err != nil {
 		return UploadInfo{}, err
 	}
-	if opts.Checksum.IsSet() {
-		opts.SendContentMd5 = false
-		opts.AutoChecksum = opts.Checksum
-	}
-	if !opts.SendContentMd5 {
-		addAutoChecksumHeaders(&opts)
-	}
 
 	// Cancel all when an error occurs.
 	ctx, cancel := context.WithCancel(ctx)
@@ -476,7 +457,6 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 	if err != nil {
 		return UploadInfo{}, err
 	}
-	delete(opts.UserMetadata, "X-Amz-Checksum-Algorithm")
 
 	// Aborts the multipart upload if the function returns
 	// any error, since we do not resume we should purge
@@ -543,7 +523,7 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 
 		// Calculate md5sum.
 		customHeader := make(http.Header)
-		if !opts.SendContentMd5 {
+		if opts.AutoChecksum.IsSet() {
 			// Add Checksum instead.
 			crc.Reset()
 			crc.Write(buf[:length])
@@ -664,9 +644,6 @@ func (c *Client) putObject(ctx context.Context, bucketName, objectName string, r
 	if opts.SendContentMd5 && s3utils.IsGoogleEndpoint(*c.endpointURL) && size < 0 {
 		return UploadInfo{}, errInvalidArgument("MD5Sum cannot be calculated with size '-1'")
 	}
-	if opts.Checksum.IsSet() {
-		opts.SendContentMd5 = false
-	}
 
 	var readSeeker io.Seeker
 	if size > 0 {
@@ -759,7 +736,7 @@ func (c *Client) putObjectDo(ctx context.Context, bucketName, objectName string,
 			}
 		}
 		if addCrc {
-			opts.AutoChecksum.SetDefault(ChecksumCRC32C)
+			opts.AutoChecksum.SetDefault(ChecksumFullObjectCRC32C)
 			reqMetadata.addCrc = &opts.AutoChecksum
 		}
 	}
