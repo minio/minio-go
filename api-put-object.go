@@ -340,7 +340,7 @@ func (c *Client) PutObject(ctx context.Context, bucketName, objectName string, r
 	}
 
 	if c.trailingHeaderSupport {
-		opts.AutoChecksum.SetDefault(ChecksumFullObjectCRC32C)
+		opts.AutoChecksum.SetDefault(ChecksumCRC32C)
 		addAutoChecksumHeaders(&opts)
 	}
 
@@ -450,6 +450,10 @@ func (c *Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketNam
 			crc.Write(buf[:length])
 			cSum := crc.Sum(nil)
 			customHeader.Set(opts.AutoChecksum.Key(), base64.StdEncoding.EncodeToString(cSum))
+			customHeader.Set(amzChecksumAlgo, opts.AutoChecksum.String())
+			if opts.AutoChecksum.FullObjectRequested() {
+				customHeader.Set(amzChecksumMode, ChecksumFullObjectMode.String())
+			}
 		}
 
 		// Update progress reader appropriately to the latest offset
