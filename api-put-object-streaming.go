@@ -363,6 +363,10 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 			crc.Write(buf[:length])
 			cSum := crc.Sum(nil)
 			customHeader.Set(opts.AutoChecksum.Key(), base64.StdEncoding.EncodeToString(cSum))
+			customHeader.Set(amzChecksumAlgo, opts.AutoChecksum.String())
+			if opts.AutoChecksum.FullObjectRequested() {
+				customHeader.Set(amzChecksumMode, ChecksumFullObjectMode.String())
+			}
 		}
 
 		// Update progress reader appropriately to the latest offset
@@ -521,18 +525,22 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 			return UploadInfo{}, rerr
 		}
 
-		// Calculate md5sum.
-		customHeader := make(http.Header)
-		if opts.AutoChecksum.IsSet() {
-			// Add Checksum instead.
-			crc.Reset()
-			crc.Write(buf[:length])
-			cSum := crc.Sum(nil)
-			customHeader.Set(opts.AutoChecksum.Key(), base64.StdEncoding.EncodeToString(cSum))
-		}
-
 		wg.Add(1)
 		go func(partNumber int) {
+			// Calculate md5sum.
+			customHeader := make(http.Header)
+			if opts.AutoChecksum.IsSet() {
+				// Add Checksum instead.
+				crc.Reset()
+				crc.Write(buf[:length])
+				cSum := crc.Sum(nil)
+				customHeader.Set(opts.AutoChecksum.Key(), base64.StdEncoding.EncodeToString(cSum))
+				customHeader.Set(amzChecksumAlgo, opts.AutoChecksum.String())
+				if opts.AutoChecksum.FullObjectRequested() {
+					customHeader.Set(amzChecksumMode, ChecksumFullObjectMode.String())
+				}
+			}
+
 			// Avoid declaring variables in the for loop
 			var md5Base64 string
 

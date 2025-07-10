@@ -2637,6 +2637,7 @@ func testTrailingChecksums() {
 				DisableMultipart:     false,
 				UserMetadata:         nil,
 				PartSize:             5 << 20,
+				Checksum:             minio.ChecksumFullObjectCRC32C,
 			},
 		},
 		{
@@ -2648,6 +2649,7 @@ func testTrailingChecksums() {
 				DisableMultipart:     false,
 				UserMetadata:         nil,
 				PartSize:             6_645_654, // Rather arbitrary size
+				Checksum:             minio.ChecksumFullObjectCRC32C,
 			},
 		},
 		{
@@ -2659,6 +2661,7 @@ func testTrailingChecksums() {
 				DisableMultipart:     false,
 				UserMetadata:         nil,
 				PartSize:             5 << 20,
+				Checksum:             minio.ChecksumFullObjectCRC32C,
 			},
 		},
 		{
@@ -2670,6 +2673,7 @@ func testTrailingChecksums() {
 				DisableMultipart:     false,
 				UserMetadata:         nil,
 				PartSize:             6_645_654, // Rather arbitrary size
+				Checksum:             minio.ChecksumFullObjectCRC32C,
 			},
 		},
 	}
