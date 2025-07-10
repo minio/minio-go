@@ -2447,7 +2447,6 @@ func testPutMultipartObjectWithChecksums() {
 			DisableMultipart:     false,
 			UserMetadata:         nil,
 			PartSize:             partSize,
-			AutoChecksum:         test.cs,
 			Checksum:             cs,
 		})
 		if err != nil {

@@ -193,7 +193,6 @@ func (c *Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketN
 					sectionReader = newHashReaderWrapper(sectionReader, crc, func(hash []byte) {
 						trailer.Set(opts.AutoChecksum.Key(), base64.StdEncoding.EncodeToString(hash))
 					})
-					trailer.Set(amzChecksumAlgo, opts.AutoChecksum.String())
 				}
 
 				// Proceed to upload the part.
