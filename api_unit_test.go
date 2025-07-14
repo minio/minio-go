@@ -170,6 +170,52 @@ func TestPartSize(t *testing.T) {
 	}
 }
 
+// TestOptimalPartInfoWithZeroConfiguredPartSize - test for OptimalPartInfo() with configuredPartSize = 0
+func TestOptimalPartInfoWithZeroConfiguredPartSize(t *testing.T) {
+	testCases := []struct {
+		name                 string
+		objectSize           int64
+		configuredPartSize   uint64
+		expectedTotalParts   int
+		expectedPartSize     int64
+		expectedLastPartSize int64
+	}{
+		{"16MB object size", 16 * 1024 * 1024, 0, 1, 16 * 1024 * 1024, 16 * 1024 * 1024},
+		{"100MB object size", 100 * 1024 * 1024, 0, 7, 16 * 1024 * 1024, 4 * 1024 * 1024},
+		{"1GB object size", 1024 * 1024 * 1024, 0, 64, 16 * 1024 * 1024, 16 * 1024 * 1024},
+		{"10GB object size", 10 * 1024 * 1024 * 1024, 0, 640, 16 * 1024 * 1024, 16 * 1024 * 1024},
+		{"100GB object size", 100 * 1024 * 1024 * 1024, 0, 6400, 16 * 1024 * 1024, 16 * 1024 * 1024},
+		{"500GB object size", 500 * 1024 * 1024 * 1024, 0, 8000, 64 * 1024 * 1024, 64 * 1024 * 1024},
+		{"1TB object size", 1024 * 1024 * 1024 * 1024, 0, 9363, 112 * 1024 * 1024, 32 * 1024 * 1024},
+		{"2TB object size", 2 * 1024 * 1024 * 1024 * 1024, 0, 9363, 224 * 1024 * 1024, 64 * 1024 * 1024},
+		{"3TB object size", 3 * 1024 * 1024 * 1024 * 1024, 0, 9831, 320 * 1024 * 1024, 128 * 1024 * 1024},
+		{"5TB object size (max)", 5 * 1024 * 1024 * 1024 * 1024, 0, 9930, 528 * 1024 * 1024, 368 * 1024 * 1024},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			totalParts, partSize, lastPartSize, err := OptimalPartInfo(tc.objectSize, tc.configuredPartSize)
+
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+				return
+			}
+
+			if totalParts != tc.expectedTotalParts {
+				t.Errorf("Total parts mismatch: expected %d, got %d", tc.expectedTotalParts, totalParts)
+			}
+
+			if partSize != tc.expectedPartSize {
+				t.Errorf("Part size mismatch: expected %d, got %d", tc.expectedPartSize, partSize)
+			}
+
+			if lastPartSize != tc.expectedLastPartSize {
+				t.Errorf("Last part size mismatch: expected %d, got %d", tc.expectedLastPartSize, lastPartSize)
+			}
+		})
+	}
+}
+
 // TestMakeTargetURL - testing makeTargetURL()
 func TestMakeTargetURL(t *testing.T) {
 	testCases := []struct {
