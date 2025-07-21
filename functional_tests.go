@@ -9458,7 +9458,7 @@ func testUnencryptedToSSECCopyObject() {
 	function := "CopyObject(destination, source)"
 	args := map[string]interface{}{}
 
-	c, err := NewClient(ClientConfig{})
+	c, err := NewClient(ClientConfig{TrailingHeaders: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -9478,7 +9478,7 @@ func testUnencryptedToSSES3CopyObject() {
 	function := "CopyObject(destination, source)"
 	args := map[string]interface{}{}
 
-	c, err := NewClient(ClientConfig{})
+	c, err := NewClient(ClientConfig{TrailingHeaders: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -9499,7 +9499,7 @@ func testUnencryptedToUnencryptedCopyObject() {
 	function := "CopyObject(destination, source)"
 	args := map[string]interface{}{}
 
-	c, err := NewClient(ClientConfig{})
+	c, err := NewClient(ClientConfig{TrailingHeaders: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -9519,7 +9519,7 @@ func testEncryptedSSECToSSECCopyObject() {
 	function := "CopyObject(destination, source)"
 	args := map[string]interface{}{}
 
-	c, err := NewClient(ClientConfig{})
+	c, err := NewClient(ClientConfig{TrailingHeaders: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -9540,7 +9540,7 @@ func testEncryptedSSECToSSES3CopyObject() {
 	function := "CopyObject(destination, source)"
 	args := map[string]interface{}{}
 
-	c, err := NewClient(ClientConfig{})
+	c, err := NewClient(ClientConfig{TrailingHeaders: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -9561,7 +9561,7 @@ func testEncryptedSSECToUnencryptedCopyObject() {
 	function := "CopyObject(destination, source)"
 	args := map[string]interface{}{}
 
-	c, err := NewClient(ClientConfig{})
+	c, err := NewClient(ClientConfig{TrailingHeaders: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -9582,7 +9582,7 @@ func testEncryptedSSES3ToSSECCopyObject() {
 	function := "CopyObject(destination, source)"
 	args := map[string]interface{}{}
 
-	c, err := NewClient(ClientConfig{})
+	c, err := NewClient(ClientConfig{TrailingHeaders: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -9603,7 +9603,7 @@ func testEncryptedSSES3ToSSES3CopyObject() {
 	function := "CopyObject(destination, source)"
 	args := map[string]interface{}{}
 
-	c, err := NewClient(ClientConfig{})
+	c, err := NewClient(ClientConfig{TrailingHeaders: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -9624,7 +9624,7 @@ func testEncryptedSSES3ToUnencryptedCopyObject() {
 	function := "CopyObject(destination, source)"
 	args := map[string]interface{}{}
 
-	c, err := NewClient(ClientConfig{})
+	c, err := NewClient(ClientConfig{TrailingHeaders: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -9645,7 +9645,7 @@ func testEncryptedCopyObjectV2() {
 	function := "CopyObject(destination, source)"
 	args := map[string]interface{}{}
 
-	c, err := NewClient(ClientConfig{CredsV2: true})
+	c, err := NewClient(ClientConfig{CredsV2: true, TrailingHeaders: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v2 client object creation failed", err)
 		return
@@ -10404,7 +10404,7 @@ func testUnencryptedToSSECCopyObjectPart() {
 	function := "CopyObjectPart(destination, source)"
 	args := map[string]interface{}{}
 
-	client, err := NewClient(ClientConfig{})
+	client, err := NewClient(ClientConfig{TrailingHeaders: true})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MinIO v4 client object creation failed", err)
 		return
