@@ -23,7 +23,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"testing"
 	"time"
 
@@ -183,7 +182,7 @@ func Test200DeleteObjectsWithError(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 
-	core.TraceOn(os.Stderr)
+	// core.TraceOn(os.Stderr)
 
 	objs := make(chan ObjectInfo, 1000)
 	for i := range 1000 {
