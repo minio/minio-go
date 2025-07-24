@@ -2075,6 +2075,9 @@ func testPutObjectWithChecksums() {
 		cmpChecksum(resp.ChecksumCRC32, meta["x-amz-checksum-crc32"])
 		cmpChecksum(resp.ChecksumCRC32C, meta["x-amz-checksum-crc32c"])
 		cmpChecksum(resp.ChecksumCRC64NVME, meta["x-amz-checksum-crc64nvme"])
+		if resp.ChecksumMode != minio.ChecksumFullObjectMode.String() {
+			logError(testName, function, args, startTime, "", "Checksum mode is not full object", fmt.Errorf("got %s, want %s", resp.ChecksumMode, minio.ChecksumFullObjectMode.String()))
+		}
 
 		// Read the data back
 		gopts := minio.GetObjectOptions{Checksum: true}
@@ -2095,6 +2098,9 @@ func testPutObjectWithChecksums() {
 		cmpChecksum(st.ChecksumCRC32, meta["x-amz-checksum-crc32"])
 		cmpChecksum(st.ChecksumCRC32C, meta["x-amz-checksum-crc32c"])
 		cmpChecksum(st.ChecksumCRC64NVME, meta["x-amz-checksum-crc64nvme"])
+		if st.ChecksumMode != minio.ChecksumFullObjectMode.String() {
+			logError(testName, function, args, startTime, "", "Checksum mode is not full object", fmt.Errorf("got %s, want %s", st.ChecksumMode, minio.ChecksumFullObjectMode.String()))
+		}
 
 		if st.Size != int64(bufSize) {
 			logError(testName, function, args, startTime, "", "Number of bytes returned by PutObject does not match GetObject, expected "+string(bufSize)+" got "+string(st.Size), err)
@@ -8769,7 +8775,8 @@ func testCopyObjectWithChecksums() {
 	reader := getDataReader("datafile-33-kB")
 	defer reader.Close()
 
-	// PutObject to upload the object to the bucket
+	// PutObject to upload the object to the bucket, this object will have a Crc64NVME checksum applied
+	// by default since nothing was explicitly specified.
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
 	_, err = c.PutObject(context.Background(), bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
 	if err != nil {
