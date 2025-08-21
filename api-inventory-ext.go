@@ -18,7 +18,6 @@
 package minio
 
 import (
-	"bytes"
 	"context"
 	"io"
 	"iter"
@@ -36,10 +35,10 @@ import (
 func makeInventoryReqMetadata(bucket string, urlParams ...string) requestMetadata {
 	urlValues := make(url.Values)
 	urlValues.Set("minio-inventory", "")
-	if len(urlParams)%2 != 0 {
-		panic("invalid urlParams passed - this should not happen")
-	}
-	for i := 0; i < len(urlParams); i += 2 {
+
+	// If an odd number of parameters is given, we skip the last pair to avoid
+	// an out of bounds access.
+	for i := 0; i+1 < len(urlParams); i += 2 {
 		urlValues.Set(urlParams[i], urlParams[i+1])
 	}
 
@@ -66,13 +65,22 @@ func (c *Client) GenerateInventoryConfigYAML(ctx context.Context, bucket, id str
 	return buf.String(), err
 }
 
+// inventoryPutConfigOpts is a placeholder for future options that may be added.
+type inventoryPutConfigOpts struct{}
+
+// InventoryPutConfigOption is to allow for functional options for
+// PutBucketInventoryConfiguration. It may be used in the future to customize
+// the PutBucketInventoryConfiguration request, but currently does not do
+// anything.
+type InventoryPutConfigOption func(*inventoryPutConfigOpts)
+
 // PutBucketInventoryConfiguration - calls the inventory configuration
 // endpoint to create or update an inventory configuration for a bucket.
-func (c *Client) PutBucketInventoryConfiguration(ctx context.Context, bucket string, id string, yamlDef []byte) error {
+func (c *Client) PutBucketInventoryConfiguration(ctx context.Context, bucket string, id string, yamlDef string, _ ...InventoryPutConfigOption) error {
 	reqMeta := makeInventoryReqMetadata(bucket, "id", id)
-	reqMeta.contentBody = bytes.NewReader(yamlDef)
+	reqMeta.contentBody = strings.NewReader(yamlDef)
 	reqMeta.contentLength = int64(len(yamlDef))
-	reqMeta.contentMD5Base64 = sumMD5Base64(yamlDef)
+	reqMeta.contentMD5Base64 = sumMD5Base64([]byte(yamlDef))
 
 	resp, err := c.executeMethod(ctx, http.MethodPut, reqMeta)
 	defer closeResponse(resp)
