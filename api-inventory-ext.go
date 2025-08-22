@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/minio/minio-go/v7/internal/json"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
 // This file contains the inventory API extension for MinIO server. It is not
@@ -51,6 +52,12 @@ func makeInventoryReqMetadata(bucket string, urlParams ...string) requestMetadat
 // GenerateInventoryConfigYAML - calls the inventory YAML template generation
 // endpoint.
 func (c *Client) GenerateInventoryConfigYAML(ctx context.Context, bucket, id string) (string, error) {
+	if err := s3utils.CheckValidBucketName(bucket); err != nil {
+		return "", err
+	}
+	if id == "" {
+		return "", errInvalidArgument("inventory ID cannot be empty")
+	}
 	reqMeta := makeInventoryReqMetadata(bucket, "generate", "", "id", id)
 	resp, err := c.executeMethod(ctx, http.MethodGet, reqMeta)
 	defer closeResponse(resp)
@@ -77,6 +84,15 @@ type InventoryPutConfigOption func(*inventoryPutConfigOpts)
 // PutBucketInventoryConfiguration - calls the inventory configuration
 // endpoint to create or update an inventory configuration for a bucket.
 func (c *Client) PutBucketInventoryConfiguration(ctx context.Context, bucket string, id string, yamlDef string, _ ...InventoryPutConfigOption) error {
+	if err := s3utils.CheckValidBucketName(bucket); err != nil {
+		return err
+	}
+	if id == "" {
+		return errInvalidArgument("inventory ID cannot be empty")
+	}
+	if yamlDef == "" {
+		return errInvalidArgument("YAML definition cannot be empty")
+	}
 	reqMeta := makeInventoryReqMetadata(bucket, "id", id)
 	reqMeta.contentBody = strings.NewReader(yamlDef)
 	reqMeta.contentLength = int64(len(yamlDef))
@@ -96,6 +112,12 @@ func (c *Client) PutBucketInventoryConfiguration(ctx context.Context, bucket str
 // GetBucketInventoryConfiguration retrieves the inventory configuration
 // for the given bucket and ID.
 func (c *Client) GetBucketInventoryConfiguration(ctx context.Context, bucket, id string) (*InventoryConfiguration, error) {
+	if err := s3utils.CheckValidBucketName(bucket); err != nil {
+		return nil, err
+	}
+	if id == "" {
+		return nil, errInvalidArgument("inventory ID cannot be empty")
+	}
 	reqMeta := makeInventoryReqMetadata(bucket, "id", id)
 	resp, err := c.executeMethod(ctx, http.MethodGet, reqMeta)
 	defer closeResponse(resp)
@@ -116,6 +138,12 @@ func (c *Client) GetBucketInventoryConfiguration(ctx context.Context, bucket, id
 
 // DeleteBucketInventoryConfiguration deletes the given inventory configuration.
 func (c *Client) DeleteBucketInventoryConfiguration(ctx context.Context, bucket, id string) error {
+	if err := s3utils.CheckValidBucketName(bucket); err != nil {
+		return err
+	}
+	if id == "" {
+		return errInvalidArgument("inventory ID cannot be empty")
+	}
 	reqMeta := makeInventoryReqMetadata(bucket, "id", id)
 	resp, err := c.executeMethod(ctx, http.MethodDelete, reqMeta)
 	defer closeResponse(resp)
@@ -145,6 +173,9 @@ type InventoryListResult struct {
 
 // ListBucketInventoryConfigurations lists upto 100 inventory configurations.
 func (c *Client) ListBucketInventoryConfigurations(ctx context.Context, bucket, continuationToken string) (lr *InventoryListResult, err error) {
+	if err := s3utils.CheckValidBucketName(bucket); err != nil {
+		return nil, err
+	}
 	reqMeta := makeInventoryReqMetadata(bucket, "continuation-token", continuationToken)
 	resp, err := c.executeMethod(ctx, http.MethodGet, reqMeta)
 	defer closeResponse(resp)
@@ -167,6 +198,10 @@ func (c *Client) ListBucketInventoryConfigurations(ctx context.Context, bucket, 
 // inventory configurations for a bucket.
 func (c *Client) ListBucketInventoryConfigurationsIterator(ctx context.Context, bucket string) iter.Seq2[InventoryConfiguration, error] {
 	return func(yield func(InventoryConfiguration, error) bool) {
+		if err := s3utils.CheckValidBucketName(bucket); err != nil {
+			yield(InventoryConfiguration{}, err)
+			return
+		}
 		var continuationToken string
 		for {
 			listResult, err := c.ListBucketInventoryConfigurations(ctx, bucket, continuationToken)
@@ -207,6 +242,12 @@ type InventoryJobStatus struct {
 // GetBucketInventoryJobStatus retrieves the status of an inventory job for a
 // given bucket and job ID.
 func (c *Client) GetBucketInventoryJobStatus(ctx context.Context, bucket, id string) (*InventoryJobStatus, error) {
+	if err := s3utils.CheckValidBucketName(bucket); err != nil {
+		return nil, err
+	}
+	if id == "" {
+		return nil, errInvalidArgument("inventory ID cannot be empty")
+	}
 	reqMeta := makeInventoryReqMetadata(bucket, "id", id, "status", "")
 	resp, err := c.executeMethod(ctx, http.MethodGet, reqMeta)
 	defer closeResponse(resp)
