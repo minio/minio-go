@@ -237,6 +237,7 @@ type InventoryJobStatus struct {
 	Matched           string    `json:"matched,omitempty"`
 	RecordsWritten    uint64    `json:"recordsWritten,omitempty"`
 	OutputFilesCount  uint64    `json:"outputFilesCount,omitempty"`
+	Hostname          string    `json:"hostname"`
 }
 
 // GetBucketInventoryJobStatus retrieves the status of an inventory job for a
