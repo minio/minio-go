@@ -3690,6 +3690,93 @@ func testPutObjectStreaming() {
 	logSuccess(testName, function, args, startTime)
 }
 
+// Test PutObject with preconditions on non-existent objects
+func testPutObjectPreconditionOnNonExistent() {
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "PutObject(bucketName, objectName, reader, size, opts) with preconditions"
+	args := map[string]interface{}{
+		"bucketName": "",
+		"objectName": "",
+		"opts":       "minio.PutObjectOptions{SetMatchETag/SetMatchETagExcept}",
+	}
+
+	c, err := NewClient(ClientConfig{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
+		return
+	}
+
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	defer cleanupBucket(bucketName, c)
+
+	// Test 1: PutObject with SetMatchETag on non-existent object should fail
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "test-object-")
+	args["objectName"] = objectName
+
+	data := bytes.NewReader([]byte("test data"))
+
+	opts := minio.PutObjectOptions{}
+	opts.SetMatchETag("some-etag")
+
+	_, err = c.PutObject(context.Background(), bucketName, objectName, data, int64(data.Len()), opts)
+	if err == nil {
+		logError(testName, function, args, startTime, "", "PutObject with SetMatchETag on non-existent object should have failed", nil)
+		return
+	}
+
+	errResp := minio.ToErrorResponse(err)
+	if errResp.Code != "NoSuchKey" {
+		logError(testName, function, args, startTime, "", fmt.Sprintf("Expected NoSuchKey error (AWS standard for non-existent objects), got %s", errResp.Code), err)
+		return
+	}
+
+	// Test 2: PutObject with SetMatchETagExcept (If-None-Match) on non-existent object should succeed
+	objectName2 := randString(60, rand.NewSource(time.Now().UnixNano()), "test-object2-")
+	args["objectName"] = objectName2
+
+	data2 := bytes.NewReader([]byte("test data 2"))
+	opts2 := minio.PutObjectOptions{}
+	opts2.SetMatchETagExcept("some-etag")
+
+	_, err = c.PutObject(context.Background(), bucketName, objectName2, data2, int64(data2.Len()), opts2)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject with SetMatchETagExcept (If-None-Match) on non-existent object should have succeeded", err)
+		return
+	}
+	// Test 3: CompleteMultipartUpload with preconditions on non-existent object should fail
+	objectName3 := randString(60, rand.NewSource(time.Now().UnixNano()), "test-multipart-")
+	args["objectName"] = objectName3
+
+	data3 := bytes.Repeat([]byte("a"), 5*1024*1024+1)
+	reader3 := bytes.NewReader(data3)
+
+	opts3 := minio.PutObjectOptions{}
+	opts3.SetMatchETag("non-existent-etag")
+
+	_, err = c.PutObject(context.Background(), bucketName, objectName3, reader3, int64(len(data3)), opts3)
+	if err == nil {
+		logError(testName, function, args, startTime, "", "CompleteMultipartUpload with SetMatchETag on non-existent object should have failed", nil)
+		return
+	}
+
+	errResp = minio.ToErrorResponse(err)
+	if errResp.Code != "NoSuchKey" {
+		logError(testName, function, args, startTime, "", fmt.Sprintf("Expected NoSuchKey error (AWS standard for non-existent objects) for multipart, got %s", errResp.Code), err)
+		return
+	}
+
+	logSuccess(testName, function, args, startTime)
+}
+
 // Test get object seeker from the end, using whence set to '2'.
 func testGetObjectSeekEnd() {
 	// initialize logging params
@@ -14609,6 +14696,7 @@ func main() {
 		testPutObjectWithMetadata()
 		testPutObjectReadAt()
 		testPutObjectStreaming()
+		testPutObjectPreconditionOnNonExistent()
 		testGetObjectSeekEnd()
 		testGetObjectClosedTwice()
 		testGetObjectS3Zip()
