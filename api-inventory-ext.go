@@ -237,7 +237,7 @@ type InventoryJobStatus struct {
 	Matched           string    `json:"matched,omitempty"`
 	RecordsWritten    uint64    `json:"recordsWritten,omitempty"`
 	OutputFilesCount  uint64    `json:"outputFilesCount,omitempty"`
-	NodeHostname      string    `json:"nodeHostname"`
+	NodeHostname      string    `json:"nodeHostname,omitempty"`
 	RetryAttempts     uint64    `json:"retryAttempts,omitempty"`
 }
 
