@@ -3690,8 +3690,6 @@ func testPutObjectStreaming() {
 	logSuccess(testName, function, args, startTime)
 }
 
-// Test get object seeker from the end, using whence set to '2'.
-
 // Test PutObject with preconditions on non-existent objects
 func testPutObjectPreconditionOnNonExistent() {
 	startTime := time.Now()
@@ -3709,11 +3707,9 @@ func testPutObjectPreconditionOnNonExistent() {
 		return
 	}
 
-	// Generate a new random bucket name.
 	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
 	args["bucketName"] = bucketName
 
-	// Make a new bucket.
 	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1"})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
@@ -3726,10 +3722,8 @@ func testPutObjectPreconditionOnNonExistent() {
 	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "test-object-")
 	args["objectName"] = objectName
 
-	// Create test data
 	data := bytes.NewReader([]byte("test data"))
 
-	// Try to put object with SetMatchETag precondition on non-existent object
 	opts := minio.PutObjectOptions{}
 	opts.SetMatchETag("some-etag")
 
@@ -3739,7 +3733,6 @@ func testPutObjectPreconditionOnNonExistent() {
 		return
 	}
 
-	// Check that we got a NoSuchKey error
 	errResp := minio.ToErrorResponse(err)
 	if errResp.Code != "NoSuchKey" {
 		logError(testName, function, args, startTime, "", fmt.Sprintf("Expected NoSuchKey error (AWS standard for non-existent objects), got %s", errResp.Code), err)
@@ -3763,7 +3756,6 @@ func testPutObjectPreconditionOnNonExistent() {
 	objectName3 := randString(60, rand.NewSource(time.Now().UnixNano()), "test-multipart-")
 	args["objectName"] = objectName3
 
-	// Create a multipart upload - 5MB will trigger multipart
 	data3 := bytes.Repeat([]byte("a"), 5*1024*1024+1)
 	reader3 := bytes.NewReader(data3)
 
@@ -3776,7 +3768,6 @@ func testPutObjectPreconditionOnNonExistent() {
 		return
 	}
 
-	// Check that we got a NoSuchKey error
 	errResp = minio.ToErrorResponse(err)
 	if errResp.Code != "NoSuchKey" {
 		logError(testName, function, args, startTime, "", fmt.Sprintf("Expected NoSuchKey error (AWS standard for non-existent objects) for multipart, got %s", errResp.Code), err)
@@ -3786,6 +3777,7 @@ func testPutObjectPreconditionOnNonExistent() {
 	logSuccess(testName, function, args, startTime)
 }
 
+// Test get object seeker from the end, using whence set to '2'.
 func testGetObjectSeekEnd() {
 	// initialize logging params
 	startTime := time.Now()
