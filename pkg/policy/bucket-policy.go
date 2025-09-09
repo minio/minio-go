@@ -521,6 +521,12 @@ func getBucketPolicy(statement Statement, prefix string) (commonFound, readOnly,
 						readOnly = true
 					}
 				}
+			} else if stringLikeValue, ok := statement.Conditions["StringLike"]; ok {
+				if s3PrefixValues, ok := stringLikeValue["s3:prefix"]; ok {
+					if s3PrefixValues.Contains(prefix+"*") {
+						readOnly = true
+					}
+				}
 			}
 		} else if prefix == "" && statement.Conditions == nil {
 			readOnly = true
