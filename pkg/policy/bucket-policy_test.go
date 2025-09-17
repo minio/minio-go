@@ -1573,7 +1573,7 @@ func TestGetBucketPolicy(t *testing.T) {
 			Resources:  set.CreateStringSet("arn:aws:s3:::mybucket"),
 		}, "hello", false, true, false},
 
-		// Statement with readOnlyBucketActions with StringLike condition matching.
+		// Statement with StringLike condition for "hello*" pattern with empty prefix - should not grant readOnly access.
 		{Statement{
 			Actions:    readOnlyBucketActions,
 			Effect:     "Allow",
@@ -1581,7 +1581,7 @@ func TestGetBucketPolicy(t *testing.T) {
 			Conditions: stringLikeHelloCondMap,
 			Resources:  set.CreateStringSet("arn:aws:s3:::mybucket"),
 		}, "", false, false, false},
-		// Statement with readOnlyBucketActions with StringLike condition matching.
+		// Statement with StringLike condition for "hello*" pattern with "hello" prefix - should grant readOnly access.
 		{Statement{
 			Actions:    readOnlyBucketActions,
 			Effect:     "Allow",
@@ -1589,7 +1589,7 @@ func TestGetBucketPolicy(t *testing.T) {
 			Conditions: stringLikeHelloCondMap,
 			Resources:  set.CreateStringSet("arn:aws:s3:::mybucket"),
 		}, "hello", false, true, false},
-		// Statement with readOnlyBucketActions with StringLike condition not matching.
+		// Statement with StringLike condition for "world*" pattern with "hello" prefix - should not grant readOnly access.
 		{Statement{
 			Actions:    readOnlyBucketActions,
 			Effect:     "Allow",
@@ -1598,7 +1598,7 @@ func TestGetBucketPolicy(t *testing.T) {
 			Resources:  set.CreateStringSet("arn:aws:s3:::mybucket"),
 		}, "hello", false, false, false},
 
-		// Statement with readOnlyBucketActions with StringNotLike condition not matching.
+		// Statement with StringNotLike condition for "hello*" pattern with empty prefix - should not grant readOnly access.
 		{Statement{
 			Actions:    readOnlyBucketActions,
 			Effect:     "Allow",
@@ -1606,7 +1606,7 @@ func TestGetBucketPolicy(t *testing.T) {
 			Conditions: stringNotLikeHelloCondMap,
 			Resources:  set.CreateStringSet("arn:aws:s3:::mybucket"),
 		}, "", false, false, false},
-		// Statement with readOnlyBucketActions with StringNotLike condition not matching.
+		// Statement with StringNotLike condition for "hello*" pattern with "hello" prefix - prefix matches pattern so should not grant readOnly access.
 		{Statement{
 			Actions:    readOnlyBucketActions,
 			Effect:     "Allow",
@@ -1614,7 +1614,7 @@ func TestGetBucketPolicy(t *testing.T) {
 			Conditions: stringNotLikeHelloCondMap,
 			Resources:  set.CreateStringSet("arn:aws:s3:::mybucket"),
 		}, "hello", false, false, false},
-		// Statement with readOnlyBucketActions with StringNotLike condition matching.
+		// Statement with StringNotLike condition for "world*" pattern with "hello" prefix - prefix doesn't match pattern so should grant readOnly access.
 		{Statement{
 			Actions:    readOnlyBucketActions,
 			Effect:     "Allow",
@@ -1622,7 +1622,7 @@ func TestGetBucketPolicy(t *testing.T) {
 			Conditions: stringNotLikeWorldCondMap,
 			Resources:  set.CreateStringSet("arn:aws:s3:::mybucket"),
 		}, "hello", false, true, false},
-		// Statement with readOnlyBucketActions with StringNotLike condition matching.
+		// Statement with StringNotLike condition for "world*" pattern with "world" prefix - prefix matches pattern so should not grant readOnly access.
 		{Statement{
 			Actions:    readOnlyBucketActions,
 			Effect:     "Allow",
