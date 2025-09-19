@@ -88,7 +88,7 @@ func createHTTPTransport() (transport *http.Transport) {
 		transport.TLSClientConfig.InsecureSkipVerify = true
 	}
 
-	return
+	return transport
 }
 
 var readFull = func(r io.Reader, buf []byte) (n int, err error) {
@@ -123,7 +123,7 @@ var readFull = func(r io.Reader, buf []byte) (n int, err error) {
 	} else if n > 0 && err == io.EOF {
 		err = io.ErrUnexpectedEOF
 	}
-	return
+	return n, err
 }
 
 func baseLogger(testName, function string, args map[string]interface{}, startTime time.Time) *slog.Logger {
@@ -282,7 +282,7 @@ var mintDataDir = os.Getenv("MINT_DATA_DIR")
 
 func getMintDataDirFilePath(filename string) (fp string) {
 	if mintDataDir == "" {
-		return
+		return fp
 	}
 	return filepath.Join(mintDataDir, filename)
 }
@@ -3366,7 +3366,7 @@ func validateObjectAttributeRequest(OA *minio.ObjectAttributes, opts *minio.Obje
 	if opts.VersionID != "" {
 		if OA.VersionID != opts.VersionID {
 			err = fmt.Errorf("Expected versionId %s but got versionId %s", opts.VersionID, OA.VersionID)
-			return
+			return err
 		}
 	}
 
@@ -3393,12 +3393,12 @@ func validateObjectAttributeRequest(OA *minio.ObjectAttributes, opts *minio.Obje
 	if test.HasPartChecksums {
 		if partsMissingChecksum {
 			err = fmt.Errorf("One or all parts were missing a checksum")
-			return
+			return err
 		}
 	} else {
 		if foundPartChecksum {
 			err = fmt.Errorf("Did not expect ObjectParts to have checksums but found one")
-			return
+			return err
 		}
 	}
 
@@ -3410,52 +3410,52 @@ func validateObjectAttributeRequest(OA *minio.ObjectAttributes, opts *minio.Obje
 	if test.HasFullChecksum {
 		if !hasFullObjectChecksum {
 			err = fmt.Errorf("Full object checksum not found")
-			return
+			return err
 		}
 	} else {
 		if hasFullObjectChecksum {
 			err = fmt.Errorf("Did not expect a full object checksum but we got one")
-			return
+			return err
 		}
 	}
 
 	if OA.ETag != test.ETag {
 		err = fmt.Errorf("Etags do not match, got %s but expected %s", OA.ETag, test.ETag)
-		return
+		return err
 	}
 
 	if test.HasParts {
 		if len(OA.ObjectParts.Parts) < 1 {
 			err = fmt.Errorf("Was expecting ObjectParts but none were present")
-			return
+			return err
 		}
 	}
 
 	if OA.StorageClass == "" {
 		err = fmt.Errorf("Was expecting a StorageClass but got none")
-		return
+		return err
 	}
 
 	if OA.ObjectSize != test.ObjectSize {
 		err = fmt.Errorf("Was expecting a ObjectSize but got none")
-		return
+		return err
 	}
 
 	if test.HasParts {
 		if opts.MaxParts == 0 {
 			if len(OA.ObjectParts.Parts) != OA.ObjectParts.PartsCount {
 				err = fmt.Errorf("expected %s parts but got %d", OA.ObjectParts.PartsCount, len(OA.ObjectParts.Parts))
-				return
+				return err
 			}
 		} else if (opts.MaxParts + opts.PartNumberMarker) > OA.ObjectParts.PartsCount {
 			if len(OA.ObjectParts.Parts) != (OA.ObjectParts.PartsCount - opts.PartNumberMarker) {
 				err = fmt.Errorf("expected %d parts but got %d", (OA.ObjectParts.PartsCount - opts.PartNumberMarker), len(OA.ObjectParts.Parts))
-				return
+				return err
 			}
 		} else if opts.MaxParts != 0 {
 			if opts.MaxParts != len(OA.ObjectParts.Parts) {
 				err = fmt.Errorf("expected %d parts but got %d", opts.MaxParts, len(OA.ObjectParts.Parts))
-				return
+				return err
 			}
 		}
 	}
@@ -3463,18 +3463,18 @@ func validateObjectAttributeRequest(OA *minio.ObjectAttributes, opts *minio.Obje
 	if OA.ObjectParts.NextPartNumberMarker == OA.ObjectParts.PartsCount {
 		if OA.ObjectParts.IsTruncated {
 			err = fmt.Errorf("Expected ObjectParts to NOT be truncated, but it was")
-			return
+			return err
 		}
 	}
 
 	if OA.ObjectParts.NextPartNumberMarker != OA.ObjectParts.PartsCount {
 		if !OA.ObjectParts.IsTruncated {
 			err = fmt.Errorf("Expected ObjectParts to be truncated, but it was NOT")
-			return
+			return err
 		}
 	}
 
-	return
+	return err
 }
 
 // Test PutObject using a large data to trigger multipart readat
@@ -11411,7 +11411,7 @@ func testUserMetadataCopyingWrapper(c *minio.Client) {
 		objInfo, err := c.StatObject(context.Background(), bucketName, object, minio.StatObjectOptions{})
 		if err != nil {
 			logError(testName, function, args, startTime, "", "Stat failed", err)
-			return
+			return h
 		}
 		h = make(http.Header)
 		for k, vs := range objInfo.Metadata {
@@ -11587,7 +11587,7 @@ func testStorageClassMetadataPutObject() {
 		objInfo, err := c.StatObject(context.Background(), bucketName, object, minio.StatObjectOptions{})
 		if err != nil {
 			logError(testName, function, args, startTime, "", "Stat failed", err)
-			return
+			return h
 		}
 		h = make(http.Header)
 		for k, vs := range objInfo.Metadata {
@@ -11708,7 +11708,7 @@ func testStorageClassMetadataCopyObject() {
 		args["object"] = object
 		if err != nil {
 			logError(testName, function, args, startTime, "", "Stat failed", err)
-			return
+			return h
 		}
 		h = make(http.Header)
 		for k, vs := range objInfo.Metadata {
