@@ -58,30 +58,31 @@ func main() {
 }
 ```
 
-| Bucket operations                                     | Object operations                                   | Presigned operations                          | Bucket Policy/Notification Operations                         | Client custom settings                                |
-| :---                                                  | :---                                                | :---                                          | :---                                                          | :---                                                  |
-| [`MakeBucket`](#MakeBucket)                           | [`AppendObject`](#AppendObject)                           | [`PresignedGetObject`](#PresignedGetObject)   | [`SetBucketPolicy`](#SetBucketPolicy)                         | [`SetAppInfo`](#SetAppInfo)                           |
-|                                                       | [`GetObject`](#GetObject)                           | [`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)                         |                                                       |
-| [`ListBuckets`](#ListBuckets)                         | [`PutObject`](#PutObject)                         | [`PresignedHeadObject`](#PresignedHeadObject) | [`SetBucketNotification`](#SetBucketNotification)             | [`TraceOn`](#TraceOn)                                 |
-| [`BucketExists`](#BucketExists)                       | [`CopyObject`](#CopyObject)                         | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`GetBucketNotification`](#GetBucketNotification)             | [`TraceOff`](#TraceOff)                               |
-| [`RemoveBucket`](#RemoveBucket)                       | [`StatObject`](#StatObject)                     |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification) | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
-| [`ListObjects`](#ListObjects)                         | [`RemoveObject`](#RemoveObject)                   |                                               | [`ListenBucketNotification`](#ListenBucketNotification)       |                                                       |
-|                                                       | [`RemoveObjects`](#RemoveObjects) |                                               | [`SetBucketLifecycle`](#SetBucketLifecycle)                   |                                                       |
-| [`ListIncompleteUploads`](#ListIncompleteUploads)     | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload)                         |                                               | [`GetBucketLifecycle`](#GetBucketLifecycle)                   |                                                       |
-| [`SetBucketTagging`](#SetBucketTagging)               | [`FPutObject`](#FPutObject)                         |                                               | [`SetObjectLockConfig`](#SetObjectLockConfig)                 |                                                       |
-| [`GetBucketTagging`](#GetBucketTagging)               | [`FGetObject`](#FGetObject)                   |                                               | [`GetObjectLockConfig`](#GetObjectLockConfig)                 |                                                       |
-| [`RemoveBucketTagging`](#RemoveBucketTagging)         | [`ComposeObject`](#ComposeObject)                                                    |                                               | [`EnableVersioning`](#EnableVersioning)                       |                                                       |
-| [`SetBucketReplication`](#SetBucketReplication)       |                                                     |                                               | [`DisableVersioning`](#DisableVersioning)                     |                                                       |
-| [`GetBucketReplication`](#GetBucketReplication)       | [`PutObjectRetention`](#PutObjectRetention)         |                                               | [`GetBucketEncryption`](#GetBucketEncryption)                 |                                                       |
-| [`RemoveBucketReplication`](#RemoveBucketReplication) | [`GetObjectRetention`](#GetObjectRetention)         |                                               | [`RemoveBucketEncryption`](#RemoveBucketEncryption)           |                                                       |
-| [`CancelBucketReplicationResync`](#CancelBucketReplicationResync) | [`PutObjectLegalHold`](#PutObjectLegalHold)         |                                               |                                                               |                                                       |
-|                                                       | [`GetObjectLegalHold`](#GetObjectLegalHold)         |                                               |                                                               |                                                       |
-|                                                       | [`SelectObjectContent`](#SelectObjectContent)       |                                               |                                                               |                                                       |
-|                                                       | [`PutObjectTagging`](#PutObjectTagging)             |                                               |                                                               |                                                       |
-|                                                       | [`GetObjectTagging`](#GetObjectTagging)             |                                               |                                                               |                                                       |
-|                                                       | [`RemoveObjectTagging`](#RemoveObjectTagging)       |                                               |                                                               |                                                       |
-|                                                       | [`RestoreObject`](#RestoreObject)                   |                                               |                                                               |                                                       |
-|                                                       | [`GetObjectAttributes`](#GetObjectAttributes)                   |                                               |                                                               |                                                       |
+| Bucket operations                                             | Object operations                                   | Presigned operations                          | Bucket Policy/Notification Operations                         | Client custom settings                                |
+|:--------------------------------------------------------------|:----------------------------------------------------|:----------------------------------------------|:--------------------------------------------------------------|:------------------------------------------------------|
+| [`MakeBucket`](#MakeBucket)                                   | [`AppendObject`](#AppendObject)                     | [`PresignedGetObject`](#PresignedGetObject)   | [`SetBucketPolicy`](#SetBucketPolicy)                         | [`SetAppInfo`](#SetAppInfo)                           |
+| [`ListBuckets`](#ListBuckets)                                 | [`GetObject`](#GetObject)                           | [`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)                         | [`TraceOn`](#TraceOn)                                 |
+| [`BucketExists`](#BucketExists)                               | [`PutObject`](#PutObject)                           | [`PresignedHeadObject`](#PresignedHeadObject) | [`SetBucketNotification`](#SetBucketNotification)             | [`TraceOff`](#TraceOff)                               |
+| [`RemoveBucket`](#RemoveBucket)                               | [`PutObjectFanOut`](#PutObjectFanOut)               | [`PresignedPostPolicy`](#PresignedPostPolicy) | [`GetBucketNotification`](#GetBucketNotification)             | [`SetS3TransferAccelerate`](#SetS3TransferAccelerate) |
+| [`ListObjects`](#ListObjects)                                 | [`CopyObject`](#CopyObject)                         |                                               | [`RemoveAllBucketNotification`](#RemoveAllBucketNotification) |                                                       |
+| [`ListIncompleteUploads`](#ListIncompleteUploads)             | [`ComposeObject`](#ComposeObject)                   |                                               | [`ListenBucketNotification`](#ListenBucketNotification)       |                                                       |
+| [`SetBucketTagging`](#SetBucketTagging)                       | [`StatObject`](#StatObject)                         |                                               | [`ListenNotification`](#ListenNotification)                   |                                                       |
+| [`GetBucketTagging`](#GetBucketTagging)                       | [`RemoveObject`](#RemoveObject)                     |                                               | [`SetBucketLifecycle`](#SetBucketLifecycle)                   |                                                       |
+| [`RemoveBucketTagging`](#RemoveBucketTagging)                 | [`RemoveObjects`](#RemoveObjects)                   |                                               | [`GetBucketLifecycle`](#GetBucketLifecycle)                   |                                                       |
+| [`SetBucketCors`](#SetBucketCors)                             | [`RemoveIncompleteUpload`](#RemoveIncompleteUpload) |                                               | [`SetBucketEncryption`](#SetBucketEncryption)                 |                                                       |
+| [`GetBucketCors`](#GetBucketCors)                             | [`FPutObject`](#FPutObject)                         |                                               | [`GetBucketEncryption`](#GetBucketEncryption)                 |                                                       |
+| [`SetBucketReplication`](#SetBucketReplication)               | [`FGetObject`](#FGetObject)                         |                                               | [`RemoveBucketEncryption`](#RemoveBucketEncryption)           |                                                       |
+| [`GetBucketReplication`](#GetBucketReplication)               | [`PutObjectRetention`](#PutObjectRetention)         |                                               | [`SetObjectLockConfig`](#SetObjectLockConfig)                 |                                                       |
+| [`RemoveBucketReplication`](#RemoveBucketReplication)         | [`GetObjectRetention`](#GetObjectRetention)         |                                               | [`GetObjectLockConfig`](#GetObjectLockConfig)                 |                                                       |
+| [`GetBucketReplicationMetrics`](#GetBucketReplicationMetrics) | [`PutObjectLegalHold`](#PutObjectLegalHold)         |                                               | [`EnableVersioning`](#EnableVersioning)                       |                                                       |
+| [`GetBucketLocation`](#GetBucketLocation)                     | [`GetObjectLegalHold`](#GetObjectLegalHold)         |                                               | [`SuspendVersioning`](#SuspendVersioning)                     |                                                       |
+|                                                               | [`SelectObjectContent`](#SelectObjectContent)       |                                               | [`GetBucketVersioning`](#GetBucketVersioning)                 |                                                       |
+|                                                               | [`PutObjectTagging`](#PutObjectTagging)             |                                               |                                                               |                                                       |
+|                                                               | [`GetObjectTagging`](#GetObjectTagging)             |                                               |                                                               |                                                       |
+|                                                               | [`RemoveObjectTagging`](#RemoveObjectTagging)       |                                               |                                                               |                                                       |
+|                                                               | [`RestoreObject`](#RestoreObject)                   |                                               |                                                               |                                                       |
+|                                                               | [`GetObjectAttributes`](#GetObjectAttributes)       |                                               |                                                               |                                                       |
+|                                                               | [`PromptObject`](#PromptObject)                     |                                               |                                                               |                                                       |
 
 ## 1. Constructor
 <a name="MinIO"></a>
@@ -1138,7 +1139,7 @@ __Return Values__
 ```
 
 <a name="PutObjectTagging"></a>
-### PutObjectTagging(ctx context.Context, bucketName, objectName string, otags *tags.Tags) error
+### PutObjectTagging(ctx context.Context, bucketName, objectName string, otags *tags.Tags, opts PutObjectTaggingOptions) error
 set new object Tags to the given object, replaces/overwrites any existing tags.
 
 __Parameters__
@@ -1994,9 +1995,9 @@ if err != nil {
 fmt.Println("versioning enabled for bucket 'my-bucketname'")
 ```
 
-<a name="DisableVersioning"></a>
-### DisableVersioning(ctx context.Context, bucketName) error
-Disable bucket versioning support.
+<a name="SuspendVersioning"></a>
+### SuspendVersioning(ctx context.Context, bucketName string) error
+Suspend bucket versioning support.
 
 __Parameters__
 
@@ -2016,12 +2017,12 @@ __Return Values__
 __Example__
 
 ```go
-err := minioClient.DisableVersioning(context.Background(), "my-bucketname")
+err := minioClient.SuspendVersioning(context.Background(), "my-bucketname")
 if err != nil {
     log.Fatalln(err)
 }
 
-fmt.Println("versioning disabled for bucket 'my-bucketname'")
+fmt.Println("versioning suspended for bucket 'my-bucketname'")
 ```
 
 <a name="GetBucketVersioning"></a>
@@ -2287,3 +2288,214 @@ __Parameters__
 | Param  | Type  | Description  |
 |---|---|---|
 |`acceleratedEndpoint`  | _string_  | Set to new S3 transfer acceleration endpoint.|
+
+## 7. Additional Operations
+
+<a name="SetBucketCors"></a>
+### SetBucketCors(ctx context.Context, bucketName string, corsConfig *cors.Config) error
+Set CORS (Cross-Origin Resource Sharing) configuration on a bucket.
+
+__Parameters__
+
+| Param  | Type  | Description  |
+|---|---|---|
+|`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
+|`bucketName`  | _string_  | Name of the bucket|
+|`corsConfig`  | _*cors.Config_  | CORS configuration to be set|
+
+__Example__
+
+```go
+// Create CORS configuration
+corsConfig := &cors.Config{
+    CORSRules: []cors.Rule{{
+        AllowedHeaders: []string{"*"},
+        AllowedMethods: []string{"PUT", "GET", "DELETE"},
+        AllowedOrigins: []string{"*"},
+        MaxAgeSeconds:  3000,
+    }},
+}
+
+err := minioClient.SetBucketCors(context.Background(), "mybucket", corsConfig)
+if err != nil {
+    log.Fatalln(err)
+}
+```
+
+<a name="GetBucketCors"></a>
+### GetBucketCors(ctx context.Context, bucketName string) (*cors.Config, error)
+Get CORS configuration of a bucket.
+
+__Parameters__
+
+| Param  | Type  | Description  |
+|---|---|---|
+|`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
+|`bucketName`  | _string_  | Name of the bucket|
+
+__Return Values__
+
+| Param  | Type  | Description  |
+|---|---|---|
+|`corsConfig`  | _*cors.Config_  | CORS configuration|
+|`err` | _error_  | Standard Error|
+
+__Example__
+
+```go
+corsConfig, err := minioClient.GetBucketCors(context.Background(), "mybucket")
+if err != nil {
+    log.Fatalln(err)
+}
+fmt.Printf("CORS configuration: %+v\n", corsConfig)
+```
+
+<a name="PutObjectsSnowball"></a>
+### PutObjectsSnowball(ctx context.Context, bucketName string, opts SnowballOptions, objs <-chan SnowballObject) error
+Bulk upload multiple objects using snowball archive method for efficient batch operations.
+
+__Parameters__
+
+| Param  | Type  | Description  |
+|---|---|---|
+|`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
+|`bucketName`  | _string_  | Name of the bucket|
+|`opts`  | _minio.SnowballOptions_  | Snowball upload options|
+|`objs`  | _<-chan minio.SnowballObject_  | Channel of objects to upload|
+
+<a name="PromptObject"></a>
+### PromptObject(ctx context.Context, bucketName, objectName, prompt string, opts PromptObjectOptions) (io.ReadCloser, error)
+Perform language model inference with prompt and object context for AI/ML integration.
+
+__Parameters__
+
+| Param  | Type  | Description  |
+|---|---|---|
+|`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
+|`bucketName`  | _string_  | Name of the bucket|
+|`objectName`  | _string_  | Name of the object|
+|`prompt`  | _string_  | AI prompt text|
+|`opts`  | _minio.PromptObjectOptions_  | Prompt operation options|
+
+__Return Value__
+
+| Param  | Type  | Description  |
+|---|---|---|
+|`result`  | _io.ReadCloser_  | AI response stream|
+
+<a name="GetBucketLocation"></a>
+### GetBucketLocation(ctx context.Context, bucketName string) (string, error)
+Get the region/location constraint of a bucket.
+
+__Parameters__
+
+| Param  | Type  | Description  |
+|---|---|---|
+|`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
+|`bucketName`  | _string_  | Name of the bucket|
+
+__Return Values__
+
+| Param  | Type  | Description  |
+|---|---|---|
+|`location`  | _string_  | Bucket region/location|
+|`err` | _error_  | Standard Error|
+
+__Example__
+
+```go
+location, err := minioClient.GetBucketLocation(context.Background(), "mybucket")
+if err != nil {
+    log.Fatalln(err)
+}
+fmt.Printf("Bucket location: %s\n", location)
+```
+
+<a name="GetBucketReplicationMetrics"></a>
+### GetBucketReplicationMetrics(ctx context.Context, bucketName string) (replication.Metrics, error)
+Get replication metrics for a bucket. This is a MinIO specific extension.
+
+__Parameters__
+
+| Param  | Type  | Description  |
+|---|---|---|
+|`ctx`  | _context.Context_  | Custom context for timeout/cancellation of the call|
+|`bucketName`  | _string_  | Name of the bucket|
+
+__Return Values__
+
+| Param  | Type  | Description  |
+|---|---|---|
+|`metrics`  | _replication.Metrics_  | Replication metrics|
+|`err` | _error_  | Standard Error|
+
+__Example__
+
+```go
+metrics, err := minioClient.GetBucketReplicationMetrics(context.Background(), "mybucket")
+if err != nil {
+    log.Fatalln(err)
+}
+fmt.Printf("Replication metrics: %+v\n", metrics)
+```
+
+<a name="TraceErrorsOnlyOn"></a>
+### TraceErrorsOnlyOn(outputStream io.Writer)
+Enable HTTP tracing for errors only. The trace is written to the io.Writer provided.
+
+__Parameters__
+
+| Param  | Type  | Description  |
+|---|---|---|
+|`outputStream`  | _io.Writer_  | HTTP error trace is written into outputStream.|
+
+<a name="TraceErrorsOnlyOff"></a>
+### TraceErrorsOnlyOff()
+Disable HTTP error-only tracing.
+
+<a name="SetS3EnableDualstack"></a>
+### SetS3EnableDualstack(enabled bool)
+Enable or disable S3 dual-stack endpoints which support both IPv4 and IPv6.
+
+__Parameters__
+
+| Param  | Type  | Description  |
+|---|---|---|
+|`enabled`  | _bool_  | Enable dual-stack if true, disable if false|
+
+<a name="IsOnline"></a>
+### IsOnline() bool
+Check if the MinIO client is online and can reach the server.
+
+__Return Value__
+
+| Param  | Type  | Description  |
+|---|---|---|
+|`online`  | _bool_  | true if client is online|
+
+<a name="IsOffline"></a>
+### IsOffline() bool
+Check if the MinIO client is offline and cannot reach the server.
+
+__Return Value__
+
+| Param  | Type  | Description  |
+|---|---|---|
+|`offline`  | _bool_  | true if client is offline|
+
+<a name="HealthCheck"></a>
+### HealthCheck(hcDuration time.Duration) (context.CancelFunc, error)
+Start continuous health check monitoring of the MinIO server.
+
+__Parameters__
+
+| Param  | Type  | Description  |
+|---|---|---|
+|`hcDuration`  | _time.Duration_  | Health check interval|
+
+__Return Values__
+
+| Param  | Type  | Description  |
+|---|---|---|
+|`cancel`  | _context.CancelFunc_  | Function to cancel health check|
+|`err` | _error_  | Standard Error|
