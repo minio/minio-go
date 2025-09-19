@@ -20,6 +20,7 @@ package minio
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"encoding/xml"
 	"io"
 	"net/http"
@@ -27,7 +28,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/minio/minio-go/v7/internal/json"
 	"github.com/minio/minio-go/v7/pkg/replication"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
@@ -222,7 +222,7 @@ func (c *Client) ResetBucketReplicationOnTarget(ctx context.Context, bucketName 
 func (c *Client) resetBucketReplicationOnTarget(ctx context.Context, bucketName string, olderThan time.Duration, tgtArn, resetID string) (rinfo replication.ResyncTargetsInfo, err error) {
 	// Input validation.
 	if err = s3utils.CheckValidBucketName(bucketName); err != nil {
-		return
+		return rinfo, err
 	}
 	// Get resources properly escaped and lined up before
 	// using them in http request.
@@ -294,7 +294,7 @@ func (c *Client) GetBucketReplicationResyncStatus(ctx context.Context, bucketNam
 func (c *Client) CancelBucketReplicationResync(ctx context.Context, bucketName string, tgtArn string) (id string, err error) {
 	// Input validation.
 	if err = s3utils.CheckValidBucketName(bucketName); err != nil {
-		return
+		return id, err
 	}
 	// Get resources properly escaped and lined up before
 	// using them in http request.

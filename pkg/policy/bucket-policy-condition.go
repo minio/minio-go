@@ -18,8 +18,6 @@
 package policy
 
 import (
-	"encoding/json"
-
 	"github.com/minio/minio-go/v7/pkg/set"
 )
 
@@ -94,13 +92,6 @@ func (cond ConditionMap) Add(condKey string, condKeyMap ConditionKeyMap) {
 // Remove - removes condition key and its value.
 func (cond ConditionMap) Remove(condKey string) {
 	delete(cond, condKey)
-}
-
-// MarshalJSON is a custom json marshaler. It is needed due to
-// https://github.com/goccy/go-json/issues/543
-// and circumvents the issue by using the stdlib json package.
-func (cond ConditionMap) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]ConditionKeyMap(cond))
 }
 
 // mergeConditionMap - returns new ConditionMap which contains merged key/value of two ConditionMap.

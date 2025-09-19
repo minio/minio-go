@@ -350,7 +350,7 @@ func (c *Client) copyObjectPartDo(ctx context.Context, srcBucket, srcObject, des
 	})
 	defer closeResponse(resp)
 	if err != nil {
-		return
+		return p, err
 	}
 
 	// Check if we got an error response.
@@ -585,7 +585,7 @@ func partsRequired(size int64) int64 {
 // it is not the last part.
 func calculateEvenSplits(size int64, src CopySrcOptions) (startIndex, endIndex []int64) {
 	if size == 0 {
-		return
+		return startIndex, endIndex
 	}
 
 	reqParts := partsRequired(size)
@@ -622,5 +622,5 @@ func calculateEvenSplits(size int64, src CopySrcOptions) (startIndex, endIndex [
 
 		startIndex[j], endIndex[j] = cStart, cEnd
 	}
-	return
+	return startIndex, endIndex
 }
