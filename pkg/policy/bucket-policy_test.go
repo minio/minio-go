@@ -1371,6 +1371,30 @@ func TestGetBucketPolicy(t *testing.T) {
 	notHelloCondMap := make(ConditionMap)
 	notHelloCondMap.Add("StringNotEquals", worldCondKeyMap)
 
+	// StringLike condition map for "hello*"
+	stringLikeHelloCondMap := make(ConditionMap)
+	stringLikeHelloCondKeyMap := make(ConditionKeyMap)
+	stringLikeHelloCondKeyMap.Add("s3:prefix", set.CreateStringSet("hello*"))
+	stringLikeHelloCondMap.Add("StringLike", stringLikeHelloCondKeyMap)
+
+	// StringLike condition map for "world*"
+	stringLikeWorldCondMap := make(ConditionMap)
+	stringLikeWorldCondKeyMap := make(ConditionKeyMap)
+	stringLikeWorldCondKeyMap.Add("s3:prefix", set.CreateStringSet("world*"))
+	stringLikeWorldCondMap.Add("StringLike", stringLikeWorldCondKeyMap)
+
+	// StringNotLike condition map for "hello*"
+	stringNotLikeHelloCondMap := make(ConditionMap)
+	stringNotLikeHelloCondKeyMap := make(ConditionKeyMap)
+	stringNotLikeHelloCondKeyMap.Add("s3:prefix", set.CreateStringSet("hello*"))
+	stringNotLikeHelloCondMap.Add("StringNotLike", stringNotLikeHelloCondKeyMap)
+
+	// StringNotLike condition map for "world*"
+	stringNotLikeWorldCondMap := make(ConditionMap)
+	stringNotLikeWorldCondKeyMap := make(ConditionKeyMap)
+	stringNotLikeWorldCondKeyMap.Add("s3:prefix", set.CreateStringSet("world*"))
+	stringNotLikeWorldCondMap.Add("StringNotLike", stringNotLikeWorldCondKeyMap)
+
 	testCases := []struct {
 		statement       Statement
 		prefix          string
@@ -1548,6 +1572,64 @@ func TestGetBucketPolicy(t *testing.T) {
 			Conditions: notHelloCondMap,
 			Resources:  set.CreateStringSet("arn:aws:s3:::mybucket"),
 		}, "hello", false, true, false},
+
+		// Statement with StringLike condition for "hello*" pattern with empty prefix - should not grant readOnly access.
+		{Statement{
+			Actions:    readOnlyBucketActions,
+			Effect:     "Allow",
+			Principal:  User{AWS: set.CreateStringSet("*")},
+			Conditions: stringLikeHelloCondMap,
+			Resources:  set.CreateStringSet("arn:aws:s3:::mybucket"),
+		}, "", false, false, false},
+		// Statement with StringLike condition for "hello*" pattern with "hello" prefix - should grant readOnly access.
+		{Statement{
+			Actions:    readOnlyBucketActions,
+			Effect:     "Allow",
+			Principal:  User{AWS: set.CreateStringSet("*")},
+			Conditions: stringLikeHelloCondMap,
+			Resources:  set.CreateStringSet("arn:aws:s3:::mybucket"),
+		}, "hello", false, true, false},
+		// Statement with StringLike condition for "world*" pattern with "hello" prefix - should not grant readOnly access.
+		{Statement{
+			Actions:    readOnlyBucketActions,
+			Effect:     "Allow",
+			Principal:  User{AWS: set.CreateStringSet("*")},
+			Conditions: stringLikeWorldCondMap,
+			Resources:  set.CreateStringSet("arn:aws:s3:::mybucket"),
+		}, "hello", false, false, false},
+
+		// Statement with StringNotLike condition for "hello*" pattern with empty prefix - should not grant readOnly access.
+		{Statement{
+			Actions:    readOnlyBucketActions,
+			Effect:     "Allow",
+			Principal:  User{AWS: set.CreateStringSet("*")},
+			Conditions: stringNotLikeHelloCondMap,
+			Resources:  set.CreateStringSet("arn:aws:s3:::mybucket"),
+		}, "", false, false, false},
+		// Statement with StringNotLike condition for "hello*" pattern with "hello" prefix - prefix matches pattern so should not grant readOnly access.
+		{Statement{
+			Actions:    readOnlyBucketActions,
+			Effect:     "Allow",
+			Principal:  User{AWS: set.CreateStringSet("*")},
+			Conditions: stringNotLikeHelloCondMap,
+			Resources:  set.CreateStringSet("arn:aws:s3:::mybucket"),
+		}, "hello", false, false, false},
+		// Statement with StringNotLike condition for "world*" pattern with "hello" prefix - prefix doesn't match pattern so should grant readOnly access.
+		{Statement{
+			Actions:    readOnlyBucketActions,
+			Effect:     "Allow",
+			Principal:  User{AWS: set.CreateStringSet("*")},
+			Conditions: stringNotLikeWorldCondMap,
+			Resources:  set.CreateStringSet("arn:aws:s3:::mybucket"),
+		}, "hello", false, true, false},
+		// Statement with StringNotLike condition for "world*" pattern with "world" prefix - prefix matches pattern so should not grant readOnly access.
+		{Statement{
+			Actions:    readOnlyBucketActions,
+			Effect:     "Allow",
+			Principal:  User{AWS: set.CreateStringSet("*")},
+			Conditions: stringNotLikeWorldCondMap,
+			Resources:  set.CreateStringSet("arn:aws:s3:::mybucket"),
+		}, "world", false, false, false},
 	}
 
 	for _, testCase := range testCases {
