@@ -171,7 +171,7 @@ func TestForget(t *testing.T) {
 			close(firstStarted)
 			<-unblockFirst
 			close(firstFinished)
-			return
+			return i, e
 		})
 	}()
 	<-firstStarted

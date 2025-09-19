@@ -18,11 +18,11 @@
 package policy
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
 
-	"github.com/minio/minio-go/v7/internal/json"
 	"github.com/minio/minio-go/v7/pkg/set"
 )
 
