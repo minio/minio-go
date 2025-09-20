@@ -41,10 +41,9 @@ func main() {
 	useSSL := true
 
 	// Initialize minio client object.
-	minioClient, err := minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
-		Secure: useSSL,
-	})
+	minioClient, err := minio.New(
+		endpoint, accessKeyID, secretAccessKey, useSSL,
+	)
 	if err != nil {
 		log.Fatalln(err)
 	}
