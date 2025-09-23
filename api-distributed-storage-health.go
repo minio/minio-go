@@ -15,7 +15,7 @@ type StorageStatus struct {
 }
 
 func (c *Client) GetSDSHealth(ctx context.Context, bucketName, objectName string, opts GetObjectOptions) ([]StorageStatus, error) {
-	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{contentSHA256Hex: emptySHA256Hex, health: true})
+	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{bucketName: bucketName, contentSHA256Hex: emptySHA256Hex, health: true})
 	defer closeResponse(resp)
 	if err != nil {
 		return nil, err
