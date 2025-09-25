@@ -7,6 +7,7 @@ toolchain go1.24.3
 require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/go-ini/ini v1.67.0
+	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/google/uuid v1.6.0
 	github.com/klauspost/compress v1.18.0
 	github.com/klauspost/crc32 v1.3.0
