@@ -44,6 +44,23 @@ func NewCLILoginClaims(port int, reqID string) *CLILoginClaims {
 		},
 	}
 }
+func ParseCLILoginClaims(tokenString, secret string) (*CLILoginClaims, error) {
+	decodedToken, err := base64.RawURLEncoding.DecodeString(tokenString)
+	if err != nil {
+		return nil, err
+	}
+
+	claims := &cliLoginClaims{}
+	_, err = jwt.ParseWithClaims(string(decodedToken), claims, func(token *jwt.Token) (any, error) {
+		return []byte(secret), nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &CLILoginClaims{c: claims}, nil
+}
 
 func (c *cliLoginClaims) Valid() error {
 	if time.Now().UTC().After(c.Expiry) {
@@ -65,22 +82,8 @@ func (c *CLILoginClaims) ToTokenString(secret string) (string, error) {
 	return base64.RawURLEncoding.EncodeToString([]byte(sString)), nil
 }
 
-type CredentialsClaims struct {
-	AccessKeyID     string    `json:"access_key_id"`
-	SecretAccessKey string    `json:"secret_access_key"`
-	SessionToken    string    `json:"session_token,omitempty"`
-	Expiration      time.Time `json:"expiration,omitempty"`
-}
-
-func (c *CredentialsClaims) Valid() error {
-	if !c.Expiration.IsZero() && time.Now().UTC().After(c.Expiration) {
-		return errors.New("credentials token is expired")
-	}
-	return nil
-}
-
 func (c *CLILoginClaims) SignCredentials(creds Value) (string, error) {
-	claims := &CredentialsClaims{
+	claims := &credentialsClaims{
 		AccessKeyID:     creds.AccessKeyID,
 		SecretAccessKey: creds.SecretAccessKey,
 		SessionToken:    creds.SessionToken,
@@ -95,32 +98,28 @@ func (c *CLILoginClaims) SignCredentials(creds Value) (string, error) {
 	return base64.RawURLEncoding.EncodeToString([]byte(sString)), nil
 }
 
-func ParseCLILoginClaims(tokenString, secret string) (*CLILoginClaims, error) {
-	decodedToken, err := base64.RawURLEncoding.DecodeString(tokenString)
-	if err != nil {
-		return nil, err
-	}
-
-	claims := &cliLoginClaims{}
-	_, err = jwt.ParseWithClaims(string(decodedToken), claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte(secret), nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &CLILoginClaims{c: claims}, nil
+type credentialsClaims struct {
+	AccessKeyID     string    `json:"access_key_id"`
+	SecretAccessKey string    `json:"secret_access_key"`
+	SessionToken    string    `json:"session_token,omitempty"`
+	Expiration      time.Time `json:"expiration,omitempty"`
 }
 
-func ParseCredentialsClaims(tokenString, reqID string) (Value, error) {
+func (c *credentialsClaims) Valid() error {
+	if !c.Expiration.IsZero() && time.Now().UTC().After(c.Expiration) {
+		return errors.New("credentials token is expired")
+	}
+	return nil
+}
+
+func ParseSignedCredentials(tokenString, reqID string) (Value, error) {
 	decodedToken, err := base64.RawURLEncoding.DecodeString(tokenString)
 	if err != nil {
 		return Value{}, err
 	}
 
-	claims := &CredentialsClaims{}
-	_, err = jwt.ParseWithClaims(string(decodedToken), claims, func(token *jwt.Token) (interface{}, error) {
+	claims := &credentialsClaims{}
+	_, err = jwt.ParseWithClaims(string(decodedToken), claims, func(token *jwt.Token) (any, error) {
 		return []byte(reqID), nil
 	})
 	if err != nil {
