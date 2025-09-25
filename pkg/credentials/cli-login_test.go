@@ -18,6 +18,7 @@
 package credentials
 
 import (
+	"encoding/base64"
 	"strings"
 	"testing"
 	"time"
@@ -86,7 +87,13 @@ func TestCLILoginClaims_ToTokenString(t *testing.T) {
 		t.Error("Expected non-empty token string")
 	}
 
-	parts := strings.Split(tokenString, ".")
+	// Token is now base64-encoded, so we decode it to check the JWT structure
+	decodedToken, err := base64.RawURLEncoding.DecodeString(tokenString)
+	if err != nil {
+		t.Errorf("Expected valid base64 token, got error: %v", err)
+	}
+
+	parts := strings.Split(string(decodedToken), ".")
 	if len(parts) != 3 {
 		t.Errorf("Expected JWT with 3 parts, got %d parts", len(parts))
 	}
@@ -150,7 +157,13 @@ func TestCLILoginClaims_SignCredentials(t *testing.T) {
 		t.Error("Expected non-empty token string")
 	}
 
-	parts := strings.Split(tokenString, ".")
+	// Token is now base64-encoded, so we decode it to check the JWT structure
+	decodedToken, err := base64.RawURLEncoding.DecodeString(tokenString)
+	if err != nil {
+		t.Errorf("Expected valid base64 token, got error: %v", err)
+	}
+
+	parts := strings.Split(string(decodedToken), ".")
 	if len(parts) != 3 {
 		t.Errorf("Expected JWT with 3 parts, got %d parts", len(parts))
 	}

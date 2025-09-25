@@ -25,6 +25,7 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
+// CLILoginClaims holds the claims for CLI login tokens.
 type CLILoginClaims struct {
 	c *cliLoginClaims
 }
@@ -35,6 +36,7 @@ type cliLoginClaims struct {
 	Expiry time.Time `json:"expiry"`
 }
 
+// NewCLILoginClaims creates a new CLILoginClaims with the given port and request ID.
 func NewCLILoginClaims(port int, reqID string) *CLILoginClaims {
 	return &CLILoginClaims{
 		c: &cliLoginClaims{
@@ -44,6 +46,8 @@ func NewCLILoginClaims(port int, reqID string) *CLILoginClaims {
 		},
 	}
 }
+
+// ParseCLILoginClaims parses a base64-encoded JWT token string and returns the CLILoginClaims if valid.
 func ParseCLILoginClaims(tokenString, secret string) (*CLILoginClaims, error) {
 	decodedToken, err := base64.RawURLEncoding.DecodeString(tokenString)
 	if err != nil {
@@ -54,7 +58,6 @@ func ParseCLILoginClaims(tokenString, secret string) (*CLILoginClaims, error) {
 	_, err = jwt.ParseWithClaims(string(decodedToken), claims, func(token *jwt.Token) (any, error) {
 		return []byte(secret), nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -69,10 +72,12 @@ func (c *cliLoginClaims) Valid() error {
 	return nil
 }
 
+// Port returns the port from the CLI login claims.
 func (c *CLILoginClaims) Port() int {
 	return c.c.Port
 }
 
+// ToTokenString serializes the CLILoginClaims to a base64-encoded JWT token string signed with the given secret.
 func (c *CLILoginClaims) ToTokenString(secret string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS512, c.c)
 	sString, err := token.SignedString([]byte(secret))
@@ -82,6 +87,7 @@ func (c *CLILoginClaims) ToTokenString(secret string) (string, error) {
 	return base64.RawURLEncoding.EncodeToString([]byte(sString)), nil
 }
 
+// SignCredentials signs the given credentials using the request ID as the secret and returns a base64-encoded JWT token string.
 func (c *CLILoginClaims) SignCredentials(creds Value) (string, error) {
 	claims := &credentialsClaims{
 		AccessKeyID:     creds.AccessKeyID,
@@ -112,6 +118,7 @@ func (c *credentialsClaims) Valid() error {
 	return nil
 }
 
+// ParseSignedCredentials parses a base64-encoded JWT token string and returns the credentials Value if valid.
 func ParseSignedCredentials(tokenString, reqID string) (Value, error) {
 	decodedToken, err := base64.RawURLEncoding.DecodeString(tokenString)
 	if err != nil {
