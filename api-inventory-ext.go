@@ -239,6 +239,8 @@ type InventoryJobStatus struct {
 	OutputFilesCount  uint64    `json:"outputFilesCount,omitempty"`
 	NodeHostname      string    `json:"nodeHostname,omitempty"`
 	RetryAttempts     uint64    `json:"retryAttempts,omitempty"`
+	LastFailTime      time.Time `json:"lastFailTime,omitempty"`
+	LastFailErrors    []string  `json:"lastFailErrors,omitempty"`
 }
 
 // GetBucketInventoryJobStatus retrieves the status of an inventory job for a
