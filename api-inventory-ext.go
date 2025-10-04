@@ -49,8 +49,15 @@ func makeInventoryReqMetadata(bucket string, urlParams ...string) requestMetadat
 	}
 }
 
-// GenerateInventoryConfigYAML - calls the inventory YAML template generation
-// endpoint.
+// GenerateInventoryConfigYAML generates a YAML template for an inventory configuration.
+// This is a MinIO-specific API and is not compatible with AWS S3.
+//
+// Parameters:
+//   - ctx: Context for request cancellation and timeout
+//   - bucket: Name of the bucket
+//   - id: Unique identifier for the inventory configuration
+//
+// Returns a YAML template string that can be customized and used with PutBucketInventoryConfiguration.
 func (c *Client) GenerateInventoryConfigYAML(ctx context.Context, bucket, id string) (string, error) {
 	if err := s3utils.CheckValidBucketName(bucket); err != nil {
 		return "", err
@@ -81,8 +88,16 @@ type inventoryPutConfigOpts struct{}
 // anything.
 type InventoryPutConfigOption func(*inventoryPutConfigOpts)
 
-// PutBucketInventoryConfiguration - calls the inventory configuration
-// endpoint to create or update an inventory configuration for a bucket.
+// PutBucketInventoryConfiguration creates or updates an inventory configuration for a bucket.
+// This is a MinIO-specific API and is not compatible with AWS S3.
+//
+// Parameters:
+//   - ctx: Context for request cancellation and timeout
+//   - bucket: Name of the bucket
+//   - id: Unique identifier for the inventory configuration
+//   - yamlDef: YAML definition of the inventory configuration
+//
+// Returns an error if the operation fails, or if bucket name, id, or yamlDef is empty.
 func (c *Client) PutBucketInventoryConfiguration(ctx context.Context, bucket string, id string, yamlDef string, _ ...InventoryPutConfigOption) error {
 	if err := s3utils.CheckValidBucketName(bucket); err != nil {
 		return err
@@ -109,8 +124,15 @@ func (c *Client) PutBucketInventoryConfiguration(ctx context.Context, bucket str
 	return nil
 }
 
-// GetBucketInventoryConfiguration retrieves the inventory configuration
-// for the given bucket and ID.
+// GetBucketInventoryConfiguration retrieves the inventory configuration for a bucket.
+// This is a MinIO-specific API and is not compatible with AWS S3.
+//
+// Parameters:
+//   - ctx: Context for request cancellation and timeout
+//   - bucket: Name of the bucket
+//   - id: Unique identifier for the inventory configuration
+//
+// Returns the inventory configuration or an error if the operation fails or if the configuration doesn't exist.
 func (c *Client) GetBucketInventoryConfiguration(ctx context.Context, bucket, id string) (*InventoryConfiguration, error) {
 	if err := s3utils.CheckValidBucketName(bucket); err != nil {
 		return nil, err
@@ -136,7 +158,15 @@ func (c *Client) GetBucketInventoryConfiguration(ctx context.Context, bucket, id
 	return &ic, nil
 }
 
-// DeleteBucketInventoryConfiguration deletes the given inventory configuration.
+// DeleteBucketInventoryConfiguration deletes an inventory configuration from a bucket.
+// This is a MinIO-specific API and is not compatible with AWS S3.
+//
+// Parameters:
+//   - ctx: Context for request cancellation and timeout
+//   - bucket: Name of the bucket
+//   - id: Unique identifier for the inventory configuration to delete
+//
+// Returns an error if the operation fails or if the configuration doesn't exist.
 func (c *Client) DeleteBucketInventoryConfiguration(ctx context.Context, bucket, id string) error {
 	if err := s3utils.CheckValidBucketName(bucket); err != nil {
 		return err
@@ -171,7 +201,15 @@ type InventoryListResult struct {
 	NextContinuationToken string                   `json:"nextContinuationToken,omitempty"`
 }
 
-// ListBucketInventoryConfigurations lists upto 100 inventory configurations.
+// ListBucketInventoryConfigurations lists up to 100 inventory configurations for a bucket.
+// This is a MinIO-specific API and is not compatible with AWS S3.
+//
+// Parameters:
+//   - ctx: Context for request cancellation and timeout
+//   - bucket: Name of the bucket
+//   - continuationToken: Token for pagination (empty string for first request)
+//
+// Returns a list result with configurations and a continuation token for the next page, or an error.
 func (c *Client) ListBucketInventoryConfigurations(ctx context.Context, bucket, continuationToken string) (lr *InventoryListResult, err error) {
 	if err := s3utils.CheckValidBucketName(bucket); err != nil {
 		return nil, err
@@ -194,8 +232,15 @@ func (c *Client) ListBucketInventoryConfigurations(ctx context.Context, bucket, 
 	return lr, nil
 }
 
-// ListBucketInventoryConfigurationsIterator returns an iterator that lists all
-// inventory configurations for a bucket.
+// ListBucketInventoryConfigurationsIterator returns an iterator that lists all inventory configurations
+// for a bucket. This is a MinIO-specific API and is not compatible with AWS S3.
+//
+// Parameters:
+//   - ctx: Context for request cancellation and timeout
+//   - bucket: Name of the bucket
+//
+// Returns an iterator that yields InventoryConfiguration values and errors. The iterator automatically
+// handles pagination and fetches all configurations.
 func (c *Client) ListBucketInventoryConfigurationsIterator(ctx context.Context, bucket string) iter.Seq2[InventoryConfiguration, error] {
 	return func(yield func(InventoryConfiguration, error) bool) {
 		if err := s3utils.CheckValidBucketName(bucket); err != nil {
@@ -243,8 +288,15 @@ type InventoryJobStatus struct {
 	LastFailErrors    []string  `json:"lastFailErrors,omitempty"`
 }
 
-// GetBucketInventoryJobStatus retrieves the status of an inventory job for a
-// given bucket and job ID.
+// GetBucketInventoryJobStatus retrieves the status of an inventory job for a bucket.
+// This is a MinIO-specific API and is not compatible with AWS S3.
+//
+// Parameters:
+//   - ctx: Context for request cancellation and timeout
+//   - bucket: Name of the bucket
+//   - id: Unique identifier for the inventory job
+//
+// Returns the inventory job status including execution state, progress, and error information, or an error if the operation fails.
 func (c *Client) GetBucketInventoryJobStatus(ctx context.Context, bucket, id string) (*InventoryJobStatus, error) {
 	if err := s3utils.CheckValidBucketName(bucket); err != nil {
 		return nil, err

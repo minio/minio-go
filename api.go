@@ -202,7 +202,9 @@ func New(endpoint string, opts *Options) (*Client, error) {
 	return clnt, nil
 }
 
-// EndpointURL returns the URL of the S3 endpoint.
+// EndpointURL returns the URL of the S3-compatible endpoint that this client connects to.
+//
+// Returns a copy of the endpoint URL to prevent modification of internal state.
 func (c *Client) EndpointURL() *url.URL {
 	endpoint := *c.endpointURL // copy to prevent callers from modifying internal state
 	return &endpoint
@@ -323,7 +325,14 @@ func privateNew(endpoint string, opts *Options) (*Client, error) {
 	return clnt, nil
 }
 
-// SetAppInfo - add application details to user agent.
+// SetAppInfo adds custom application name and version to the User-Agent header for all requests.
+// This helps identify your application in server logs and metrics.
+//
+// Parameters:
+//   - appName: Name of the application
+//   - appVersion: Version of the application
+//
+// Both parameters must be non-empty for the custom User-Agent to be set.
 func (c *Client) SetAppInfo(appName, appVersion string) {
 	// if app name and version not set, we do not set a new user agent.
 	if appName != "" && appVersion != "" {
@@ -332,7 +341,11 @@ func (c *Client) SetAppInfo(appName, appVersion string) {
 	}
 }
 
-// TraceOn - enable HTTP tracing.
+// TraceOn enables HTTP request and response tracing for debugging purposes.
+// All HTTP traffic will be written to the provided output stream.
+//
+// Parameters:
+//   - outputStream: Writer where trace output will be written (defaults to os.Stdout if nil)
 func (c *Client) TraceOn(outputStream io.Writer) {
 	// if outputStream is nil then default to os.Stdout.
 	if outputStream == nil {
@@ -345,19 +358,23 @@ func (c *Client) TraceOn(outputStream io.Writer) {
 	c.isTraceEnabled = true
 }
 
-// TraceErrorsOnlyOn - same as TraceOn, but only errors will be traced.
+// TraceErrorsOnlyOn enables HTTP tracing but only for requests that result in errors.
+// This is useful for debugging without the overhead of tracing all requests.
+//
+// Parameters:
+//   - outputStream: Writer where trace output will be written (defaults to os.Stdout if nil)
 func (c *Client) TraceErrorsOnlyOn(outputStream io.Writer) {
 	c.TraceOn(outputStream)
 	c.traceErrorsOnly = true
 }
 
-// TraceErrorsOnlyOff - Turns off the errors only tracing and everything will be traced after this call.
-// If all tracing needs to be turned off, call TraceOff().
+// TraceErrorsOnlyOff disables errors-only mode and traces all requests.
+// To disable all tracing, call TraceOff() instead.
 func (c *Client) TraceErrorsOnlyOff() {
 	c.traceErrorsOnly = false
 }
 
-// TraceOff - disable HTTP tracing.
+// TraceOff disables all HTTP tracing (both normal and errors-only modes).
 func (c *Client) TraceOff() {
 	// Disable tracing.
 	c.isTraceEnabled = false

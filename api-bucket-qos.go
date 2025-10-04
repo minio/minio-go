@@ -57,7 +57,13 @@ func NewQOSConfig() *QOSConfig {
 	}
 }
 
-// GetBucketQOS retrieves the QoS configuration for the  bucket.
+// GetBucketQOS retrieves the Quality of Service (QoS) configuration for the bucket.
+//
+// Parameters:
+//   - ctx: Context for request cancellation and timeout
+//   - bucket: Name of the bucket
+//
+// Returns the QoS configuration or an error if the operation fails.
 func (c *Client) GetBucketQOS(ctx context.Context, bucket string) (*QOSConfig, error) {
 	var qosCfg QOSConfig
 	// Input validation.
@@ -92,7 +98,14 @@ func (c *Client) GetBucketQOS(ctx context.Context, bucket string) (*QOSConfig, e
 	return &qosCfg, nil
 }
 
-// SetBucketQOS sets the QoS configuration for a bucket.
+// SetBucketQOS sets the Quality of Service (QoS) configuration for a bucket.
+//
+// Parameters:
+//   - ctx: Context for request cancellation and timeout
+//   - bucket: Name of the bucket
+//   - qosCfg: QoS configuration to apply
+//
+// Returns an error if the operation fails.
 func (c *Client) SetBucketQOS(ctx context.Context, bucket string, qosCfg *QOSConfig) error {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucket); err != nil {
@@ -153,7 +166,14 @@ type QOSNodeStats struct {
 	NodeName string      `json:"node"`
 }
 
-// GetBucketQOSMetrics fetches bucket QoS metrics
+// GetBucketQOSMetrics retrieves Quality of Service (QoS) metrics for a bucket.
+//
+// Parameters:
+//   - ctx: Context for request cancellation and timeout
+//   - bucketName: Name of the bucket
+//   - nodeName: Name of the node (empty string for all nodes)
+//
+// Returns QoS metrics per node or an error if the operation fails.
 func (c *Client) GetBucketQOSMetrics(ctx context.Context, bucketName, nodeName string) (qs []QOSNodeStats, err error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
