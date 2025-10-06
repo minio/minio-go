@@ -98,6 +98,61 @@ func (c *Client) PutObjectTagging(ctx context.Context, bucketName, objectName st
 	return nil
 }
 
+// PutObjectTaggingIfChanged adds or replaces object tag(s) only if they differ
+// from the existing tags. This avoids unnecessary overwrites and minimizes
+// redundant API calls.
+//
+// Parameters:
+//   - ctx: Context for request cancellation and timeout
+//   - bucketName: Name of the bucket
+//   - objectName: Name of the object
+//   - newTags: New tags to apply
+//   - opts: Options including VersionID to target a specific object version
+//
+// Returns an error if the operation fails.
+func (c *Client) PutObjectTaggingIfChanged(ctx context.Context, bucketName, objectName string, newTags *tags.Tags, opts PutObjectTaggingOptions) error {
+	// Validate bucket name
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		return err
+	}
+
+	// Attempt to get current tags
+	currentTags, err := c.GetObjectTagging(ctx, bucketName, objectName, GetObjectTaggingOptions{VersionID: opts.VersionID})
+	if err != nil {
+		// If no existing tags or 404, continue with PUT
+		// Other errors (network, auth, etc.) should still fail
+		if respErr, ok := err.(ErrorResponse); ok {
+			if respErr.StatusCode != http.StatusNotFound {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+
+	// Compare if we have current tags
+	if currentTags != nil && tagMapsEqual(currentTags.ToMap(), newTags.ToMap()) {
+		// No difference, skip update
+		return nil
+	}
+
+	// Perform tagging update
+	return c.PutObjectTagging(ctx, bucketName, objectName, newTags, opts)
+}
+
+// tagMapsEqual compares two tag maps for equality.
+func tagMapsEqual(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if b[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
 // GetObjectTaggingOptions holds the object version ID
 // to fetch the tagging key/value pairs
 type GetObjectTaggingOptions struct {
