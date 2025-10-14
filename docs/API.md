@@ -2992,6 +2992,38 @@ Retrieve the status of an inventory job for a bucket. This is a MinIO-specific A
 | `status` | \**InventoryJobStatus* | Job status including state, progress, and errors |
 | `err`    | *error*                | Standard Error                                   |
 
+**InventoryJobStatus Fields**
+
+The `InventoryJobStatus` struct contains comprehensive job information:
+
+| Field                | Type            | Description                                                          |
+|----------------------|-----------------|----------------------------------------------------------------------|
+| `Bucket`             | string          | Source bucket name                                                   |
+| `ID`                 | string          | Inventory configuration ID                                           |
+| `User`               | string          | User who created the job                                             |
+| `AccessKey`          | string          | Access key used for job execution                                    |
+| `Schedule`           | string          | Job schedule (once, hourly, daily, weekly, monthly, yearly)          |
+| `State`              | string          | Current job state (sleeping, pending, running, completed, etc.)      |
+| `NextScheduledTime`  | time.Time       | When next execution will start (periodic jobs only)                  |
+| `StartTime`          | time.Time       | When current/last execution started                                  |
+| `EndTime`            | time.Time       | When execution completed                                             |
+| `LastUpdate`         | time.Time       | Last time job metadata was updated                                   |
+| `Scanned`            | string          | Last scanned object path                                             |
+| `Matched`            | string          | Last matched object path                                             |
+| `ScannedCount`       | uint64          | Total objects scanned                                                |
+| `MatchedCount`       | uint64          | Total objects matched by filters                                     |
+| `RecordsWritten`     | uint64          | Number of records written to output files                            |
+| `OutputFilesCount`   | uint64          | Number of output files created                                       |
+| `ExecutionTime`      | time.Duration   | Total execution time                                                 |
+| `NumStarts`          | uint64          | Number of times job has started                                      |
+| `NumErrors`          | uint64          | Total errors encountered                                             |
+| `NumLockLosses`      | uint64          | Number of distributed lock losses                                    |
+| `ManifestPath`       | string          | Full path to manifest.json file                                      |
+| `NodeHostname`       | string          | Hostname of node running the job                                     |
+| `RetryAttempts`      | uint64          | Number of retry attempts                                             |
+| `LastFailTime`       | time.Time       | When last failure occurred (only present on errors)                  |
+| `LastFailErrors`     | []string        | Up to 5 most recent error messages (only present on errors)          |
+
 **Example**
 
 ```go
@@ -2999,9 +3031,24 @@ status, err := minioClient.GetBucketInventoryJobStatus(context.Background(), "my
 if err != nil {
 	log.Fatalln(err)
 }
-fmt.Printf("State: %s, Scanned: %s, Matched: %s\n", status.State, status.Scanned, status.Matched)
+
+fmt.Printf("Job ID: %s, State: %s\n", status.ID, status.State)
+fmt.Printf("Progress: %d/%d objects scanned/matched\n", status.ScannedCount, status.MatchedCount)
+fmt.Printf("Output: %d records in %d files\n", status.RecordsWritten, status.OutputFilesCount)
+
+if !status.StartTime.IsZero() {
+	fmt.Printf("Started: %s\n", status.StartTime)
+	if status.ExecutionTime > 0 {
+		fmt.Printf("Execution time: %s\n", status.ExecutionTime)
+	}
+}
+
+if status.ManifestPath != "" {
+	fmt.Printf("Manifest: %s\n", status.ManifestPath)
+}
+
 if len(status.LastFailErrors) > 0 {
-	fmt.Printf("Last errors: %v\n", status.LastFailErrors)
+	fmt.Printf("Recent errors: %v\n", status.LastFailErrors)
 }
 ```
 
