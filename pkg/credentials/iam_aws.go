@@ -58,6 +58,10 @@ type IAM struct {
 	// Region configurable custom region for STS
 	Region string
 
+	// ExpiryWindow allows customizing the window before credentials expire
+	// when they should be refreshed. Defaults to DefaultExpiryWindow.
+	ExpiryWindow time.Duration
+
 	// Support for container authorization token https://docs.aws.amazon.com/sdkref/latest/guide/feature-container-credentials.html
 	Container struct {
 		AuthorizationToken     string
@@ -91,6 +95,23 @@ const (
 func NewIAM(endpoint string) *Credentials {
 	return New(&IAM{
 		Endpoint: endpoint,
+	})
+}
+
+// IAMConfig contains configuration options for the IAM credentials provider
+type IAMConfig struct {
+	// ExpiryWindow allows customizing the window before credentials expire
+	// when they should be refreshed. Use DefaultExpiryWindow for the default behavior.
+	ExpiryWindow time.Duration
+}
+
+// NewIAMWithConfig returns a pointer to a new Credentials object wrapping the IAM
+// with custom configuration.
+// The config parameter allows customizing various aspects of the IAM provider.
+func NewIAMWithConfig(endpoint string, config IAMConfig) *Credentials {
+	return New(&IAM{
+		Endpoint:     endpoint,
+		ExpiryWindow: config.ExpiryWindow,
 	})
 }
 
@@ -220,8 +241,11 @@ func (m *IAM) RetrieveWithCredContext(cc *CredContext) (Value, error) {
 	if err != nil {
 		return Value{}, err
 	}
-	// Expiry window is set to 10secs.
-	m.SetExpiration(roleCreds.Expiration, DefaultExpiryWindow)
+	// Use custom expiry window if set, otherwise use default
+	if m.ExpiryWindow == 0 {
+		m.ExpiryWindow = DefaultExpiryWindow
+	}
+	m.SetExpiration(roleCreds.Expiration, m.ExpiryWindow)
 
 	return Value{
 		AccessKeyID:     roleCreds.AccessKeyID,
