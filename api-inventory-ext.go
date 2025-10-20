@@ -271,31 +271,31 @@ func (c *Client) ListBucketInventoryConfigurationsIterator(ctx context.Context, 
 
 // InventoryJobStatus represents the status of an inventory job.
 type InventoryJobStatus struct {
-	Bucket            string        `json:"bucket"`
-	ID                string        `json:"id"`
-	User              string        `json:"user"`
-	AccessKey         string        `json:"accessKey"`
-	Schedule          string        `json:"schedule"`
-	State             string        `json:"state"`
-	NextScheduledTime time.Time     `json:"nextScheduledTime,omitempty"`
-	StartTime         time.Time     `json:"startTime,omitempty"`
-	EndTime           time.Time     `json:"endTime,omitempty"`
-	LastUpdate        time.Time     `json:"lastUpdate,omitempty"`
-	Scanned           string        `json:"scanned,omitempty"`
-	Matched           string        `json:"matched,omitempty"`
-	ScannedCount      uint64        `json:"scannedCount,omitempty"`
-	MatchedCount      uint64        `json:"matchedCount,omitempty"`
-	RecordsWritten    uint64        `json:"recordsWritten,omitempty"`
-	OutputFilesCount  uint64        `json:"outputFilesCount,omitempty"`
-	ExecutionTime     time.Duration `json:"executionTime,omitempty"`
-	NumStarts         uint64        `json:"numStarts,omitempty"`
-	NumErrors         uint64        `json:"numErrors,omitempty"`
-	NumLockLosses     uint64        `json:"numLockLosses,omitempty"`
-	ManifestPath      string        `json:"manifestPath,omitempty"`
-	NodeHostname      string        `json:"nodeHostname,omitempty"`
-	RetryAttempts     uint64        `json:"retryAttempts,omitempty"`
-	LastFailTime      time.Time     `json:"lastFailTime,omitempty"`
-	LastFailErrors    []string      `json:"lastFailErrors,omitempty"`
+	Bucket            string    `json:"bucket"`
+	ID                string    `json:"id"`
+	User              string    `json:"user"`
+	AccessKey         string    `json:"accessKey"`
+	Schedule          string    `json:"schedule"`
+	State             string    `json:"state"`
+	NextScheduledTime time.Time `json:"nextScheduledTime,omitempty"`
+	StartTime         time.Time `json:"startTime,omitempty"`
+	EndTime           time.Time `json:"endTime,omitempty"`
+	LastUpdate        time.Time `json:"lastUpdate,omitempty"`
+	Scanned           string    `json:"scanned,omitempty"`
+	Matched           string    `json:"matched,omitempty"`
+	ScannedCount      uint64    `json:"scannedCount,omitempty"`
+	MatchedCount      uint64    `json:"matchedCount,omitempty"`
+	RecordsWritten    uint64    `json:"recordsWritten,omitempty"`
+	OutputFilesCount  uint64    `json:"outputFilesCount,omitempty"`
+	ExecutionTime     string    `json:"executionTime,omitempty"`
+	NumStarts         uint64    `json:"numStarts,omitempty"`
+	NumErrors         uint64    `json:"numErrors,omitempty"`
+	NumLockLosses     uint64    `json:"numLockLosses,omitempty"`
+	ManifestPath      string    `json:"manifestPath,omitempty"`
+	NodeHostname      string    `json:"nodeHostname,omitempty"`
+	RetryAttempts     uint64    `json:"retryAttempts,omitempty"`
+	LastFailTime      time.Time `json:"lastFailTime,omitempty"`
+	LastFailErrors    []string  `json:"lastFailErrors,omitempty"`
 }
 
 // GetBucketInventoryJobStatus retrieves the status of an inventory job for a bucket.
