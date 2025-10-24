@@ -3019,7 +3019,6 @@ The `InventoryJobStatus` struct contains comprehensive job information:
 | `NumErrors`          | uint64          | Total errors encountered                                             |
 | `NumLockLosses`      | uint64          | Number of distributed lock losses                                    |
 | `ManifestPath`       | string          | Full path to manifest.json file                                      |
-| `NodeHostname`       | string          | Hostname of node running the job                                     |
 | `RetryAttempts`      | uint64          | Number of retry attempts                                             |
 | `LastFailTime`       | time.Time       | When last failure occurred (only present on errors)                  |
 | `LastFailErrors`     | []string        | Up to 5 most recent error messages (only present on errors)          |

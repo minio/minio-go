@@ -292,7 +292,6 @@ type InventoryJobStatus struct {
 	NumErrors         uint64    `json:"numErrors,omitempty"`
 	NumLockLosses     uint64    `json:"numLockLosses,omitempty"`
 	ManifestPath      string    `json:"manifestPath,omitempty"`
-	NodeHostname      string    `json:"nodeHostname,omitempty"`
 	RetryAttempts     uint64    `json:"retryAttempts,omitempty"`
 	LastFailTime      time.Time `json:"lastFailTime,omitempty"`
 	LastFailErrors    []string  `json:"lastFailErrors,omitempty"`
