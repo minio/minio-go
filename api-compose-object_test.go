@@ -33,21 +33,25 @@ const (
 
 func TestPartsRequired(t *testing.T) {
 	testCases := []struct {
-		size, ref int64
+		size, customPartSize, ref int64
 	}{
-		{0, 0},
-		{1, 1},
-		{gb5, 10},
-		{gb5p1, 10},
-		{2 * gb5, 20},
-		{gb10p1, 20},
-		{gb10p2, 20},
-		{gb10p1 + gb10p2, 40},
-		{maxMultipartPutObjectSize, 10000},
+		{0, 0, 0},
+		{1, 0, 1},
+		{gb5, 0, 10},
+		{gb5p1, 0, 10},
+		{2 * gb5, 0, 20},
+		{gb10p1, 0, 20},
+		{gb10p2, 0, 20},
+		{gb10p1 + gb10p2, 0, 40},
+		{maxMultipartPutObjectSize, 0, 10000},
+		// Test with custom part size (10 MiB)
+		{100 * 1024 * 1024, 10 * 1024 * 1024, 10},
+		// Test with custom part size (5 MiB)
+		{50 * 1024 * 1024, 5 * 1024 * 1024, 10},
 	}
 
 	for i, testCase := range testCases {
-		res := partsRequired(testCase.size)
+		res := partsRequired(testCase.size, testCase.customPartSize)
 		if res != testCase.ref {
 			t.Errorf("Test %d - output did not match with reference results, Expected %d, got %d", i+1, testCase.ref, res)
 		}
@@ -143,7 +147,7 @@ func TestCalculateEvenSplits(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		resStart, resEnd := calculateEvenSplits(testCase.size, testCase.src)
+		resStart, resEnd := calculateEvenSplits(testCase.size, testCase.src, 0)
 		if !reflect.DeepEqual(testCase.starts, resStart) || !reflect.DeepEqual(testCase.ends, resEnd) {
 			t.Errorf("Test %d - output did not match with reference results, Expected %d/%d, got %d/%d", i+1, testCase.starts, testCase.ends, resStart, resEnd)
 		}
