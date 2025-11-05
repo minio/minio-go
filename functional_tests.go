@@ -1,5 +1,4 @@
 //go:build mint
-// +build mint
 
 /*
  * MinIO Go Library for Amazon S3 Compatible Cloud Storage
