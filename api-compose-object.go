@@ -23,8 +23,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -82,6 +84,16 @@ type CopyDestOptions struct {
 	Size int64 // Needs to be specified if progress bar is specified.
 	// Progress of the entire copy operation will be sent here.
 	Progress io.Reader
+
+	// NumThreads sets the number of concurrent part uploads. If not set,
+	// defaults to 4. Maximum allowed is 100.
+	NumThreads int
+
+	// PartSize sets the part size for multipart uploads. If not set,
+	// uses the automatic calculation. Minimum is 5MiB (absMinPartSize).
+	// This is useful for controlling memory usage and optimizing for
+	// different network conditions.
+	PartSize int64
 }
 
 // Process custom-metadata to remove a `x-amz-meta-` prefix if
@@ -169,6 +181,13 @@ func (opts CopyDestOptions) validate() (err error) {
 	}
 	if opts.Progress != nil && opts.Size < 0 {
 		return errInvalidArgument("For progress bar effective size needs to be specified")
+	}
+	// Validate part size if specified
+	if opts.PartSize > 0 && opts.PartSize < absMinPartSize {
+		return errInvalidArgument(fmt.Sprintf("PartSize must be at least %d bytes (5 MiB)", absMinPartSize))
+	}
+	if opts.PartSize > maxPartSize {
+		return errInvalidArgument(fmt.Sprintf("PartSize must not exceed %d bytes (5 GiB)", maxPartSize))
 	}
 	return nil
 }
@@ -468,7 +487,7 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 		srcObjectSizes[i] = srcCopySize
 
 		// calculate parts needed for current source
-		totalParts += partsRequired(srcCopySize)
+		totalParts += partsRequired(srcCopySize, dst.PartSize)
 		// Do we need more parts than we are allowed?
 		if totalParts > maxPartsCount {
 			return UploadInfo{}, errInvalidArgument(fmt.Sprintf(
@@ -523,7 +542,32 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 	}
 
 	// 3. Perform copy part uploads
-	objParts := []CompletePart{}
+	// Determine concurrency level
+	numThreads := dst.NumThreads
+	if numThreads <= 0 {
+		numThreads = 4 // default concurrency
+	}
+	if numThreads > 100 {
+		numThreads = 100 // maximum concurrency
+	}
+
+	// Count total parts needed
+	totalPartsNeeded := 0
+	for i := range srcs {
+		startIdx, _ := calculateEvenSplits(srcObjectSizes[i], srcs[i], dst.PartSize)
+		totalPartsNeeded += len(startIdx)
+	}
+
+	// Create channel for results and semaphore for concurrency control
+	type partResult struct {
+		part CompletePart
+		err  error
+	}
+	results := make(chan partResult, totalPartsNeeded)
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, numThreads)
+
+	// Launch parallel upload-part-copy operations
 	partIndex := 1
 	for i, src := range srcs {
 		h := make(http.Header)
@@ -532,30 +576,56 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 			dst.Encryption.Marshal(h)
 		}
 
-		// calculate start/end indices of parts after
-		// splitting.
-		startIdx, endIdx := calculateEvenSplits(srcObjectSizes[i], src)
+		// calculate start/end indices of parts after splitting.
+		startIdx, endIdx := calculateEvenSplits(srcObjectSizes[i], src, dst.PartSize)
 		for j, start := range startIdx {
 			end := endIdx[j]
 
-			// Add (or reset) source range header for
-			// upload part copy request.
-			h.Set("x-amz-copy-source-range",
-				fmt.Sprintf("bytes=%d-%d", start, end))
+			wg.Add(1)
+			sem <- struct{}{} // acquire semaphore
 
-			// make upload-part-copy request
-			complPart, err := c.uploadPartCopy(ctx, dst.Bucket,
-				dst.Object, uploadID, partIndex, h)
-			if err != nil {
-				return UploadInfo{}, err
-			}
-			if dst.Progress != nil {
-				io.CopyN(io.Discard, dst.Progress, end-start+1)
-			}
-			objParts = append(objParts, complPart)
+			go func(idx int, s, e int64, hdr http.Header) {
+				defer wg.Done()
+				defer func() { <-sem }() // release semaphore
+
+				// Add (or reset) source range header for upload part copy request.
+				hdr.Set("x-amz-copy-source-range",
+					fmt.Sprintf("bytes=%d-%d", s, e))
+
+				// make upload-part-copy request
+				complPart, err := c.uploadPartCopy(ctx, dst.Bucket,
+					dst.Object, uploadID, idx, hdr)
+
+				results <- partResult{part: complPart, err: err}
+
+				if err == nil && dst.Progress != nil {
+					io.CopyN(io.Discard, dst.Progress, e-s+1)
+				}
+			}(partIndex, start, end, h.Clone())
+
 			partIndex++
 		}
 	}
+
+	// Close results channel when all goroutines complete
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	// Collect results
+	objParts := make([]CompletePart, 0, totalPartsNeeded)
+	for res := range results {
+		if res.err != nil {
+			return UploadInfo{}, res.err
+		}
+		objParts = append(objParts, res.part)
+	}
+
+	// Sort parts by part number to ensure correct order
+	sort.Slice(objParts, func(i, j int) bool {
+		return objParts[i].PartNumber < objParts[j].PartNumber
+	})
 
 	// 4. Make final complete-multipart request.
 	uploadInfo, err := c.completeMultipartUpload(ctx, dst.Bucket, dst.Object, uploadID,
@@ -570,10 +640,17 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 
 // partsRequired is maximum parts possible with
 // max part size of ceiling(maxMultipartPutObjectSize / (maxPartsCount - 1))
-func partsRequired(size int64) int64 {
-	maxPartSize := maxMultipartPutObjectSize / (maxPartsCount - 1)
-	r := size / int64(maxPartSize)
-	if size%int64(maxPartSize) > 0 {
+// If customPartSize is specified and valid, it will be used instead.
+func partsRequired(size int64, customPartSize int64) int64 {
+	partSize := int64(maxMultipartPutObjectSize / (maxPartsCount - 1))
+
+	// Use custom part size if specified and valid
+	if customPartSize > 0 {
+		partSize = customPartSize
+	}
+
+	r := size / partSize
+	if size%partSize > 0 {
 		r++
 	}
 	return r
@@ -583,12 +660,12 @@ func partsRequired(size int64) int64 {
 // start and end index slices. Splits happen evenly to be sure that no
 // part is less than 5MiB, as that could fail the multipart request if
 // it is not the last part.
-func calculateEvenSplits(size int64, src CopySrcOptions) (startIndex, endIndex []int64) {
+func calculateEvenSplits(size int64, src CopySrcOptions, customPartSize int64) (startIndex, endIndex []int64) {
 	if size == 0 {
 		return startIndex, endIndex
 	}
 
-	reqParts := partsRequired(size)
+	reqParts := partsRequired(size, customPartSize)
 	startIndex = make([]int64, reqParts)
 	endIndex = make([]int64, reqParts)
 	// Compute number of required parts `k`, as:
