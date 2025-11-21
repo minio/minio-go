@@ -78,7 +78,7 @@ func IsVirtualHostSupported(endpointURL url.URL, bucketName string) bool {
 		return false
 	}
 	// Return true for all other cases
-	return IsAmazonEndpoint(endpointURL) || IsGoogleEndpoint(endpointURL) || IsAliyunOSSEndpoint(endpointURL)
+	return IsAmazonEndpoint(endpointURL) || IsGoogleEndpoint(endpointURL) || IsAliyunOSSEndpoint(endpointURL) || IsTosEndpoint(endpointURL)
 }
 
 // Refer for region styles - https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region
@@ -208,6 +208,11 @@ func IsAmazonExpressRegionalEndpoint(endpointURL url.URL) bool {
 // IsAmazonExpressZonalEndpoint Match if the endpoint is S3 Express zonal endpoint.
 func IsAmazonExpressZonalEndpoint(endpointURL url.URL) bool {
 	return amazonS3HostExpress.MatchString(endpointURL.Hostname())
+}
+
+func IsTosEndpoint(endpointURL url.URL) bool {
+        //fmt.Printf("this is a tos url, %v\n", endpointURL)
+        return strings.HasSuffix(endpointURL.Host, "volces.com")
 }
 
 // IsAmazonEndpoint - Match if it is exactly Amazon S3 endpoint.
