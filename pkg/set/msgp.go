@@ -17,119 +17,47 @@
 
 package set
 
-import "github.com/tinylib/msgp/msgp"
+import (
+	"github.com/tinylib/msgp/msgp"
+	"github.com/tinylib/msgp/msgp/setof"
+)
 
 // EncodeMsg encodes the message to the writer.
 // Values are stored as a slice of strings or nil.
 func (s StringSet) EncodeMsg(writer *msgp.Writer) error {
-	if s == nil {
-		return writer.WriteNil()
-	}
-	err := writer.WriteArrayHeader(uint32(len(s)))
-	if err != nil {
-		return err
-	}
-	sorted := s.ToByteSlices()
-	for _, k := range sorted {
-		err = writer.WriteStringFromBytes(k)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return setof.StringSorted(s).EncodeMsg(writer)
 }
 
 // MarshalMsg encodes the message to the bytes.
 // Values are stored as a slice of strings or nil.
 func (s StringSet) MarshalMsg(bytes []byte) ([]byte, error) {
-	if s == nil {
-		return msgp.AppendNil(bytes), nil
-	}
-	if len(s) == 0 {
-		return msgp.AppendArrayHeader(bytes, 0), nil
-	}
-	bytes = msgp.AppendArrayHeader(bytes, uint32(len(s)))
-	sorted := s.ToByteSlices()
-	for _, k := range sorted {
-		bytes = msgp.AppendStringFromBytes(bytes, k)
-	}
-	return bytes, nil
+	return setof.StringSorted(s).MarshalMsg(bytes)
 }
 
 // DecodeMsg decodes the message from the reader.
 func (s *StringSet) DecodeMsg(reader *msgp.Reader) error {
-	if reader.IsNil() {
-		*s = nil
-		return reader.Skip()
-	}
-	sz, err := reader.ReadArrayHeader()
-	if err != nil {
+	var ss setof.String
+	if err := ss.DecodeMsg(reader); err != nil {
 		return err
 	}
-	dst := *s
-	if dst == nil {
-		dst = make(StringSet, sz)
-	} else {
-		for k := range dst {
-			delete(dst, k)
-		}
-	}
-	for i := uint32(0); i < sz; i++ {
-		var k string
-		k, err = reader.ReadString()
-		if err != nil {
-			return err
-		}
-		dst[k] = struct{}{}
-	}
-	*s = dst
+	*s = StringSet(ss)
 	return nil
 }
 
 // UnmarshalMsg decodes the message from the bytes.
 func (s *StringSet) UnmarshalMsg(bytes []byte) ([]byte, error) {
-	if msgp.IsNil(bytes) {
-		*s = nil
-		return bytes[msgp.NilSize:], nil
-	}
-	// Read the array header
-	sz, bytes, err := msgp.ReadArrayHeaderBytes(bytes)
+	var ss setof.String
+	bytes, err := ss.UnmarshalMsg(bytes)
 	if err != nil {
 		return nil, err
 	}
-	dst := *s
-	if dst == nil {
-		dst = make(StringSet, sz)
-	} else {
-		for k := range dst {
-			delete(dst, k)
-		}
-	}
-	for i := uint32(0); i < sz; i++ {
-		var k string
-		k, bytes, err = msgp.ReadStringBytes(bytes)
-		if err != nil {
-			return nil, err
-		}
-		dst[k] = struct{}{}
-	}
-	*s = dst
+	*s = StringSet(ss)
 	return bytes, nil
 }
 
 // Msgsize returns the maximum size of the message.
 func (s StringSet) Msgsize() int {
-	if s == nil {
-		return msgp.NilSize
-	}
-	if len(s) == 0 {
-		return msgp.ArrayHeaderSize
-	}
-	size := msgp.ArrayHeaderSize
-	for key := range s {
-		size += msgp.StringPrefixSize + len(key)
-	}
-	return size
+	return setof.String(s).Msgsize()
 }
 
 // MarshalBinary encodes the receiver into a binary form and returns the result.
