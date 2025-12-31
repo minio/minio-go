@@ -162,6 +162,12 @@ func TestIsVirtualHostSupported(t *testing.T) {
 		{"https://amazons3.amazonaws.com", "my-bucket.", false},
 		{"https://storage.googleapis.com/", "my-bucket", true},
 		{"https://mystorage.googleapis.com/", "my-bucket", false},
+		{"https://cos.ap-beijing.myqcloud.com", "my-bucket", true},
+		{"https://cos.ap-nanjing.myqcloud.com", "my-bucket", true},
+		{"https://cos.ap-shanghai.myqcloud.com", "my-bucket", true},
+		{"https://cos.ap-guangzhou.myqcloud.com", "my-bucket", true},
+		{"https://cos.accelerate.myqcloud.com", "my-bucket", true},
+		{"https://cos.ap-beijing.myqcloud.com", "my-bucket.", false},
 	}
 
 	for i, testCase := range testCases {
@@ -250,6 +256,41 @@ func TestIsGoogleEndpoint(t *testing.T) {
 		result := IsGoogleEndpoint(*u)
 		if testCase.result != result {
 			t.Errorf("Test %d: Expected isGoogleEndpoint to be '%v' for input \"%s\", but found it to be '%v' instead", i+1, testCase.result, testCase.url, result)
+		}
+	}
+}
+
+// Tests validate Tencent Cloud end point validator.
+func TestIsTencentCOSEndpoint(t *testing.T) {
+	testCases := []struct {
+		url string
+		// Expected result.
+		result bool
+	}{
+		{"192.168.1.1", false},
+		{"https://192.168.1.1", false},
+		{"s3.amazonaws.com", false},
+		{"http://s3.amazonaws.com", false},
+		{"https://s3.amazonaws.com", false},
+		{"https://s3.cn-north-1.amazonaws.com.cn", false},
+		{"-192.168.1.1", false},
+		{"260.192.1.1", false},
+		// valid inputs.
+		{"https://cos.ap-beijing.myqcloud.com", true},
+		{"https://cos.ap-nanjing.myqcloud.com", true},
+		{"https://cos.ap-shanghai.myqcloud.com", true},
+		{"https://cos.ap-guangzhou.myqcloud.com", true},
+		{"https://cos.accelerate.myqcloud.com", true},
+	}
+
+	for i, testCase := range testCases {
+		u, err := url.Parse(testCase.url)
+		if err != nil {
+			t.Errorf("Test %d: Expected to pass, but failed with: <ERROR> %s", i+1, err)
+		}
+		result := IsTencentCOSEndpoint(*u)
+		if testCase.result != result {
+			t.Errorf("Test %d: Expected IsTencentCOSEndpoint to be '%v' for input \"%s\", but found it to be '%v' instead", i+1, testCase.result, testCase.url, result)
 		}
 	}
 }

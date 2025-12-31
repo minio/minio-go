@@ -78,7 +78,7 @@ func IsVirtualHostSupported(endpointURL url.URL, bucketName string) bool {
 		return false
 	}
 	// Return true for all other cases
-	return IsAmazonEndpoint(endpointURL) || IsGoogleEndpoint(endpointURL) || IsAliyunOSSEndpoint(endpointURL)
+	return IsAmazonEndpoint(endpointURL) || IsGoogleEndpoint(endpointURL) || IsAliyunOSSEndpoint(endpointURL) || IsTencentCOSEndpoint(endpointURL)
 }
 
 // Refer for region styles - https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region
@@ -198,6 +198,11 @@ func GetRegionFromURL(endpointURL url.URL) string {
 // IsAliyunOSSEndpoint - Match if it is exactly Aliyun OSS endpoint.
 func IsAliyunOSSEndpoint(endpointURL url.URL) bool {
 	return strings.HasSuffix(endpointURL.Hostname(), "aliyuncs.com")
+}
+
+// IsTencentCOSEndpoint - Match if it is exactly Tencent COS endpoint.
+func IsTencentCOSEndpoint(endpointURL url.URL) bool {
+	return strings.HasSuffix(endpointURL.Hostname(), "myqcloud.com")
 }
 
 // IsAmazonExpressRegionalEndpoint Match if the endpoint is S3 Express regional endpoint.
