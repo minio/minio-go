@@ -29,25 +29,43 @@ const (
 	gb5p1  = gb5 + 1
 	gb10p1 = 2*gb5 + 1
 	gb10p2 = 2*gb5 + 2
+
+	// oldPartSize is the legacy part size calculation for backward compatibility testing
+	// It was: maxMultipartPutObjectSize / (maxPartsCount - 1)
+	oldPartSize = maxMultipartPutObjectSize / (maxPartsCount - 1)
 )
 
 func TestPartsRequired(t *testing.T) {
 	testCases := []struct {
-		size, ref int64
+		size     int64
+		partSize int64
+		ref      int64
 	}{
-		{0, 0},
-		{1, 1},
-		{gb5, 10},
-		{gb5p1, 10},
-		{2 * gb5, 20},
-		{gb10p1, 20},
-		{gb10p2, 20},
-		{gb10p1 + gb10p2, 40},
-		{maxMultipartPutObjectSize, 10000},
+		{0, 0, 0},
+		{1, 0, 1},
+		{gb5, 0, 1},               // 5 GiB / 5 GiB = 1 part
+		{gb5p1, 0, 2},             // 5 GiB + 1 byte needs 2 parts
+		{2 * gb5, 0, 2},           // 10 GiB / 5 GiB = 2 parts
+		{gb10p1, 0, 3},            // 10 GiB + 1 byte needs 3 parts
+		{gb10p2, 0, 3},            // 10 GiB + 2 bytes needs 3 parts
+		{gb10p1 + gb10p2, 0, 5},   // 20 GiB + 3 bytes needs 5 parts
+		{maxPartSize * 10, 0, 10}, // exactly 10 parts
+		// Custom part sizes
+		{gb5, gb1, 5},      // 5 GiB / 1 GiB = 5 parts
+		{gb5p1, gb1, 6},    // 5 GiB + 1 byte / 1 GiB = 6 parts
+		{2 * gb5, gb1, 10}, // 10 GiB / 1 GiB = 10 parts
+		// Legacy behavior with oldPartSize
+		{gb5, oldPartSize, 10},                          // matches old behavior
+		{gb5p1, oldPartSize, 10},                        // matches old behavior
+		{2 * gb5, oldPartSize, 20},                      // matches old behavior
+		{gb10p1, oldPartSize, 20},                       // matches old behavior
+		{gb10p2, oldPartSize, 20},                       // matches old behavior
+		{gb10p1 + gb10p2, oldPartSize, 40},              // matches old behavior
+		{maxMultipartPutObjectSize, oldPartSize, 10000}, // matches old behavior
 	}
 
 	for i, testCase := range testCases {
-		res := partsRequired(testCase.size)
+		res := partsRequired(testCase.size, testCase.partSize)
 		if res != testCase.ref {
 			t.Errorf("Test %d - output did not match with reference results, Expected %d, got %d", i+1, testCase.ref, res)
 		}
@@ -56,21 +74,49 @@ func TestPartsRequired(t *testing.T) {
 
 func TestCalculateEvenSplits(t *testing.T) {
 	testCases := []struct {
-		// input size and source object
-		size int64
-		src  CopySrcOptions
+		// input size, source object, and part size
+		size     int64
+		src      CopySrcOptions
+		partSize int64
 
 		// output part-indexes
 		starts, ends []int64
 	}{
-		{0, CopySrcOptions{Start: -1}, nil, nil},
-		{1, CopySrcOptions{Start: -1}, []int64{0}, []int64{0}},
-		{1, CopySrcOptions{Start: 0}, []int64{0}, []int64{0}},
+		// Empty and minimal cases with default part size (0 = maxPartSize)
+		{0, CopySrcOptions{Start: -1}, 0, nil, nil},
+		{1, CopySrcOptions{Start: -1}, 0, []int64{0}, []int64{0}},
+		{1, CopySrcOptions{Start: 0}, 0, []int64{0}, []int64{0}},
 
-		{gb1, CopySrcOptions{Start: -1}, []int64{0, 536870912}, []int64{536870911, 1073741823}},
+		// With default part size (5 GiB), these fit in 1 part
+		{gb1, CopySrcOptions{Start: -1}, 0, []int64{0}, []int64{gb1 - 1}},
+		{gb5, CopySrcOptions{Start: -1}, 0, []int64{0}, []int64{gb5 - 1}},
+
+		// 5 GiB + 1 byte needs 2 parts with default part size
+		{gb5p1, CopySrcOptions{Start: -1}, 0, []int64{0, 2684354561}, []int64{2684354560, gb5p1 - 1}},
+
+		// 10 GiB + 1 byte needs 3 parts with default part size
+		{gb10p1, CopySrcOptions{Start: -1}, 0, []int64{0, 3579139414, 7158278828}, []int64{3579139413, 7158278827, gb10p1 - 1}},
+
+		// With custom 1 GiB part size, 5 GiB needs 5 parts
 		{
 			gb5,
 			CopySrcOptions{Start: -1},
+			gb1,
+			[]int64{0, gb1, 2 * gb1, 3 * gb1, 4 * gb1},
+			[]int64{gb1 - 1, 2*gb1 - 1, 3*gb1 - 1, 4*gb1 - 1, 5*gb1 - 1},
+		},
+
+		// With custom 1 GiB part size, 1 GiB needs 1 part
+		{gb1, CopySrcOptions{Start: -1}, gb1, []int64{0}, []int64{gb1 - 1}},
+
+		// With start offset
+		{gb1, CopySrcOptions{Start: 100}, gb1, []int64{100}, []int64{gb1 + 99}},
+
+		// Legacy behavior with oldPartSize - 5 GiB splits into 10 parts
+		{
+			gb5,
+			CopySrcOptions{Start: -1},
+			oldPartSize,
 			[]int64{
 				0, 536870912, 1073741824, 1610612736, 2147483648, 2684354560,
 				3221225472, 3758096384, 4294967296, 4831838208,
@@ -81,10 +127,11 @@ func TestCalculateEvenSplits(t *testing.T) {
 			},
 		},
 
-		// 2 part splits
+		// Legacy behavior with oldPartSize - 5 GiB + 1 splits into 10 parts
 		{
 			gb5p1,
 			CopySrcOptions{Start: -1},
+			oldPartSize,
 			[]int64{
 				0, 536870913, 1073741825, 1610612737, 2147483649, 2684354561,
 				3221225473, 3758096385, 4294967297, 4831838209,
@@ -92,60 +139,14 @@ func TestCalculateEvenSplits(t *testing.T) {
 			[]int64{
 				536870912, 1073741824, 1610612736, 2147483648, 2684354560, 3221225472,
 				3758096384, 4294967296, 4831838208, 5368709120,
-			},
-		},
-		{
-			gb5p1,
-			CopySrcOptions{Start: -1},
-			[]int64{
-				0, 536870913, 1073741825, 1610612737, 2147483649, 2684354561,
-				3221225473, 3758096385, 4294967297, 4831838209,
-			},
-			[]int64{
-				536870912, 1073741824, 1610612736, 2147483648, 2684354560, 3221225472,
-				3758096384, 4294967296, 4831838208, 5368709120,
-			},
-		},
-
-		// 3 part splits
-		{
-			gb10p1,
-			CopySrcOptions{Start: -1},
-			[]int64{
-				0, 536870913, 1073741825, 1610612737, 2147483649, 2684354561,
-				3221225473, 3758096385, 4294967297, 4831838209, 5368709121,
-				5905580033, 6442450945, 6979321857, 7516192769, 8053063681,
-				8589934593, 9126805505, 9663676417, 10200547329,
-			},
-			[]int64{
-				536870912, 1073741824, 1610612736, 2147483648, 2684354560,
-				3221225472, 3758096384, 4294967296, 4831838208, 5368709120,
-				5905580032, 6442450944, 6979321856, 7516192768, 8053063680,
-				8589934592, 9126805504, 9663676416, 10200547328, 10737418240,
-			},
-		},
-		{
-			gb10p2,
-			CopySrcOptions{Start: -1},
-			[]int64{
-				0, 536870913, 1073741826, 1610612738, 2147483650, 2684354562,
-				3221225474, 3758096386, 4294967298, 4831838210, 5368709122,
-				5905580034, 6442450946, 6979321858, 7516192770, 8053063682,
-				8589934594, 9126805506, 9663676418, 10200547330,
-			},
-			[]int64{
-				536870912, 1073741825, 1610612737, 2147483649, 2684354561,
-				3221225473, 3758096385, 4294967297, 4831838209, 5368709121,
-				5905580033, 6442450945, 6979321857, 7516192769, 8053063681,
-				8589934593, 9126805505, 9663676417, 10200547329, 10737418241,
 			},
 		},
 	}
 
 	for i, testCase := range testCases {
-		resStart, resEnd := calculateEvenSplits(testCase.size, testCase.src)
+		resStart, resEnd := calculateEvenSplits(testCase.size, testCase.src, testCase.partSize)
 		if !reflect.DeepEqual(testCase.starts, resStart) || !reflect.DeepEqual(testCase.ends, resEnd) {
-			t.Errorf("Test %d - output did not match with reference results, Expected %d/%d, got %d/%d", i+1, testCase.starts, testCase.ends, resStart, resEnd)
+			t.Errorf("Test %d - output did not match with reference results, Expected %v/%v, got %v/%v", i+1, testCase.starts, testCase.ends, resStart, resEnd)
 		}
 	}
 }

@@ -619,7 +619,7 @@ A variant of PutObject instead of writing a single object from a single stream m
 
 ### PutObject(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64,opts PutObjectOptions) (info UploadInfo, err error)
 
-Uploads objects that are less than 128MiB in a single PUT operation. For objects that are greater than 128MiB in size, PutObject seamlessly uploads the object as parts of 128MiB or more depending on the actual file size. The max upload size for an object is 5TB.
+Uploads objects that are less than 128MiB in a single PUT operation. For objects that are greater than 128MiB in size, PutObject seamlessly uploads the object as parts of 128MiB or more depending on the actual file size. The max upload size for an object is ~48.83TiB (5GiB * 10000 parts). When using unknown size (-1), the default limit is 5TiB; set `PartSize` in options to upload larger objects.
 
 **Parameters**
 
@@ -849,7 +849,7 @@ fmt.Println("Composed object successfully:", uploadInfo)
 
 Uploads contents from a file to objectName.
 
-FPutObject uploads objects that are less than 128MiB in a single PUT operation. For objects that are greater than the 128MiB in size, FPutObject seamlessly uploads the object in chunks of 128MiB or more depending on the actual file size. The max upload size for an object is 5TB.
+FPutObject uploads objects that are less than 128MiB in a single PUT operation. For objects that are greater than the 128MiB in size, FPutObject seamlessly uploads the object in chunks of 128MiB or more depending on the actual file size. The max upload size for an object is ~48.83TiB (5GiB * 10000 parts).
 
 **Parameters**
 
