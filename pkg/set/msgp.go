@@ -75,3 +75,57 @@ func (s *StringSet) UnmarshalBinary(b []byte) error {
 	_, err := s.UnmarshalMsg(b)
 	return err
 }
+
+// EncodeMsg encodes the message to the writer.
+// Values are stored as a slice of ints or nil.
+func (s IntSet) EncodeMsg(writer *msgp.Writer) error {
+	return setof.IntSorted(s).EncodeMsg(writer)
+}
+
+// MarshalMsg encodes the message to the bytes.
+// Values are stored as a slice of ints or nil.
+func (s IntSet) MarshalMsg(bytes []byte) ([]byte, error) {
+	return setof.IntSorted(s).MarshalMsg(bytes)
+}
+
+// DecodeMsg decodes the message from the reader.
+func (s *IntSet) DecodeMsg(reader *msgp.Reader) error {
+	var is setof.Int
+	if err := is.DecodeMsg(reader); err != nil {
+		return err
+	}
+	*s = IntSet(is)
+	return nil
+}
+
+// UnmarshalMsg decodes the message from the bytes.
+func (s *IntSet) UnmarshalMsg(bytes []byte) ([]byte, error) {
+	var is setof.Int
+	bytes, err := is.UnmarshalMsg(bytes)
+	if err != nil {
+		return nil, err
+	}
+	*s = IntSet(is)
+	return bytes, nil
+}
+
+// Msgsize returns the maximum size of the message.
+func (s IntSet) Msgsize() int {
+	return setof.Int(s).Msgsize()
+}
+
+// MarshalBinary encodes the receiver into a binary form and returns the result.
+func (s IntSet) MarshalBinary() ([]byte, error) {
+	return s.MarshalMsg(nil)
+}
+
+// AppendBinary appends the binary representation of itself to the end of b
+func (s IntSet) AppendBinary(b []byte) ([]byte, error) {
+	return s.MarshalMsg(b)
+}
+
+// UnmarshalBinary decodes the binary representation of itself from b
+func (s *IntSet) UnmarshalBinary(b []byte) error {
+	_, err := s.UnmarshalMsg(b)
+	return err
+}
