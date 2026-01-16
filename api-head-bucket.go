@@ -28,46 +28,44 @@ const (
 	BucketTypeStandard  = "standard"
 	BucketTypeWarehouse = "warehouse"
 
-	// Header name for bucket type
 	bucketTypeHeader = "x-minio-bucket-type"
 )
 
-// BucketTypeInfo contains bucket type information
-type BucketTypeInfo struct {
+// HeadBucketInfo contains bucket metadata returned by HeadBucket.
+type HeadBucketInfo struct {
+	// Type indicates the bucket type: "standard" or "warehouse"
 	Type string
 }
 
 // IsWarehouse returns true if bucket type is warehouse
-func (b BucketTypeInfo) IsWarehouse() bool {
+func (b HeadBucketInfo) IsWarehouse() bool {
 	return b.Type == BucketTypeWarehouse
 }
 
 // IsStandard returns true if bucket type is standard
-func (b BucketTypeInfo) IsStandard() bool {
+func (b HeadBucketInfo) IsStandard() bool {
 	return b.Type == BucketTypeStandard
 }
 
-// GetBucketType gets the bucket type by performing a HEAD request
-// and reading the x-minio-bucket-type header.
-// This is a MinIO extension API.
-func (c *Client) GetBucketType(ctx context.Context, bucketName string) (BucketTypeInfo, error) {
+// HeadBucket performs a HEAD request on the bucket and returns bucket metadata.
+// This can be used to check if a bucket exists and retrieve bucket properties.
+func (c *Client) HeadBucket(ctx context.Context, bucketName string) (HeadBucketInfo, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
-		return BucketTypeInfo{}, err
+		return HeadBucketInfo{}, err
 	}
 
-	// Execute HEAD on bucket to get the type from header.
+	// Execute HEAD on bucket.
 	resp, err := c.executeMethod(ctx, http.MethodHead, requestMetadata{
 		bucketName: bucketName,
 	})
-
 	defer closeResponse(resp)
 	if err != nil {
-		return BucketTypeInfo{}, err
+		return HeadBucketInfo{}, err
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return BucketTypeInfo{}, httpRespToErrorResponse(resp, bucketName, "")
+		return HeadBucketInfo{}, httpRespToErrorResponse(resp, bucketName, "")
 	}
 
 	// Read bucket type from header, default to standard if not present
@@ -76,5 +74,5 @@ func (c *Client) GetBucketType(ctx context.Context, bucketName string) (BucketTy
 		bucketType = BucketTypeStandard
 	}
 
-	return BucketTypeInfo{Type: bucketType}, nil
+	return HeadBucketInfo{Type: bucketType}, nil
 }
