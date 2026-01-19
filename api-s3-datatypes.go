@@ -103,8 +103,9 @@ type Version struct {
 	UserTags URLMap `json:"userTags,omitempty" xml:"UserTags"`
 
 	Internal *struct {
-		K int // Data blocks
-		M int // Parity blocks
+		K         int // Data blocks
+		M         int // Parity blocks
+		MultiPool bool
 	} `xml:"Internal"`
 
 	// Checksum values. Only returned by AiStor servers.

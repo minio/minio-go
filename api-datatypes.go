@@ -229,8 +229,9 @@ type ObjectInfo struct {
 	ChecksumMode      string `xml:"ChecksumType"`
 
 	Internal *struct {
-		K int // Data blocks
-		M int // Parity blocks
+		K         int // Data blocks
+		M         int // Parity blocks
+		MultiPool bool
 	} `xml:"Internal"`
 
 	// Error
