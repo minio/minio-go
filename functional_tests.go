@@ -8977,6 +8977,13 @@ func testCopyObjectWithChecksums() {
 	}
 	r.Close()
 
+	// Get the checksums from the uploaded object (only CRC64NVME will be set by default)
+	originalSt, err := c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{Checksum: true})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "StatObject failed", err)
+		return
+	}
+
 	// Copy source options
 	src := minio.CopySrcOptions{
 		Bucket:             bucketName,
@@ -9036,24 +9043,33 @@ func testCopyObjectWithChecksums() {
 			return
 		}
 
-		// Verify the requested checksum type is present and non-empty
-		var checksumValue string
-		switch csType {
-		case minio.ChecksumCRC64NVME, minio.ChecksumNone:
-			checksumValue = st.ChecksumCRC64NVME
-		case minio.ChecksumCRC32C:
-			checksumValue = st.ChecksumCRC32C
-		case minio.ChecksumCRC32:
-			checksumValue = st.ChecksumCRC32
-		case minio.ChecksumSHA1:
-			checksumValue = st.ChecksumSHA1
-		case minio.ChecksumSHA256:
-			checksumValue = st.ChecksumSHA256
-		}
+		// Verify checksums - for CRC64NVME we can compare to original, others just check non-empty
+		if csType == minio.ChecksumCRC64NVME || csType == minio.ChecksumNone {
+			// Original object has CRC64NVME, so we can verify it matches
+			expectedChecksums := wantChecksums{minio.ChecksumCRC64NVME: originalSt.ChecksumCRC64NVME}
+			err = cmpChecksum(st, expectedChecksums)
+			if err != nil {
+				logError(testName, function, args, startTime, "", "Checksum mismatch", err)
+				return
+			}
+		} else {
+			// For other types, server calculates during copy - just verify non-empty
+			var checksumValue string
+			switch csType {
+			case minio.ChecksumCRC32C:
+				checksumValue = st.ChecksumCRC32C
+			case minio.ChecksumCRC32:
+				checksumValue = st.ChecksumCRC32
+			case minio.ChecksumSHA1:
+				checksumValue = st.ChecksumSHA1
+			case minio.ChecksumSHA256:
+				checksumValue = st.ChecksumSHA256
+			}
 
-		if checksumValue == "" {
-			logError(testName, function, args, startTime, "", "Checksum is empty for type: "+csType.String(), nil)
-			return
+			if checksumValue == "" {
+				logError(testName, function, args, startTime, "", "Checksum is empty for type: "+csType.String(), nil)
+				return
+			}
 		}
 
 		logSuccess(testName, function, args, startTime)
@@ -9124,6 +9140,13 @@ func testReplaceObjectWithChecksums() {
 		}
 		r.Close()
 
+		// Get checksums from uploaded object (only CRC64NVME will be set)
+		originalSt, err := c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{Checksum: true})
+		if err != nil {
+			logError(testName, function, args, startTime, "", "StatObject failed", err)
+			return
+		}
+
 		// Copy source options
 		src := minio.CopySrcOptions{
 			Bucket:             bucketName,
@@ -9170,24 +9193,33 @@ func testReplaceObjectWithChecksums() {
 			return
 		}
 
-		// Verify the requested checksum type is present and non-empty
-		var checksumValue string
-		switch csType {
-		case minio.ChecksumCRC64NVME, minio.ChecksumNone:
-			checksumValue = st.ChecksumCRC64NVME
-		case minio.ChecksumCRC32C:
-			checksumValue = st.ChecksumCRC32C
-		case minio.ChecksumCRC32:
-			checksumValue = st.ChecksumCRC32
-		case minio.ChecksumSHA1:
-			checksumValue = st.ChecksumSHA1
-		case minio.ChecksumSHA256:
-			checksumValue = st.ChecksumSHA256
-		}
+		// Verify checksums - for CRC64NVME we can compare to original, others just check non-empty
+		if csType == minio.ChecksumCRC64NVME || csType == minio.ChecksumNone {
+			// Original object has CRC64NVME, so we can verify it matches
+			expectedChecksums := wantChecksums{minio.ChecksumCRC64NVME: originalSt.ChecksumCRC64NVME}
+			err = cmpChecksum(st, expectedChecksums)
+			if err != nil {
+				logError(testName, function, args, startTime, "", "Checksum mismatch", err)
+				return
+			}
+		} else {
+			// For other types, server calculates during copy - just verify non-empty
+			var checksumValue string
+			switch csType {
+			case minio.ChecksumCRC32C:
+				checksumValue = st.ChecksumCRC32C
+			case minio.ChecksumCRC32:
+				checksumValue = st.ChecksumCRC32
+			case minio.ChecksumSHA1:
+				checksumValue = st.ChecksumSHA1
+			case minio.ChecksumSHA256:
+				checksumValue = st.ChecksumSHA256
+			}
 
-		if checksumValue == "" {
-			logError(testName, function, args, startTime, "", "Checksum is empty for type: "+csType.String(), nil)
-			return
+			if checksumValue == "" {
+				logError(testName, function, args, startTime, "", "Checksum is empty for type: "+csType.String(), nil)
+				return
+			}
 		}
 
 		logSuccess(testName, function, args, startTime)
