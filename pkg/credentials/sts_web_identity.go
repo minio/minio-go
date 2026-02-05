@@ -91,6 +91,10 @@ type STSWebIdentity struct {
 	// Policy is the policy where the credentials should be limited too.
 	Policy string
 
+	// DurationSeconds is the duration, in seconds, of the role session.
+	// By default, the value is 3600 seconds (one hour).
+	DurationSeconds int
+
 	// roleSessionName is the identifier for the assumed role session.
 	roleSessionName string
 
@@ -137,7 +141,15 @@ func WithPolicy(policy string) func(*STSWebIdentity) {
 	}
 }
 
-func getWebIdentityCredentials(clnt *http.Client, endpoint, roleARN, roleSessionName string, policy string,
+// WithDuration option will enforce that the returned credentials
+// will be valid for the specified duration in seconds
+func WithDuration(durationSec int) func(*STSWebIdentity) {
+	return func(i *STSWebIdentity) {
+		i.DurationSeconds = durationSec
+	}
+}
+
+func getWebIdentityCredentials(clnt *http.Client, endpoint, roleARN, roleSessionName string, policy string, durationSec int,
 	getWebIDTokenExpiry func() (*WebIdentityToken, error), tokenRevokeType string,
 ) (AssumeRoleWithWebIdentityResponse, error) {
 	idToken, err := getWebIDTokenExpiry()
@@ -164,8 +176,8 @@ func getWebIdentityCredentials(clnt *http.Client, endpoint, roleARN, roleSession
 		// Usually set when server is using extended userInfo endpoint.
 		v.Set("WebIdentityRefreshToken", idToken.RefreshToken)
 	}
-	if idToken.Expiry > 0 {
-		v.Set("DurationSeconds", fmt.Sprintf("%d", idToken.Expiry))
+	if durationSec > 0 {
+		v.Set("DurationSeconds", fmt.Sprintf("%d", durationSec))
 	}
 	if policy != "" {
 		v.Set("Policy", policy)
@@ -242,7 +254,7 @@ func (m *STSWebIdentity) RetrieveWithCredContext(cc *CredContext) (Value, error)
 		return Value{}, errors.New("STS endpoint unknown")
 	}
 
-	a, err := getWebIdentityCredentials(client, stsEndpoint, m.RoleARN, m.roleSessionName, m.Policy, m.GetWebIDTokenExpiry, m.TokenRevokeType)
+	a, err := getWebIdentityCredentials(client, stsEndpoint, m.RoleARN, m.roleSessionName, m.Policy, m.DurationSeconds, m.GetWebIDTokenExpiry, m.TokenRevokeType)
 	if err != nil {
 		return Value{}, err
 	}
