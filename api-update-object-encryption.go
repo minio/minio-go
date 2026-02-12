@@ -115,10 +115,8 @@ func (c *Client) UpdateObjectEncryption(ctx context.Context, bucketName, objectN
 	if err != nil {
 		return err
 	}
-	if resp != nil {
-		if resp.StatusCode != http.StatusOK {
-			return httpRespToErrorResponse(resp, bucketName, objectName)
-		}
+	if resp.StatusCode != http.StatusOK {
+		return httpRespToErrorResponse(resp, bucketName, objectName)
 	}
 	return nil
 }
