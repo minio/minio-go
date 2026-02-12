@@ -258,3 +258,25 @@ func TestUpdateObjectEncryptionInvalidObject(t *testing.T) {
 		t.Fatal("Expected error for empty object name, got nil")
 	}
 }
+
+func TestUpdateObjectEncryptionEmptyKMSKeyArn(t *testing.T) {
+	client, err := New("localhost:9000", &Options{
+		Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
+		Secure: false,
+	})
+	if err != nil {
+		t.Fatalf("Failed to create client: %v", err)
+	}
+
+	err = client.UpdateObjectEncryption(context.Background(), "mybucket", "myobject", UpdateObjectEncryptionOptions{
+		KMSKeyArn: "",
+	})
+	if err == nil {
+		t.Fatal("Expected error for empty KMSKeyArn, got nil")
+	}
+
+	errResp := ToErrorResponse(err)
+	if errResp.Code != InvalidArgument {
+		t.Fatalf("Expected error code %q, got %q", InvalidArgument, errResp.Code)
+	}
+}

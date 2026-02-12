@@ -73,6 +73,10 @@ func (c *Client) UpdateObjectEncryption(ctx context.Context, bucketName, objectN
 		return err
 	}
 
+	if opts.KMSKeyArn == "" {
+		return errInvalidArgument("KMSKeyArn is required for UpdateObjectEncryption.")
+	}
+
 	// Get resources properly escaped and lined up before
 	// using them in http request.
 	urlValues := make(url.Values)
