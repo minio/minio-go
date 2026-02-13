@@ -13,11 +13,8 @@ concurrency:
 
 jobs:
   build:
-    name: Test on Go ${{ steps.go-version.outputs.version }} and ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [windows-latest]
+    name: Test on windows-latest
+    runs-on: windows-latest
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v4
@@ -33,13 +30,13 @@ jobs:
           echo "Detected Go toolchain version: $TOOLCHAIN"
           echo "version=$TOOLCHAIN" >> $GITHUB_OUTPUT
 
-      - name: Set up Go ${{ steps.go-version.outputs.version }} on ${{ matrix.os }}
+      - name: Set up Go ${{ steps.go-version.outputs.version }}
         uses: actions/setup-go@v5
         with:
           go-version: ${{ steps.go-version.outputs.version }}
         id: go
 
-      - name: Build on ${{ matrix.os }}
+      - name: Build and Test
         env:
           MINT_MODE: core
           SERVER_ENDPOINT: localhost:9000
