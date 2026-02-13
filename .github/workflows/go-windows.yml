@@ -23,9 +23,9 @@ jobs:
         id: go-version
         shell: bash
         run: |
-          TOOLCHAIN=$(grep '^toolchain ' go.mod | awk '{print $2}' | sed 's/^go//')
+          TOOLCHAIN=$(grep '^toolchain ' go.mod | awk '{print $2}' | sed 's/^go//' | tr -d '\r')
           if [ -z "$TOOLCHAIN" ]; then
-            TOOLCHAIN=$(grep '^go ' go.mod | awk '{print $2}')
+            TOOLCHAIN=$(grep '^go ' go.mod | awk '{print $2}' | tr -d '\r')
           fi
           echo "Detected Go toolchain version: $TOOLCHAIN"
           echo "version=$TOOLCHAIN" >> $GITHUB_OUTPUT
