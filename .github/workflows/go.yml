@@ -13,23 +13,29 @@ concurrency:
 
 jobs:
   build:
-    name: Test on Go ${{ matrix.go-version }} and ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        go-version: [1.24.x, 1.25.x]
-        os: [ubuntu-latest]
+    name: Test on ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
-      - name: Set up Go ${{ matrix.go-version }} on ${{ matrix.os }}
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.go-version }}
-        id: go
-
       - name: Check out code into the Go module directory
         uses: actions/checkout@v4
 
-      - name: Build on ${{ matrix.os }}
+      - name: Extract Go toolchain version from go.mod
+        id: go-version
+        run: |
+          TOOLCHAIN=$(grep '^toolchain ' go.mod | awk '{print $2}' | sed 's/^go//' || true)
+          if [ -z "$TOOLCHAIN" ]; then
+            TOOLCHAIN=$(grep '^go ' go.mod | awk '{print $2}')
+          fi
+          echo "Detected Go toolchain version: $TOOLCHAIN"
+          echo "version=$TOOLCHAIN" >> $GITHUB_OUTPUT
+
+      - name: Set up Go ${{ steps.go-version.outputs.version }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.go-version.outputs.version }}
+        id: go
+
+      - name: Build and Test
         env:
           MINT_MODE: full
           SERVER_ENDPOINT: localhost:9000
