@@ -23,7 +23,7 @@ jobs:
         id: go-version
         shell: bash
         run: |
-          TOOLCHAIN=$(grep '^toolchain ' go.mod | awk '{print $2}' | sed 's/^go//' | tr -d '\r')
+          TOOLCHAIN=$(grep '^toolchain ' go.mod | awk '{print $2}' | sed 's/^go//' | tr -d '\r' || true)
           if [ -z "$TOOLCHAIN" ]; then
             TOOLCHAIN=$(grep '^go ' go.mod | awk '{print $2}' | tr -d '\r')
           fi
