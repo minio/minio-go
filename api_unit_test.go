@@ -41,8 +41,8 @@ func TestValidBucketLocation(t *testing.T) {
 		// ISO regions without dualstack support
 		{"us-iso-east-1", true, "s3.us-iso-east-1.c2s.ic.gov"},
 		{"us-iso-east-1", false, "s3.us-iso-east-1.c2s.ic.gov"},
-		{"us-isob-east-1", true, "s3.us-isob-east-1.c2s.ic.gov"},
-		{"us-isob-east-1", false, "s3.us-isob-east-1.c2s.ic.gov"},
+		{"us-isob-east-1", true, "s3.us-isob-east-1.sc2s.sgov.gov"},
+		{"us-isob-east-1", false, "s3.us-isob-east-1.sc2s.sgov.gov"},
 		{"us-iso-west-1", true, "s3.us-iso-west-1.c2s.ic.gov"},
 		{"us-iso-west-1", false, "s3.us-iso-west-1.c2s.ic.gov"},
 	}

@@ -97,7 +97,7 @@ var awsS3EndpointMap = map[string]awsS3Endpoint{
 		"", // dualstack endpoint doesn't exist
 	},
 	"us-isob-east-1": {
-		"s3.us-isob-east-1.c2s.ic.gov",
+		"s3.us-isob-east-1.sc2s.sgov.gov",
 		"", // dualstack endpoint doesn't exist
 	},
 	"us-iso-west-1": {
