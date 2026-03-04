@@ -50,3 +50,17 @@ func buildRequest(serviceName, region, body string) (*http.Request, io.ReadSeeke
 	req.Header.Add("X-Amz-Target", "prefix.Operation")
 	return req, reader
 }
+
+// TestSignV4OutpostsCredentialScope verifies that SignV4Outposts produces a credential scope containing s3-outposts.
+func TestSignV4OutpostsCredentialScope(t *testing.T) {
+	req, _ := http.NewRequest(http.MethodGet, "https://myap-123.op-xyz.s3-outposts.eu-central-1.amazonaws.com/bucket/key", nil)
+	req.Header.Set("Host", req.URL.Host)
+	signed := SignV4Outposts(*req, "AKID", "SECRET", "", "eu-central-1")
+	auth := signed.Header.Get("Authorization")
+	if auth == "" {
+		t.Fatal("Authorization header missing")
+	}
+	if !strings.Contains(auth, "s3-outposts") {
+		t.Errorf("Expected Authorization credential scope to contain s3-outposts, got: %s", auth)
+	}
+}
