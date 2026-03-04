@@ -381,6 +381,7 @@ func ToObjectInfo(bucketName, objectName string, h http.Header) (ObjectInfo, err
 		Size:              size,
 		LastModified:      mtime,
 		ContentType:       contentType,
+		ContentEncoding:   strings.TrimSpace(h.Get("Content-Encoding")),
 		Expires:           expiry,
 		VersionID:         h.Get(amzVersionID),
 		IsDeleteMarker:    deleteMarker,
