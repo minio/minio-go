@@ -226,6 +226,7 @@ type ObjectInfo struct {
 	ChecksumSHA1      string
 	ChecksumSHA256    string
 	ChecksumCRC64NVME string
+	ChecksumAlgorithm string
 	ChecksumMode      string `xml:"ChecksumType"`
 
 	Internal *struct {
