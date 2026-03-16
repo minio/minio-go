@@ -404,7 +404,7 @@ func (c *Client) listObjectVersions(ctx context.Context, bucketName string, opts
 		}
 
 		var (
-			keyMarker       = ""
+			keyMarker       = opts.StartAfter
 			versionIDMarker = ""
 			preName         = ""
 			preKey          = ""
