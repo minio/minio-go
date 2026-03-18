@@ -518,7 +518,6 @@ func TestLifecycleMarshalXML(t *testing.T) {
 			input: Configuration{
 				Rules: []Rule{
 					{
-
 						ID:                             "expire-incomplete-uploads-1",
 						Status:                         "Enabled",
 						Prefix:                         "my_dir",
@@ -543,8 +542,7 @@ func TestLifecycleMarshalXML(t *testing.T) {
 					},
 				},
 			},
-			// this is wrong fixed behavior fixed in a following commit
-			expectedXMLOut: "<LifecycleConfiguration><Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload><ID>expire-incomplete-uploads-2</ID><Status>Enabled</Status></Rule></LifecycleConfiguration>",
+			expectedXMLOut: "<LifecycleConfiguration><Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload><ID>expire-incomplete-uploads-2</ID><Filter><Prefix></Prefix></Filter><Status>Enabled</Status></Rule></LifecycleConfiguration>",
 		},
 		{
 			testDescription: "Ensure we always export Filter or Prefix. Specification explicitly mentions: 'Filter is required if the LifecycleRule does not contain a Prefix element.' (https://docs.aws.amazon.com/AmazonS3/latest/API/API_LifecycleRule.html)",
@@ -559,8 +557,7 @@ func TestLifecycleMarshalXML(t *testing.T) {
 					},
 				},
 			},
-			// this is wrong fixed behavior fixed in a following commit
-			expectedXMLOut: "<LifecycleConfiguration><Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload><ID>expire-incomplete-uploads-3</ID><Status>Enabled</Status></Rule></LifecycleConfiguration>",
+			expectedXMLOut: "<LifecycleConfiguration><Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload><ID>expire-incomplete-uploads-3</ID><Filter><Prefix></Prefix></Filter><Status>Enabled</Status></Rule></LifecycleConfiguration>",
 		},
 	}
 
