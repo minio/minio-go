@@ -179,6 +179,11 @@ func isValidEndpointURL(endpointURL url.URL) error {
 			return errInvalidArgument("Google Cloud Storage endpoint should be 'storage.googleapis.com'.")
 		}
 	}
+	if strings.Contains(host, "s3-outposts") {
+		if !s3utils.IsAmazonOutpostsEndpoint(endpointURL) {
+			return errInvalidArgument("S3 Outposts endpoint must match <prefix>.s3-outposts.<region>.amazonaws.com")
+		}
+	}
 	return nil
 }
 

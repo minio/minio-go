@@ -57,6 +57,9 @@ func TestGetRegionFromURL(t *testing.T) {
 		{u: "s3express-euc1-az2.eu-central-1.amazonaws.com", expectedRegion: "eu-central-1"},
 		{u: "s3express-usgw1-az3.us-gov-west-1.amazonaws.com", expectedRegion: "us-gov-west-1"},
 		{u: "s3express-control.us-west-2.amazonaws.com", expectedRegion: "us-west-2"},
+		// S3 on Outposts.
+		{u: "test-access-point-000000000000.op-00000000000000000.s3-outposts.eu-central-1.amazonaws.com", expectedRegion: "eu-central-1"},
+		{u: "myap-123456789012.op-0ab1c2d3e4f5.s3-outposts.us-west-2.amazonaws.com", expectedRegion: "us-west-2"},
 
 		// Test cases with port numbers.
 		{u: "storage.googleapis.com:80", expectedRegion: ""},
@@ -172,6 +175,32 @@ func TestIsVirtualHostSupported(t *testing.T) {
 		result := IsVirtualHostSupported(*u, testCase.bucket)
 		if testCase.result != result {
 			t.Errorf("Test %d: Expected isVirtualHostSupported to be '%v' for input url \"%s\" and bucket \"%s\", but found it to be '%v' instead", i+1, testCase.result, testCase.url, testCase.bucket, result)
+		}
+	}
+}
+
+// Tests validate S3 Outposts endpoint detector.
+func TestIsAmazonOutpostsEndpoint(t *testing.T) {
+	testCases := []struct {
+		url    string
+		result bool
+	}{
+		{"https://s3.amazonaws.com", false},
+		{"https://s3.eu-west-1.amazonaws.com", false},
+		{"https://storage.googleapis.com", false},
+		{"https://test-access-point-000000000000.op-00000000000000000.s3-outposts.eu-central-1.amazonaws.com", true},
+		{"https://myap-123456789012.op-0ab1c2d3e4f5.s3-outposts.us-west-2.amazonaws.com", true},
+		{"https://accesspoint-account.op-outpostid.s3-outposts.eu-north-1.amazonaws.com", true},
+	}
+	for i, testCase := range testCases {
+		u, err := url.Parse(testCase.url)
+		if err != nil {
+			t.Errorf("Test %d: url.Parse failed: %v", i+1, err)
+			continue
+		}
+		got := IsAmazonOutpostsEndpoint(*u)
+		if got != testCase.result {
+			t.Errorf("Test %d: IsAmazonOutpostsEndpoint(%q) = %v, want %v", i+1, testCase.url, got, testCase.result)
 		}
 	}
 }
