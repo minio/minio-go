@@ -179,6 +179,11 @@ func isValidEndpointURL(endpointURL url.URL) error {
 			return errInvalidArgument("Google Cloud Storage endpoint should be 'storage.googleapis.com'.")
 		}
 	}
+	if strings.Contains(host, "s3-outposts") {
+		if !s3utils.IsAmazonOutpostsEndpoint(endpointURL) {
+			return errInvalidArgument("S3 Outposts endpoint must match <prefix>.s3-outposts.<region>.amazonaws.com")
+		}
+	}
 	return nil
 }
 
@@ -381,6 +386,7 @@ func ToObjectInfo(bucketName, objectName string, h http.Header) (ObjectInfo, err
 		Size:              size,
 		LastModified:      mtime,
 		ContentType:       contentType,
+		ContentEncoding:   strings.TrimSpace(h.Get("Content-Encoding")),
 		Expires:           expiry,
 		VersionID:         h.Get(amzVersionID),
 		IsDeleteMarker:    deleteMarker,
