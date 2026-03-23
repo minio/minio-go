@@ -432,6 +432,11 @@ func SignV4Outposts(req http.Request, accessKeyID, secretAccessKey, sessionToken
 	return signV4(req, accessKeyID, secretAccessKey, sessionToken, location, ServiceTypeS3Outposts, nil)
 }
 
+// SignV4WithServiceType signs a request with AWS Signature Version 4 using a custom service type.
+func SignV4WithServiceType(req http.Request, accessKeyID, secretAccessKey, sessionToken, location, serviceType string) *http.Request {
+	return signV4(req, accessKeyID, secretAccessKey, sessionToken, location, serviceType, nil)
+}
+
 // SignV4TrailerOutposts sign the request with trailer for S3 on Outposts (service name s3-outposts).
 func SignV4TrailerOutposts(req http.Request, accessKeyID, secretAccessKey, sessionToken, location string, trailer http.Header) *http.Request {
 	return signV4(req, accessKeyID, secretAccessKey, sessionToken, location, ServiceTypeS3Outposts, trailer)
