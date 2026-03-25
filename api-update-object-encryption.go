@@ -61,6 +61,14 @@ type UpdateObjectEncryptionResult struct {
 // UpdateObjectEncryption changes the encryption configuration of an existing object in-place.
 // The object must already be encrypted with SSE-S3 or SSE-KMS. SSE-C objects are not supported.
 // This operation rotates the data encryption key envelope without re-reading/re-writing object data.
+//
+// Parameters:
+//   - ctx: Context for request cancellation and timeout
+//   - bucketName: Name of the bucket
+//   - objectName: Name of the object
+//   - opts: Options including KMSKeyArn (required), optional BucketKeyEnabled, and optional VersionID
+//
+// Returns the version ID of the updated object (if versioning is enabled) and an error if the operation fails.
 func (c *Client) UpdateObjectEncryption(ctx context.Context, bucketName, objectName string, opts UpdateObjectEncryptionOptions) (UpdateObjectEncryptionResult, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
