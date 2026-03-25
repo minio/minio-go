@@ -63,18 +63,24 @@ type UpdateObjectEncryptionOptions struct {
 //   - opts: Options including KMSKeyArn (required), optional BucketKeyEnabled, and optional VersionID
 //
 // Returns an error if the operation fails.
-func (c *Client) UpdateObjectEncryption(ctx context.Context, bucketName, objectName string, opts UpdateObjectEncryptionOptions) error {
+// UpdateObjectEncryptionResult holds the result of an UpdateObjectEncryption call.
+type UpdateObjectEncryptionResult struct {
+	// VersionID is the version ID of the object that was updated, if versioning is enabled.
+	VersionID string
+}
+
+func (c *Client) UpdateObjectEncryption(ctx context.Context, bucketName, objectName string, opts UpdateObjectEncryptionOptions) (UpdateObjectEncryptionResult, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
-		return err
+		return UpdateObjectEncryptionResult{}, err
 	}
 
 	if err := s3utils.CheckValidObjectName(objectName); err != nil {
-		return err
+		return UpdateObjectEncryptionResult{}, err
 	}
 
 	if opts.KMSKeyArn == "" {
-		return errInvalidArgument("KMSKeyArn is required for UpdateObjectEncryption.")
+		return UpdateObjectEncryptionResult{}, errInvalidArgument("KMSKeyArn is required for UpdateObjectEncryption.")
 	}
 
 	// Get resources properly escaped and lined up before
@@ -96,7 +102,7 @@ func (c *Client) UpdateObjectEncryption(ctx context.Context, bucketName, objectN
 
 	bodyData, err := xml.Marshal(reqBody)
 	if err != nil {
-		return err
+		return UpdateObjectEncryptionResult{}, err
 	}
 
 	reqMetadata := requestMetadata{
@@ -113,10 +119,12 @@ func (c *Client) UpdateObjectEncryption(ctx context.Context, bucketName, objectN
 	resp, err := c.executeMethod(ctx, http.MethodPut, reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
-		return err
+		return UpdateObjectEncryptionResult{}, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return httpRespToErrorResponse(resp, bucketName, objectName)
+		return UpdateObjectEncryptionResult{}, httpRespToErrorResponse(resp, bucketName, objectName)
 	}
-	return nil
+	return UpdateObjectEncryptionResult{
+		VersionID: resp.Header.Get(amzVersionID),
+	}, nil
 }
