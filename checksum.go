@@ -49,6 +49,9 @@ const (
 
 	// checksumModeMask is a mask for valid checksum mode types.
 	checksumModeMask = checksumLastMode - 1
+
+	// ChecksumUnknownMode indicates no or unknown checksum mode.
+	ChecksumUnknownMode ChecksumMode = 0
 )
 
 // Is returns if c is all of t.
@@ -64,9 +67,9 @@ func (c ChecksumMode) Key() string {
 func (c ChecksumMode) String() string {
 	switch c & checksumModeMask {
 	case ChecksumFullObjectMode:
-		return "FULL_OBJECT"
+		return amzChecksumModeFullObject
 	case ChecksumCompositeMode:
-		return "COMPOSITE"
+		return amzChecksumModeComposite
 	}
 	return ""
 }
@@ -113,6 +116,9 @@ const (
 	amzChecksumSHA256    = "x-amz-checksum-sha256"
 	amzChecksumCRC64NVME = "x-amz-checksum-crc64nvme"
 	amzChecksumMode      = "x-amz-checksum-type"
+
+	amzChecksumModeComposite  = "COMPOSITE"
+	amzChecksumModeFullObject = "FULL_OBJECT"
 )
 
 // Base returns the base type, without modifiers.
