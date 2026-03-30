@@ -2418,6 +2418,11 @@ func testPutObjectWithTrailingChecksums() {
 		cmpChecksum(s.Checksum.ChecksumSHA1, meta["x-amz-checksum-sha1"])
 		cmpChecksum(s.Checksum.ChecksumCRC32, meta["x-amz-checksum-crc32"])
 		cmpChecksum(s.Checksum.ChecksumCRC32C, meta["x-amz-checksum-crc32c"])
+		cmpChecksum(s.Checksum.ChecksumCRC64NVME, meta["x-amz-checksum-crc64nvme"])
+		if s.Checksum.ChecksumType != "" && s.Checksum.ChecksumType != minio.ChecksumFullObjectMode.String() {
+			logError(testName, function, args, startTime, "", "ChecksumType mismatch in GetObjectAttributes", fmt.Errorf("want %s, got %s", minio.ChecksumFullObjectMode.String(), s.Checksum.ChecksumType))
+			return
+		}
 
 		delete(args, "range")
 		delete(args, "metadata")
@@ -2644,6 +2649,25 @@ func testPutMultipartObjectWithChecksums() {
 			cmpChecksum(s.Checksum.ChecksumSHA1, wantChksm)
 		case minio.ChecksumSHA256:
 			cmpChecksum(s.Checksum.ChecksumSHA256, wantChksm)
+		case minio.ChecksumCRC64NVME:
+			cmpChecksum(s.Checksum.ChecksumCRC64NVME, wantChksm)
+		}
+
+		if s.Checksum.ChecksumType != "" {
+			var wantType string
+			if test.cs.FullObjectRequested() {
+				wantType = minio.ChecksumFullObjectMode.String()
+			} else {
+				wantType = minio.ChecksumCompositeMode.String()
+			}
+			cmpChecksum(s.Checksum.ChecksumType, wantType)
+		}
+
+		for _, part := range s.ObjectParts.Parts {
+			if test.cs == minio.ChecksumCRC64NVME && part.ChecksumCRC64NVME == "" {
+				logError(testName, function, args, startTime, "", "Part missing CRC64NVME checksum in GetObjectAttributes", fmt.Errorf("part %d", part.PartNumber))
+				return
+			}
 		}
 
 		// Read the data back
@@ -3475,6 +3499,8 @@ func validateObjectAttributeRequest(OA *minio.ObjectAttributes, opts *minio.Obje
 			checksumFound = true
 		} else if v.ChecksumCRC32C != "" {
 			checksumFound = true
+		} else if v.ChecksumCRC64NVME != "" {
+			checksumFound = true
 		}
 		if !checksumFound {
 			partsMissingChecksum = true
@@ -3497,6 +3523,7 @@ func validateObjectAttributeRequest(OA *minio.ObjectAttributes, opts *minio.Obje
 
 	hasFullObjectChecksum := (OA.Checksum.ChecksumCRC32 != "" ||
 		OA.Checksum.ChecksumCRC32C != "" ||
+		OA.Checksum.ChecksumCRC64NVME != "" ||
 		OA.Checksum.ChecksumSHA1 != "" ||
 		OA.Checksum.ChecksumSHA256 != "")
 
