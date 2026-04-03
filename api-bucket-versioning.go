@@ -91,6 +91,9 @@ type BucketVersioningConfiguration struct {
 	ExcludedPrefixes []ExcludedPrefix `xml:",omitempty"`
 	ExcludeFolders   bool             `xml:",omitempty"`
 	PurgeOnDelete    string           `xml:",omitempty"`
+	// MinIO extension - enables object locking on the bucket when set to true.
+	// Requires versioning to be enabled.
+	ObjectLocking bool `xml:",omitempty"`
 }
 
 // Various supported states
