@@ -309,6 +309,21 @@ func ToObjectInfo(bucketName, objectName string, h http.Header) (ObjectInfo, err
 			Region:     h.Get("x-amz-bucket-region"),
 		}
 	}
+	mtimeStr := h.Get("X-Minio-Source-Mtime")
+	if mtimeStr != "" {
+		mtime, err = time.Parse(time.RFC3339Nano, mtimeStr)
+		if err != nil {
+			return ObjectInfo{}, ErrorResponse{
+				Code:       InternalError,
+				Message:    fmt.Sprintf("X-Minio-Source-Mtime is not in supported format: %v", err),
+				BucketName: bucketName,
+				Key:        objectName,
+				RequestID:  h.Get("x-amz-request-id"),
+				HostID:     h.Get("x-amz-id-2"),
+				Region:     h.Get("x-amz-bucket-region"),
+			}
+		}
+	}
 
 	// Fetch content type if any present.
 	contentType := strings.TrimSpace(h.Get("Content-Type"))
