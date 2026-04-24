@@ -88,12 +88,17 @@ type ObjectAttributesResponse struct {
 	ETag         string `xml:",omitempty"`
 	StorageClass string
 	ObjectSize   int
-	Checksum     struct {
+	Checksum struct {
 		ChecksumCRC32     string `xml:",omitempty"`
 		ChecksumCRC32C    string `xml:",omitempty"`
 		ChecksumCRC64NVME string `xml:",omitempty"`
 		ChecksumSHA1      string `xml:",omitempty"`
 		ChecksumSHA256    string `xml:",omitempty"`
+		ChecksumMD5       string `xml:",omitempty"`
+		ChecksumSHA512    string `xml:",omitempty"`
+		ChecksumXXHash64  string `xml:"ChecksumXXHASH64,omitempty"`
+		ChecksumXXHash3   string `xml:"ChecksumXXHASH3,omitempty"`
+		ChecksumXXHash128 string `xml:"ChecksumXXHASH128,omitempty"`
 		ChecksumType      string `xml:",omitempty"`
 	}
 	ObjectParts struct {
@@ -113,6 +118,11 @@ type ObjectAttributePart struct {
 	ChecksumCRC64NVME string `xml:",omitempty"`
 	ChecksumSHA1      string `xml:",omitempty"`
 	ChecksumSHA256    string `xml:",omitempty"`
+	ChecksumMD5       string `xml:",omitempty"`
+	ChecksumSHA512    string `xml:",omitempty"`
+	ChecksumXXHash64  string `xml:"ChecksumXXHASH64,omitempty"`
+	ChecksumXXHash3   string `xml:"ChecksumXXHASH3,omitempty"`
+	ChecksumXXHash128 string `xml:"ChecksumXXHASH128,omitempty"`
 	PartNumber        int
 	Size              int
 }
@@ -130,6 +140,11 @@ func (o *ObjectAttributesResponse) ChecksumMap() map[string]string {
 	setif(ChecksumCRC64NVME, o.Checksum.ChecksumCRC64NVME)
 	setif(ChecksumSHA1, o.Checksum.ChecksumSHA1)
 	setif(ChecksumSHA256, o.Checksum.ChecksumSHA256)
+	setif(ChecksumMD5, o.Checksum.ChecksumMD5)
+	setif(ChecksumSHA512, o.Checksum.ChecksumSHA512)
+	setif(ChecksumXXHash64, o.Checksum.ChecksumXXHash64)
+	setif(ChecksumXXHash3, o.Checksum.ChecksumXXHash3)
+	setif(ChecksumXXHash128, o.Checksum.ChecksumXXHash128)
 	return res
 }
 
@@ -173,6 +188,11 @@ func (o *ObjectAttributesResponse) ChecksumType() ChecksumType {
 	setif(ChecksumCRC64NVME, o.Checksum.ChecksumCRC64NVME)
 	setif(ChecksumSHA1, o.Checksum.ChecksumSHA1)
 	setif(ChecksumSHA256, o.Checksum.ChecksumSHA256)
+	setif(ChecksumMD5, o.Checksum.ChecksumMD5)
+	setif(ChecksumSHA512, o.Checksum.ChecksumSHA512)
+	setif(ChecksumXXHash64, o.Checksum.ChecksumXXHash64)
+	setif(ChecksumXXHash3, o.Checksum.ChecksumXXHash3)
+	setif(ChecksumXXHash128, o.Checksum.ChecksumXXHash128)
 	if t.IsSet() && o.Checksum.ChecksumType == amzChecksumModeFullObject {
 		t |= ChecksumFullObject
 	}
