@@ -32,7 +32,7 @@ import (
 	"sort"
 	"strings"
 
-	xxhash "github.com/cespare/xxhash/v2"
+	"github.com/cespare/xxhash/v2"
 	"github.com/klauspost/crc32"
 	"github.com/minio/crc64nvme"
 	"github.com/zeebo/xxh3"
@@ -220,7 +220,9 @@ func (c ChecksumType) RawByteLen() int {
 		return sha1.Size
 	case ChecksumSHA256:
 		return sha256.Size
-	case ChecksumCRC64NVME, ChecksumXXHash64, ChecksumXXHash3:
+	case ChecksumCRC64NVME:
+		return crc64nvme.Size
+	case ChecksumXXHash64, ChecksumXXHash3:
 		return 8
 	case ChecksumMD5:
 		return md5.Size
@@ -285,7 +287,6 @@ func (c ChecksumType) EncodeToString(b []byte) string {
 }
 
 // String returns the type as a string.
-// CRC32, CRC32C, SHA1, and SHA256 for valid values.
 // Empty string for unset and "<invalid>" if not valid.
 func (c ChecksumType) String() string {
 	switch c & checksumMask {

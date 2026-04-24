@@ -305,9 +305,9 @@ type ObjectPart struct {
 	ChecksumCRC64NVME string
 	ChecksumMD5       string
 	ChecksumSHA512    string
-	ChecksumXXHash64  string
-	ChecksumXXHash3   string
-	ChecksumXXHash128 string
+	ChecksumXXHash64  string `xml:"ChecksumXXHASH64,omitempty"`
+	ChecksumXXHash3   string `xml:"ChecksumXXHASH3,omitempty"`
+	ChecksumXXHash128 string `xml:"ChecksumXXHASH128,omitempty"`
 }
 
 // Checksum will return the checksum for the given type.

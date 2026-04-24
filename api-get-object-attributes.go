@@ -88,7 +88,7 @@ type ObjectAttributesResponse struct {
 	ETag         string `xml:",omitempty"`
 	StorageClass string
 	ObjectSize   int
-	Checksum struct {
+	Checksum     struct {
 		ChecksumCRC32     string `xml:",omitempty"`
 		ChecksumCRC32C    string `xml:",omitempty"`
 		ChecksumCRC64NVME string `xml:",omitempty"`
