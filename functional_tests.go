@@ -73,7 +73,24 @@ const (
 	enableKMS          = "ENABLE_KMS"
 	appVersion         = "0.1.0"
 	skipCERTValidation = "SKIP_CERT_VALIDATION"
+
+	// TODO: remove when server supports the 2026 checksum types.
+	ignore2026Checksums = true
 )
+
+func ignore2026ChecksumError(cs minio.ChecksumType, err error) bool {
+	if !ignore2026Checksums {
+		return false
+	}
+	switch cs.Base() {
+	case minio.ChecksumMD5, minio.ChecksumSHA512,
+		minio.ChecksumXXHash64, minio.ChecksumXXHash3, minio.ChecksumXXHash128:
+	default:
+		return false
+	}
+	var er minio.ErrorResponse
+	return errors.As(err, &er) && er.Code == "InvalidArgument"
+}
 
 func createHTTPTransport() (transport *http.Transport) {
 	var err error
@@ -2165,6 +2182,10 @@ func testPutObjectWithChecksums() {
 			UserMetadata:         meta,
 		})
 		if err != nil {
+			if ignore2026ChecksumError(test.cs, err) {
+				logIgnored(testName, function, args, startTime, "server does not support "+test.cs.String())
+				continue
+			}
 			logError(testName, function, args, startTime, "", "PutObject failed", err)
 			return
 		}
@@ -2354,6 +2375,10 @@ func testPutObjectWithTrailingChecksums() {
 			Checksum:             test.cs,
 		})
 		if err != nil {
+			if ignore2026ChecksumError(test.cs, err) {
+				logIgnored(testName, function, args, startTime, "server does not support "+test.cs.String())
+				continue
+			}
 			logError(testName, function, args, startTime, "", "PutObject failed", err)
 			return
 		}
@@ -2607,6 +2632,10 @@ func testPutMultipartObjectWithChecksums() {
 			Checksum:             cs,
 		})
 		if err != nil {
+			if ignore2026ChecksumError(test.cs, err) {
+				logIgnored(testName, function, args, startTime, "server does not support "+test.cs.String())
+				continue
+			}
 			logError(testName, function, args, startTime, "", "PutObject failed", err)
 			return
 		}
