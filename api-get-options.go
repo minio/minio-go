@@ -48,6 +48,14 @@ type GetObjectOptions struct {
 	// https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	Checksum bool
 
+	// ParallelChunkSize is the byte size of each range-GET request when using
+	// parallel download. Defaults to minPartSize if zero.
+	ParallelChunkSize int64
+
+	// ParallelWorkers controls the number of concurrent range-GET workers.
+	// Set to > 1 to enable parallel download.
+	ParallelWorkers int
+
 	// To be not used by external applications
 	Internal AdvancedGetOptions
 }
