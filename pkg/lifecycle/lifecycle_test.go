@@ -505,3 +505,69 @@ func TestAllVersionsExpiration(t *testing.T) {
 		t.Fatalf("Expected %s but got %s", expected, got)
 	}
 }
+
+// TestLifecycleMarshalXML for cases where XML output needs to be wellformed
+func TestLifecycleMarshalXML(t *testing.T) {
+	testCases := []struct {
+		testDescription string
+		input           Configuration
+		expectedXMLOut  string
+	}{
+		{
+			testDescription: "Ensure Prefix is missing if Filter is missing - in order to support server implementations that ignore Prefix if Filter is present",
+			input: Configuration{
+				Rules: []Rule{
+					{
+						ID:                             "expire-incomplete-uploads-1",
+						Status:                         "Enabled",
+						Prefix:                         "my_dir",
+						AbortIncompleteMultipartUpload: AbortIncompleteMultipartUpload{DaysAfterInitiation: 1},
+					},
+				},
+			},
+			expectedXMLOut: "<LifecycleConfiguration><Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload><ID>expire-incomplete-uploads-1</ID><Prefix>my_dir</Prefix><Status>Enabled</Status></Rule></LifecycleConfiguration>",
+		},
+		{
+			testDescription: "Ensure we always export Filter or Prefix. Specification explicitly mentions: 'Filter is required if the LifecycleRule does not contain a Prefix element.' (https://docs.aws.amazon.com/AmazonS3/latest/API/API_LifecycleRule.html)",
+			input: Configuration{
+				Rules: []Rule{
+					{
+
+						ID:     "expire-incomplete-uploads-2",
+						Status: "Enabled",
+						RuleFilter: Filter{
+							Prefix: "",
+						},
+						AbortIncompleteMultipartUpload: AbortIncompleteMultipartUpload{DaysAfterInitiation: 1},
+					},
+				},
+			},
+			expectedXMLOut: "<LifecycleConfiguration><Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload><ID>expire-incomplete-uploads-2</ID><Filter><Prefix></Prefix></Filter><Status>Enabled</Status></Rule></LifecycleConfiguration>",
+		},
+		{
+			testDescription: "Ensure we always export Filter or Prefix. Specification explicitly mentions: 'Filter is required if the LifecycleRule does not contain a Prefix element.' (https://docs.aws.amazon.com/AmazonS3/latest/API/API_LifecycleRule.html)",
+			input: Configuration{
+				Rules: []Rule{
+					{
+
+						ID:                             "expire-incomplete-uploads-3",
+						Status:                         "Enabled",
+						Prefix:                         "",
+						AbortIncompleteMultipartUpload: AbortIncompleteMultipartUpload{DaysAfterInitiation: 1},
+					},
+				},
+			},
+			expectedXMLOut: "<LifecycleConfiguration><Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload><ID>expire-incomplete-uploads-3</ID><Filter><Prefix></Prefix></Filter><Status>Enabled</Status></Rule></LifecycleConfiguration>",
+		},
+	}
+
+	for i, tc := range testCases {
+		bytes, err := xml.Marshal(tc.input)
+		if err != nil {
+			t.Fatalf("%d: could not marshal the Configuration: %#v, %v", i+1, tc.input, err)
+		}
+		if string(bytes) != tc.expectedXMLOut {
+			t.Fatalf("test: %s failed\nexpected: %s\ngot:      %s", tc.testDescription, tc.expectedXMLOut, string(bytes))
+		}
+	}
+}

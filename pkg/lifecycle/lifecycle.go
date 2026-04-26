@@ -267,10 +267,6 @@ func (f Filter) MarshalJSON() ([]byte, error) {
 // MarshalXML - produces the xml representation of the Filter struct
 // only one of Prefix, And and Tag should be present in the output.
 func (f Filter) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
-	if f.IsNull() {
-		return nil
-	}
-
 	if err := e.EncodeToken(start); err != nil {
 		return err
 	}
@@ -506,6 +502,50 @@ func (r Rule) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(newr)
+}
+
+// MarshalXML customizes marshal XML and ensures that <Filter/> is present if Prefix is empty.
+func (r Rule) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	// If both Filter and Prefix are empty, we need to emit an empty <Filter/> element.
+	if r.RuleFilter.IsNull() {
+		type ruleWrapper struct {
+			XMLName                        xml.Name                       `xml:"Rule,omitempty"`
+			AbortIncompleteMultipartUpload AbortIncompleteMultipartUpload `xml:"AbortIncompleteMultipartUpload,omitempty"`
+			Expiration                     Expiration                     `xml:"Expiration,omitempty"`
+			DelMarkerExpiration            DelMarkerExpiration            `xml:"DelMarkerExpiration,omitempty"`
+			AllVersionsExpiration          AllVersionsExpiration          `xml:"AllVersionsExpiration,omitempty"`
+			ID                             string                         `xml:"ID"`
+			RuleFilter                     *Filter                        `xml:"Filter,omitempty"`
+			NoncurrentVersionExpiration    NoncurrentVersionExpiration    `xml:"NoncurrentVersionExpiration,omitempty"`
+			NoncurrentVersionTransition    NoncurrentVersionTransition    `xml:"NoncurrentVersionTransition,omitempty"`
+			Prefix                         string                         `xml:"Prefix,omitempty"`
+			Status                         string                         `xml:"Status"`
+			Transition                     Transition                     `xml:"Transition,omitempty"`
+		}
+
+		w := ruleWrapper{
+			AbortIncompleteMultipartUpload: r.AbortIncompleteMultipartUpload,
+			Expiration:                     r.Expiration,
+			DelMarkerExpiration:            r.DelMarkerExpiration,
+			AllVersionsExpiration:          r.AllVersionsExpiration,
+			ID:                             r.ID,
+			NoncurrentVersionExpiration:    r.NoncurrentVersionExpiration,
+			NoncurrentVersionTransition:    r.NoncurrentVersionTransition,
+			Prefix:                         r.Prefix,
+			Status:                         r.Status,
+			Transition:                     r.Transition,
+		}
+		if r.Prefix == "" {
+			// will be explicitly marshaled as empty <Filter/>
+			w.RuleFilter = &r.RuleFilter
+		}
+
+		return e.EncodeElement(w, start)
+	}
+
+	// Default XML marshal for Rule (uses struct tags as defined).
+	type ruleAlias Rule
+	return e.EncodeElement(ruleAlias(r), start)
 }
 
 // Rule represents a single rule in lifecycle configuration
