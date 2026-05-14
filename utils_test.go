@@ -546,62 +546,75 @@ func TestExtractObjMetadata(t *testing.T) {
 }
 
 func TestAmzRestoreToStruct(t *testing.T) {
-    tests := []struct {
-        name       string
-        input      string
-        wantOng    bool
-        wantExpiry bool
-        wantErr    bool
-    }{
-        {
-            name:       "ongoing true without expiry",
-            input:      `ongoing-request="true"`,
-            wantOng:    true,
-            wantExpiry: false,
-            wantErr:    false,
-        },
-        {
-            name:       "ongoing false with expiry",
-            input:      `ongoing-request="false", expiry-date="Wed, 21 Oct 2015 07:28:00 GMT"`,
-            wantOng:    false,
-            wantExpiry: true,
-            wantErr:    false,
-        },
-        {
-            name:       "no space after comma",
-            input:      `ongoing-request="false",expiry-date="Wed, 21 Oct 2015 07:28:00 GMT"`,
-            wantOng:    false,
-            wantExpiry: true,
-            wantErr:    false,
-        },
-        {
-            name:    "invalid header",
-            input:   `invalid-format`,
-            wantErr: true,
-        },
-    }
+	tests := []struct {
+		name           string
+		input          string
+		wantOng        bool
+		wantExpiry     bool
+		expectedExpiry string
+		wantErr        bool
+	}{
+		{
+			name:       "ongoing true without expiry",
+			input:      `ongoing-request="true"`,
+			wantOng:    true,
+			wantExpiry: false,
+			wantErr:    false,
+		},
+		{
+			name:           "ongoing false with expiry",
+			input:          `ongoing-request="false", expiry-date="Wed, 21 Oct 2015 07:28:00 GMT"`,
+			wantOng:        false,
+			wantExpiry:     true,
+			expectedExpiry: "Wed, 21 Oct 2015 07:28:00 GMT",
+			wantErr:        false,
+		},
+		{
+			name:           "no space after comma",
+			input:          `ongoing-request="false",expiry-date="Wed, 21 Oct 2015 07:28:00 GMT"`,
+			wantOng:        false,
+			wantExpiry:     true,
+			expectedExpiry: "Wed, 21 Oct 2015 07:28:00 GMT",
+			wantErr:        false,
+		},
+		{
+			name:    "invalid header",
+			input:   `invalid-format`,
+			wantErr: true,
+		},
+	}
 
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            ong, expTime, err := amzRestoreToStruct(tt.input)
-            if tt.wantErr {
-                if err == nil {
-                    t.Fatalf("expected error, got nil")
-                }
-                return
-            }
-            if err != nil {
-                t.Fatalf("unexpected error: %v", err)
-            }
-            if ong != tt.wantOng {
-                t.Errorf("ongoing: got %v, want %v", ong, tt.wantOng)
-            }
-            if tt.wantExpiry && expTime.IsZero() {
-                t.Errorf("expected expiry time, got zero")
-            }
-            if !tt.wantExpiry && !expTime.IsZero() {
-                t.Errorf("did not expect expiry time, got %v", expTime)
-            }
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ong, expTime, err := amzRestoreToStruct(tt.input)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if ong != tt.wantOng {
+				t.Errorf("ongoing: got %v, want %v", ong, tt.wantOng)
+			}
+			if tt.wantExpiry {
+				if expTime.IsZero() {
+					t.Errorf("expected expiry time, got zero")
+				} else {
+					// verify parsed expiry matches expected RFC7231 time
+					expected, perr := parseRFC7231Time(tt.expectedExpiry)
+					if perr != nil {
+						t.Fatalf("failed to parse expected expiry: %v", perr)
+					}
+					if !expTime.Equal(expected) {
+						t.Errorf("expiry time mismatch: got %v, want %v", expTime, expected)
+					}
+				}
+			} else if !expTime.IsZero() {
+				t.Errorf("did not expect expiry time, got %v", expTime)
+			}
         })
     }
 }
