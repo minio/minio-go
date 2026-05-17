@@ -542,9 +542,9 @@ func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 		return 0, o.prevErr
 	}
 
-	// Negative offset is valid for whence of '2'.
-	if offset < 0 && whence != 2 {
-		return 0, errInvalidArgument(fmt.Sprintf("Negative position not allowed for %d", whence))
+	// Negative absolute offsets are invalid for SeekStart.
+	if offset < 0 && whence == 0 {
+		return 0, errInvalidArgument("Negative position not allowed for 0")
 	}
 
 	// This is the first request. So before anything else
@@ -572,12 +572,12 @@ func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 	default:
 		return 0, errInvalidArgument(fmt.Sprintf("Invalid whence %d", whence))
 	case 0:
-		if o.objectInfo.Size > -1 && offset > o.objectInfo.Size {
+		if o.objectInfo.Size > -1 && offset >= o.objectInfo.Size {
 			return 0, io.EOF
 		}
 		newOffset = offset
 	case 1:
-		if o.objectInfo.Size > -1 && o.currOffset+offset > o.objectInfo.Size {
+		if o.objectInfo.Size > -1 && o.currOffset+offset >= o.objectInfo.Size {
 			return 0, io.EOF
 		}
 		newOffset += offset
@@ -597,6 +597,9 @@ func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 			return 0, errInvalidArgument(fmt.Sprintf("Seeking at negative offset not allowed for %d", whence))
 		}
 		newOffset = o.objectInfo.Size + offset
+	}
+	if newOffset < 0 {
+		return 0, errInvalidArgument(fmt.Sprintf("Seeking at negative offset not allowed for %d", whence))
 	}
 	// Reset the saved error since we successfully seeked, let the Read
 	// and ReadAt decide.
