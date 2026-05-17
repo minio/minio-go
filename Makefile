@@ -8,7 +8,6 @@ all: checks
 checks: lint test examples functional-test
 
 lint:
-	@mkdir -p ${GOPATH}/bin
 	@echo "Running $@ check"
 	go tool golangci-lint run
 
