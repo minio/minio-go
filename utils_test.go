@@ -126,6 +126,8 @@ func TestGetEndpointURL(t *testing.T) {
 		{"[::1]:443", true, "https://[::1]:443", nil, true},
 		{"[::1]:9000", false, "http://[::1]:9000", nil, true},
 		{"[::1]:9000", true, "https://[::1]:9000", nil, true},
+		{"https://ceph.example.com:6781", true, "https://ceph.example.com:6781", nil, true},
+		{"http://127.0.0.1:9000", false, "http://127.0.0.1:9000", nil, true},
 		{"13333.123123.-", true, "", errInvalidArgument(fmt.Sprintf("Endpoint: %s does not follow ip address or domain name standards.", "13333.123123.-")), false},
 		{"13333.123123.-", true, "", errInvalidArgument(fmt.Sprintf("Endpoint: %s does not follow ip address or domain name standards.", "13333.123123.-")), false},
 		{"s3.aamzza.-", true, "", errInvalidArgument(fmt.Sprintf("Endpoint: %s does not follow ip address or domain name standards.", "s3.aamzza.-")), false},
