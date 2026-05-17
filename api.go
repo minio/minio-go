@@ -642,6 +642,7 @@ func (c *Client) do(req *http.Request) (resp *http.Response, err error) {
 // List of success status.
 var successStatus = set.CreateIntSet(
 	http.StatusOK,
+	http.StatusAccepted,
 	http.StatusNoContent,
 	http.StatusPartialContent,
 )
