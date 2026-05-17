@@ -572,12 +572,12 @@ func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 	default:
 		return 0, errInvalidArgument(fmt.Sprintf("Invalid whence %d", whence))
 	case 0:
-		if o.objectInfo.Size > -1 && offset > o.objectInfo.Size {
+		if o.objectInfo.Size > -1 && offset >= o.objectInfo.Size {
 			return 0, io.EOF
 		}
 		newOffset = offset
 	case 1:
-		if o.objectInfo.Size > -1 && o.currOffset+offset > o.objectInfo.Size {
+		if o.objectInfo.Size > -1 && o.currOffset+offset >= o.objectInfo.Size {
 			return 0, io.EOF
 		}
 		newOffset += offset

@@ -23,6 +23,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 )
 
@@ -144,5 +145,25 @@ func TestGetObjectReturnErrorIfServerSendsMore(t *testing.T) {
 	// We expect an error when reading back.
 	if _, err = io.ReadAll(obj); err != io.ErrUnexpectedEOF {
 		t.Fatalf("Expected %v, got %v", io.ErrUnexpectedEOF, err)
+	}
+}
+
+func TestObjectSeekAtObjectSizeReturnsEOF(t *testing.T) {
+	o := &Object{
+		mutex:         &sync.Mutex{},
+		objectInfo:    ObjectInfo{Size: 10},
+		objectInfoSet: true,
+		isStarted:     true,
+	}
+
+	_, err := o.Seek(10, io.SeekStart)
+	if err != io.EOF {
+		t.Fatalf("expected io.EOF when seeking to object size, got %v", err)
+	}
+
+	o.currOffset = 9
+	_, err = o.Seek(1, io.SeekCurrent)
+	if err != io.EOF {
+		t.Fatalf("expected io.EOF when seeking past object size, got %v", err)
 	}
 }
