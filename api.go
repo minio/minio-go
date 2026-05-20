@@ -46,8 +46,15 @@ import (
 	"github.com/minio/minio-go/v7/pkg/set"
 	"github.com/minio/minio-go/v7/pkg/signer"
 	"github.com/minio/minio-go/v7/pkg/singleflight"
+	"github.com/minio/minio-go/v7/pkg/protocolswitchingclient"
 	"golang.org/x/net/publicsuffix"
 )
+
+var enableHttp3 bool
+
+func Init(){
+	enableHttp3 = strings.EqualFold(os.Getenv("ENABLE_HTTP3_CLIENT"),"true")
+}
 
 // Client implements Amazon S3 compatible methods.
 type Client struct {
@@ -72,7 +79,7 @@ type Client struct {
 	secure bool
 
 	// Needs allocation.
-	httpClient         *http.Client
+	dynamicClient      *protocolswitchingclient.DynamicClient
 	httpTrace          *httptrace.ClientTrace
 	bucketLocCache     *kvcache.Cache[string, string]
 	bucketSessionCache *kvcache.Cache[string, credentials.Value]
@@ -272,14 +279,17 @@ func privateNew(endpoint string, opts *Options) (*Client, error) {
 
 	clnt.httpTrace = opts.Trace
 
-	// Instantiate http client and bucket location cache.
-	clnt.httpClient = &http.Client{
-		Jar:       jar,
-		Transport: transport,
-		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
+	state := protocolswitchingclient.StateHttp
+	CheckRedirect := func(_ *http.Request, _ []*http.Request) error {
+		return http.ErrUseLastResponse
 	}
+
+	//Only enable possible http3 when connecting to https client, and env ENABLE_HTTP3_CLIENT=true
+	if endpointURL.Scheme == "https" && enableHttp3{
+		state = protocolswitchingclient.StateHttp3
+	}
+
+	clnt.dynamicClient = protocolswitchingclient.NewDynamicClient(transport, jar, CheckRedirect, protocolswitchingclient.HttpState(state), time.Second*40)
 
 	// Sets custom region, if region is empty bucket location cache is used automatically.
 	if opts.Region == "" {
@@ -606,7 +616,7 @@ func (c *Client) do(req *http.Request) (resp *http.Response, err error) {
 		}
 	}()
 
-	resp, err = c.httpClient.Do(req)
+	resp, err = c.dynamicClient.Do(req)
 	if err != nil {
 		// Handle this specifically for now until future Golang versions fix this issue properly.
 		if urlErr, ok := err.(*url.Error); ok {
@@ -1132,7 +1142,7 @@ func (c *Client) isVirtualHostStyleRequest(url url.URL, bucketName string) bool 
 
 // CredContext returns the context for fetching credentials
 func (c *Client) CredContext() *credentials.CredContext {
-	httpClient := c.httpClient
+	httpClient := c.dynamicClient.GetHttpClient()
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}

@@ -11,6 +11,7 @@ require (
 	github.com/klauspost/crc32 v1.3.0
 	github.com/minio/crc64nvme v1.1.1
 	github.com/minio/md5-simd v1.1.2
+	github.com/quic-go/quic-go v0.59.1
 	github.com/rs/xid v1.6.0
 	github.com/tinylib/msgp v1.6.1
 	github.com/zeebo/xxh3 v1.1.0
@@ -21,8 +22,9 @@ require (
 
 require (
 	github.com/klauspost/cpuid/v2 v2.2.11 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
-	github.com/stretchr/testify v1.9.0 // indirect
+	github.com/quic-go/qpack v0.6.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
 )
