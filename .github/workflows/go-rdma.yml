@@ -1,0 +1,73 @@
+name: Build (RDMA)
+
+on:
+  pull_request:
+    branches:
+    - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build with -tags=rdma against minio-cpp (${{ matrix.config.arch }})
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - { os: ubuntu-latest,    arch: "amd64" }
+        - { os: ubuntu-24.04-arm, arch: "arm64" }
+
+    steps:
+    - name: Checkout minio-go
+      uses: actions/checkout@v4
+      with:
+        path: "minio-go"
+
+    - name: Checkout minio-cpp
+      uses: actions/checkout@v4
+      with:
+        repository: minio/minio-cpp
+        path: "minio-cpp"
+
+    - name: Checkout vcpkg
+      uses: actions/checkout@v4
+      with:
+        repository: microsoft/vcpkg
+        path: "vcpkg"
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get -qy update
+        sudo apt-get -qy install cmake libibverbs-dev librdmacm-dev libnuma-dev
+
+    - name: Build and install libminiocpp.so with RDMA
+      shell: bash
+      run: |
+        ./vcpkg/bootstrap-vcpkg.sh
+        cd minio-cpp
+        ../vcpkg/vcpkg install
+        cmake . -B ./build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_SHARED_LIBS=ON \
+          -DCMAKE_INSTALL_PREFIX=/usr/local \
+          -DCMAKE_TOOLCHAIN_FILE=../vcpkg/scripts/buildsystems/vcpkg.cmake \
+          -DMINIO_CPP_ENABLE_RDMA:BOOL=ON
+        cmake --build ./build --config Release -j 4
+        sudo cmake --install ./build
+        cuobj_arch=$([ "${{ matrix.config.arch }}" = "amd64" ] && echo x86_64 || echo aarch64)
+        sudo cp -P vendor/cuobj/lib/${cuobj_arch}/* /usr/local/lib/
+        sudo ldconfig
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: "1.25.x"
+
+    - name: Build minio-go with -tags=rdma
+      working-directory: minio-go
+      run: |
+        go build -tags=rdma ./...
+        go build -tags=rdma -o /tmp/rdma-test ./cmd/rdma-test
