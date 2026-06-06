@@ -79,7 +79,7 @@ func (p *FileAWSCredentials) retrieve() (Value, error) {
 			if err != nil {
 				return Value{}, err
 			}
-			p.Filename = filepath.Join(homeDir, ".aws", "credentials")
+			p.Filename = filepath.Join(homeDir, ".aws", "config")
 		}
 	}
 	if p.Profile == "" {
@@ -108,7 +108,7 @@ func (p *FileAWSCredentials) retrieve() (Value, error) {
 	credentialProcess := strings.TrimSpace(iniProfile.Key("credential_process").String())
 	if credentialProcess != "" {
 		args := strings.Fields(credentialProcess)
-		if len(args) <= 1 {
+		if len(args) == 0 {
 			return Value{}, errors.New("invalid credential process args")
 		}
 		cmd := exec.Command(args[0], args[1:]...)
