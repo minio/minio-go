@@ -371,6 +371,10 @@ func (o *Object) Read(b []byte) (n int, err error) {
 	if o.prevErr != nil || o.isClosed {
 		return 0, o.prevErr
 	}
+	if o.objectInfoSet && o.objectInfo.Size > -1 && o.currOffset >= o.objectInfo.Size {
+		o.prevErr = io.EOF
+		return 0, io.EOF
+	}
 
 	// Create a new request.
 	readReq := getRequest{
@@ -572,25 +576,13 @@ func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 	default:
 		return 0, errInvalidArgument(fmt.Sprintf("Invalid whence %d", whence))
 	case 0:
-		if o.objectInfo.Size > -1 && offset >= o.objectInfo.Size {
-			return 0, io.EOF
-		}
 		newOffset = offset
 	case 1:
-		if o.objectInfo.Size > -1 && o.currOffset+offset >= o.objectInfo.Size {
-			return 0, io.EOF
-		}
 		newOffset += offset
 	case 2:
 		// If we don't know the object size return an error for io.SeekEnd
 		if o.objectInfo.Size < 0 {
 			return 0, errInvalidArgument("Whence END is not supported when the object size is unknown")
-		}
-		// Seeking to positive offset is valid for whence '2', but
-		// since we are backing a Reader we have reached 'EOF' if
-		// offset is positive.
-		if offset > 0 {
-			return 0, io.EOF
 		}
 		// Seeking to negative position not allowed for whence.
 		if o.objectInfo.Size+offset < 0 {

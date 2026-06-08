@@ -148,7 +148,7 @@ func TestGetObjectReturnErrorIfServerSendsMore(t *testing.T) {
 	}
 }
 
-func TestObjectSeekAtObjectSizeReturnsEOF(t *testing.T) {
+func TestObjectSeekAtObjectSizeAllowsSubsequentReadEOF(t *testing.T) {
 	o := &Object{
 		mutex:         &sync.Mutex{},
 		objectInfo:    ObjectInfo{Size: 10},
@@ -156,15 +156,40 @@ func TestObjectSeekAtObjectSizeReturnsEOF(t *testing.T) {
 		isStarted:     true,
 	}
 
-	_, err := o.Seek(10, io.SeekStart)
-	if err != io.EOF {
-		t.Fatalf("expected io.EOF when seeking to object size, got %v", err)
+	n, err := o.Seek(10, io.SeekStart)
+	if err != nil {
+		t.Fatalf("expected seeking to object size to succeed, got %v", err)
+	}
+	if n != 10 {
+		t.Fatalf("expected offset 10, got %d", n)
+	}
+	if _, err = o.Read(make([]byte, 1)); err != io.EOF {
+		t.Fatalf("expected read at object size to return io.EOF, got %v", err)
 	}
 
+	o.prevErr = nil
 	o.currOffset = 9
-	_, err = o.Seek(1, io.SeekCurrent)
-	if err != io.EOF {
-		t.Fatalf("expected io.EOF when seeking past object size, got %v", err)
+	n, err = o.Seek(1, io.SeekCurrent)
+	if err != nil {
+		t.Fatalf("expected seeking current to object size to succeed, got %v", err)
+	}
+	if n != 10 {
+		t.Fatalf("expected offset 10, got %d", n)
+	}
+	if _, err = o.Read(make([]byte, 1)); err != io.EOF {
+		t.Fatalf("expected read at object size to return io.EOF, got %v", err)
+	}
+
+	o.prevErr = nil
+	n, err = o.Seek(0, io.SeekEnd)
+	if err != nil {
+		t.Fatalf("expected seeking to object end to succeed, got %v", err)
+	}
+	if n != 10 {
+		t.Fatalf("expected offset 10, got %d", n)
+	}
+	if _, err = o.Read(make([]byte, 1)); err != io.EOF {
+		t.Fatalf("expected read at object end to return io.EOF, got %v", err)
 	}
 }
 
