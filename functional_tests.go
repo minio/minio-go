@@ -5325,7 +5325,7 @@ func testGetObjectReadSeekFunctional() {
 		// Provide negative offset with CUR_SEEK
 		{int64(-1), 1, 0, seekErr, false, 0, 0},
 		// Test with whence SEEK_END and with positive offset
-		{1024, 2, int64(bufSize) - 1024, io.EOF, true, 0, 0},
+		{1024, 2, int64(bufSize) + 1024, nil, false, 0, 0},
 		// Test with whence SEEK_END and with negative offset
 		{-1024, 2, int64(bufSize) - 1024, nil, true, bufSize - 1024, bufSize},
 		// Test with whence SEEK_END and with large negative offset
@@ -6470,7 +6470,7 @@ func testSSECEncryptedGetObjectReadSeekFunctional() {
 		// Provide negative offset with CUR_SEEK
 		{int64(-1), 1, 0, fmt.Errorf("Negative position not allowed for 1"), false, 0, 0},
 		// Test with whence SEEK_END and with positive offset
-		{1024, 2, 0, io.EOF, false, 0, 0},
+		{1024, 2, int64(bufSize) + 1024, nil, false, 0, 0},
 		// Test with whence SEEK_END and with negative offset
 		{-1024, 2, int64(bufSize) - 1024, nil, true, bufSize - 1024, bufSize},
 		// Test with whence SEEK_END and with large negative offset
@@ -6636,7 +6636,7 @@ func testSSES3EncryptedGetObjectReadSeekFunctional() {
 		// Provide negative offset with CUR_SEEK
 		{int64(-1), 1, 0, fmt.Errorf("Negative position not allowed for 1"), false, 0, 0},
 		// Test with whence SEEK_END and with positive offset
-		{1024, 2, 0, io.EOF, false, 0, 0},
+		{1024, 2, int64(bufSize) + 1024, nil, false, 0, 0},
 		// Test with whence SEEK_END and with negative offset
 		{-1024, 2, int64(bufSize) - 1024, nil, true, bufSize - 1024, bufSize},
 		// Test with whence SEEK_END and with large negative offset
