@@ -5315,15 +5315,15 @@ func testGetObjectReadSeekFunctional() {
 		// Start from offset 2048, fetch data and compare
 		{2048, 0, 2048, nil, true, 2048, bufSize},
 		// Start from offset larger than possible
-		{int64(bufSize) + 1024, 0, 0, seekErr, false, 0, 0},
+		{int64(bufSize) + 1024, 0, int64(bufSize) + 1024, nil, false, 0, 0},
 		// Move to offset 0 without comparing
 		{0, 0, 0, nil, false, 0, 0},
 		// Move one step forward and compare
 		{1, 1, 1, nil, true, 1, bufSize},
 		// Move larger than possible
-		{int64(bufSize), 1, 0, seekErr, false, 0, 0},
+		{int64(bufSize), 1, int64(bufSize) * 2, nil, false, 0, 0},
 		// Provide negative offset with CUR_SEEK
-		{int64(-1), 1, 0, seekErr, false, 0, 0},
+		{int64(-1), 1, int64(bufSize)*2 - 1, nil, false, 0, 0},
 		// Test with whence SEEK_END and with positive offset
 		{1024, 2, int64(bufSize) + 1024, nil, false, 0, 0},
 		// Test with whence SEEK_END and with negative offset
@@ -5337,12 +5337,12 @@ func testGetObjectReadSeekFunctional() {
 		n, err := r.Seek(testCase.offset, testCase.whence)
 		// We expect an error
 		if testCase.err == seekErr && err == nil {
-			logError(testName, function, args, startTime, "", "Test "+string(i+1)+", unexpected err value: expected: "+testCase.err.Error()+", found: "+err.Error(), err)
+			logError(testName, function, args, startTime, "", fmt.Sprintf("Test %d, unexpected err value: expected: %v, found: %v", i+1, testCase.err, err), err)
 			return
 		}
 		// We expect a specific error
 		if testCase.err != seekErr && testCase.err != err {
-			logError(testName, function, args, startTime, "", "Test "+string(i+1)+", unexpected err value: expected: "+testCase.err.Error()+", found: "+err.Error(), err)
+			logError(testName, function, args, startTime, "", fmt.Sprintf("Test %d, unexpected err value: expected: %v, found: %v", i+1, testCase.err, err), err)
 			return
 		}
 		// If we expect an error go to the next loop
@@ -5351,7 +5351,7 @@ func testGetObjectReadSeekFunctional() {
 		}
 		// Check the returned seek pos
 		if n != testCase.pos {
-			logError(testName, function, args, startTime, "", "Test "+string(i+1)+", number of bytes seeked does not match, expected "+string(testCase.pos)+", got "+string(n), err)
+			logError(testName, function, args, startTime, "", fmt.Sprintf("Test %d, number of bytes seeked does not match, expected %d, got %d", i+1, testCase.pos, n), err)
 			return
 		}
 		// Compare only if shouldCmp is activated
@@ -6460,15 +6460,15 @@ func testSSECEncryptedGetObjectReadSeekFunctional() {
 		// Start from offset 2048, fetch data and compare
 		{2048, 0, 2048, nil, true, 2048, bufSize},
 		// Start from offset larger than possible
-		{int64(bufSize) + 1024, 0, 0, io.EOF, false, 0, 0},
+		{int64(bufSize) + 1024, 0, int64(bufSize) + 1024, nil, false, 0, 0},
 		// Move to offset 0 without comparing
 		{0, 0, 0, nil, false, 0, 0},
 		// Move one step forward and compare
 		{1, 1, 1, nil, true, 1, bufSize},
 		// Move larger than possible
-		{int64(bufSize), 1, 0, io.EOF, false, 0, 0},
+		{int64(bufSize), 1, int64(bufSize) * 2, nil, false, 0, 0},
 		// Provide negative offset with CUR_SEEK
-		{int64(-1), 1, 0, fmt.Errorf("Negative position not allowed for 1"), false, 0, 0},
+		{int64(-1), 1, int64(bufSize)*2 - 1, nil, false, 0, 0},
 		// Test with whence SEEK_END and with positive offset
 		{1024, 2, int64(bufSize) + 1024, nil, false, 0, 0},
 		// Test with whence SEEK_END and with negative offset
@@ -6626,15 +6626,15 @@ func testSSES3EncryptedGetObjectReadSeekFunctional() {
 		// Start from offset 2048, fetch data and compare
 		{2048, 0, 2048, nil, true, 2048, bufSize},
 		// Start from offset larger than possible
-		{int64(bufSize) + 1024, 0, 0, io.EOF, false, 0, 0},
+		{int64(bufSize) + 1024, 0, int64(bufSize) + 1024, nil, false, 0, 0},
 		// Move to offset 0 without comparing
 		{0, 0, 0, nil, false, 0, 0},
 		// Move one step forward and compare
 		{1, 1, 1, nil, true, 1, bufSize},
 		// Move larger than possible
-		{int64(bufSize), 1, 0, io.EOF, false, 0, 0},
+		{int64(bufSize), 1, int64(bufSize) * 2, nil, false, 0, 0},
 		// Provide negative offset with CUR_SEEK
-		{int64(-1), 1, 0, fmt.Errorf("Negative position not allowed for 1"), false, 0, 0},
+		{int64(-1), 1, int64(bufSize)*2 - 1, nil, false, 0, 0},
 		// Test with whence SEEK_END and with positive offset
 		{1024, 2, int64(bufSize) + 1024, nil, false, 0, 0},
 		// Test with whence SEEK_END and with negative offset
