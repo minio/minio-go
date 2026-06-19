@@ -8775,9 +8775,17 @@ func testGetObjectReadSeekFunctionalV2() {
 		logError(testName, function, args, startTime, "", "Number of seeked bytes does not match, expected "+string(offset)+" got "+string(n), err)
 		return
 	}
-	_, err = r.Seek(offset, 2)
-	if err == nil {
-		logError(testName, function, args, startTime, "", "Seek on positive offset for whence '2' should error out", err)
+	n, err = r.Seek(offset, 2)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Seek failed", err)
+		return
+	}
+	if n != st.Size+offset {
+		logError(testName, function, args, startTime, "", "Number of seeked bytes does not match, expected "+strconv.FormatInt(st.Size+offset, 10)+" got "+strconv.FormatInt(n, 10), err)
+		return
+	}
+	if _, err = r.Read(make([]byte, 1)); err != io.EOF {
+		logError(testName, function, args, startTime, "", "Read after seeking past object end should return EOF", err)
 		return
 	}
 	n, err = r.Seek(-offset, 2)
