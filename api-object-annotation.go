@@ -73,13 +73,6 @@ type ObjectAnnotation struct {
 	LastModified time.Time
 }
 
-// putObjectAnnotationOutput maps the PutObjectAnnotation XML response.
-type putObjectAnnotationOutput struct {
-	XMLName        xml.Name `xml:"PutObjectAnnotationOutput"`
-	Key            string   `xml:"Key"`
-	AnnotationName string   `xml:"AnnotationName"`
-}
-
 // listObjectAnnotationsOutput maps the ListObjectAnnotations XML response.
 type listObjectAnnotationsOutput struct {
 	XMLName     xml.Name `xml:"ListObjectAnnotationsOutput"`
