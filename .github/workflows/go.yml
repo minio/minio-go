@@ -43,9 +43,32 @@ jobs:
         run: |
           sudo apt update -y
           sudo apt install devscripts -y
-          wget -O /tmp/minio https://dl.minio.io/server/minio/release/linux-amd64/minio
-          chmod +x /tmp/minio
           mkdir -p /tmp/certs-dir
           cp testcerts/* /tmp/certs-dir
-          /tmp/minio server --quiet -S /tmp/certs-dir /tmp/fs{1...4} &
+          # Test against the AIStor :edge image so the latest AIStor APIs
+          # (object annotations) and checksum algorithms (xxhash3/xxhash128,
+          # sha512, md5) are available to the functional tests.
+          docker pull registry.min.dev/aistor/minio:edge
+          # Free-tier AIStor license so the server allows writes (without a
+          # license the server boots read-only). This is a public FREE-plan
+          # license, not a secret.
+          MINIO_LICENSE="eyJhbGciOiJFUzM4NCIsInR5cCI6IkpXVCJ9.eyJhaWQiOjAsImNhcCI6MCwiaWF0IjoxLjc4MDAzMTY0NTUyMzA5ODM1OGU5LCJpc3MiOiJzdWJuZXRAbWluLmlvIiwibGlkIjoiYjNhYTliNGQtOTUxYy00MjIzLTgyMmEtZGY2NjE5MDNjOWFkIiwibm9kZXMiOjEsIm9yZyI6IiIsInBsYW4iOiJGUkVFIiwicHJvZHVjdCI6IkFJU3RvciIsInN1YiI6ImRldkBtaW5pby5pbyIsInRyaWFsIjpmYWxzZX0.Aq0kaFgd5SMHYEK7fIYzPsU4xlS119sj-BSyftCDpmtHIbW6KNFXGA9nbKPc17ZXKgcQgUoaPncsq30EOy7PyH-lp3LPpy3rPoD7ptJHI2v0jqpvlnP0cVGK0Yuw3vib"
+          docker rm -f aistor >/dev/null 2>&1 || true
+          docker run -d --name aistor \
+            -p 9000:9000 \
+            -v /tmp/certs-dir:/certs \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            -e MINIO_CI_CD=true \
+            -e MINIO_SITE_REGION=us-east-1 \
+            -e MINIO_KMS_SECRET_KEY="${MINIO_KMS_SECRET_KEY}" \
+            -e MINIO_LICENSE="${MINIO_LICENSE}" \
+            registry.min.dev/aistor/minio:edge \
+            server --quiet --certs-dir /certs /data/{1...4}
+          for _ in $(seq 1 60); do
+            if curl -sf --cacert /tmp/certs-dir/public.crt https://localhost:9000/minio/health/ready >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
           make
