@@ -60,7 +60,6 @@ jobs:
             -e MINIO_ROOT_USER=minioadmin \
             -e MINIO_ROOT_PASSWORD=minioadmin \
             -e MINIO_CI_CD=true \
-            -e MINIO_SITE_REGION=us-east-1 \
             -e MINIO_KMS_SECRET_KEY="${MINIO_KMS_SECRET_KEY}" \
             -e MINIO_LICENSE="${MINIO_LICENSE}" \
             registry.min.dev/aistor/minio:edge \
