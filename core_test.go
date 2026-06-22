@@ -431,6 +431,11 @@ func TestCoreCopyObject(t *testing.T) {
 		t.Fatalf("Error: number of bytes does not match, want %v, got %v\n", len(buf), st.Size)
 	}
 
+	// When the server auto-encrypts objects (e.g. SSE-KMS), the ETag is not the
+	// content MD5 and a metadata-only copy re-encrypts the object, producing a
+	// new ETag. Only assert ETag equality for unencrypted objects.
+	srcEncrypted := st.Metadata.Get("X-Amz-Server-Side-Encryption") != ""
+
 	destBucketName := bucketName
 	destObjectName := objectName + "-dest"
 
@@ -441,7 +446,7 @@ func TestCoreCopyObject(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err, bucketName, objectName, destBucketName, destObjectName)
 	}
-	if cuploadInfo.ETag != uploadInfo.ETag {
+	if !srcEncrypted && cuploadInfo.ETag != uploadInfo.ETag {
 		t.Fatalf("Error: expected etag to be same as source object %s, but found different etag %s", uploadInfo.ETag, cuploadInfo.ETag)
 	}
 
@@ -465,7 +470,7 @@ func TestCoreCopyObject(t *testing.T) {
 		t.Fatalf("Error: Content types don't match, expected: application/javascript, found: %+v\n", st.ContentType)
 	}
 
-	if st.ETag != uploadInfo.ETag {
+	if !srcEncrypted && st.ETag != uploadInfo.ETag {
 		t.Fatalf("Error: expected etag to be same as source object %s, but found different etag :%s", uploadInfo.ETag, st.ETag)
 	}
 
