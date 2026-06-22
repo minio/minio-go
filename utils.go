@@ -107,6 +107,22 @@ func sumMD5Base64(data []byte) string {
 
 // getEndpointURL - construct a new endpoint.
 func getEndpointURL(endpoint string, secure bool) (*url.URL, error) {
+	lowerEndpoint := strings.ToLower(endpoint)
+	if strings.HasPrefix(lowerEndpoint, "http://") || strings.HasPrefix(lowerEndpoint, "https://") {
+		endpointURL, err := url.Parse(endpoint)
+		if err != nil {
+			return nil, err
+		}
+		endpointURL.Scheme = strings.ToLower(endpointURL.Scheme)
+		if secure != (endpointURL.Scheme == "https") {
+			return nil, errInvalidArgument("Endpoint scheme does not match secure option.")
+		}
+		if err := isValidEndpointURL(*endpointURL); err != nil {
+			return nil, err
+		}
+		return endpointURL, nil
+	}
+
 	// If secure is false, use 'http' scheme.
 	scheme := "https"
 	if !secure {
