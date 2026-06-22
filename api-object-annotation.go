@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+	"unicode/utf8"
 
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
@@ -119,6 +120,9 @@ func (c *Client) PutObjectAnnotation(ctx context.Context, bucketName, objectName
 	}
 	if len(data) > maxAnnotationPayloadBytes {
 		return "", errInvalidArgument("annotation payload exceeds the 1 MiB maximum")
+	}
+	if !utf8.Valid(data) {
+		return "", errInvalidArgument("annotation payload must be valid UTF-8 text")
 	}
 
 	headers := make(http.Header)
