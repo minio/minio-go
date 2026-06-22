@@ -583,9 +583,7 @@ func (c *Client) dumpHTTP(req *http.Request, resp *http.Response) error {
 	var respTrace []byte
 
 	// For errors we make sure to dump response body as well.
-	if resp.StatusCode != http.StatusOK &&
-		resp.StatusCode != http.StatusPartialContent &&
-		resp.StatusCode != http.StatusNoContent {
+	if !successStatus.Contains(resp.StatusCode) {
 		respTrace, err = httputil.DumpResponse(resp, true)
 		if err != nil {
 			return err
@@ -644,7 +642,7 @@ func (c *Client) do(req *http.Request) (resp *http.Response, err error) {
 
 	// If trace is enabled, dump http request and response,
 	// except when the traceErrorsOnly enabled and the response's status code is ok
-	if c.isTraceEnabled && (!c.traceErrorsOnly || resp.StatusCode != http.StatusOK) {
+	if c.isTraceEnabled && (!c.traceErrorsOnly || !successStatus.Contains(resp.StatusCode)) {
 		err = c.dumpHTTP(req, resp)
 		if err != nil {
 			return nil, err
@@ -657,6 +655,7 @@ func (c *Client) do(req *http.Request) (resp *http.Response, err error) {
 // List of success status.
 var successStatus = set.CreateIntSet(
 	http.StatusOK,
+	http.StatusAccepted,
 	http.StatusNoContent,
 	http.StatusPartialContent,
 )

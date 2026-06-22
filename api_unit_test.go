@@ -18,12 +18,19 @@
 package minio
 
 import (
+	"net/http"
 	"net/url"
 	"testing"
 
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/minio/minio-go/v7/pkg/policy"
 )
+
+func TestSuccessStatusIncludesAccepted(t *testing.T) {
+	if !successStatus.Contains(http.StatusAccepted) {
+		t.Fatal("expected 202 Accepted to be treated as a successful response")
+	}
+}
 
 // Tests valid hosts for location.
 func TestValidBucketLocation(t *testing.T) {
