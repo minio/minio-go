@@ -84,6 +84,10 @@ func main() {
 |                                                               | [`PutObjectTagging`](#PutObjectTagging)             |                                               |                                                               |                                                       |
 |                                                               | [`GetObjectTagging`](#GetObjectTagging)             |                                               |                                                               |                                                       |
 |                                                               | [`RemoveObjectTagging`](#RemoveObjectTagging)       |                                               |                                                               |                                                       |
+|                                                               | [`PutObjectAnnotation`](#PutObjectAnnotation)       |                                               |                                                               |                                                       |
+|                                                               | [`GetObjectAnnotation`](#GetObjectAnnotation)       |                                               |                                                               |                                                       |
+|                                                               | [`ListObjectAnnotations`](#ListObjectAnnotations)   |                                               |                                                               |                                                       |
+|                                                               | [`RemoveObjectAnnotation`](#RemoveObjectAnnotation) |                                               |                                                               |                                                       |
 |                                                               | [`RestoreObject`](#RestoreObject)                   |                                               |                                                               |                                                       |
 |                                                               | [`GetObjectAttributes`](#GetObjectAttributes)       |                                               |                                                               |                                                       |
 |                                                               | [`PromptObject`](#PromptObject)                     |                                               |                                                               |                                                       |
@@ -1331,6 +1335,115 @@ Remove Object Tags from the given object
 
 ```go
 err = minioClient.RemoveObjectTagging(context.Background(), bucketName, objectName)
+if err != nil {
+	fmt.Println(err)
+	return
+}
+```
+
+<a name="PutObjectAnnotation"></a>
+
+### PutObjectAnnotation(ctx context.Context, bucketName, objectName, annotationName string, payload io.Reader, opts PutObjectAnnotationOptions) (string, error)
+
+Create or overwrite a named annotation on an object version. An annotation is a named payload (1 byte to 1 MiB of UTF-8 text) attached to a specific object version, independent of the object's data. Up to 1,000 annotations may be attached per object version. The parent object's ETag is not modified. Returns the annotation's ETag.
+
+**Parameters**
+
+| Param            | Type                          | Description                                                       |
+|:-----------------|:------------------------------|:------------------------------------------------------------------|
+| `ctx`            | *context.Context*             | Custom context for timeout/cancellation of the call               |
+| `bucketName`     | *string*                      | Name of the bucket                                                |
+| `objectName`     | *string*                      | Name of the object                                                |
+| `annotationName` | *string*                      | Name of the annotation (1-512 bytes)                              |
+| `payload`        | *io.Reader*                   | Annotation payload (1 byte to 1 MiB of valid UTF-8)               |
+| `opts`           | *PutObjectAnnotationOptions*  | Options: `VersionID`, `IfMatch` (x-amz-object-if-match precondition) |
+
+**Example**
+
+```go
+payload := strings.NewReader(`{"label":"cat","confidence":0.98}`)
+etag, err := minioClient.PutObjectAnnotation(context.Background(), bucketName, objectName, "model.labels.json", payload, minio.PutObjectAnnotationOptions{})
+if err != nil {
+	fmt.Println(err)
+	return
+}
+```
+
+<a name="GetObjectAnnotation"></a>
+
+### GetObjectAnnotation(ctx context.Context, bucketName, objectName, annotationName string, opts GetObjectAnnotationOptions) ([]byte, error)
+
+Return the payload of a single named annotation.
+
+**Parameters**
+
+| Param            | Type                          | Description                                         |
+|:-----------------|:------------------------------|:----------------------------------------------------|
+| `ctx`            | *context.Context*             | Custom context for timeout/cancellation of the call |
+| `bucketName`     | *string*                      | Name of the bucket                                  |
+| `objectName`     | *string*                      | Name of the object                                  |
+| `annotationName` | *string*                      | Name of the annotation                              |
+| `opts`           | *GetObjectAnnotationOptions*  | Options: `VersionID`                                |
+
+**Example**
+
+```go
+payload, err := minioClient.GetObjectAnnotation(context.Background(), bucketName, objectName, "model.labels.json", minio.GetObjectAnnotationOptions{})
+if err != nil {
+	fmt.Println(err)
+	return
+}
+fmt.Println(string(payload))
+```
+
+<a name="ListObjectAnnotations"></a>
+
+### ListObjectAnnotations(ctx context.Context, bucketName, objectName string, opts ListObjectAnnotationsOptions) ([]ObjectAnnotation, error)
+
+Return all annotations attached to an object version. Each `ObjectAnnotation` has `Name`, `Size`, `ETag` and `LastModified`.
+
+**Parameters**
+
+| Param        | Type                            | Description                                         |
+|:-------------|:--------------------------------|:----------------------------------------------------|
+| `ctx`        | *context.Context*               | Custom context for timeout/cancellation of the call |
+| `bucketName` | *string*                        | Name of the bucket                                  |
+| `objectName` | *string*                        | Name of the object                                  |
+| `opts`       | *ListObjectAnnotationsOptions*  | Options: `VersionID`                                |
+
+**Example**
+
+```go
+annotations, err := minioClient.ListObjectAnnotations(context.Background(), bucketName, objectName, minio.ListObjectAnnotationsOptions{})
+if err != nil {
+	fmt.Println(err)
+	return
+}
+for _, a := range annotations {
+	fmt.Printf("%s (%d bytes)\n", a.Name, a.Size)
+}
+```
+
+<a name="RemoveObjectAnnotation"></a>
+
+### RemoveObjectAnnotation(ctx context.Context, bucketName, objectName, annotationName string, opts RemoveObjectAnnotationOptions) error
+
+Permanently delete a single named annotation. Deletion is irreversible: annotations have no version history.
+
+**Parameters**
+
+| Param            | Type                            | Description                                         |
+|:-----------------|:--------------------------------|:----------------------------------------------------|
+| `ctx`            | *context.Context*               | Custom context for timeout/cancellation of the call |
+| `bucketName`     | *string*                        | Name of the bucket                                  |
+| `objectName`     | *string*                        | Name of the object                                  |
+| `annotationName` | *string*                        | Name of the annotation                              |
+| `opts`           | *RemoveObjectAnnotationOptions* | Options: `VersionID`, `IfMatch`                     |
+
+**Example**
+
+```go
+err = minioClient.RemoveObjectAnnotation(context.Background(), bucketName, objectName, "model.labels.json", minio.RemoveObjectAnnotationOptions{})
 if err != nil {
 	fmt.Println(err)
 	return
