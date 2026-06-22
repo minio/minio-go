@@ -39,7 +39,23 @@ const (
 
 	// maxAnnotationPayloadBytes is the maximum size of a single annotation payload (1 MiB).
 	maxAnnotationPayloadBytes = 1 << 20
+
+	// maxAnnotationNameBytes is the maximum length of an annotation name.
+	maxAnnotationNameBytes = 512
 )
+
+// validateAnnotationName performs a minimal client-side check on the annotation
+// name (non-empty, within the length limit). The server enforces the full
+// naming rules (allowed characters, reserved prefixes).
+func validateAnnotationName(name string) error {
+	if name == "" {
+		return errInvalidArgument("annotation name must not be empty")
+	}
+	if len(name) > maxAnnotationNameBytes {
+		return errInvalidArgument("annotation name exceeds 512 bytes")
+	}
+	return nil
+}
 
 // PutObjectAnnotationOptions configures a PutObjectAnnotation request.
 type PutObjectAnnotationOptions struct {
@@ -108,6 +124,9 @@ func (c *Client) PutObjectAnnotation(ctx context.Context, bucketName, objectName
 	if err := s3utils.CheckValidObjectName(objectName); err != nil {
 		return "", err
 	}
+	if err := validateAnnotationName(annotationName); err != nil {
+		return "", err
+	}
 
 	// The payload is capped at 1 MiB; materialize it so the request is
 	// signable and a precise Content-Length/Content-MD5 can be sent.
@@ -157,6 +176,9 @@ func (c *Client) GetObjectAnnotation(ctx context.Context, bucketName, objectName
 	if err := s3utils.CheckValidObjectName(objectName); err != nil {
 		return nil, err
 	}
+	if err := validateAnnotationName(annotationName); err != nil {
+		return nil, err
+	}
 
 	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
 		bucketName:  bucketName,
@@ -202,6 +224,9 @@ func (c *Client) ListObjectAnnotations(ctx context.Context, bucketName, objectNa
 
 	annotations := make([]ObjectAnnotation, 0, len(out.Annotations))
 	for _, a := range out.Annotations {
+		// LastModified is an RFC3339 timestamp. A malformed value from the
+		// server leaves LastModified as the zero time rather than failing the
+		// entire listing for one bad entry.
 		var lastModified time.Time
 		if a.LastModified != "" {
 			lastModified, _ = time.Parse(time.RFC3339, a.LastModified)
@@ -223,6 +248,9 @@ func (c *Client) RemoveObjectAnnotation(ctx context.Context, bucketName, objectN
 		return err
 	}
 	if err := s3utils.CheckValidObjectName(objectName); err != nil {
+		return err
+	}
+	if err := validateAnnotationName(annotationName); err != nil {
 		return err
 	}
 
