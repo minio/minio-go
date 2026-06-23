@@ -170,8 +170,11 @@ func (c *Client) PutObjectAnnotation(ctx context.Context, bucketName, objectName
 	return trimEtag(resp.Header.Get("ETag")), nil
 }
 
-// GetObjectAnnotation returns the payload of a single named annotation.
-func (c *Client) GetObjectAnnotation(ctx context.Context, bucketName, objectName, annotationName string, opts GetObjectAnnotationOptions) ([]byte, error) {
+// GetObjectAnnotation returns the payload of a single named annotation as a
+// stream. The returned ReadCloser is the response body; the caller must Close it
+// once the payload has been read so the underlying connection can be reused. The
+// payload is server-capped at 1 MiB.
+func (c *Client) GetObjectAnnotation(ctx context.Context, bucketName, objectName, annotationName string, opts GetObjectAnnotationOptions) (io.ReadCloser, error) {
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return nil, err
 	}
@@ -187,14 +190,15 @@ func (c *Client) GetObjectAnnotation(ctx context.Context, bucketName, objectName
 		objectName:  objectName,
 		queryValues: annotationQueryValues(annotationName, opts.VersionID),
 	})
-	defer closeResponse(resp)
 	if err != nil {
+		closeResponse(resp)
 		return nil, err
 	}
 	if resp != nil && resp.StatusCode != http.StatusOK {
+		defer closeResponse(resp)
 		return nil, httpRespToErrorResponse(resp, bucketName, objectName)
 	}
-	return io.ReadAll(resp.Body)
+	return resp.Body, nil
 }
 
 // ListObjectAnnotations returns all annotations attached to an object version.
