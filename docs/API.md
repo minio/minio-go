@@ -1371,9 +1371,9 @@ if err != nil {
 
 <a name="GetObjectAnnotation"></a>
 
-### GetObjectAnnotation(ctx context.Context, bucketName, objectName, annotationName string, opts GetObjectAnnotationOptions) ([]byte, error)
+### GetObjectAnnotation(ctx context.Context, bucketName, objectName, annotationName string, opts GetObjectAnnotationOptions) (io.ReadCloser, error)
 
-Return the payload of a single named annotation.
+Return the payload of a single named annotation as a stream. The caller must Close the returned reader.
 
 **Parameters**
 
@@ -1388,12 +1388,16 @@ Return the payload of a single named annotation.
 **Example**
 
 ```go
-payload, err := minioClient.GetObjectAnnotation(context.Background(), bucketName, objectName, "model.labels.json", minio.GetObjectAnnotationOptions{})
+body, err := minioClient.GetObjectAnnotation(context.Background(), bucketName, objectName, "model.labels.json", minio.GetObjectAnnotationOptions{})
 if err != nil {
 	fmt.Println(err)
 	return
 }
-fmt.Println(string(payload))
+defer body.Close()
+if _, err := io.Copy(os.Stdout, body); err != nil {
+	fmt.Println(err)
+	return
+}
 ```
 
 <a name="ListObjectAnnotations"></a>
