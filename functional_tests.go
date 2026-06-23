@@ -1898,9 +1898,15 @@ func testObjectAnnotations() {
 		return
 	}
 
-	got, err := c.GetObjectAnnotation(context.Background(), bucketName, objectName, annName, minio.GetObjectAnnotationOptions{})
+	annReader, err := c.GetObjectAnnotation(context.Background(), bucketName, objectName, annName, minio.GetObjectAnnotationOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObjectAnnotation failed", err)
+		return
+	}
+	got, err := io.ReadAll(annReader)
+	annReader.Close()
+	if err != nil {
+		logError(testName, function, args, startTime, "", "GetObjectAnnotation read failed", err)
 		return
 	}
 	if !bytes.Equal(got, annPayload) {
