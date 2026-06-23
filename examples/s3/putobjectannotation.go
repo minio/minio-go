@@ -41,7 +41,8 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	// The annotation payload is any UTF-8 text (JSON/XML/YAML/plain), 1 byte to 1 MiB.
+	// The annotation payload is any byte stream (JSON/XML/YAML/plain), 1 byte to
+	// 1 MiB, supplied as an io.ReadSeeker so it can be streamed without buffering.
 	payload := strings.NewReader(`{"label":"cat","confidence":0.98}`)
 
 	etag, err := s3Client.PutObjectAnnotation(context.Background(), "my-bucketname", "my-objectname", "model.labels.json", payload, minio.PutObjectAnnotationOptions{
