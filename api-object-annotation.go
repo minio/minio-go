@@ -18,14 +18,12 @@
 package minio
 
 import (
-	"bytes"
 	"context"
 	"encoding/xml"
 	"io"
 	"net/http"
 	"net/url"
 	"time"
-	"unicode/utf8"
 
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
@@ -114,10 +112,11 @@ func annotationQueryValues(name, versionID string) url.Values {
 }
 
 // PutObjectAnnotation creates or overwrites a named annotation on an object
-// version. The payload is read from the supplied reader and must be 1 byte to
-// 1 MiB of valid UTF-8 (mirrors the AWS AnnotationPayload streaming body). It
-// returns the annotation's ETag. The parent object's ETag is never modified.
-func (c *Client) PutObjectAnnotation(ctx context.Context, bucketName, objectName, annotationName string, payload io.Reader, opts PutObjectAnnotationOptions) (string, error) {
+// version. The payload (1 byte to 1 MiB) is streamed directly from the supplied
+// ReadSeeker: its size is taken from a seek to the end, so the body is sent with
+// an exact Content-Length and never buffered in memory. It returns the
+// annotation's ETag. The parent object's ETag is never modified.
+func (c *Client) PutObjectAnnotation(ctx context.Context, bucketName, objectName, annotationName string, payload io.ReadSeeker, opts PutObjectAnnotationOptions) (string, error) {
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return "", err
 	}
@@ -127,21 +126,25 @@ func (c *Client) PutObjectAnnotation(ctx context.Context, bucketName, objectName
 	if err := validateAnnotationName(annotationName); err != nil {
 		return "", err
 	}
+	if payload == nil {
+		return "", errInvalidArgument("annotation payload must not be nil")
+	}
 
-	// The payload is capped at 1 MiB; materialize it so the request is
-	// signable and a precise Content-Length/Content-MD5 can be sent.
-	data, err := io.ReadAll(io.LimitReader(payload, maxAnnotationPayloadBytes+1))
+	// Derive the payload size from the seeker and enforce the limits before
+	// uploading; the server reads the body raw, so it is sent with UNSIGNED-PAYLOAD
+	// (no streaming-chunked signature) and streamed without buffering.
+	size, err := payload.Seek(0, io.SeekEnd)
 	if err != nil {
 		return "", err
 	}
-	if len(data) == 0 {
+	if _, err := payload.Seek(0, io.SeekStart); err != nil {
+		return "", err
+	}
+	if size == 0 {
 		return "", errInvalidArgument("annotation payload must be at least 1 byte")
 	}
-	if len(data) > maxAnnotationPayloadBytes {
+	if size > maxAnnotationPayloadBytes {
 		return "", errInvalidArgument("annotation payload exceeds the 1 MiB maximum")
-	}
-	if !utf8.Valid(data) {
-		return "", errInvalidArgument("annotation payload must be valid UTF-8 text")
 	}
 
 	headers := make(http.Header)
@@ -150,13 +153,12 @@ func (c *Client) PutObjectAnnotation(ctx context.Context, bucketName, objectName
 	}
 
 	resp, err := c.executeMethod(ctx, http.MethodPut, requestMetadata{
-		bucketName:       bucketName,
-		objectName:       objectName,
-		queryValues:      annotationQueryValues(annotationName, opts.VersionID),
-		contentBody:      bytes.NewReader(data),
-		contentLength:    int64(len(data)),
-		contentMD5Base64: sumMD5Base64(data),
-		customHeader:     headers,
+		bucketName:    bucketName,
+		objectName:    objectName,
+		queryValues:   annotationQueryValues(annotationName, opts.VersionID),
+		contentBody:   payload,
+		contentLength: size,
+		customHeader:  headers,
 	})
 	defer closeResponse(resp)
 	if err != nil {
