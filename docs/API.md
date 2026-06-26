@@ -1,11 +1,8 @@
-MinIO Go Client API Reference [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io)
-===================================================================================================
+# MinIO Go Client API Reference [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io)
 
-Initialize MinIO Client object.
--------------------------------
+## Initialize MinIO Client object.
 
-MinIO
------
+## MinIO
 
 ```go
 package main
@@ -36,8 +33,7 @@ func main() {
 }
 ```
 
-AWS S3
-------
+## AWS S3
 
 ```go
 package main
@@ -63,7 +59,7 @@ func main() {
 ```
 
 | Bucket operations                                             | Object operations                                   | Presigned operations                          | Bucket Policy/Notification Operations                         | Client custom settings                                |
-|:--------------------------------------------------------------|:----------------------------------------------------|:----------------------------------------------|:--------------------------------------------------------------|:------------------------------------------------------|
+| :------------------------------------------------------------ | :-------------------------------------------------- | :-------------------------------------------- | :------------------------------------------------------------ | :---------------------------------------------------- |
 | [`MakeBucket`](#MakeBucket)                                   | [`AppendObject`](#AppendObject)                     | [`PresignedGetObject`](#PresignedGetObject)   | [`SetBucketPolicy`](#SetBucketPolicy)                         | [`SetAppInfo`](#SetAppInfo)                           |
 | [`ListBuckets`](#ListBuckets)                                 | [`GetObject`](#GetObject)                           | [`PresignedPutObject`](#PresignedPutObject)   | [`GetBucketPolicy`](#GetBucketPolicy)                         | [`TraceOn`](#TraceOn)                                 |
 | [`BucketExists`](#BucketExists)                               | [`PutObject`](#PutObject)                           | [`PresignedHeadObject`](#PresignedHeadObject) | [`SetBucketNotification`](#SetBucketNotification)             | [`TraceOff`](#TraceOff)                               |
@@ -92,7 +88,7 @@ func main() {
 |                                                               | [`GetObjectAttributes`](#GetObjectAttributes)       |                                               |                                                               |                                                       |
 |                                                               | [`PromptObject`](#PromptObject)                     |                                               |                                                               |                                                       |
 
-1.	Constructor --------------
+1. Constructor --------------
 
 <a name="MinIO"></a>
 
@@ -103,24 +99,24 @@ Initializes a new client object.
 **Parameters**
 
 | Param      | Type            | Description                           |
-|:-----------|:----------------|:--------------------------------------|
-| `endpoint` | *string*        | S3 compatible object storage endpoint |
-| `opts`     | *minio.Options* | Options for constructing a new client |
+| :--------- | :-------------- | :------------------------------------ |
+| `endpoint` | _string_        | S3 compatible object storage endpoint |
+| `opts`     | _minio.Options_ | Options for constructing a new client |
 
 **minio.Options**
 
 | Field               | Type                        | Description                                                                  |
-|:--------------------|:----------------------------|:-----------------------------------------------------------------------------|
-| `opts.Creds`        | \**credentials.Credentials* | S3 compatible object storage access credentials                              |
-| `opts.Secure`       | *bool*                      | If 'true' API requests will be secure (HTTPS), and insecure (HTTP) otherwise |
-| `opts.Transport`    | *http.RoundTripper*         | Custom transport for executing HTTP transactions                             |
-| `opts.Region`       | *string*                    | S3 compatible object storage region                                          |
-| `opts.BucketLookup` | *BucketLookupType*          | Bucket lookup type can be one of the following values                        |
-|                     |                             | *minio.BucketLookupDNS*                                                      |
-|                     |                             | *minio.BucketLookupPath*                                                     |
-|                     |                             | *minio.BucketLookupAuto*                                                     |
+| :------------------ | :-------------------------- | :--------------------------------------------------------------------------- |
+| `opts.Creds`        | \*_credentials.Credentials_ | S3 compatible object storage access credentials                              |
+| `opts.Secure`       | _bool_                      | If 'true' API requests will be secure (HTTPS), and insecure (HTTP) otherwise |
+| `opts.Transport`    | _http.RoundTripper_         | Custom transport for executing HTTP transactions                             |
+| `opts.Region`       | _string_                    | S3 compatible object storage region                                          |
+| `opts.BucketLookup` | _BucketLookupType_          | Bucket lookup type can be one of the following values                        |
+|                     |                             | _minio.BucketLookupDNS_                                                      |
+|                     |                             | _minio.BucketLookupPath_                                                     |
+|                     |                             | _minio.BucketLookupAuto_                                                     |
 
-1.	Bucket operations --------------------
+1. Bucket operations --------------------
 
 <a name="MakeBucket"></a>
 
@@ -131,10 +127,10 @@ Creates a new bucket.
 **Parameters**
 
 | Param        | Type                      | Description                                                                                                                                                                                                                                 |
-|--------------|---------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `ctx`        | *context.Context*         | Custom context for timeout/cancellation of the call                                                                                                                                                                                         |
-| `bucketName` | *string*                  | Name of the bucket                                                                                                                                                                                                                          |
-| `opts`       | *minio.MakeBucketOptions* | Bucket options such as `Region` where the bucket is to be created. Default value is us-east-1. Other valid values are listed below. Note: When used with minio server, use the region specified in its config file (defaults to us-east-1). |
+| ------------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ctx`        | _context.Context_         | Custom context for timeout/cancellation of the call                                                                                                                                                                                         |
+| `bucketName` | _string_                  | Name of the bucket                                                                                                                                                                                                                          |
+| `opts`       | _minio.MakeBucketOptions_ | Bucket options such as `Region` where the bucket is to be created. Default value is us-east-1. Other valid values are listed below. Note: When used with minio server, use the region specified in its config file (defaults to us-east-1). |
 |              |                           | us-east-1                                                                                                                                                                                                                                   |
 |              |                           | us-east-2                                                                                                                                                                                                                                   |
 |              |                           | us-west-1                                                                                                                                                                                                                                   |
@@ -178,16 +174,16 @@ fmt.Println("Successfully created mybucket.")
 Lists all buckets.
 
 | Param        | Type                 | Description                                         |
-|--------------|----------------------|-----------------------------------------------------|
-| `ctx`        | *context.Context*    | Custom context for timeout/cancellation of the call |
-| `bucketList` | *[]minio.BucketInfo* | Lists of all buckets                                |
+| ------------ | -------------------- | --------------------------------------------------- |
+| `ctx`        | _context.Context_    | Custom context for timeout/cancellation of the call |
+| `bucketList` | _[]minio.BucketInfo_ | Lists of all buckets                                |
 
 **minio.BucketInfo**
 
 | Field                 | Type        | Description             |
-|-----------------------|-------------|-------------------------|
-| `bucket.Name`         | *string*    | Name of the bucket      |
-| `bucket.CreationDate` | *time.Time* | Date of bucket creation |
+| --------------------- | ----------- | ----------------------- |
+| `bucket.Name`         | _string_    | Name of the bucket      |
+| `bucket.CreationDate` | _time.Time_ | Date of bucket creation |
 
 **Example**
 
@@ -211,16 +207,16 @@ Checks if a bucket exists.
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Return Values**
 
 | Param   | Type    | Description                            |
-|:--------|:--------|:---------------------------------------|
-| `found` | *bool*  | Indicates whether bucket exists or not |
-| `err`   | *error* | Standard Error                         |
+| :------ | :------ | :------------------------------------- |
+| `found` | _bool_  | Indicates whether bucket exists or not |
+| `err`   | _error_ | Standard Error                         |
 
 **Example**
 
@@ -244,9 +240,9 @@ Removes a bucket, bucket should be empty to be successfully removed.
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Example**
 
@@ -267,25 +263,25 @@ Lists objects in a bucket.
 **Parameters**
 
 | Param        | Type                       | Description                                         |
-|:-------------|:---------------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context*          | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*                   | Name of the bucket                                  |
-| `opts`       | *minio.ListObjectsOptions* | Options per to list objects                         |
+| :----------- | :------------------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_          | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_                   | Name of the bucket                                  |
+| `opts`       | _minio.ListObjectsOptions_ | Options per to list objects                         |
 
 **Return Value**
 
 | Param        | Type                    | Description                                                                           |
-|:-------------|:------------------------|:--------------------------------------------------------------------------------------|
-| `objectInfo` | *chan minio.ObjectInfo* | Read channel for all objects in the bucket, the object is of the format listed below: |
+| :----------- | :---------------------- | :------------------------------------------------------------------------------------ |
+| `objectInfo` | _chan minio.ObjectInfo_ | Read channel for all objects in the bucket, the object is of the format listed below: |
 
 **minio.ObjectInfo**
 
 | Field                     | Type        | Description                        |
-|:--------------------------|:------------|:-----------------------------------|
-| `objectInfo.Key`          | *string*    | Name of the object                 |
-| `objectInfo.Size`         | *int64*     | Size of the object                 |
-| `objectInfo.ETag`         | *string*    | MD5 checksum of the object         |
-| `objectInfo.LastModified` | *time.Time* | Time when object was last modified |
+| :------------------------ | :---------- | :--------------------------------- |
+| `objectInfo.Key`          | _string_    | Name of the object                 |
+| `objectInfo.Size`         | _int64_     | Size of the object                 |
+| `objectInfo.ETag`         | _string_    | MD5 checksum of the object         |
+| `objectInfo.LastModified` | _time.Time_ | Time when object was last modified |
 
 ```go
 ctx, cancel := context.WithCancel(context.Background())
@@ -314,16 +310,16 @@ Lists objects in a bucket using an iterator. This is a modern Go 1.23+ alternati
 **Parameters**
 
 | Param        | Type                       | Description                                         |
-|:-------------|:---------------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context*          | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*                   | Name of the bucket                                  |
-| `opts`       | *minio.ListObjectsOptions* | Options to list objects                             |
+| :----------- | :------------------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_          | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_                   | Name of the bucket                                  |
+| `opts`       | _minio.ListObjectsOptions_ | Options to list objects                             |
 
 **Return Value**
 
 | Param      | Type                         | Description                         |
-|:-----------|:-----------------------------|:------------------------------------|
-| `iterator` | *iter.Seq[minio.ObjectInfo]* | Iterator yielding ObjectInfo values |
+| :--------- | :--------------------------- | :---------------------------------- |
+| `iterator` | _iter.Seq[minio.ObjectInfo]_ | Iterator yielding ObjectInfo values |
 
 **Example**
 
@@ -351,25 +347,25 @@ Lists partially uploaded objects in a bucket.
 **Parameters**
 
 | Param        | Type              | Description                                                                                              |
-|:-------------|:------------------|:---------------------------------------------------------------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call                                                      |
-| `bucketName` | *string*          | Name of the bucket                                                                                       |
-| `prefix`     | *string*          | Prefix of objects that are partially uploaded                                                            |
-| `recursive`  | *bool*            | `true` indicates recursive style listing and `false` indicates directory style listing delimited by '/'. |
+| :----------- | :---------------- | :------------------------------------------------------------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call                                                      |
+| `bucketName` | _string_          | Name of the bucket                                                                                       |
+| `prefix`     | _string_          | Prefix of objects that are partially uploaded                                                            |
+| `recursive`  | _bool_            | `true` indicates recursive style listing and `false` indicates directory style listing delimited by '/'. |
 
 **Return Value**
 
 | Param           | Type                             | Description                                         |
-|:----------------|:---------------------------------|:----------------------------------------------------|
-| `multiPartInfo` | *chan minio.ObjectMultipartInfo* | Emits multipart objects of the format listed below: |
+| :-------------- | :------------------------------- | :-------------------------------------------------- |
+| `multiPartInfo` | _chan minio.ObjectMultipartInfo_ | Emits multipart objects of the format listed below: |
 
 **minio.ObjectMultipartInfo**
 
 | Field                       | Type     | Description                               |
-|:----------------------------|:---------|:------------------------------------------|
-| `multiPartObjInfo.Key`      | *string* | Name of incompletely uploaded object      |
-| `multiPartObjInfo.UploadID` | *string* | Upload ID of incompletely uploaded object |
-| `multiPartObjInfo.Size`     | *int64*  | Size of incompletely uploaded object      |
+| :-------------------------- | :------- | :---------------------------------------- |
+| `multiPartObjInfo.Key`      | _string_ | Name of incompletely uploaded object      |
+| `multiPartObjInfo.UploadID` | _string_ | Upload ID of incompletely uploaded object |
+| `multiPartObjInfo.Size`     | _int64_  | Size of incompletely uploaded object      |
 
 **Example**
 
@@ -387,17 +383,17 @@ for multiPartObject := range multiPartObjectCh {
 
 <a name="SetBucketTagging"></a>
 
-### SetBucketTagging(ctx context.Context, bucketName string, tags *tags.Tags) error
+### SetBucketTagging(ctx context.Context, bucketName string, tags \*tags.Tags) error
 
 Sets tags to a bucket.
 
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
-| `tags`       | \**tags.Tags*     | Bucket tags                                         |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
+| `tags`       | \*_tags.Tags_     | Bucket tags                                         |
 
 **Example**
 
@@ -419,22 +415,22 @@ if err != nil {
 
 <a name="GetBucketTagging"></a>
 
-### GetBucketTagging(ctx context.Context, bucketName string) (*tags.Tags, error)
+### GetBucketTagging(ctx context.Context, bucketName string) (\*tags.Tags, error)
 
 Gets tags of a bucket.
 
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Return Value**
 
 | Param  | Type          | Description |
-|:-------|:--------------|:------------|
-| `tags` | \**tags.Tags* | Bucket tags |
+| :----- | :------------ | :---------- |
+| `tags` | \*_tags.Tags_ | Bucket tags |
 
 **Example**
 
@@ -456,9 +452,9 @@ Removes all tags on a bucket.
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Example**
 
@@ -469,19 +465,19 @@ if err != nil {
 }
 ```
 
-1.	Object operations --------------------
+1. Object operations --------------------
 
 <a name="AppendObject"></a>
 
 ### AppendObject(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64, opts AppendObjectOptions) (UploadInfo, error)
 
-**Parameters** |Param | Type | Description | |:--- | :--- | :--- | |`ctx` | *context.Context* | Custom Context for timeout/cancellation of the call| |`bucketName`| *string* | Name of bucket | |`objectName`| *string* | Name of Object | |`reader` | *io.Reader* | standard Reader Interface | |`objectSize` | *int64* | Size of the object | |`opts` | *minio.AppendObjectOptions* | Additional Options for Append Operation|
+**Parameters** |Param | Type | Description | |:--- | :--- | :--- | |`ctx` | _context.Context_ | Custom Context for timeout/cancellation of the call| |`bucketName`| _string_ | Name of bucket | |`objectName`| _string_ | Name of Object | |`reader` | _io.Reader_ | standard Reader Interface | |`objectSize` | _int64_ | Size of the object | |`opts` | _minio.AppendObjectOptions_ | Additional Options for Append Operation|
 
-**Return Value** |Param | Type | Description | |:--- | :--- | :--- | |`info`| *minio.UploadInfo* | Information about the newly uploaded or copied object | |`err`| *error* | Standard error |
+**Return Value** |Param | Type | Description | |:--- | :--- | :--- | |`info`| _minio.UploadInfo_ | Information about the newly uploaded or copied object | |`err`| _error_ | Standard error |
 
-**minio.AppendObjectOptions** | Field | Type | Description | |:--- | :--- | :--- | |`opts.Progress`| *io.Reader* | A progress reader to indicate progress| |`opts.ChunkSize`| *uint64* | Maximum Append Size | |`opts.DisableContentSha256`| *bool* | Aggressively disable sha256 payload. |
+**minio.AppendObjectOptions** | Field | Type | Description | |:--- | :--- | :--- | |`opts.Progress`| _io.Reader_ | A progress reader to indicate progress| |`opts.ChunkSize`| _uint64_ | Maximum Append Size | |`opts.DisableContentSha256`| _bool_ | Aggressively disable sha256 payload. |
 
-**minio.UploadInfo** | Field | Type | Description | | :--- | :--- | :--- | | `info.Bucket` | *string* | Name of bucket | | `info.Key` | *string* | Name of object | | `info.ETag` | *string* | MD5 checksum of the object | | `info.Size` | *string* | Size of object |
+**minio.UploadInfo** | Field | Type | Description | | :--- | :--- | :--- | | `info.Bucket` | _string_ | Name of bucket | | `info.Key` | _string_ | Name of object | | `info.ETag` | _string_ | MD5 checksum of the object | | `info.Size` | _string_ | Size of object |
 
 **Example**
 
@@ -495,31 +491,31 @@ if err != nil {
 
 <a name="GetObject"></a>
 
-### GetObject(ctx context.Context, bucketName, objectName string, opts GetObjectOptions) (*Object, error)
+### GetObject(ctx context.Context, bucketName, objectName string, opts GetObjectOptions) (\*Object, error)
 
 Returns a stream of the object data. Most of the common errors occur when reading the stream.
 
 **Parameters**
 
 | Param        | Type                     | Description                                                                      |
-|:-------------|:-------------------------|:---------------------------------------------------------------------------------|
-| `ctx`        | *context.Context*        | Custom context for timeout/cancellation of the call                              |
-| `bucketName` | *string*                 | Name of the bucket                                                               |
-| `objectName` | *string*                 | Name of the object                                                               |
-| `opts`       | *minio.GetObjectOptions* | Options for GET requests specifying additional options like encryption, If-Match |
+| :----------- | :----------------------- | :------------------------------------------------------------------------------- |
+| `ctx`        | _context.Context_        | Custom context for timeout/cancellation of the call                              |
+| `bucketName` | _string_                 | Name of the bucket                                                               |
+| `objectName` | _string_                 | Name of the object                                                               |
+| `opts`       | _minio.GetObjectOptions_ | Options for GET requests specifying additional options like encryption, If-Match |
 
 **minio.GetObjectOptions**
 
 | Field                       | Type                       | Description                                                                                                                                           |
-|:----------------------------|:---------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `opts.ServerSideEncryption` | *encrypt.ServerSide*       | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go/v7\) |
-| `opts.Internal`             | *minio.AdvancedGetOptions* | This option is intended for internal use by MinIO server. This option should not be set unless the application is aware of intended use.              |
+| :-------------------------- | :------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `opts.ServerSideEncryption` | _encrypt.ServerSide_       | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go/v7\) |
+| `opts.Internal`             | _minio.AdvancedGetOptions_ | This option is intended for internal use by MinIO server. This option should not be set unless the application is aware of intended use.              |
 
 **Return Value**
 
 | Param    | Type             | Description                                                                                                        |
-|:---------|:-----------------|:-------------------------------------------------------------------------------------------------------------------|
-| `object` | \**minio.Object* | *minio.Object* represents object reader. It implements io.Reader, io.Seeker, io.ReaderAt and io.Closer interfaces. |
+| :------- | :--------------- | :----------------------------------------------------------------------------------------------------------------- |
+| `object` | \*_minio.Object_ | _minio.Object_ represents object reader. It implements io.Reader, io.Seeker, io.ReaderAt and io.Closer interfaces. |
 
 **Example**
 
@@ -553,12 +549,12 @@ Downloads and saves the object as a file in the local filesystem.
 **Parameters**
 
 | Param        | Type                     | Description                                                                      |
-|:-------------|:-------------------------|:---------------------------------------------------------------------------------|
-| `ctx`        | *context.Context*        | Custom context for timeout/cancellation of the call                              |
-| `bucketName` | *string*                 | Name of the bucket                                                               |
-| `objectName` | *string*                 | Name of the object                                                               |
-| `filePath`   | *string*                 | Path to download object to                                                       |
-| `opts`       | *minio.GetObjectOptions* | Options for GET requests specifying additional options like encryption, If-Match |
+| :----------- | :----------------------- | :------------------------------------------------------------------------------- |
+| `ctx`        | _context.Context_        | Custom context for timeout/cancellation of the call                              |
+| `bucketName` | _string_                 | Name of the bucket                                                               |
+| `objectName` | _string_                 | Name of the object                                                               |
+| `filePath`   | _string_                 | Path to download object to                                                       |
+| `opts`       | _minio.GetObjectOptions_ | Options for GET requests specifying additional options like encryption, If-Match |
 
 **Example**
 
@@ -574,96 +570,96 @@ if err != nil {
 
 ### PutObjectFanOut(ctx context.Context, bucket string, body io.Reader, fanOutReq ...PutObjectFanOutRequest) ([]PutObjectFanOutResponse, error)
 
-A variant of PutObject instead of writing a single object from a single stream multiple objects are written, defined via a list of *PutObjectFanOutRequest*. Each entry in *PutObjectFanOutRequest* carries an object keyname and its relevant metadata if any. `Key` is mandatory, rest of the other options in *PutObjectFanOutRequest( are optional.
+A variant of PutObject instead of writing a single object from a single stream multiple objects are written, defined via a list of _PutObjectFanOutRequest_. Each entry in _PutObjectFanOutRequest_ carries an object keyname and its relevant metadata if any. `Key` is mandatory, rest of the other options in \*PutObjectFanOutRequest( are optional.
 
 **Parameters**
 
 | Param        | Type                           | Description                                                           |
-|:-------------|:-------------------------------|:----------------------------------------------------------------------|
-| `ctx`        | *context.Context*              | Custom context for timeout/cancellation of the call                   |
-| `bucketName` | *string*                       | Name of the bucket                                                    |
-| `fanOutData` | *io.Reader*                    | Any Go type that implements io.Reader                                 |
-| `fanOutReq`  | *minio.PutObjectFanOutRequest* | User input list of all the objects that will be created on the server |
+| :----------- | :----------------------------- | :-------------------------------------------------------------------- |
+| `ctx`        | _context.Context_              | Custom context for timeout/cancellation of the call                   |
+| `bucketName` | _string_                       | Name of the bucket                                                    |
+| `fanOutData` | _io.Reader_                    | Any Go type that implements io.Reader                                 |
+| `fanOutReq`  | _minio.PutObjectFanOutRequest_ | User input list of all the objects that will be created on the server |
 |              |                                |                                                                       |
 
 **minio.PutObjectFanOutRequest**
 
 | Field       | Type                            | Description                                |
-|:------------|:--------------------------------|:-------------------------------------------|
-| `Entries`   | *[]minio.PutObjectFanOutEntyry* | List of object fan out entries             |
-| `Checksums` | *map[string]string*             | Checksums for the input data               |
-| `SSE`       | _encrypt.ServerSide             | Encryption settings for the entire fan-out |
+| :---------- | :------------------------------ | :----------------------------------------- |
+| `Entries`   | _[]minio.PutObjectFanOutEntyry_ | List of object fan out entries             |
+| `Checksums` | _map[string]string_             | Checksums for the input data               |
+| `SSE`       | \_encrypt.ServerSide            | Encryption settings for the entire fan-out |
 
 **minio.PutObjectFanOutEntry**
 
 | Field                | Type                  | Description                                                                                        |
-|:---------------------|:----------------------|:---------------------------------------------------------------------------------------------------|
-| `Key`                | *string*              | Name of the object                                                                                 |
-| `UserMetadata`       | *map[string]string*   | Map of user metadata                                                                               |
-| `UserTags`           | *map[string]string*   | Map of user object tags                                                                            |
-| `ContentType`        | *string*              | Content type of object, e.g "application/text"                                                     |
-| `ContentEncoding`    | *string*              | Content encoding of object, e.g "gzip"                                                             |
-| `ContentDisposition` | *string*              | Content disposition of object, "inline"                                                            |
-| `ContentLanguage`    | *string*              | Content language of object, e.g "French"                                                           |
-| `CacheControl`       | *string*              | Used to specify directives for caching mechanisms in both requests and responses e.g "max-age=600" |
-| `Retention`          | *minio.RetentionMode* | Retention mode to be set, e.g "COMPLIANCE"                                                         |
-| `RetainUntilDate`    | *time.Time*           | Time until which the retention applied is valid                                                    |
+| :------------------- | :-------------------- | :------------------------------------------------------------------------------------------------- |
+| `Key`                | _string_              | Name of the object                                                                                 |
+| `UserMetadata`       | _map[string]string_   | Map of user metadata                                                                               |
+| `UserTags`           | _map[string]string_   | Map of user object tags                                                                            |
+| `ContentType`        | _string_              | Content type of object, e.g "application/text"                                                     |
+| `ContentEncoding`    | _string_              | Content encoding of object, e.g "gzip"                                                             |
+| `ContentDisposition` | _string_              | Content disposition of object, "inline"                                                            |
+| `ContentLanguage`    | _string_              | Content language of object, e.g "French"                                                           |
+| `CacheControl`       | _string_              | Used to specify directives for caching mechanisms in both requests and responses e.g "max-age=600" |
+| `Retention`          | _minio.RetentionMode_ | Retention mode to be set, e.g "COMPLIANCE"                                                         |
+| `RetainUntilDate`    | _time.Time_           | Time until which the retention applied is valid                                                    |
 
 **minio.PutObjectFanOutResponse**
 
-| Field          | Type       | Description                                                     |
-|:---------------|:-----------|:----------------------------------------------------------------|
-| `Key`          | *string*   | Name of the object                                              |
-| `ETag`         | *string*   | ETag opaque unique value of the object                          |
-| `VersionID`    | *string*   | VersionID of the uploaded object                                |
-| `LastModified` | _time.Time | Last modified time of the latest object                         |
-| `Error`        | *error*    | Is non `nil` only when the fan-out for a specific object failed |
+| Field          | Type        | Description                                                     |
+| :------------- | :---------- | :-------------------------------------------------------------- |
+| `Key`          | _string_    | Name of the object                                              |
+| `ETag`         | _string_    | ETag opaque unique value of the object                          |
+| `VersionID`    | _string_    | VersionID of the uploaded object                                |
+| `LastModified` | \_time.Time | Last modified time of the latest object                         |
+| `Error`        | _error_     | Is non `nil` only when the fan-out for a specific object failed |
 
 <a name="PutObject"></a>
 
 ### PutObject(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64,opts PutObjectOptions) (info UploadInfo, err error)
 
-Uploads objects that are less than 128MiB in a single PUT operation. For objects that are greater than 128MiB in size, PutObject seamlessly uploads the object as parts of 128MiB or more depending on the actual file size. The max upload size for an object is ~48.83TiB (5GiB * 10000 parts). When using unknown size (-1), the default limit is 5TiB; set `PartSize` in options to upload larger objects.
+Uploads objects that are less than 128MiB in a single PUT operation. For objects that are greater than 128MiB in size, PutObject seamlessly uploads the object as parts of 128MiB or more depending on the actual file size. The max upload size for an object is ~48.83TiB (5GiB \* 10000 parts). When using unknown size (-1), the default limit is 5TiB; set `PartSize` in options to upload larger objects.
 
 **Parameters**
 
 | Param        | Type                     | Description                                                                                                                         |
-|:-------------|:-------------------------|:------------------------------------------------------------------------------------------------------------------------------------|
-| `ctx`        | *context.Context*        | Custom context for timeout/cancellation of the call                                                                                 |
-| `bucketName` | *string*                 | Name of the bucket                                                                                                                  |
-| `objectName` | *string*                 | Name of the object                                                                                                                  |
-| `reader`     | *io.Reader*              | Any Go type that implements io.Reader                                                                                               |
-| `objectSize` | *int64*                  | Size of the object being uploaded. Pass -1 if stream size is unknown (Warning: passing -1 will allocate a large amount of memory)   |
-| `opts`       | *minio.PutObjectOptions* | Allows user to set optional custom metadata, content headers, encryption keys and number of threads for multipart upload operation. |
+| :----------- | :----------------------- | :---------------------------------------------------------------------------------------------------------------------------------- |
+| `ctx`        | _context.Context_        | Custom context for timeout/cancellation of the call                                                                                 |
+| `bucketName` | _string_                 | Name of the bucket                                                                                                                  |
+| `objectName` | _string_                 | Name of the object                                                                                                                  |
+| `reader`     | _io.Reader_              | Any Go type that implements io.Reader                                                                                               |
+| `objectSize` | _int64_                  | Size of the object being uploaded. Pass -1 if stream size is unknown (Warning: passing -1 will allocate a large amount of memory)   |
+| `opts`       | _minio.PutObjectOptions_ | Allows user to set optional custom metadata, content headers, encryption keys and number of threads for multipart upload operation. |
 
 **minio.PutObjectOptions**
 
 | Field                          | Type                       | Description                                                                                                                                                                        |
-|:-------------------------------|:---------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `opts.UserMetadata`            | *map[string]string*        | Map of user metadata                                                                                                                                                               |
-| `opts.UserTags`                | *map[string]string*        | Map of user object tags                                                                                                                                                            |
-| `opts.Progress`                | *io.Reader*                | Reader to fetch progress of an upload                                                                                                                                              |
-| `opts.ContentType`             | *string*                   | Content type of object, e.g "application/text"                                                                                                                                     |
-| `opts.ContentEncoding`         | *string*                   | Content encoding of object, e.g "gzip"                                                                                                                                             |
-| `opts.ContentDisposition`      | *string*                   | Content disposition of object, "inline"                                                                                                                                            |
-| `opts.ContentLanguage`         | *string*                   | Content language of object, e.g "French"                                                                                                                                           |
-| `opts.CacheControl`            | *string*                   | Used to specify directives for caching mechanisms in both requests and responses e.g "max-age=600"                                                                                 |
-| `opts.Mode`                    | \**minio.RetentionMode*    | Retention mode to be set, e.g "COMPLIANCE"                                                                                                                                         |
-| `opts.RetainUntilDate`         | \**time.Time*              | Time until which the retention applied is valid                                                                                                                                    |
-| `opts.ServerSideEncryption`    | *encrypt.ServerSide*       | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go/v7\)                              |
-| `opts.StorageClass`            | *string*                   | Specify storage class for the object. Supported values for MinIO server are `REDUCED_REDUNDANCY` and `STANDARD`                                                                    |
-| `opts.WebsiteRedirectLocation` | *string*                   | Specify a redirect for the object, to another object in the same bucket or to a external URL.                                                                                      |
-| `opts.SendContentMd5`          | *bool*                     | Specify if you'd like to send `content-md5` header with PutObject operation. Note that setting this flag will cause higher memory usage because of in-memory `md5sum` calculation. |
-| `opts.PartSize`                | *uint64*                   | Specify a custom part size used for uploading the object                                                                                                                           |
-| `opts.Internal`                | *minio.AdvancedPutOptions* | This option is intended for internal use by MinIO server and should not be set unless the application is aware of intended use.                                                    |
+| :----------------------------- | :------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `opts.UserMetadata`            | _map[string]string_        | Map of user metadata                                                                                                                                                               |
+| `opts.UserTags`                | _map[string]string_        | Map of user object tags                                                                                                                                                            |
+| `opts.Progress`                | _io.Reader_                | Reader to fetch progress of an upload                                                                                                                                              |
+| `opts.ContentType`             | _string_                   | Content type of object, e.g "application/text"                                                                                                                                     |
+| `opts.ContentEncoding`         | _string_                   | Content encoding of object, e.g "gzip"                                                                                                                                             |
+| `opts.ContentDisposition`      | _string_                   | Content disposition of object, "inline"                                                                                                                                            |
+| `opts.ContentLanguage`         | _string_                   | Content language of object, e.g "French"                                                                                                                                           |
+| `opts.CacheControl`            | _string_                   | Used to specify directives for caching mechanisms in both requests and responses e.g "max-age=600"                                                                                 |
+| `opts.Mode`                    | \*_minio.RetentionMode_    | Retention mode to be set, e.g "COMPLIANCE"                                                                                                                                         |
+| `opts.RetainUntilDate`         | \*_time.Time_              | Time until which the retention applied is valid                                                                                                                                    |
+| `opts.ServerSideEncryption`    | _encrypt.ServerSide_       | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go/v7\)                              |
+| `opts.StorageClass`            | _string_                   | Specify storage class for the object. Supported values for MinIO server are `REDUCED_REDUNDANCY` and `STANDARD`                                                                    |
+| `opts.WebsiteRedirectLocation` | _string_                   | Specify a redirect for the object, to another object in the same bucket or to a external URL.                                                                                      |
+| `opts.SendContentMd5`          | _bool_                     | Specify if you'd like to send `content-md5` header with PutObject operation. Note that setting this flag will cause higher memory usage because of in-memory `md5sum` calculation. |
+| `opts.PartSize`                | _uint64_                   | Specify a custom part size used for uploading the object                                                                                                                           |
+| `opts.Internal`                | _minio.AdvancedPutOptions_ | This option is intended for internal use by MinIO server and should not be set unless the application is aware of intended use.                                                    |
 |                                |                            |                                                                                                                                                                                    |
 
 **minio.UploadInfo**
 
 | Field            | Type     | Description                              |
-|:-----------------|:---------|:-----------------------------------------|
-| `info.ETag`      | *string* | The ETag of the new object               |
-| `info.VersionID` | *string* | The version identifier of the new object |
+| :--------------- | :------- | :--------------------------------------- |
+| `info.ETag`      | _string_ | The ETag of the new object               |
+| `info.VersionID` | _string_ | The version identifier of the new object |
 
 **Example**
 
@@ -702,17 +698,17 @@ To copy multiple source objects into a single destination object see the `Compos
 **Parameters**
 
 | Param | Type                    | Description                                         |
-|:------|:------------------------|:----------------------------------------------------|
-| `ctx` | *context.Context*       | Custom context for timeout/cancellation of the call |
-| `dst` | *minio.CopyDestOptions* | Argument describing the destination object          |
-| `src` | *minio.CopySrcOptions*  | Argument describing the source object               |
+| :---- | :---------------------- | :-------------------------------------------------- |
+| `ctx` | _context.Context_       | Custom context for timeout/cancellation of the call |
+| `dst` | _minio.CopyDestOptions_ | Argument describing the destination object          |
+| `src` | _minio.CopySrcOptions_  | Argument describing the source object               |
 
 **minio.UploadInfo**
 
 | Field            | Type     | Description                              |
-|:-----------------|:---------|:-----------------------------------------|
-| `info.ETag`      | *string* | The ETag of the new object               |
-| `info.VersionID` | *string* | The version identifier of the new object |
+| :--------------- | :------- | :--------------------------------------- |
+| `info.ETag`      | _string_ | The ETag of the new object               |
+| `info.VersionID` | _string_ | The version identifier of the new object |
 
 **Example**
 
@@ -785,17 +781,17 @@ Create an object by concatenating a list of source objects using server-side cop
 **Parameters**
 
 | Param  | Type                      | Description                                                                 |
-|:-------|:--------------------------|:----------------------------------------------------------------------------|
-| `ctx`  | *context.Context*         | Custom context for timeout/cancellation of the call                         |
-| `dst`  | *minio.CopyDestOptions*   | Struct with info about the object to be created.                            |
-| `srcs` | *...minio.CopySrcOptions* | Slice of struct with info about source objects to be concatenated in order. |
+| :----- | :------------------------ | :-------------------------------------------------------------------------- |
+| `ctx`  | _context.Context_         | Custom context for timeout/cancellation of the call                         |
+| `dst`  | _minio.CopyDestOptions_   | Struct with info about the object to be created.                            |
+| `srcs` | _...minio.CopySrcOptions_ | Slice of struct with info about source objects to be concatenated in order. |
 
 **minio.UploadInfo**
 
 | Field            | Type     | Description                              |
-|:-----------------|:---------|:-----------------------------------------|
-| `info.ETag`      | *string* | The ETag of the new object               |
-| `info.VersionID` | *string* | The version identifier of the new object |
+| :--------------- | :------- | :--------------------------------------- |
+| `info.ETag`      | _string_ | The ETag of the new object               |
+| `info.VersionID` | _string_ | The version identifier of the new object |
 
 **Example**
 
@@ -853,24 +849,24 @@ fmt.Println("Composed object successfully:", uploadInfo)
 
 Uploads contents from a file to objectName.
 
-FPutObject uploads objects that are less than 128MiB in a single PUT operation. For objects that are greater than the 128MiB in size, FPutObject seamlessly uploads the object in chunks of 128MiB or more depending on the actual file size. The max upload size for an object is ~48.83TiB (5GiB * 10000 parts).
+FPutObject uploads objects that are less than 128MiB in a single PUT operation. For objects that are greater than the 128MiB in size, FPutObject seamlessly uploads the object in chunks of 128MiB or more depending on the actual file size. The max upload size for an object is ~48.83TiB (5GiB \* 10000 parts).
 
 **Parameters**
 
 | Param        | Type                     | Description                                                                                                                                                                                                                                                                                 |
-|:-------------|:-------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `ctx`        | *context.Context*        | Custom context for timeout/cancellation of the call                                                                                                                                                                                                                                         |
-| `bucketName` | *string*                 | Name of the bucket                                                                                                                                                                                                                                                                          |
-| `objectName` | *string*                 | Name of the object                                                                                                                                                                                                                                                                          |
-| `filePath`   | *string*                 | Path to file to be uploaded                                                                                                                                                                                                                                                                 |
-| `opts`       | *minio.PutObjectOptions* | Pointer to struct that allows user to set optional custom metadata, content-type, content-encoding, content-disposition, content-language and cache-control headers, pass encryption module for encrypting objects, and optionally configure number of threads for multipart put operation. |
+| :----------- | :----------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ctx`        | _context.Context_        | Custom context for timeout/cancellation of the call                                                                                                                                                                                                                                         |
+| `bucketName` | _string_                 | Name of the bucket                                                                                                                                                                                                                                                                          |
+| `objectName` | _string_                 | Name of the object                                                                                                                                                                                                                                                                          |
+| `filePath`   | _string_                 | Path to file to be uploaded                                                                                                                                                                                                                                                                 |
+| `opts`       | _minio.PutObjectOptions_ | Pointer to struct that allows user to set optional custom metadata, content-type, content-encoding, content-disposition, content-language and cache-control headers, pass encryption module for encrypting objects, and optionally configure number of threads for multipart put operation. |
 
 **minio.UploadInfo**
 
 | Field            | Type     | Description                              |
-|:-----------------|:---------|:-----------------------------------------|
-| `info.ETag`      | *string* | The ETag of the new object               |
-| `info.VersionID` | *string* | The version identifier of the new object |
+| :--------------- | :------- | :--------------------------------------- |
+| `info.ETag`      | _string_ | The ETag of the new object               |
+| `info.VersionID` | _string_ | The version identifier of the new object |
 
 **Example**
 
@@ -894,26 +890,26 @@ Fetch metadata of an object.
 **Parameters**
 
 | Param        | Type                      | Description                                                                                |
-|:-------------|:--------------------------|:-------------------------------------------------------------------------------------------|
-| `ctx`        | *context.Context*         | Custom context for timeout/cancellation of the call                                        |
-| `bucketName` | *string*                  | Name of the bucket                                                                         |
-| `objectName` | *string*                  | Name of the object                                                                         |
-| `opts`       | *minio.StatObjectOptions* | Options for GET info/stat requests specifying additional options like encryption, If-Match |
+| :----------- | :------------------------ | :----------------------------------------------------------------------------------------- |
+| `ctx`        | _context.Context_         | Custom context for timeout/cancellation of the call                                        |
+| `bucketName` | _string_                  | Name of the bucket                                                                         |
+| `objectName` | _string_                  | Name of the object                                                                         |
+| `opts`       | _minio.StatObjectOptions_ | Options for GET info/stat requests specifying additional options like encryption, If-Match |
 
 **Return Value**
 
 | Param     | Type               | Description             |
-|:----------|:-------------------|:------------------------|
-| `objInfo` | *minio.ObjectInfo* | Object stat information |
+| :-------- | :----------------- | :---------------------- |
+| `objInfo` | _minio.ObjectInfo_ | Object stat information |
 
 **minio.ObjectInfo**
 
 | Field                  | Type        | Description                        |
-|:-----------------------|:------------|:-----------------------------------|
-| `objInfo.LastModified` | *time.Time* | Time when object was last modified |
-| `objInfo.ETag`         | *string*    | MD5 checksum of the object         |
-| `objInfo.ContentType`  | *string*    | Content type of the object         |
-| `objInfo.Size`         | *int64*     | Size of the object                 |
+| :--------------------- | :---------- | :--------------------------------- |
+| `objInfo.LastModified` | _time.Time_ | Time when object was last modified |
+| `objInfo.ETag`         | _string_    | MD5 checksum of the object         |
+| `objInfo.ContentType`  | _string_    | Content type of the object         |
+| `objInfo.Size`         | _int64_     | Size of the object                 |
 
 **Example**
 
@@ -935,19 +931,19 @@ Removes an object with some specified options
 **Parameters**
 
 | Param        | Type                        | Description                                         |
-|:-------------|:----------------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context*           | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*                    | Name of the bucket                                  |
-| `objectName` | *string*                    | Name of the object                                  |
-| `opts`       | *minio.RemoveObjectOptions* | Allows user to set options                          |
+| :----------- | :-------------------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_           | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_                    | Name of the bucket                                  |
+| `objectName` | _string_                    | Name of the object                                  |
+| `opts`       | _minio.RemoveObjectOptions_ | Allows user to set options                          |
 
 **minio.RemoveObjectOptions**
 
 | Field                   | Type                          | Description                                                                                                                     |
-|:------------------------|:------------------------------|:--------------------------------------------------------------------------------------------------------------------------------|
-| `opts.GovernanceBypass` | *bool*                        | Set the bypass governance header to delete an object locked with GOVERNANCE mode                                                |
-| `opts.VersionID`        | *string*                      | Version ID of the object to delete                                                                                              |
-| `opts.Internal`         | *minio.AdvancedRemoveOptions* | This option is intended for internal use by MinIO server and should not be set unless the application is aware of intended use. |
+| :---------------------- | :---------------------------- | :------------------------------------------------------------------------------------------------------------------------------ |
+| `opts.GovernanceBypass` | _bool_                        | Set the bypass governance header to delete an object locked with GOVERNANCE mode                                                |
+| `opts.VersionID`        | _string_                      | Version ID of the object to delete                                                                                              |
+| `opts.Internal`         | _minio.AdvancedRemoveOptions_ | This option is intended for internal use by MinIO server and should not be set unless the application is aware of intended use. |
 
 ```go
 opts := minio.RemoveObjectOptions{
@@ -970,11 +966,11 @@ Applies object retention lock onto an object.
 **Parameters**
 
 | Param        | Type                              | Description                                                                |
-|:-------------|:----------------------------------|:---------------------------------------------------------------------------|
-| `ctx`        | *context.Context*                 | Custom context for timeout/cancellation of the call                        |
-| `bucketName` | *string*                          | Name of the bucket                                                         |
-| `objectName` | *string*                          | Name of the object                                                         |
-| `opts`       | *minio.PutObjectRetentionOptions* | Allows user to set options like retention mode, expiry date and version id |
+| :----------- | :-------------------------------- | :------------------------------------------------------------------------- |
+| `ctx`        | _context.Context_                 | Custom context for timeout/cancellation of the call                        |
+| `bucketName` | _string_                          | Name of the bucket                                                         |
+| `objectName` | _string_                          | Name of the object                                                         |
+| `opts`       | _minio.PutObjectRetentionOptions_ | Allows user to set options like retention mode, expiry date and version id |
 
 <a name="RemoveObjects"></a>
 
@@ -985,23 +981,23 @@ Removes a list of objects obtained from an input channel. The call sends a delet
 Parameters
 
 | Param        | Type                         | Description                                         |
-|:-------------|:-----------------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context*            | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*                     | Name of the bucket                                  |
-| `objectsCh`  | *chan minio.ObjectInfo*      | Channel of objects to be removed                    |
-| `opts`       | *minio.RemoveObjectsOptions* | Allows user to set options                          |
+| :----------- | :--------------------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_            | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_                     | Name of the bucket                                  |
+| `objectsCh`  | _chan minio.ObjectInfo_      | Channel of objects to be removed                    |
+| `opts`       | _minio.RemoveObjectsOptions_ | Allows user to set options                          |
 
 **minio.RemoveObjectsOptions**
 
 | Field                   | Type   | Description                                                                      |
-|:------------------------|:-------|:---------------------------------------------------------------------------------|
-| `opts.GovernanceBypass` | *bool* | Set the bypass governance header to delete an object locked with GOVERNANCE mode |
+| :---------------------- | :----- | :------------------------------------------------------------------------------- |
+| `opts.GovernanceBypass` | _bool_ | Set the bypass governance header to delete an object locked with GOVERNANCE mode |
 
 **Return Values**
 
 | Param     | Type                             | Description                                              |
-|:----------|:---------------------------------|:---------------------------------------------------------|
-| `errorCh` | *<-chan minio.RemoveObjectError* | Receive-only channel of errors observed during deletion. |
+| :-------- | :------------------------------- | :------------------------------------------------------- |
+| `errorCh` | _<-chan minio.RemoveObjectError_ | Receive-only channel of errors observed during deletion. |
 
 ```go
 objectsCh := make(chan minio.ObjectInfo)
@@ -1036,25 +1032,25 @@ Removes a list of objects and returns both successful deletions and errors. This
 **Parameters**
 
 | Param        | Type                         | Description                                         |
-|:-------------|:-----------------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context*            | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*                     | Name of the bucket                                  |
-| `objectsCh`  | *chan minio.ObjectInfo*      | Channel of objects to be removed                    |
-| `opts`       | *minio.RemoveObjectsOptions* | Allows user to set options                          |
+| :----------- | :--------------------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_            | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_                     | Name of the bucket                                  |
+| `objectsCh`  | _chan minio.ObjectInfo_      | Channel of objects to be removed                    |
+| `opts`       | _minio.RemoveObjectsOptions_ | Allows user to set options                          |
 
 **Return Values**
 
 | Param      | Type                              | Description                                            |
-|:-----------|:----------------------------------|:-------------------------------------------------------|
-| `resultCh` | *<-chan minio.RemoveObjectResult* | Channel of results including both successes and errors |
+| :--------- | :-------------------------------- | :----------------------------------------------------- |
+| `resultCh` | _<-chan minio.RemoveObjectResult_ | Channel of results including both successes and errors |
 
 **minio.RemoveObjectResult**
 
 | Field        | Type     | Description                               |
-|:-------------|:---------|:------------------------------------------|
-| `ObjectName` | *string* | Name of the object                        |
-| `VersionID`  | *string* | Version ID of the object (if versioned)   |
-| `Err`        | *error*  | Error during deletion (nil if successful) |
+| :----------- | :------- | :---------------------------------------- |
+| `ObjectName` | _string_ | Name of the object                        |
+| `VersionID`  | _string_ | Version ID of the object (if versioned)   |
+| `Err`        | _error_  | Error during deletion (nil if successful) |
 
 **Example**
 
@@ -1098,18 +1094,18 @@ Iterator-based version of RemoveObjects for Go 1.23+. Removes objects using an i
 **Parameters**
 
 | Param         | Type                         | Description                                         |
-|:--------------|:-----------------------------|:----------------------------------------------------|
-| `ctx`         | *context.Context*            | Custom context for timeout/cancellation of the call |
-| `bucketName`  | *string*                     | Name of the bucket                                  |
-| `objectsIter` | *iter.Seq[minio.ObjectInfo]* | Iterator of objects to be removed                   |
-| `opts`        | *minio.RemoveObjectsOptions* | Allows user to set options                          |
+| :------------ | :--------------------------- | :-------------------------------------------------- |
+| `ctx`         | _context.Context_            | Custom context for timeout/cancellation of the call |
+| `bucketName`  | _string_                     | Name of the bucket                                  |
+| `objectsIter` | _iter.Seq[minio.ObjectInfo]_ | Iterator of objects to be removed                   |
+| `opts`        | _minio.RemoveObjectsOptions_ | Allows user to set options                          |
 
 **Return Values**
 
 | Param        | Type                                 | Description                          |
-|:-------------|:-------------------------------------|:-------------------------------------|
-| `resultIter` | *iter.Seq[minio.RemoveObjectResult]* | Iterator yielding removal results    |
-| `err`        | *error*                              | Error initializing removal operation |
+| :----------- | :----------------------------------- | :----------------------------------- |
+| `resultIter` | _iter.Seq[minio.RemoveObjectResult]_ | Iterator yielding removal results    |
+| `err`        | _error_                              | Error initializing removal operation |
 
 **Example**
 
@@ -1137,11 +1133,11 @@ Returns retention set on a given object.
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
-| `objectName` | *string*          | Name of the object                                  |
-| `versionID`  | *string*          | Version ID of the object                            |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
+| `objectName` | _string_          | Name of the object                                  |
+| `versionID`  | _string_          | Version ID of the object                            |
 
 ```go
 mode, retainUntilDate, err := minioClient.GetObjectRetention(context.Background(), "mybucket", "myobject", "")
@@ -1161,18 +1157,18 @@ Applies legal-hold onto an object.
 **Parameters**
 
 | Param        | Type                              | Description                                           |
-|:-------------|:----------------------------------|:------------------------------------------------------|
-| `ctx`        | *context.Context*                 | Custom context for timeout/cancellation of the call   |
-| `bucketName` | *string*                          | Name of the bucket                                    |
-| `objectName` | *string*                          | Name of the object                                    |
-| `opts`       | *minio.PutObjectLegalHoldOptions* | Allows user to set options like status and version id |
+| :----------- | :-------------------------------- | :---------------------------------------------------- |
+| `ctx`        | _context.Context_                 | Custom context for timeout/cancellation of the call   |
+| `bucketName` | _string_                          | Name of the bucket                                    |
+| `objectName` | _string_                          | Name of the object                                    |
+| `opts`       | _minio.PutObjectLegalHoldOptions_ | Allows user to set options like status and version id |
 
-*minio.PutObjectLegalHoldOptions*
+_minio.PutObjectLegalHoldOptions_
 
 | Field            | Type                      | Description                                    |
-|:-----------------|:--------------------------|:-----------------------------------------------|
-| `opts.Status`    | \**minio.LegalHoldStatus* | Legal-Hold status to be set                    |
-| `opts.VersionID` | *string*                  | Version ID of the object to apply retention on |
+| :--------------- | :------------------------ | :--------------------------------------------- |
+| `opts.Status`    | \*_minio.LegalHoldStatus_ | Legal-Hold status to be set                    |
+| `opts.VersionID` | _string_                  | Version ID of the object to apply retention on |
 
 ```go
 s := minio.LegalHoldEnabled
@@ -1188,18 +1184,18 @@ if err != nil {
 
 <a name="GetObjectLegalHold"></a>
 
-### GetObjectLegalHold(ctx context.Context, bucketName, objectName, versionID string) (status *LegalHoldStatus, err error)
+### GetObjectLegalHold(ctx context.Context, bucketName, objectName, versionID string) (status \*LegalHoldStatus, err error)
 
 Returns legal-hold status on a given object.
 
 **Parameters**
 
 | Param        | Type                              | Description                                         |
-|:-------------|:----------------------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context*                 | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*                          | Name of the bucket                                  |
-| `objectName` | *string*                          | Name of the object                                  |
-| `opts`       | *minio.GetObjectLegalHoldOptions* | Allows user to set options like version id          |
+| :----------- | :-------------------------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_                 | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_                          | Name of the bucket                                  |
+| `objectName` | _string_                          | Name of the object                                  |
+| `opts`       | _minio.GetObjectLegalHoldOptions_ | Allows user to set options like version id          |
 
 ```go
 opts := minio.GetObjectLegalHoldOptions{}
@@ -1212,23 +1208,23 @@ if err != nil {
 
 <a name="SelectObjectContent"></a>
 
-### SelectObjectContent(ctx context.Context, bucketName string, objectsName string, expression string, options SelectObjectOptions) *SelectResults
+### SelectObjectContent(ctx context.Context, bucketName string, objectsName string, expression string, options SelectObjectOptions) \*SelectResults
 
 Parameters
 
 | Param        | Type                  | Description                                         |
-|:-------------|:----------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context*     | Custom context for timeout/cancellation of the call |
-| `ctx`        | *context.Context*     | Request context                                     |
-| `bucketName` | *string*              | Name of the bucket                                  |
-| `objectName` | *string*              | Name of the object                                  |
-| `options`    | *SelectObjectOptions* | Query Options                                       |
+| :----------- | :-------------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_     | Custom context for timeout/cancellation of the call |
+| `ctx`        | _context.Context_     | Request context                                     |
+| `bucketName` | _string_              | Name of the bucket                                  |
+| `objectName` | _string_              | Name of the object                                  |
+| `options`    | _SelectObjectOptions_ | Query Options                                       |
 
 **Return Values**
 
 | Param           | Type            | Description                                                                                     |
-|:----------------|:----------------|:------------------------------------------------------------------------------------------------|
-| `SelectResults` | *SelectResults* | Is an io.ReadCloser object which can be directly passed to csv.NewReader for processing output. |
+| :-------------- | :-------------- | :---------------------------------------------------------------------------------------------- |
+| `SelectResults` | _SelectResults_ | Is an io.ReadCloser object which can be directly passed to csv.NewReader for processing output. |
 
 ```go
 	// Initialize minio client object.
@@ -1269,18 +1265,18 @@ Parameters
 
 <a name="PutObjectTagging"></a>
 
-### PutObjectTagging(ctx context.Context, bucketName, objectName string, otags *tags.Tags, opts PutObjectTaggingOptions) error
+### PutObjectTagging(ctx context.Context, bucketName, objectName string, otags \*tags.Tags, opts PutObjectTaggingOptions) error
 
 set new object Tags to the given object, replaces/overwrites any existing tags.
 
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
-| `objectName` | *string*          | Name of the object                                  |
-| `objectTags` | \**tags.Tags*     | Map with Object Tag's Key and Value                 |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
+| `objectName` | _string_          | Name of the object                                  |
+| `objectTags` | \*_tags.Tags_     | Map with Object Tag's Key and Value                 |
 
 **Example**
 
@@ -1294,17 +1290,17 @@ if err != nil {
 
 <a name="GetObjectTagging"></a>
 
-### GetObjectTagging(ctx context.Context, bucketName, objectName string) (*tags.Tags, error)
+### GetObjectTagging(ctx context.Context, bucketName, objectName string) (\*tags.Tags, error)
 
 Fetch Object Tags from the given object
 
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
-| `objectName` | *string*          | Name of the object                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
+| `objectName` | _string_          | Name of the object                                  |
 
 **Example**
 
@@ -1326,10 +1322,10 @@ Remove Object Tags from the given object
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
-| `objectName` | *string*          | Name of the object                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
+| `objectName` | _string_          | Name of the object                                  |
 
 **Example**
 
@@ -1349,14 +1345,14 @@ Create or overwrite a named annotation on an object version. An annotation is a 
 
 **Parameters**
 
-| Param            | Type                          | Description                                                       |
-|:-----------------|:------------------------------|:------------------------------------------------------------------|
-| `ctx`            | *context.Context*             | Custom context for timeout/cancellation of the call               |
-| `bucketName`     | *string*                      | Name of the bucket                                                |
-| `objectName`     | *string*                      | Name of the object                                                |
-| `annotationName` | *string*                      | Name of the annotation (1-512 bytes)                              |
-| `payload`        | *io.Reader*                   | Annotation payload (1 byte to 1 MiB of valid UTF-8)               |
-| `opts`           | *PutObjectAnnotationOptions*  | Options: `VersionID`, `IfMatch` (x-amz-object-if-match precondition) |
+| Param            | Type                         | Description                                                          |
+| :--------------- | :--------------------------- | :------------------------------------------------------------------- |
+| `ctx`            | _context.Context_            | Custom context for timeout/cancellation of the call                  |
+| `bucketName`     | _string_                     | Name of the bucket                                                   |
+| `objectName`     | _string_                     | Name of the object                                                   |
+| `annotationName` | _string_                     | Name of the annotation (1-512 bytes)                                 |
+| `payload`        | _io.Reader_                  | Annotation payload (1 byte to 1 MiB of valid UTF-8)                  |
+| `opts`           | _PutObjectAnnotationOptions_ | Options: `VersionID`, `IfMatch` (x-amz-object-if-match precondition) |
 
 **Example**
 
@@ -1377,13 +1373,13 @@ Return the payload of a single named annotation as a stream. The caller must Clo
 
 **Parameters**
 
-| Param            | Type                          | Description                                         |
-|:-----------------|:------------------------------|:----------------------------------------------------|
-| `ctx`            | *context.Context*             | Custom context for timeout/cancellation of the call |
-| `bucketName`     | *string*                      | Name of the bucket                                  |
-| `objectName`     | *string*                      | Name of the object                                  |
-| `annotationName` | *string*                      | Name of the annotation                              |
-| `opts`           | *GetObjectAnnotationOptions*  | Options: `VersionID`                                |
+| Param            | Type                         | Description                                         |
+| :--------------- | :--------------------------- | :-------------------------------------------------- |
+| `ctx`            | _context.Context_            | Custom context for timeout/cancellation of the call |
+| `bucketName`     | _string_                     | Name of the bucket                                  |
+| `objectName`     | _string_                     | Name of the object                                  |
+| `annotationName` | _string_                     | Name of the annotation                              |
+| `opts`           | _GetObjectAnnotationOptions_ | Options: `VersionID`                                |
 
 **Example**
 
@@ -1408,12 +1404,12 @@ Return all annotations attached to an object version. Each `ObjectAnnotation` ha
 
 **Parameters**
 
-| Param        | Type                            | Description                                         |
-|:-------------|:--------------------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context*               | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*                        | Name of the bucket                                  |
-| `objectName` | *string*                        | Name of the object                                  |
-| `opts`       | *ListObjectAnnotationsOptions*  | Options: `VersionID`                                |
+| Param        | Type                           | Description                                         |
+| :----------- | :----------------------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_              | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_                       | Name of the bucket                                  |
+| `objectName` | _string_                       | Name of the object                                  |
+| `opts`       | _ListObjectAnnotationsOptions_ | Options: `VersionID`                                |
 
 **Example**
 
@@ -1437,12 +1433,12 @@ Permanently delete a single named annotation. Deletion is irreversible: annotati
 **Parameters**
 
 | Param            | Type                            | Description                                         |
-|:-----------------|:--------------------------------|:----------------------------------------------------|
-| `ctx`            | *context.Context*               | Custom context for timeout/cancellation of the call |
-| `bucketName`     | *string*                        | Name of the bucket                                  |
-| `objectName`     | *string*                        | Name of the object                                  |
-| `annotationName` | *string*                        | Name of the annotation                              |
-| `opts`           | *RemoveObjectAnnotationOptions* | Options: `VersionID`, `IfMatch`                     |
+| :--------------- | :------------------------------ | :-------------------------------------------------- |
+| `ctx`            | _context.Context_               | Custom context for timeout/cancellation of the call |
+| `bucketName`     | _string_                        | Name of the bucket                                  |
+| `objectName`     | _string_                        | Name of the object                                  |
+| `annotationName` | _string_                        | Name of the annotation                              |
+| `opts`           | _RemoveObjectAnnotationOptions_ | Options: `VersionID`, `IfMatch`                     |
 
 **Example**
 
@@ -1462,13 +1458,13 @@ Restore or perform SQL operations on an archived object
 
 **Parameters**
 
-| Param        | Type                  | Description                                         |
-|:-------------|:----------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context*     | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*              | Name of the bucket                                  |
-| `objectName` | *string*              | Name of the object                                  |
-| `versionID`  | *string*              | Version ID of the object                            |
-| `opts`       | _minio.RestoreRequest | Restore request options                             |
+| Param        | Type                   | Description                                         |
+| :----------- | :--------------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_      | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_               | Name of the bucket                                  |
+| `objectName` | _string_               | Name of the object                                  |
+| `versionID`  | _string_               | Version ID of the object                            |
+| `opts`       | \_minio.RestoreRequest | Restore request options                             |
 
 **Example**
 
@@ -1485,33 +1481,33 @@ if err != nil {
 
 <a name="GetObjectAttributes"></a>
 
-### GetObjectAttributes(ctx context.Context, bucketName, objectName string, opts ObjectAttributesOptions) (*ObjectAttributes, error)
+### GetObjectAttributes(ctx context.Context, bucketName, objectName string, opts ObjectAttributesOptions) (\*ObjectAttributes, error)
 
 Returns a stream of the object data. Most of the common errors occur when reading the stream.
 
 **Parameters**
 
 | Param        | Type                            | Description                                                     |
-|:-------------|:--------------------------------|:----------------------------------------------------------------|
-| `ctx`        | *context.Context*               | Custom context for timeout/cancellation of the call             |
-| `bucketName` | *string*                        | Name of the bucket                                              |
-| `objectName` | *string*                        | Name of the object                                              |
-| `opts`       | *minio.ObjectAttributesOptions* | Configuration for pagination and selection of object attributes |
+| :----------- | :------------------------------ | :-------------------------------------------------------------- |
+| `ctx`        | _context.Context_               | Custom context for timeout/cancellation of the call             |
+| `bucketName` | _string_                        | Name of the bucket                                              |
+| `objectName` | _string_                        | Name of the object                                              |
+| `opts`       | _minio.ObjectAttributesOptions_ | Configuration for pagination and selection of object attributes |
 
 **minio.ObjectAttributesOptions**
 
 | Field                       | Type                 | Description                                                                                                                                                 |
-|:----------------------------|:---------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `opts.ServerSideEncryption` | *encrypt.ServerSide* | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go/v7\)       |
-| `opts.MaxParts`             | _int                 | This option defines how many parts should be returned by the API                                                                                            |
-| `opts.VersionID`            | _string              | VersionID defines which version of the object will be used                                                                                                  |
-| `opts.PartNumberMarker`     | _int                 | This options defines which part number pagination will start after, the part which number is equal to PartNumberMarker will not be included in the response |
+| :-------------------------- | :------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `opts.ServerSideEncryption` | _encrypt.ServerSide_ | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go/v7\)       |
+| `opts.MaxParts`             | \_int                | This option defines how many parts should be returned by the API                                                                                            |
+| `opts.VersionID`            | \_string             | VersionID defines which version of the object will be used                                                                                                  |
+| `opts.PartNumberMarker`     | \_int                | This options defines which part number pagination will start after, the part which number is equal to PartNumberMarker will not be included in the response |
 
 **Return Value**
 
 | Param              | Type                       | Description                                                                        |
-|:-------------------|:---------------------------|:-----------------------------------------------------------------------------------|
-| `objectAttributes` | \**minio.ObjectAttributes* | *minio.ObjectAttributes* contains the information about the object and it's parts. |
+| :----------------- | :------------------------- | :--------------------------------------------------------------------------------- |
+| `objectAttributes` | \*_minio.ObjectAttributes_ | _minio.ObjectAttributes_ contains the information about the object and it's parts. |
 
 **Example**
 
@@ -1543,10 +1539,10 @@ Removes a partially uploaded object.
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
-| `objectName` | *string*          | Name of the object                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
+| `objectName` | _string_          | Name of the object                                  |
 
 **Example**
 
@@ -1558,23 +1554,23 @@ if err != nil {
 }
 ```
 
-1.	Presigned operations -----------------------
+1. Presigned operations -----------------------
 
 <a name="PresignedGetObject"></a>
 
-### PresignedGetObject(ctx context.Context, bucketName, objectName string, expiry time.Duration, reqParams url.Values) (*url.URL, error)
+### PresignedGetObject(ctx context.Context, bucketName, objectName string, expiry time.Duration, reqParams url.Values) (\*url.URL, error)
 
 Generates a presigned URL for HTTP GET operations. Browsers/Mobile clients may point to this URL to directly download objects even if the bucket is private. This presigned URL can have an associated expiration time in seconds after which it is no longer operational. The maximum expiry is 604800 seconds (i.e. 7 days) and minimum is 1 second.
 
 **Parameters**
 
 | Param        | Type              | Description                                                                                                                                          |
-|:-------------|:------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call                                                                                                  |
-| `bucketName` | *string*          | Name of the bucket                                                                                                                                   |
-| `objectName` | *string*          | Name of the object                                                                                                                                   |
-| `expiry`     | *time.Duration*   | Expiry of presigned URL in seconds                                                                                                                   |
-| `reqParams`  | *url.Values*      | Additional response header overrides supports *response-expires*, *response-content-type*, *response-cache-control*, *response-content-disposition*. |
+| :----------- | :---------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call                                                                                                  |
+| `bucketName` | _string_          | Name of the bucket                                                                                                                                   |
+| `objectName` | _string_          | Name of the object                                                                                                                                   |
+| `expiry`     | _time.Duration_   | Expiry of presigned URL in seconds                                                                                                                   |
+| `reqParams`  | _url.Values_      | Additional response header overrides supports _response-expires_, _response-content-type_, _response-cache-control_, _response-content-disposition_. |
 
 **Example**
 
@@ -1594,7 +1590,7 @@ fmt.Println("Successfully generated presigned URL", presignedURL)
 
 <a name="PresignedPutObject"></a>
 
-### PresignedPutObject(ctx context.Context, bucketName, objectName string, expiry time.Duration) (*url.URL, error)
+### PresignedPutObject(ctx context.Context, bucketName, objectName string, expiry time.Duration) (\*url.URL, error)
 
 Generates a presigned URL for HTTP PUT operations. Browsers/Mobile clients may point to this URL to upload objects directly to a bucket even if it is private. This presigned URL can have an associated expiration time in seconds after which it is no longer operational. The default expiry is set to 7 days.
 
@@ -1603,11 +1599,11 @@ NOTE: you can upload to S3 only with specified object name.
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
-| `objectName` | *string*          | Name of the object                                  |
-| `expiry`     | *time.Duration*   | Expiry of presigned URL in seconds                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
+| `objectName` | _string_          | Name of the object                                  |
+| `expiry`     | _time.Duration_   | Expiry of presigned URL in seconds                  |
 
 **Example**
 
@@ -1624,19 +1620,19 @@ fmt.Println("Successfully generated presigned URL", presignedURL)
 
 <a name="PresignedHeadObject"></a>
 
-### PresignedHeadObject(ctx context.Context, bucketName, objectName string, expiry time.Duration, reqParams url.Values) (*url.URL, error)
+### PresignedHeadObject(ctx context.Context, bucketName, objectName string, expiry time.Duration, reqParams url.Values) (\*url.URL, error)
 
 Generates a presigned URL for HTTP HEAD operations. Browsers/Mobile clients may point to this URL to directly get metadata from objects even if the bucket is private. This presigned URL can have an associated expiration time in seconds after which it is no longer operational. The default expiry is set to 7 days.
 
 **Parameters**
 
 | Param        | Type              | Description                                                                                                                                          |
-|:-------------|:------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call                                                                                                  |
-| `bucketName` | *string*          | Name of the bucket                                                                                                                                   |
-| `objectName` | *string*          | Name of the object                                                                                                                                   |
-| `expiry`     | *time.Duration*   | Expiry of presigned URL in seconds                                                                                                                   |
-| `reqParams`  | *url.Values*      | Additional response header overrides supports *response-expires*, *response-content-type*, *response-cache-control*, *response-content-disposition*. |
+| :----------- | :---------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call                                                                                                  |
+| `bucketName` | _string_          | Name of the bucket                                                                                                                                   |
+| `objectName` | _string_          | Name of the object                                                                                                                                   |
+| `expiry`     | _time.Duration_   | Expiry of presigned URL in seconds                                                                                                                   |
+| `reqParams`  | _url.Values_      | Additional response header overrides supports _response-expires_, _response-content-type_, _response-cache-control_, _response-content-disposition_. |
 
 **Example**
 
@@ -1656,7 +1652,7 @@ fmt.Println("Successfully generated presigned URL", presignedURL)
 
 <a name="PresignedPostPolicy"></a>
 
-### PresignedPostPolicy(ctx context.Context, post PostPolicy) (*url.URL, map[string]string, error)
+### PresignedPostPolicy(ctx context.Context, post PostPolicy) (\*url.URL, map[string]string, error)
 
 Allows setting policy conditions to a presigned URL for POST operations. Policies such as bucket name to receive object uploads, key name prefixes, expiry policy may be set.
 
@@ -1694,7 +1690,7 @@ fmt.Printf("-F file=@/etc/bash.bashrc ")
 fmt.Printf("%s\n", url)
 ```
 
-1.	Bucket policy/notification operations ----------------------------------------
+1. Bucket policy/notification operations ----------------------------------------
 
 <a name="SetBucketPolicy"></a>
 
@@ -1705,16 +1701,16 @@ Set access permissions on bucket or an object prefix.
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
-| `policy`     | *string*          | Policy to be set                                    |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
+| `policy`     | _string_          | Policy to be set                                    |
 
 **Return Values**
 
 | Param | Type    | Description    |
-|:------|:--------|:---------------|
-| `err` | *error* | Standard Error |
+| :---- | :------ | :------------- |
+| `err` | _error_ | Standard Error |
 
 **Example**
 
@@ -1737,16 +1733,16 @@ Get access permissions on a bucket or a prefix.
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Return Values**
 
 | Param    | Type     | Description                     |
-|:---------|:---------|:--------------------------------|
-| `policy` | *string* | Policy returned from the server |
-| `err`    | *error*  | Standard Error                  |
+| :------- | :------- | :------------------------------ |
+| `policy` | _string_ | Policy returned from the server |
+| `err`    | _error_  | Standard Error                  |
 
 **Example**
 
@@ -1766,16 +1762,16 @@ Get notification configuration on a bucket.
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Return Values**
 
 | Param    | Type                         | Description                                           |
-|:---------|:-----------------------------|:------------------------------------------------------|
-| `config` | *notification.Configuration* | structure which holds all notification configurations |
-| `err`    | *error*                      | Standard Error                                        |
+| :------- | :--------------------------- | :---------------------------------------------------- |
+| `config` | _notification.Configuration_ | structure which holds all notification configurations |
+| `err`    | _error_                      | Standard Error                                        |
 
 **Example**
 
@@ -1802,16 +1798,16 @@ Set a new bucket notification on a bucket.
 **Parameters**
 
 | Param        | Type                         | Description                                                 |
-|:-------------|:-----------------------------|:------------------------------------------------------------|
-| `ctx`        | *context.Context*            | Custom context for timeout/cancellation of the call         |
-| `bucketName` | *string*                     | Name of the bucket                                          |
-| `config`     | *notification.Configuration* | Represents the XML to be sent to the configured web service |
+| :----------- | :--------------------------- | :---------------------------------------------------------- |
+| `ctx`        | _context.Context_            | Custom context for timeout/cancellation of the call         |
+| `bucketName` | _string_                     | Name of the bucket                                          |
+| `config`     | _notification.Configuration_ | Represents the XML to be sent to the configured web service |
 
 **Return Values**
 
 | Param | Type    | Description    |
-|:------|:--------|:---------------|
-| `err` | *error* | Standard Error |
+| :---- | :------ | :------------- |
+| `err` | _error_ | Standard Error |
 
 **Example**
 
@@ -1842,15 +1838,15 @@ Remove all configured bucket notifications on a bucket.
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Return Values**
 
 | Param | Type    | Description    |
-|:------|:--------|:---------------|
-| `err` | *error* | Standard Error |
+| :---- | :------ | :------------- |
+| `err` | _error_ | Standard Error |
 
 **Example**
 
@@ -1868,29 +1864,29 @@ if err != nil {
 
 ListenBucketNotification API receives bucket notification events through the notification channel. The returned notification channel has two fields 'Records' and 'Err'.
 
--	'Records' holds the notifications received from the server.
--	'Err' indicates any error while processing the received notifications.
+- 'Records' holds the notifications received from the server.
+- 'Err' indicates any error while processing the received notifications.
 
 NOTE: Notification channel is closed at the first occurrence of an error.
 
 **Parameters**
 
 | Param        | Type       | Description                                    |
-|:-------------|:-----------|:-----------------------------------------------|
-| `bucketName` | *string*   | Bucket to listen notifications on              |
-| `prefix`     | *string*   | Object key prefix to filter notifications for  |
-| `suffix`     | *string*   | Object key suffix to filter notifications for  |
-| `events`     | *[]string* | Enables notifications for specific event types |
+| :----------- | :--------- | :--------------------------------------------- |
+| `bucketName` | _string_   | Bucket to listen notifications on              |
+| `prefix`     | _string_   | Object key prefix to filter notifications for  |
+| `suffix`     | _string_   | Object key suffix to filter notifications for  |
+| `events`     | _[]string_ | Enables notifications for specific event types |
 
 **Return Values**
 
 | Param              | Type                     | Description                     |
-|:-------------------|:-------------------------|:--------------------------------|
-| `notificationInfo` | *chan notification.Info* | Channel of bucket notifications |
+| :----------------- | :----------------------- | :------------------------------ |
+| `notificationInfo` | _chan notification.Info_ | Channel of bucket notifications |
 
 **minio.NotificationInfo**
 
-|Field |Type |Description | |`notificationInfo.Records` | *[]notification.Event* | Collection of notification events | |`notificationInfo.Err` | *error* | Carries any error occurred during the operation (Standard Error) |
+|Field |Type |Description | |`notificationInfo.Records` | _[]notification.Event_ | Collection of notification events | |`notificationInfo.Err` | _error_ | Carries any error occurred during the operation (Standard Error) |
 
 **Example**
 
@@ -1914,29 +1910,29 @@ for notificationInfo := range minioClient.ListenBucketNotification(context.Backg
 
 ListenNotification API receives bucket and object notification events through the notification channel. The returned notification channel has two fields 'Records' and 'Err'.
 
--	'Records' holds the notifications received from the server.
--	'Err' indicates any error while processing the received notifications.
+- 'Records' holds the notifications received from the server.
+- 'Err' indicates any error while processing the received notifications.
 
 NOTE: Notification channel is closed at the first occurrence of an error.
 
 **Parameters**
 
 | Param        | Type       | Description                                    |
-|:-------------|:-----------|:-----------------------------------------------|
-| `bucketName` | *string*   | Bucket to listen notifications on              |
-| `prefix`     | *string*   | Object key prefix to filter notifications for  |
-| `suffix`     | *string*   | Object key suffix to filter notifications for  |
-| `events`     | *[]string* | Enables notifications for specific event types |
+| :----------- | :--------- | :--------------------------------------------- |
+| `bucketName` | _string_   | Bucket to listen notifications on              |
+| `prefix`     | _string_   | Object key prefix to filter notifications for  |
+| `suffix`     | _string_   | Object key suffix to filter notifications for  |
+| `events`     | _[]string_ | Enables notifications for specific event types |
 
 **Return Values**
 
 | Param              | Type                     | Description                        |
-|:-------------------|:-------------------------|:-----------------------------------|
-| `notificationInfo` | *chan notification.Info* | Read channel for all notifications |
+| :----------------- | :----------------------- | :--------------------------------- |
+| `notificationInfo` | _chan notification.Info_ | Read channel for all notifications |
 
 **minio.NotificationInfo**
 
-|Field |Type |Description | |`notificationInfo.Records` | *[]notification.Event* | Collection of notification events | |`notificationInfo.Err` | *error* | Carries any error occurred during the operation (Standard Error) |
+|Field |Type |Description | |`notificationInfo.Records` | _[]notification.Event_ | Collection of notification events | |`notificationInfo.Err` | _error_ | Carries any error occurred during the operation (Standard Error) |
 
 **Example**
 
@@ -1958,23 +1954,23 @@ for notificationInfo := range minioClient.ListenNotification(context.Background(
 
 <a name="SetBucketLifecycle"></a>
 
-### SetBucketLifecycle(ctx context.Context, bucketName string, config *lifecycle.Configuration) error
+### SetBucketLifecycle(ctx context.Context, bucketName string, config \*lifecycle.Configuration) error
 
 Set lifecycle on bucket or an object prefix.
 
 **Parameters**
 
 | Param        | Type                      | Description                                         |
-|:-------------|:--------------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context*         | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*                  | Name of the bucket                                  |
-| `config`     | *lifecycle.Configuration* | Lifecycle to be set                                 |
+| :----------- | :------------------------ | :-------------------------------------------------- |
+| `ctx`        | _context.Context_         | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_                  | Name of the bucket                                  |
+| `config`     | _lifecycle.Configuration_ | Lifecycle to be set                                 |
 
 **Return Values**
 
 | Param | Type    | Description    |
-|:------|:--------|:---------------|
-| `err` | *error* | Standard Error |
+| :---- | :------ | :------------- |
+| `err` | _error_ | Standard Error |
 
 **Example**
 
@@ -1999,23 +1995,23 @@ if err != nil {
 
 <a name="GetBucketLifecycle"></a>
 
-### GetBucketLifecycle(ctx context.Context, bucketName string) (*lifecycle.Configuration, error)
+### GetBucketLifecycle(ctx context.Context, bucketName string) (\*lifecycle.Configuration, error)
 
 Get lifecycle on a bucket or a prefix.
 
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Return Values**
 
 | Param    | Type                      | Description                        |
-|:---------|:--------------------------|:-----------------------------------|
-| `config` | *lifecycle.Configuration* | Lifecycle returned from the server |
-| `err`    | *error*                   | Standard Error                     |
+| :------- | :------------------------ | :--------------------------------- |
+| `config` | _lifecycle.Configuration_ | Lifecycle returned from the server |
+| `err`    | _error_                   | Standard Error                     |
 
 **Example**
 
@@ -2028,23 +2024,23 @@ if err != nil {
 
 <a name="SetBucketEncryption"></a>
 
-### SetBucketEncryption(ctx context.Context, bucketName string, config *sse.Configuration) error
+### SetBucketEncryption(ctx context.Context, bucketName string, config \*sse.Configuration) error
 
 Set default encryption configuration on a bucket.
 
 **Parameters**
 
 | Param        | Type                | Description                                                     |
-|:-------------|:--------------------|:----------------------------------------------------------------|
-| `ctx`        | *context.Context*   | Custom context for timeout/cancellation of the call             |
-| `bucketName` | *string*            | Name of the bucket                                              |
-| `config`     | *sse.Configuration* | Structure that holds default encryption configuration to be set |
+| :----------- | :------------------ | :-------------------------------------------------------------- |
+| `ctx`        | _context.Context_   | Custom context for timeout/cancellation of the call             |
+| `bucketName` | _string_            | Name of the bucket                                              |
+| `config`     | _sse.Configuration_ | Structure that holds default encryption configuration to be set |
 
 **Return Values**
 
 | Param | Type    | Description    |
-|:------|:--------|:---------------|
-| `err` | *error* | Standard Error |
+| :---- | :------ | :------------- |
+| `err` | _error_ | Standard Error |
 
 **Example**
 
@@ -2066,23 +2062,23 @@ if err != nil {
 
 <a name="GetBucketEncryption"></a>
 
-### GetBucketEncryption(ctx context.Context, bucketName string) (*sse.Configuration, error)
+### GetBucketEncryption(ctx context.Context, bucketName string) (\*sse.Configuration, error)
 
 Get default encryption configuration set on a bucket.
 
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Return Values**
 
 | Param    | Type                | Description                                           |
-|:---------|:--------------------|:------------------------------------------------------|
-| `config` | *sse.Configuration* | Structure that holds default encryption configuration |
-| `err`    | *error*             | Standard Error                                        |
+| :------- | :------------------ | :---------------------------------------------------- |
+| `config` | _sse.Configuration_ | Structure that holds default encryption configuration |
+| `err`    | _error_             | Standard Error                                        |
 
 **Example**
 
@@ -2112,15 +2108,15 @@ Remove default encryption configuration set on a bucket.
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Return Values**
 
 | Param | Type    | Description    |
-|:------|:--------|:---------------|
-| `err` | *error* | Standard Error |
+| :---- | :------ | :------------- |
+| `err` | _error_ | Standard Error |
 
 **Example**
 
@@ -2134,25 +2130,25 @@ if err != nil {
 
 <a name="SetObjectLockConfig"></a>
 
-### SetObjectLockConfig(ctx context.Context, bucketName string, mode *RetentionMode, validity *uint, unit *ValidityUnit) error
+### SetObjectLockConfig(ctx context.Context, bucketName string, mode *RetentionMode, validity *uint, unit \*ValidityUnit) error
 
 Set object lock configuration in given bucket. mode, validity and unit are either all set or all nil.
 
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
-| `mode`       | *RetentionMode*   | Retention mode to be set                            |
-| `validity`   | *uint*            | Validity period to be set                           |
-| `unit`       | *ValidityUnit*    | Unit of validity period                             |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
+| `mode`       | _RetentionMode_   | Retention mode to be set                            |
+| `validity`   | _uint_            | Validity period to be set                           |
+| `unit`       | _ValidityUnit_    | Unit of validity period                             |
 
 **Return Values**
 
 | Param | Type    | Description    |
-|:------|:--------|:---------------|
-| `err` | *error* | Standard Error |
+| :---- | :------ | :------------- |
+| `err` | _error_ | Standard Error |
 
 **Example**
 
@@ -2170,26 +2166,26 @@ if err != nil {
 
 <a name="GetObjectLockConfig"></a>
 
-### GetObjectLockConfig(ctx context.Context, bucketName string) (objectLock string, mode *RetentionMode, validity *uint, unit *ValidityUnit, err error)
+### GetObjectLockConfig(ctx context.Context, bucketName string) (objectLock string, mode *RetentionMode, validity *uint, unit \*ValidityUnit, err error)
 
 Get object lock configuration of given bucket.
 
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Return Values**
 
 | Param        | Type            | Description             |
-|:-------------|:----------------|:------------------------|
-| `objectLock` | *objectLock*    | lock enabled status     |
-| `mode`       | *RetentionMode* | Current retention mode  |
-| `validity`   | *uint*          | Current validity period |
-| `unit`       | *ValidityUnit*  | Unit of validity period |
-| `err`        | *error*         | Standard Error          |
+| :----------- | :-------------- | :---------------------- |
+| `objectLock` | _objectLock_    | lock enabled status     |
+| `mode`       | _RetentionMode_ | Current retention mode  |
+| `validity`   | _uint_          | Current validity period |
+| `unit`       | _ValidityUnit_  | Unit of validity period |
+| `err`        | _error_         | Standard Error          |
 
 **Example**
 
@@ -2215,15 +2211,15 @@ Enable bucket versioning support.
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Return Values**
 
 | Param | Type    | Description    |
-|:------|:--------|:---------------|
-| `err` | *error* | Standard Error |
+| :---- | :------ | :------------- |
+| `err` | _error_ | Standard Error |
 
 **Example**
 
@@ -2245,15 +2241,15 @@ Suspend bucket versioning support.
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Return Values**
 
 | Param | Type    | Description    |
-|:------|:--------|:---------------|
-| `err` | *error* | Standard Error |
+| :---- | :------ | :------------- |
+| `err` | _error_ | Standard Error |
 
 **Example**
 
@@ -2275,16 +2271,16 @@ Get versioning configuration set on a bucket.
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Return Values**
 
 | Param           | Type                                  | Description                                   |
-|:----------------|:--------------------------------------|:----------------------------------------------|
-| `configuration` | *minio.BucketVersioningConfiguration* | Structure that holds versioning configuration |
-| `err`           | *error*                               | Standard Error                                |
+| :-------------- | :------------------------------------ | :-------------------------------------------- |
+| `configuration` | _minio.BucketVersioningConfiguration_ | Structure that holds versioning configuration |
+| `err`           | _error_                               | Standard Error                                |
 
 **Example**
 
@@ -2314,16 +2310,16 @@ Set replication configuration on a bucket. Role can be obtained by first definin
 **Parameters**
 
 | Param        | Type                 | Description                                         |
-|:-------------|:---------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context*    | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*             | Name of the bucket                                  |
-| `cfg`        | *replication.Config* | Replication configuration to be set                 |
+| :----------- | :------------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_    | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_             | Name of the bucket                                  |
+| `cfg`        | _replication.Config_ | Replication configuration to be set                 |
 
 **Return Values**
 
 | Param | Type    | Description    |
-|:------|:--------|:---------------|
-| `err` | *error* | Standard Error |
+| :---- | :------ | :------------- |
+| `err` | _error_ | Standard Error |
 
 **Example**
 
@@ -2380,16 +2376,16 @@ Get current replication config on a bucket.
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Return Values**
 
 | Param         | Type                 | Description                                 |
-|:--------------|:---------------------|:--------------------------------------------|
-| `replication` | *replication.Config* | Replication config returned from the server |
-| `err`         | *error*              | Standard Error                              |
+| :------------ | :------------------- | :------------------------------------------ |
+| `replication` | _replication.Config_ | Replication config returned from the server |
+| `err`         | _error_              | Standard Error                              |
 
 **Example**
 
@@ -2409,15 +2405,15 @@ Removes replication configuration on a bucket.
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Return Values**
 
 | Param | Type    | Description    |
-|:------|:--------|:---------------|
-| `err` | *error* | Standard Error |
+| :---- | :------ | :------------- |
+| `err` | _error_ | Standard Error |
 
 **Example**
 
@@ -2438,12 +2434,12 @@ Cancels in progress replication resync (MinIO AiStor Only API)
 **Parameters**
 
 | Param        | Type              | Description                                        |
-|:-------------|:------------------|:---------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context of timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                 |
-| `tgtArn`     | *string*          | Target Amazon Resource Name                        |
+| :----------- | :---------------- | :------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context of timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                 |
+| `tgtArn`     | _string_          | Target Amazon Resource Name                        |
 
-**Return Values** |Param |Type |Description | |:---|:--|:---| |`id`|*string*| Recieved upon successful cancellation of replication resync| |`err`| *error*| Standard Error|
+**Return Values** |Param |Type |Description | |:---|:--|:---| |`id`|_string_| Recieved upon successful cancellation of replication resync| |`err`| _error_| Standard Error|
 
 **Example**
 
@@ -2464,16 +2460,16 @@ Get latest replication metrics on a bucket. This is a MinIO specific extension.
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Return Values**
 
 | Param     | Type                  | Description                                  |
-|:----------|:----------------------|:---------------------------------------------|
-| `metrics` | *replication.Metrics* | Replication metrics returned from the server |
-| `err`     | *error*               | Standard Error                               |
+| :-------- | :-------------------- | :------------------------------------------- |
+| `metrics` | _replication.Metrics_ | Replication metrics returned from the server |
+| `err`     | _error_               | Standard Error                               |
 
 **Example**
 
@@ -2493,16 +2489,16 @@ Get latest replication metrics using the V2 API on a bucket. This is a MinIO spe
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Return Values**
 
 | Param     | Type                    | Description                                           |
-|:----------|:------------------------|:------------------------------------------------------|
-| `metrics` | *replication.MetricsV2* | Enhanced replication metrics returned from the server |
-| `err`     | *error*                 | Standard Error                                        |
+| :-------- | :---------------------- | :---------------------------------------------------- |
+| `metrics` | _replication.MetricsV2_ | Enhanced replication metrics returned from the server |
+| `err`     | _error_                 | Standard Error                                        |
 
 **Example**
 
@@ -2523,15 +2519,15 @@ Validate whether replication is properly configured for a bucket. This is a MinI
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|:-------------|:------------------|:----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| :----------- | :---------------- | :-------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Return Values**
 
 | Param | Type    | Description                                                  |
-|:------|:--------|:-------------------------------------------------------------|
-| `err` | *error* | Returns nil if valid, or error describing validation failure |
+| :---- | :------ | :----------------------------------------------------------- |
+| `err` | _error_ | Returns nil if valid, or error describing validation failure |
 
 **Example**
 
@@ -2553,17 +2549,17 @@ Initiate replication of previously replicated objects. Requires ExistingObjectRe
 **Parameters**
 
 | Param        | Type              | Description                                                         |
-|:-------------|:------------------|:--------------------------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call                 |
-| `bucketName` | *string*          | Name of the bucket                                                  |
-| `olderThan`  | *time.Duration*   | Only replicate objects older than this duration (0 for all objects) |
+| :----------- | :---------------- | :------------------------------------------------------------------ |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call                 |
+| `bucketName` | _string_          | Name of the bucket                                                  |
+| `olderThan`  | _time.Duration_   | Only replicate objects older than this duration (0 for all objects) |
 
 **Return Values**
 
 | Param     | Type     | Description                         |
-|:----------|:---------|:------------------------------------|
-| `resetID` | *string* | Reset ID for tracking the operation |
-| `err`     | *error*  | Standard Error                      |
+| :-------- | :------- | :---------------------------------- |
+| `resetID` | _string_ | Reset ID for tracking the operation |
+| `err`     | _error_  | Standard Error                      |
 
 **Example**
 
@@ -2585,18 +2581,18 @@ Initiate replication of previously replicated objects to a specific target. Requ
 **Parameters**
 
 | Param        | Type              | Description                                                         |
-|:-------------|:------------------|:--------------------------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call                 |
-| `bucketName` | *string*          | Name of the bucket                                                  |
-| `olderThan`  | *time.Duration*   | Only replicate objects older than this duration (0 for all objects) |
-| `tgtArn`     | *string*          | ARN of the target to reset replication for                          |
+| :----------- | :---------------- | :------------------------------------------------------------------ |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call                 |
+| `bucketName` | _string_          | Name of the bucket                                                  |
+| `olderThan`  | _time.Duration_   | Only replicate objects older than this duration (0 for all objects) |
+| `tgtArn`     | _string_          | ARN of the target to reset replication for                          |
 
 **Return Values**
 
 | Param        | Type                            | Description               |
-|:-------------|:--------------------------------|:--------------------------|
-| `resyncInfo` | *replication.ResyncTargetsInfo* | Resync target information |
-| `err`        | *error*                         | Standard Error            |
+| :----------- | :------------------------------ | :------------------------ |
+| `resyncInfo` | _replication.ResyncTargetsInfo_ | Resync target information |
+| `err`        | _error_                         | Standard Error            |
 
 **Example**
 
@@ -2617,17 +2613,17 @@ Retrieve the status of a replication resync operation. This is a MinIO specific 
 **Parameters**
 
 | Param        | Type              | Description                                                  |
-|:-------------|:------------------|:-------------------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call          |
-| `bucketName` | *string*          | Name of the bucket                                           |
-| `arn`        | *string*          | ARN of the replication target (empty string for all targets) |
+| :----------- | :---------------- | :----------------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call          |
+| `bucketName` | _string_          | Name of the bucket                                           |
+| `arn`        | _string_          | ARN of the replication target (empty string for all targets) |
 
 **Return Values**
 
 | Param        | Type                            | Description               |
-|:-------------|:--------------------------------|:--------------------------|
-| `resyncInfo` | *replication.ResyncTargetsInfo* | Resync status information |
-| `err`        | *error*                         | Standard Error            |
+| :----------- | :------------------------------ | :------------------------ |
+| `resyncInfo` | _replication.ResyncTargetsInfo_ | Resync status information |
+| `err`        | _error_                         | Standard Error            |
 
 **Example**
 
@@ -2640,7 +2636,7 @@ if err != nil {
 fmt.Printf("Resync status: %+v\n", resyncInfo)
 ```
 
-1.	Client custom settings -------------------------
+1. Client custom settings -------------------------
 
 <a name="SetAppInfo"></a>
 
@@ -2651,9 +2647,9 @@ Add custom application details to User-Agent.
 **Parameters**
 
 | Param        | Type     | Description                                             |
-|--------------|----------|---------------------------------------------------------|
-| `appName`    | *string* | Name of the application performing the API requests.    |
-| `appVersion` | *string* | Version of the application performing the API requests. |
+| ------------ | -------- | ------------------------------------------------------- |
+| `appName`    | _string_ | Name of the application performing the API requests.    |
+| `appVersion` | _string_ | Version of the application performing the API requests. |
 
 **Example**
 
@@ -2671,8 +2667,8 @@ Enables HTTP tracing. The trace is written to the io.Writer provided. If outputS
 **Parameters**
 
 | Param          | Type        | Description                              |
-|----------------|-------------|------------------------------------------|
-| `outputStream` | *io.Writer* | HTTP trace is written into outputStream. |
+| -------------- | ----------- | ---------------------------------------- |
+| `outputStream` | _io.Writer_ | HTTP trace is written into outputStream. |
 
 <a name="TraceOff"></a>
 
@@ -2689,20 +2685,20 @@ Set AWS S3 transfer acceleration endpoint for all API requests hereafter. NOTE: 
 **Parameters**
 
 | Param                 | Type     | Description                                   |
-|-----------------------|----------|-----------------------------------------------|
-| `acceleratedEndpoint` | *string* | Set to new S3 transfer acceleration endpoint. |
+| --------------------- | -------- | --------------------------------------------- |
+| `acceleratedEndpoint` | _string_ | Set to new S3 transfer acceleration endpoint. |
 
 <a name="EndpointURL"></a>
 
-### EndpointURL() *url.URL
+### EndpointURL() \*url.URL
 
 Returns the URL of the S3-compatible endpoint that this client connects to. Returns a copy to prevent modification of internal state.
 
 **Return Values**
 
 | Param      | Type        | Description  |
-|------------|-------------|--------------|
-| `endpoint` | \**url.URL* | Endpoint URL |
+| ---------- | ----------- | ------------ |
+| `endpoint` | \*_url.URL_ | Endpoint URL |
 
 **Example**
 
@@ -2720,9 +2716,9 @@ Returns the current credentials being used by the client. Useful for debugging o
 **Return Values**
 
 | Param   | Type                | Description                  |
-|---------|---------------------|------------------------------|
-| `creds` | *credentials.Value* | Current credentials          |
-| `err`   | *error*             | Error retrieving credentials |
+| ------- | ------------------- | ---------------------------- |
+| `creds` | _credentials.Value_ | Current credentials          |
+| `err`   | _error_             | Error retrieving credentials |
 
 **Example**
 
@@ -2734,25 +2730,26 @@ if err != nil {
 fmt.Printf("Access Key: %s\n", creds.AccessKeyID)
 ```
 
-1.	Additional Operations ------------------------
+1. Additional Operations ------------------------
 
 <a name="SetBucketCors"></a>
 
-### SetBucketCors(ctx context.Context, bucketName string, corsConfig *cors.Config) error
+### SetBucketCors(ctx context.Context, bucketName string, corsConfig \*cors.Config) error
 
 Set CORS (Cross-Origin Resource Sharing) configuration on a bucket.
 
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|--------------|-------------------|-----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
-| `corsConfig` | \**cors.Config*   | CORS configuration to be set                        |
+| ------------ | ----------------- | --------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
+| `corsConfig` | \*_cors.Config_   | CORS configuration to be set                        |
 
 **Example**
 
 {% raw %}
+
 ```go
 // Create CORS configuration
 corsConfig := &cors.Config{
@@ -2769,27 +2766,28 @@ if err != nil {
 	log.Fatalln(err)
 }
 ```
+
 {% endraw %}
 
 <a name="GetBucketCors"></a>
 
-### GetBucketCors(ctx context.Context, bucketName string) (*cors.Config, error)
+### GetBucketCors(ctx context.Context, bucketName string) (\*cors.Config, error)
 
 Get CORS configuration of a bucket.
 
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|--------------|-------------------|-----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| ------------ | ----------------- | --------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Return Values**
 
 | Param        | Type            | Description        |
-|--------------|-----------------|--------------------|
-| `corsConfig` | \**cors.Config* | CORS configuration |
-| `err`        | *error*         | Standard Error     |
+| ------------ | --------------- | ------------------ |
+| `corsConfig` | \*_cors.Config_ | CORS configuration |
+| `err`        | _error_         | Standard Error     |
 
 **Example**
 
@@ -2803,23 +2801,23 @@ fmt.Printf("CORS configuration: %+v\n", corsConfig)
 
 <a name="GetBucketQOS"></a>
 
-### GetBucketQOS(ctx context.Context, bucket string) (*QOSConfig, error)
+### GetBucketQOS(ctx context.Context, bucket string) (\*QOSConfig, error)
 
 Get Quality of Service (QoS) configuration for a bucket. This is a MinIO-specific API.
 
 **Parameters**
 
 | Param    | Type              | Description                                         |
-|----------|-------------------|-----------------------------------------------------|
-| `ctx`    | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucket` | *string*          | Name of the bucket                                  |
+| -------- | ----------------- | --------------------------------------------------- |
+| `ctx`    | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucket` | _string_          | Name of the bucket                                  |
 
 **Return Values**
 
 | Param       | Type          | Description                  |
-|-------------|---------------|------------------------------|
-| `qosConfig` | \**QOSConfig* | QoS configuration with rules |
-| `err`       | *error*       | Standard Error               |
+| ----------- | ------------- | ---------------------------- |
+| `qosConfig` | \*_QOSConfig_ | QoS configuration with rules |
+| `err`       | _error_       | Standard Error               |
 
 **Example**
 
@@ -2833,17 +2831,17 @@ fmt.Printf("QoS configuration: %+v\n", qosConfig)
 
 <a name="SetBucketQOS"></a>
 
-### SetBucketQOS(ctx context.Context, bucket string, qosCfg *QOSConfig) error
+### SetBucketQOS(ctx context.Context, bucket string, qosCfg \*QOSConfig) error
 
 Set Quality of Service (QoS) configuration for a bucket. This is a MinIO-specific API.
 
 **Parameters**
 
 | Param    | Type              | Description                                         |
-|----------|-------------------|-----------------------------------------------------|
-| `ctx`    | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucket` | *string*          | Name of the bucket                                  |
-| `qosCfg` | \**QOSConfig*     | QoS configuration to apply                          |
+| -------- | ----------------- | --------------------------------------------------- |
+| `ctx`    | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucket` | _string_          | Name of the bucket                                  |
+| `qosCfg` | \*_QOSConfig_     | QoS configuration to apply                          |
 
 **Example**
 
@@ -2876,17 +2874,17 @@ Get Quality of Service (QoS) metrics for a bucket. This is a MinIO-specific API.
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|--------------|-------------------|-----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
-| `nodeName`   | *string*          | Name of the node (empty string for all nodes)       |
+| ------------ | ----------------- | --------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
+| `nodeName`   | _string_          | Name of the node (empty string for all nodes)       |
 
 **Return Values**
 
 | Param     | Type             | Description          |
-|-----------|------------------|----------------------|
-| `metrics` | *[]QOSNodeStats* | QoS metrics per node |
-| `err`     | *error*          | Standard Error       |
+| --------- | ---------------- | -------------------- |
+| `metrics` | _[]QOSNodeStats_ | QoS metrics per node |
+| `err`     | _error_          | Standard Error       |
 
 **Example**
 
@@ -2910,17 +2908,17 @@ Generate a YAML template for an inventory configuration. This is a MinIO-specifi
 **Parameters**
 
 | Param    | Type              | Description                                         |
-|----------|-------------------|-----------------------------------------------------|
-| `ctx`    | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucket` | *string*          | Name of the bucket                                  |
-| `id`     | *string*          | Unique identifier for the inventory configuration   |
+| -------- | ----------------- | --------------------------------------------------- |
+| `ctx`    | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucket` | _string_          | Name of the bucket                                  |
+| `id`     | _string_          | Unique identifier for the inventory configuration   |
 
 **Return Values**
 
 | Param          | Type     | Description          |
-|----------------|----------|----------------------|
-| `yamlTemplate` | *string* | YAML template string |
-| `err`          | *error*  | Standard Error       |
+| -------------- | -------- | -------------------- |
+| `yamlTemplate` | _string_ | YAML template string |
+| `err`          | _error_  | Standard Error       |
 
 **Example**
 
@@ -2941,12 +2939,12 @@ Create or update an inventory configuration for a bucket. This is a MinIO-specif
 **Parameters**
 
 | Param     | Type                          | Description                                         |
-|-----------|-------------------------------|-----------------------------------------------------|
-| `ctx`     | *context.Context*             | Custom context for timeout/cancellation of the call |
-| `bucket`  | *string*                      | Name of the bucket                                  |
-| `id`      | *string*                      | Unique identifier for the inventory configuration   |
-| `yamlDef` | *string*                      | YAML definition of the inventory configuration      |
-| `opts`    | *...InventoryPutConfigOption* | Optional configuration options                      |
+| --------- | ----------------------------- | --------------------------------------------------- |
+| `ctx`     | _context.Context_             | Custom context for timeout/cancellation of the call |
+| `bucket`  | _string_                      | Name of the bucket                                  |
+| `id`      | _string_                      | Unique identifier for the inventory configuration   |
+| `yamlDef` | _string_                      | YAML definition of the inventory configuration      |
+| `opts`    | _...InventoryPutConfigOption_ | Optional configuration options                      |
 
 **Example**
 
@@ -2968,24 +2966,24 @@ if err != nil {
 
 <a name="GetBucketInventoryConfiguration"></a>
 
-### GetBucketInventoryConfiguration(ctx context.Context, bucket, id string) (*InventoryConfiguration, error)
+### GetBucketInventoryConfiguration(ctx context.Context, bucket, id string) (\*InventoryConfiguration, error)
 
 Retrieve the inventory configuration for a bucket. This is a MinIO-specific API.
 
 **Parameters**
 
 | Param    | Type              | Description                                         |
-|----------|-------------------|-----------------------------------------------------|
-| `ctx`    | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucket` | *string*          | Name of the bucket                                  |
-| `id`     | *string*          | Unique identifier for the inventory configuration   |
+| -------- | ----------------- | --------------------------------------------------- |
+| `ctx`    | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucket` | _string_          | Name of the bucket                                  |
+| `id`     | _string_          | Unique identifier for the inventory configuration   |
 
 **Return Values**
 
 | Param    | Type                       | Description             |
-|----------|----------------------------|-------------------------|
-| `config` | \**InventoryConfiguration* | Inventory configuration |
-| `err`    | *error*                    | Standard Error          |
+| -------- | -------------------------- | ----------------------- |
+| `config` | \*_InventoryConfiguration_ | Inventory configuration |
+| `err`    | _error_                    | Standard Error          |
 
 **Example**
 
@@ -3006,10 +3004,10 @@ Delete an inventory configuration from a bucket. This is a MinIO-specific API.
 **Parameters**
 
 | Param    | Type              | Description                                         |
-|----------|-------------------|-----------------------------------------------------|
-| `ctx`    | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucket` | *string*          | Name of the bucket                                  |
-| `id`     | *string*          | Unique identifier for the inventory configuration   |
+| -------- | ----------------- | --------------------------------------------------- |
+| `ctx`    | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucket` | _string_          | Name of the bucket                                  |
+| `id`     | _string_          | Unique identifier for the inventory configuration   |
 
 **Example**
 
@@ -3022,24 +3020,24 @@ if err != nil {
 
 <a name="ListBucketInventoryConfigurations"></a>
 
-### ListBucketInventoryConfigurations(ctx context.Context, bucket, continuationToken string) (*InventoryListResult, error)
+### ListBucketInventoryConfigurations(ctx context.Context, bucket, continuationToken string) (\*InventoryListResult, error)
 
 List up to 100 inventory configurations for a bucket with pagination support. This is a MinIO-specific API.
 
 **Parameters**
 
 | Param               | Type              | Description                                           |
-|---------------------|-------------------|-------------------------------------------------------|
-| `ctx`               | *context.Context* | Custom context for timeout/cancellation of the call   |
-| `bucket`            | *string*          | Name of the bucket                                    |
-| `continuationToken` | *string*          | Token for pagination (empty string for first request) |
+| ------------------- | ----------------- | ----------------------------------------------------- |
+| `ctx`               | _context.Context_ | Custom context for timeout/cancellation of the call   |
+| `bucket`            | _string_          | Name of the bucket                                    |
+| `continuationToken` | _string_          | Token for pagination (empty string for first request) |
 
 **Return Values**
 
 | Param    | Type                    | Description                                            |
-|----------|-------------------------|--------------------------------------------------------|
-| `result` | \**InventoryListResult* | List result with configurations and continuation token |
-| `err`    | *error*                 | Standard Error                                         |
+| -------- | ----------------------- | ------------------------------------------------------ |
+| `result` | \*_InventoryListResult_ | List result with configurations and continuation token |
+| `err`    | _error_                 | Standard Error                                         |
 
 **Example**
 
@@ -3066,15 +3064,15 @@ Return an iterator that lists all inventory configurations for a bucket. This is
 **Parameters**
 
 | Param    | Type              | Description                                         |
-|----------|-------------------|-----------------------------------------------------|
-| `ctx`    | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucket` | *string*          | Name of the bucket                                  |
+| -------- | ----------------- | --------------------------------------------------- |
+| `ctx`    | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucket` | _string_          | Name of the bucket                                  |
 
 **Return Values**
 
 | Param      | Type                                       | Description                                 |
-|------------|--------------------------------------------|---------------------------------------------|
-| `iterator` | *iter.Seq2[InventoryConfiguration, error]* | Iterator yielding configurations and errors |
+| ---------- | ------------------------------------------ | ------------------------------------------- |
+| `iterator` | _iter.Seq2[InventoryConfiguration, error]_ | Iterator yielding configurations and errors |
 
 **Example**
 
@@ -3090,55 +3088,57 @@ for config, err := range minioClient.ListBucketInventoryConfigurationsIterator(c
 
 <a name="GetBucketInventoryJobStatus"></a>
 
-### GetBucketInventoryJobStatus(ctx context.Context, bucket, id string) (*InventoryJobStatus, error)
+### GetBucketInventoryJobStatus(ctx context.Context, bucket, id string) (\*InventoryJobStatus, error)
 
 Retrieve the status of an inventory job for a bucket. This is a MinIO-specific API.
 
 **Parameters**
 
 | Param    | Type              | Description                                         |
-|----------|-------------------|-----------------------------------------------------|
-| `ctx`    | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucket` | *string*          | Name of the bucket                                  |
-| `id`     | *string*          | Unique identifier for the inventory job             |
+| -------- | ----------------- | --------------------------------------------------- |
+| `ctx`    | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucket` | _string_          | Name of the bucket                                  |
+| `id`     | _string_          | Unique identifier for the inventory job             |
 
 **Return Values**
 
 | Param    | Type                   | Description                                      |
-|----------|------------------------|--------------------------------------------------|
-| `status` | \**InventoryJobStatus* | Job status including state, progress, and errors |
-| `err`    | *error*                | Standard Error                                   |
+| -------- | ---------------------- | ------------------------------------------------ |
+| `status` | \*_InventoryJobStatus_ | Job status including state, progress, and errors |
+| `err`    | _error_                | Standard Error                                   |
 
 **InventoryJobStatus Fields**
 
 The `InventoryJobStatus` struct contains comprehensive job information:
 
-| Field                | Type            | Description                                                          |
-|----------------------|-----------------|----------------------------------------------------------------------|
-| `Bucket`             | string          | Source bucket name                                                   |
-| `ID`                 | string          | Inventory configuration ID                                           |
-| `User`               | string          | User who created the job                                             |
-| `AccessKey`          | string          | Access key used for job execution                                    |
-| `Schedule`           | string          | Job schedule (once, hourly, daily, weekly, monthly, yearly)          |
-| `State`              | string          | Current job state (sleeping, pending, running, completed, etc.)      |
-| `NextScheduledTime`  | time.Time       | When next execution will start (periodic jobs only)                  |
-| `StartTime`          | time.Time       | When current/last execution started                                  |
-| `EndTime`            | time.Time       | When execution completed                                             |
-| `LastUpdate`         | time.Time       | Last time job metadata was updated                                   |
-| `Scanned`            | string          | Last scanned object path                                             |
-| `Matched`            | string          | Last matched object path                                             |
-| `ScannedCount`       | uint64          | Total objects scanned                                                |
-| `MatchedCount`       | uint64          | Total objects matched by filters                                     |
-| `RecordsWritten`     | uint64          | Number of records written to output files                            |
-| `OutputFilesCount`   | uint64          | Number of output files created                                       |
-| `ExecutionTime`      | time.Duration   | Total execution time                                                 |
-| `NumStarts`          | uint64          | Number of times job has started                                      |
-| `NumErrors`          | uint64          | Total errors encountered                                             |
-| `NumLockLosses`      | uint64          | Number of distributed lock losses                                    |
-| `ManifestPath`       | string          | Full path to manifest.json file                                      |
-| `RetryAttempts`      | uint64          | Number of retry attempts                                             |
-| `LastFailTime`       | time.Time       | When last failure occurred (only present on errors)                  |
-| `LastFailErrors`     | []string        | Up to 5 most recent error messages (only present on errors)          |
+| Field               | Type          | Description                                                     |
+| ------------------- | ------------- | --------------------------------------------------------------- |
+| `Bucket`            | string        | Source bucket name                                              |
+| `ID`                | string        | Inventory configuration ID                                      |
+| `User`              | string        | User who created the job                                        |
+| `AccessKey`         | string        | Access key used for job execution                               |
+| `Schedule`          | string        | Job schedule (once, hourly, daily, weekly, monthly, yearly)     |
+| `ScheduleTime`      | string        | Configured local run time (`HH:MM`) for periodic schedules      |
+| `ScheduleTimezone`  | string        | IANA timezone used to interpret `ScheduleTime`                  |
+| `State`             | string        | Current job state (sleeping, pending, running, completed, etc.) |
+| `NextScheduledTime` | time.Time     | When next execution will start (periodic jobs only)             |
+| `StartTime`         | time.Time     | When current/last execution started                             |
+| `EndTime`           | time.Time     | When execution completed                                        |
+| `LastUpdate`        | time.Time     | Last time job metadata was updated                              |
+| `Scanned`           | string        | Last scanned object path                                        |
+| `Matched`           | string        | Last matched object path                                        |
+| `ScannedCount`      | uint64        | Total objects scanned                                           |
+| `MatchedCount`      | uint64        | Total objects matched by filters                                |
+| `RecordsWritten`    | uint64        | Number of records written to output files                       |
+| `OutputFilesCount`  | uint64        | Number of output files created                                  |
+| `ExecutionTime`     | time.Duration | Total execution time                                            |
+| `NumStarts`         | uint64        | Number of times job has started                                 |
+| `NumErrors`         | uint64        | Total errors encountered                                        |
+| `NumLockLosses`     | uint64        | Number of distributed lock losses                               |
+| `ManifestPath`      | string        | Full path to manifest.json file                                 |
+| `RetryAttempts`     | uint64        | Number of retry attempts                                        |
+| `LastFailTime`      | time.Time     | When last failure occurred (only present on errors)             |
+| `LastFailErrors`    | []string      | Up to 5 most recent error messages (only present on errors)     |
 
 **Example**
 
@@ -3177,11 +3177,11 @@ Bulk upload multiple objects using snowball archive method for efficient batch o
 **Parameters**
 
 | Param        | Type                          | Description                                         |
-|--------------|-------------------------------|-----------------------------------------------------|
-| `ctx`        | *context.Context*             | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*                      | Name of the bucket                                  |
-| `opts`       | *minio.SnowballOptions*       | Snowball upload options                             |
-| `objs`       | *<-chan minio.SnowballObject* | Channel of objects to upload                        |
+| ------------ | ----------------------------- | --------------------------------------------------- |
+| `ctx`        | _context.Context_             | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_                      | Name of the bucket                                  |
+| `opts`       | _minio.SnowballOptions_       | Snowball upload options                             |
+| `objs`       | _<-chan minio.SnowballObject_ | Channel of objects to upload                        |
 
 <a name="PromptObject"></a>
 
@@ -3192,19 +3192,19 @@ Perform language model inference with prompt and object context for AI/ML integr
 **Parameters**
 
 | Param        | Type                        | Description                                         |
-|--------------|-----------------------------|-----------------------------------------------------|
-| `ctx`        | *context.Context*           | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*                    | Name of the bucket                                  |
-| `objectName` | *string*                    | Name of the object                                  |
-| `prompt`     | *string*                    | AI prompt text                                      |
-| `opts`       | *minio.PromptObjectOptions* | Prompt operation options                            |
+| ------------ | --------------------------- | --------------------------------------------------- |
+| `ctx`        | _context.Context_           | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_                    | Name of the bucket                                  |
+| `objectName` | _string_                    | Name of the object                                  |
+| `prompt`     | _string_                    | AI prompt text                                      |
+| `opts`       | _minio.PromptObjectOptions_ | Prompt operation options                            |
 
 **Return Values**
 
 | Param    | Type            | Description        |
-|----------|-----------------|--------------------|
-| `result` | *io.ReadCloser* | AI response stream |
-| `err`    | *error*         | Standard Error     |
+| -------- | --------------- | ------------------ |
+| `result` | _io.ReadCloser_ | AI response stream |
+| `err`    | _error_         | Standard Error     |
 
 <a name="GetBucketLocation"></a>
 
@@ -3215,16 +3215,16 @@ Get the region/location constraint of a bucket.
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|--------------|-------------------|-----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| ------------ | ----------------- | --------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Return Values**
 
 | Param      | Type     | Description            |
-|------------|----------|------------------------|
-| `location` | *string* | Bucket region/location |
-| `err`      | *error*  | Standard Error         |
+| ---------- | -------- | ---------------------- |
+| `location` | _string_ | Bucket region/location |
+| `err`      | _error_  | Standard Error         |
 
 **Example**
 
@@ -3245,16 +3245,16 @@ Get replication metrics for a bucket. This is a MinIO specific extension.
 **Parameters**
 
 | Param        | Type              | Description                                         |
-|--------------|-------------------|-----------------------------------------------------|
-| `ctx`        | *context.Context* | Custom context for timeout/cancellation of the call |
-| `bucketName` | *string*          | Name of the bucket                                  |
+| ------------ | ----------------- | --------------------------------------------------- |
+| `ctx`        | _context.Context_ | Custom context for timeout/cancellation of the call |
+| `bucketName` | _string_          | Name of the bucket                                  |
 
 **Return Values**
 
 | Param     | Type                  | Description         |
-|-----------|-----------------------|---------------------|
-| `metrics` | *replication.Metrics* | Replication metrics |
-| `err`     | *error*               | Standard Error      |
+| --------- | --------------------- | ------------------- |
+| `metrics` | _replication.Metrics_ | Replication metrics |
+| `err`     | _error_               | Standard Error      |
 
 **Example**
 
@@ -3275,8 +3275,8 @@ Enable HTTP tracing for errors only. The trace is written to the io.Writer provi
 **Parameters**
 
 | Param          | Type        | Description                                    |
-|----------------|-------------|------------------------------------------------|
-| `outputStream` | *io.Writer* | HTTP error trace is written into outputStream. |
+| -------------- | ----------- | ---------------------------------------------- |
+| `outputStream` | _io.Writer_ | HTTP error trace is written into outputStream. |
 
 <a name="TraceErrorsOnlyOff"></a>
 
@@ -3293,8 +3293,8 @@ Enable or disable S3 dual-stack endpoints which support both IPv4 and IPv6.
 **Parameters**
 
 | Param     | Type   | Description                                 |
-|-----------|--------|---------------------------------------------|
-| `enabled` | *bool* | Enable dual-stack if true, disable if false |
+| --------- | ------ | ------------------------------------------- |
+| `enabled` | _bool_ | Enable dual-stack if true, disable if false |
 
 <a name="IsOnline"></a>
 
@@ -3305,8 +3305,8 @@ Check if the MinIO client is online and can reach the server.
 **Return Value**
 
 | Param    | Type   | Description              |
-|----------|--------|--------------------------|
-| `online` | *bool* | true if client is online |
+| -------- | ------ | ------------------------ |
+| `online` | _bool_ | true if client is online |
 
 <a name="IsOffline"></a>
 
@@ -3317,8 +3317,8 @@ Check if the MinIO client is offline and cannot reach the server.
 **Return Value**
 
 | Param     | Type   | Description               |
-|-----------|--------|---------------------------|
-| `offline` | *bool* | true if client is offline |
+| --------- | ------ | ------------------------- |
+| `offline` | _bool_ | true if client is offline |
 
 <a name="HealthCheck"></a>
 
@@ -3329,12 +3329,12 @@ Start continuous health check monitoring of the MinIO server.
 **Parameters**
 
 | Param        | Type            | Description           |
-|--------------|-----------------|-----------------------|
-| `hcDuration` | *time.Duration* | Health check interval |
+| ------------ | --------------- | --------------------- |
+| `hcDuration` | _time.Duration_ | Health check interval |
 
 **Return Values**
 
 | Param    | Type                 | Description                     |
-|----------|----------------------|---------------------------------|
-| `cancel` | *context.CancelFunc* | Function to cancel health check |
-| `err`    | *error*              | Standard Error                  |
+| -------- | -------------------- | ------------------------------- |
+| `cancel` | _context.CancelFunc_ | Function to cancel health check |
+| `err`    | _error_              | Standard Error                  |
