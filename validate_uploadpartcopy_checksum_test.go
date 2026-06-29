@@ -87,7 +87,7 @@ func TestUploadPartCopyChecksum5924(t *testing.T) {
 }
 
 // TestCopyObjectResultSetChecksums verifies setChecksums copies every checksum
-// flavour from the parsed CopyPartResult onto the CompletePart.
+// flavor from the parsed CopyPartResult onto the CompletePart.
 func TestCopyObjectResultSetChecksums(t *testing.T) {
 	r := copyObjectResult{
 		ChecksumCRC32:     "crc32",
