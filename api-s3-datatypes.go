@@ -280,6 +280,32 @@ type initiator struct {
 type copyObjectResult struct {
 	ETag         string
 	LastModified time.Time // time string format "2006-01-02T15:04:05.000Z"
+
+	// Checksum values returned by UploadPartCopy.
+	ChecksumCRC32     string `xml:"ChecksumCRC32,omitempty"`
+	ChecksumCRC32C    string `xml:"ChecksumCRC32C,omitempty"`
+	ChecksumSHA1      string `xml:"ChecksumSHA1,omitempty"`
+	ChecksumSHA256    string `xml:"ChecksumSHA256,omitempty"`
+	ChecksumCRC64NVME string `xml:",omitempty"`
+	ChecksumMD5       string `xml:",omitempty"`
+	ChecksumSHA512    string `xml:",omitempty"`
+	ChecksumXXHash64  string `xml:"ChecksumXXHASH64,omitempty"`
+	ChecksumXXHash3   string `xml:"ChecksumXXHASH3,omitempty"`
+	ChecksumXXHash128 string `xml:"ChecksumXXHASH128,omitempty"`
+}
+
+// setChecksums copies the copied part's checksums onto a CompletePart.
+func (r copyObjectResult) setChecksums(p *CompletePart) {
+	p.ChecksumCRC32 = r.ChecksumCRC32
+	p.ChecksumCRC32C = r.ChecksumCRC32C
+	p.ChecksumSHA1 = r.ChecksumSHA1
+	p.ChecksumSHA256 = r.ChecksumSHA256
+	p.ChecksumCRC64NVME = r.ChecksumCRC64NVME
+	p.ChecksumMD5 = r.ChecksumMD5
+	p.ChecksumSHA512 = r.ChecksumSHA512
+	p.ChecksumXXHash64 = r.ChecksumXXHash64
+	p.ChecksumXXHash3 = r.ChecksumXXHash3
+	p.ChecksumXXHash128 = r.ChecksumXXHash128
 }
 
 // ObjectPart container for particular part of an object.
