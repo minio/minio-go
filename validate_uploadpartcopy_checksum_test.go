@@ -23,6 +23,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -37,6 +39,14 @@ func TestUploadPartCopyChecksum5924(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// UploadPartCopy: PUT with uploadId + partNumber + copy-source header.
 		if r.Method == http.MethodPut && r.URL.Query().Get("uploadId") != "" {
+			if got := r.URL.Query().Get("partNumber"); got != "1" {
+				http.Error(w, "unexpected partNumber", http.StatusBadRequest)
+				return
+			}
+			if r.Header.Get("x-amz-copy-source") == "" {
+				http.Error(w, "missing x-amz-copy-source", http.StatusBadRequest)
+				return
+			}
 			w.Header().Set("Content-Type", "application/xml")
 			io.WriteString(w, `<?xml version="1.0" encoding="UTF-8"?>`+
 				`<CopyPartResult>`+
@@ -122,5 +132,114 @@ func TestCopyObjectResultSetChecksums(t *testing.T) {
 		if tc.got != tc.want {
 			t.Errorf("%s = %q, want %q", tc.name, tc.got, tc.want)
 		}
+	}
+}
+
+// TestComposeObjectChecksum5924 validates that ComposeObject sets the requested
+// checksum algorithm on the multipart upload (so server-side copied parts are
+// checksummed) and surfaces the composed object's checksum (AIStor #5924). A
+// 6 MiB source with a 5 MiB part size forces the two-part multipart-copy path;
+// a mock endpoint keeps it deterministic in CI without a live server.
+func TestComposeObjectChecksum5924(t *testing.T) {
+	const (
+		wantCRC32C = "yZRlqg=="
+		srcSize    = 6 * 1024 * 1024
+	)
+	var (
+		gotAlgo         string
+		gotCompleteBody string
+	)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		switch {
+		// Source stat (HEAD): report a size that needs two parts.
+		case r.Method == http.MethodHead:
+			w.Header().Set("Content-Length", strconv.Itoa(srcSize))
+			w.Header().Set("Last-Modified", "Wed, 01 Jan 2026 00:00:00 GMT")
+			w.Header().Set("ETag", `"3858f62230ac3c915f300c664312c11f"`)
+			w.WriteHeader(http.StatusOK)
+		// Initiate multipart upload (POST ?uploads): record the algorithm header.
+		case r.Method == http.MethodPost && q.Has("uploads"):
+			gotAlgo = r.Header.Get(amzChecksumAlgo)
+			w.Header().Set("Content-Type", "application/xml")
+			io.WriteString(w, `<?xml version="1.0" encoding="UTF-8"?>`+
+				`<InitiateMultipartUploadResult>`+
+				`<Bucket>dst-bucket</Bucket><Key>dst</Key><UploadId>upload-id</UploadId>`+
+				`</InitiateMultipartUploadResult>`)
+		// UploadPartCopy (PUT ?uploadId&partNumber + copy-source).
+		case r.Method == http.MethodPut && q.Get("uploadId") != "":
+			if q.Get("partNumber") == "" {
+				http.Error(w, "missing partNumber", http.StatusBadRequest)
+				return
+			}
+			if r.Header.Get("x-amz-copy-source") == "" {
+				http.Error(w, "missing x-amz-copy-source", http.StatusBadRequest)
+				return
+			}
+			w.Header().Set("Content-Type", "application/xml")
+			io.WriteString(w, `<?xml version="1.0" encoding="UTF-8"?>`+
+				`<CopyPartResult>`+
+				`<ETag>&quot;3858f62230ac3c915f300c664312c11f&quot;</ETag>`+
+				`<LastModified>2026-01-01T00:00:00.000Z</LastModified>`+
+				`<ChecksumCRC32C>`+wantCRC32C+`</ChecksumCRC32C>`+
+				`</CopyPartResult>`)
+		// CompleteMultipartUpload (POST ?uploadId): capture the part bodies and
+		// echo the object checksum.
+		case r.Method == http.MethodPost && q.Get("uploadId") != "":
+			body, _ := io.ReadAll(r.Body)
+			gotCompleteBody = string(body)
+			w.Header().Set("Content-Type", "application/xml")
+			io.WriteString(w, `<?xml version="1.0" encoding="UTF-8"?>`+
+				`<CompleteMultipartUploadResult>`+
+				`<Bucket>dst-bucket</Bucket><Key>dst</Key>`+
+				`<ETag>&quot;3858f62230ac3c915f300c664312c11f-2&quot;</ETag>`+
+				`<ChecksumCRC32C>`+wantCRC32C+`</ChecksumCRC32C>`+
+				`</CompleteMultipartUploadResult>`)
+		// Bucket location lookup: answer with a valid (us-east-1) constraint.
+		case r.Method == http.MethodGet && q.Has("location"):
+			w.Header().Set("Content-Type", "application/xml")
+			io.WriteString(w, `<?xml version="1.0" encoding="UTF-8"?>`+
+				`<LocationConstraint xmlns="http://s3.amazonaws.com/doc/2006-03-01/"></LocationConstraint>`)
+		// Anything else: succeed with an empty body.
+		default:
+			w.WriteHeader(http.StatusOK)
+		}
+	}))
+	defer srv.Close()
+
+	u, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatalf("parse url: %v", err)
+	}
+	client, err := New(u.Host, &Options{
+		Creds:  credentials.NewStaticV4("ak", "sk", ""),
+		Secure: false,
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	info, err := client.ComposeObject(context.Background(),
+		CopyDestOptions{Bucket: "dst-bucket", Object: "dst", ChecksumType: ChecksumCRC32C, PartSize: absMinPartSize},
+		CopySrcOptions{Bucket: "src-bucket", Object: "src"})
+	if err != nil {
+		t.Fatalf("ComposeObject: %v", err)
+	}
+
+	// The compose half of #5924: the algorithm must be set on the MPU so the
+	// server checksums the copied parts, and the composed object must carry it.
+	if gotAlgo != "CRC32C" {
+		t.Fatalf("multipart init checksum algorithm = %q, want %q", gotAlgo, "CRC32C")
+	}
+	if info.ChecksumCRC32C != wantCRC32C {
+		t.Fatalf("ChecksumCRC32C = %q, want %q", info.ChecksumCRC32C, wantCRC32C)
+	}
+	// The per-part checksum parsed from CopyPartResult must reach the
+	// CompleteMultipartUpload request body as <ChecksumCRC32C> on every part;
+	// the 6 MiB source at a 5 MiB part size yields exactly two parts, so a
+	// dropped second-part checksum would leave only one occurrence.
+	want := "<ChecksumCRC32C>" + wantCRC32C + "</ChecksumCRC32C>"
+	if got := strings.Count(gotCompleteBody, want); got != 2 {
+		t.Fatalf("CompleteMultipartUpload body has %d %q, want 2; body %q", got, want, gotCompleteBody)
 	}
 }
