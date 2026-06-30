@@ -147,6 +147,7 @@ func TestComposeObjectChecksum5924(t *testing.T) {
 	)
 	var (
 		gotAlgo         string
+		gotMode         string
 		gotCompleteBody string
 	)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -161,6 +162,7 @@ func TestComposeObjectChecksum5924(t *testing.T) {
 		// Initiate multipart upload (POST ?uploads): record the algorithm header.
 		case r.Method == http.MethodPost && q.Has("uploads"):
 			gotAlgo = r.Header.Get(amzChecksumAlgo)
+			gotMode = r.Header.Get(amzChecksumMode)
 			w.Header().Set("Content-Type", "application/xml")
 			io.WriteString(w, `<?xml version="1.0" encoding="UTF-8"?>`+
 				`<InitiateMultipartUploadResult>`+
@@ -241,5 +243,23 @@ func TestComposeObjectChecksum5924(t *testing.T) {
 	want := "<ChecksumCRC32C>" + wantCRC32C + "</ChecksumCRC32C>"
 	if got := strings.Count(gotCompleteBody, want); got != 2 {
 		t.Fatalf("CompleteMultipartUpload body has %d %q, want 2; body %q", got, want, gotCompleteBody)
+	}
+	// A composite (non-full-object) algorithm must not set the mode header.
+	if gotMode != "" {
+		t.Fatalf("composite checksum init mode = %q, want empty", gotMode)
+	}
+
+	// A full-object checksum type additionally sets the mode header on the MPU
+	// init (the dst.ChecksumType.FullObjectRequested() branch).
+	if _, err := client.ComposeObject(context.Background(),
+		CopyDestOptions{Bucket: "dst-bucket", Object: "dst", ChecksumType: ChecksumFullObjectCRC32C, PartSize: absMinPartSize},
+		CopySrcOptions{Bucket: "src-bucket", Object: "src"}); err != nil {
+		t.Fatalf("ComposeObject (full object): %v", err)
+	}
+	if gotAlgo != "CRC32C" {
+		t.Fatalf("full-object init checksum algorithm = %q, want %q", gotAlgo, "CRC32C")
+	}
+	if gotMode != "FULL_OBJECT" {
+		t.Fatalf("full-object init checksum mode = %q, want %q", gotMode, "FULL_OBJECT")
 	}
 }
