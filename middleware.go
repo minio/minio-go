@@ -30,8 +30,8 @@ type InitializeMiddleware interface {
 // SerializeMiddleware runs AFTER the request is created, but BEFORE it is signed.
 // It can mutate headers, query parameters, etc.
 //
-// NOTE: This is the safe phase for one-shot logging — it runs once per API call
-// before the retry loop (unlike Finalize/Deserialize which fire on every retry).
+// NOTE: This fires on EVERY retry attempt (new request per attempt).
+// Only InitializeMiddleware runs once per API call.
 type SerializeMiddleware interface {
 	Middleware
 	Serialize(ctx context.Context, execCtx ExecutionContext, req *http.Request) error
@@ -41,8 +41,7 @@ type SerializeMiddleware interface {
 // Ideal for logging request sizes, outbound traffic, or tracing.
 //
 // NOTE: This fires on EVERY retry attempt inside the retry loop, not once per
-// top-level API call. If you only want to log/logic once, use SerializeMiddleware
-// instead.
+// top-level API call. Only InitializeMiddleware runs once.
 type FinalizeMiddleware interface {
 	Middleware
 	Finalize(ctx context.Context, execCtx ExecutionContext, req *http.Request) error
@@ -51,10 +50,11 @@ type FinalizeMiddleware interface {
 // DeserializeMiddleware runs AFTER the HTTP response is received from the server.
 // It can inspect status codes, headers, or modify/log errors.
 //
-// NOTE: This fires on EVERY retry attempt inside the retry loop. Errors from all
-// Deserialize middleware are stacked via errors.Join with the transport error.
-// If any middleware returns a non-nil error, the request is aborted even on 2xx
-// responses. Use this for response validation.
+// NOTE: This fires on EVERY retry attempt inside the retry loop.
+// Only InitializeMiddleware runs once per API call.
+// Errors from all Deserialize middleware stack via errors.Join with the transport
+// error. If any middleware returns a non-nil error, the request aborts even on
+// 2xx responses. Use this for response validation.
 type DeserializeMiddleware interface {
 	Middleware
 	Deserialize(ctx context.Context, execCtx ExecutionContext, resp *http.Response, err error) error
