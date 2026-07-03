@@ -118,6 +118,9 @@ type Client struct {
 	rdmaOnce    sync.Once         //nolint:unused
 	rdmaHandle  *rdmaClientHandle //nolint:unused
 	rdmaInitErr error             //nolint:unused
+
+	// Middlewares
+	middlewares []Middleware
 }
 
 // Options for New method
@@ -170,6 +173,9 @@ type Options struct {
 	// when the caller supplies PutObjectOptions.RDMABuffer / GetObjectOptions.RDMABuffer.
 	// No-op unless built with -tags=rdma.
 	EnableRDMA bool
+
+	// Middlewares to run on s3 operations.
+	Middlewares []Middleware
 }
 
 // Global constants.
@@ -218,6 +224,11 @@ func New(endpoint string, opts *Options) (*Client, error) {
 	}
 
 	return clnt, nil
+}
+
+// AddMiddleware adds a middleware to the chain.
+func (c *Client) AddMiddleware(m Middleware) {
+	c.middlewares = append(c.middlewares, m)
 }
 
 // EndpointURL returns the URL of the S3-compatible endpoint that this client connects to.
@@ -340,6 +351,7 @@ func privateNew(endpoint string, opts *Options) (*Client, error) {
 		clnt.maxRetries = opts.MaxRetries
 	}
 
+	clnt.middlewares = opts.Middlewares
 	// Return.
 	return clnt, nil
 }
@@ -551,6 +563,9 @@ type requestMetadata struct {
 	trailer          http.Header // (http.Request).Trailer. Requires v4 signature.
 
 	expect200OKWithError bool
+
+	// s3 operation name
+	s3Operation string
 }
 
 // dumpHTTP - dump HTTP request and response.
@@ -706,6 +721,26 @@ func (c *Client) executeMethod(ctx context.Context, method string, metadata requ
 		metadata.trailer.Set(metadata.addCrc.Key(), base64.StdEncoding.EncodeToString(crc.Sum(nil)))
 	}
 
+	opt := metadata.s3Operation
+	if opt == "" {
+		opt = resolveS3Operation(method, metadata)
+	}
+	metadata.s3Operation = opt
+
+	execCtx := ExecutionContext{
+		Operation:  opt,
+		BucketName: metadata.bucketName,
+		ObjectName: metadata.objectName,
+	}
+
+	for _, m := range c.middlewares {
+		if initM, ok := m.(InitializeMiddleware); ok {
+			if ctx, err = initM.Initialize(ctx, execCtx); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	for range c.newRetryTimer(ctx, reqRetry, DefaultRetryUnit, DefaultRetryCap, MaxJitter) {
 		// Retry executes the following function body if request has an
 		// error until maxRetries have been exhausted, retry attempts are
@@ -730,6 +765,13 @@ func (c *Client) executeMethod(ctx context.Context, method string, metadata requ
 
 			return nil, err
 		}
+		for _, m := range c.middlewares {
+			if finalizeM, ok := m.(FinalizeMiddleware); ok {
+				if err = finalizeM.Finalize(ctx, execCtx, req); err != nil {
+					return nil, err
+				}
+			}
+		}
 
 		// Initiate the request.
 		res, err = c.do(req)
@@ -740,10 +782,24 @@ func (c *Client) executeMethod(ctx context.Context, method string, metadata requ
 			}
 			return nil, err
 		}
+		var mwError error
+		for _, m := range c.middlewares {
+			if deserializeM, ok := m.(DeserializeMiddleware); ok {
+				if dErr := deserializeM.Deserialize(ctx, execCtx, res, err); dErr != nil {
+					mwError = errors.Join(mwError, dErr)
+				}
+			}
+		}
+		if mwError != nil {
+			err = errors.Join(err, mwError)
+		}
 
 		success := successStatus.Contains(res.StatusCode)
 		if success && !metadata.expect200OKWithError {
-			// We do not expect 2xx to return an error return.
+			if mwError != nil {
+				closeResponse(res)
+				return nil, err
+			}
 			return res, nil
 		} // in all other situations we must first parse the body as ErrorResponse
 
@@ -888,6 +944,21 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 	req, err = http.NewRequestWithContext(ctx, method, targetURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+	execCtx := ExecutionContext{
+		Operation:  metadata.s3Operation,
+		BucketName: metadata.bucketName,
+		ObjectName: metadata.objectName,
+	}
+	if execCtx.Operation == "" {
+		execCtx.Operation = resolveS3Operation(method, metadata)
+	}
+	for _, m := range c.middlewares {
+		if serializeM, ok := m.(SerializeMiddleware); ok {
+			if err = serializeM.Serialize(ctx, execCtx, req); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	var (
@@ -1163,4 +1234,152 @@ func (c *Client) GetCreds() (credentials.Value, error) {
 		return credentials.Value{}, errors.New("no credentials provider")
 	}
 	return c.credsProvider.GetWithContext(c.CredContext())
+}
+
+func resolveS3Operation(method string, metadata requestMetadata) string {
+	if metadata.s3Operation != "" {
+		return metadata.s3Operation
+	}
+
+	hasQuery := func(key string) bool {
+		return metadata.queryValues.Get(key) != "" || metadata.queryValues.Has(key)
+	}
+
+	isObject := metadata.objectName != ""
+
+	switch method {
+	case http.MethodGet:
+		if isObject {
+			if hasQuery("tagging") {
+				return "GetObjectTagging"
+			}
+			if hasQuery("acl") {
+				return "GetObjectAcl"
+			}
+			if hasQuery("legal-hold") {
+				return "GetObjectLegalHold"
+			}
+			if hasQuery("retention") {
+				return "GetObjectRetention"
+			}
+			return "GetObject"
+		} else {
+			if hasQuery("lifecycle") {
+				return "GetBucketLifecycle"
+			}
+			if hasQuery("policy") {
+				return "GetBucketPolicy"
+			}
+			if hasQuery("notification") {
+				return "GetBucketNotification"
+			}
+			if hasQuery("cors") {
+				return "GetBucketCors"
+			}
+			if hasQuery("encryption") {
+				return "GetBucketEncryption"
+			}
+			if hasQuery("tagging") {
+				return "GetBucketTagging"
+			}
+			if hasQuery("versioning") {
+				return "GetBucketVersioning"
+			}
+			if metadata.bucketName != "" {
+				return "ListObjectsV2"
+			}
+			return "ListBuckets"
+		}
+
+	case http.MethodPut:
+		if isObject {
+			if hasQuery("tagging") {
+				return "PutObjectTagging"
+			}
+			if hasQuery("acl") {
+				return "PutObjectAcl"
+			}
+			if hasQuery("legal-hold") {
+				return "PutObjectLegalHold"
+			}
+			if hasQuery("retention") {
+				return "PutObjectRetention"
+			}
+			return "PutObject"
+		} else {
+			if hasQuery("lifecycle") {
+				return "PutBucketLifecycle"
+			}
+			if hasQuery("policy") {
+				return "PutBucketPolicy"
+			}
+			if hasQuery("notification") {
+				return "PutBucketNotification"
+			}
+			if hasQuery("cors") {
+				return "PutBucketCors"
+			}
+			if hasQuery("encryption") {
+				return "PutBucketEncryption"
+			}
+			if hasQuery("tagging") {
+				return "PutBucketTagging"
+			}
+			if hasQuery("versioning") {
+				return "PutBucketVersioning"
+			}
+			return "CreateBucket"
+		}
+
+	case http.MethodDelete:
+		if isObject {
+			if hasQuery("tagging") {
+				return "DeleteObjectTagging"
+			}
+			return "DeleteObject"
+		} else {
+			if hasQuery("lifecycle") {
+				return "DeleteBucketLifecycle"
+			}
+			if hasQuery("policy") {
+				return "DeleteBucketPolicy"
+			}
+			if hasQuery("cors") {
+				return "DeleteBucketCors"
+			}
+			if hasQuery("encryption") {
+				return "DeleteBucketEncryption"
+			}
+			if hasQuery("tagging") {
+				return "DeleteBucketTagging"
+			}
+			return "DeleteBucket"
+		}
+
+	case http.MethodHead:
+		if isObject {
+			return "HeadObject"
+		}
+		return "HeadBucket"
+
+	case http.MethodPost:
+		if isObject {
+			if hasQuery("uploads") {
+				return "CreateMultipartUpload"
+			}
+			if hasQuery("restore") {
+				return "RestoreObject"
+			}
+			if hasQuery("select") {
+				return "SelectObjectContent"
+			}
+			return "PostObject"
+		} else {
+			if hasQuery("delete") {
+				return "DeleteObjects"
+			}
+		}
+	}
+
+	return method
 }
