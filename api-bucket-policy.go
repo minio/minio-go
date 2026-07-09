@@ -19,6 +19,7 @@ package minio
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -40,6 +41,9 @@ import (
 //
 // Returns an error if the operation fails.
 func (c *Client) SetCannedBucketPolicy(ctx context.Context, bucketName string, bucketPolicy policy.BucketPolicy) error {
+	if !bucketPolicy.IsValidBucketPolicy() {
+		return fmt.Errorf("invalid bucket policy %q", bucketPolicy)
+	}
 	p := policy.BucketAccessPolicy{Version: "2012-10-17"}
 	p.Statements = policy.SetPolicy(p.Statements, bucketPolicy, bucketName, "")
 	if len(p.Statements) == 0 {
