@@ -36,7 +36,7 @@ import (
 // Parameters:
 //   - ctx: Context for request cancellation and timeout
 //   - bucketName: Name of the bucket
-//   - access: Canned access level (CannedAccessReadOnly, CannedAccessWriteOnly, CannedAccessReadWrite)
+//   - access: Canned access level (policy.BucketPolicyNone, policy.BucketPolicyReadOnly, policy.BucketPolicyWriteOnly, policy.BucketPolicyReadWrite)
 //
 // Returns an error if the operation fails.
 func (c *Client) SetCannedBucketPolicy(ctx context.Context, bucketName string, bucketPolicy policy.BucketPolicy) error {
