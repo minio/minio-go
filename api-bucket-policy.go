@@ -28,16 +28,6 @@ import (
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
-// accessPerms - access level.
-type cannedAccessPerms string
-
-// different types of Access perm's currently supported by policy command.
-const (
-	CannedAccessReadOnly  = cannedAccessPerms("readonly")
-	CannedAccessWriteOnly = cannedAccessPerms("writeonly")
-	CannedAccessReadWrite = cannedAccessPerms("readwrite")
-)
-
 // SetCannedBucketPolicy sets a canned (predefined) access policy on a bucket.
 // This is a convenience method that translates predefined access levels
 // (readonly, writeonly, readwrite) into the corresponding bucket policy.
@@ -49,9 +39,9 @@ const (
 //   - access: Canned access level (CannedAccessReadOnly, CannedAccessWriteOnly, CannedAccessReadWrite)
 //
 // Returns an error if the operation fails.
-func (c *Client) SetCannedBucketPolicy(ctx context.Context, bucketName string, access cannedAccessPerms) error {
+func (c *Client) SetCannedBucketPolicy(ctx context.Context, bucketName string, bucketPolicy policy.BucketPolicy) error {
 	p := policy.BucketAccessPolicy{Version: "2012-10-17"}
-	p.Statements = policy.SetPolicy(p.Statements, policy.BucketPolicy(access), bucketName, "")
+	p.Statements = policy.SetPolicy(p.Statements, bucketPolicy, bucketName, "")
 	if len(p.Statements) == 0 {
 		return c.SetBucketPolicy(ctx, bucketName, "")
 	}
