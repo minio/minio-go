@@ -633,7 +633,9 @@ func (c *Client) do(req *http.Request) (resp *http.Response, err error) {
 
 	resp, err = c.httpClient.Do(req)
 	if err != nil {
-		_ = c.dumpHTTP(req, nil, err)
+		if c.isTraceEnabled {
+			_ = c.dumpHTTP(req, nil, err)
+		}
 		// Handle this specifically for now until future Golang versions fix this issue properly.
 		if urlErr, ok := err.(*url.Error); ok {
 			if strings.Contains(urlErr.Err.Error(), "EOF") {
