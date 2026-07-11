@@ -563,9 +563,6 @@ type requestMetadata struct {
 	trailer          http.Header // (http.Request).Trailer. Requires v4 signature.
 
 	expect200OKWithError bool
-
-	// s3 operation name
-	s3Operation string
 }
 
 // dumpHTTP - dump HTTP request and response.
@@ -721,16 +718,11 @@ func (c *Client) executeMethod(ctx context.Context, method string, metadata requ
 		metadata.trailer.Set(metadata.addCrc.Key(), base64.StdEncoding.EncodeToString(crc.Sum(nil)))
 	}
 
-	opt := metadata.s3Operation
-	if opt == "" {
-		opt = resolveS3Operation(method, metadata)
-	}
-	metadata.s3Operation = opt
-
 	execCtx := ExecutionContext{
-		Operation:  opt,
-		BucketName: metadata.bucketName,
-		ObjectName: metadata.objectName,
+		Method:      method,
+		BucketName:  metadata.bucketName,
+		ObjectName:  metadata.objectName,
+		QueryValues: metadata.queryValues,
 	}
 
 	for _, m := range c.middlewares {
@@ -782,18 +774,19 @@ func (c *Client) executeMethod(ctx context.Context, method string, metadata requ
 			}
 			return nil, err
 		}
+
 		var mwError error
 		for _, m := range c.middlewares {
 			if deserializeM, ok := m.(DeserializeMiddleware); ok {
-				if dErr := deserializeM.Deserialize(ctx, execCtx, res, err); dErr != nil {
+				if dErr := deserializeM.Deserialize(ctx, execCtx, res); dErr != nil {
 					mwError = errors.Join(mwError, dErr)
 				}
 			}
 		}
+
 		if mwError != nil {
 			err = errors.Join(err, mwError)
 		}
-
 		success := successStatus.Contains(res.StatusCode)
 		if success && !metadata.expect200OKWithError {
 			if mwError != nil {
@@ -946,12 +939,10 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 		return nil, err
 	}
 	execCtx := ExecutionContext{
-		Operation:  metadata.s3Operation,
-		BucketName: metadata.bucketName,
-		ObjectName: metadata.objectName,
-	}
-	if execCtx.Operation == "" {
-		execCtx.Operation = resolveS3Operation(method, metadata)
+		Method:      method,
+		BucketName:  metadata.bucketName,
+		ObjectName:  metadata.objectName,
+		QueryValues: metadata.queryValues,
 	}
 	for _, m := range c.middlewares {
 		if serializeM, ok := m.(SerializeMiddleware); ok {
@@ -1234,152 +1225,4 @@ func (c *Client) GetCreds() (credentials.Value, error) {
 		return credentials.Value{}, errors.New("no credentials provider")
 	}
 	return c.credsProvider.GetWithContext(c.CredContext())
-}
-
-func resolveS3Operation(method string, metadata requestMetadata) string {
-	if metadata.s3Operation != "" {
-		return metadata.s3Operation
-	}
-
-	hasQuery := func(key string) bool {
-		return metadata.queryValues.Get(key) != "" || metadata.queryValues.Has(key)
-	}
-
-	isObject := metadata.objectName != ""
-
-	switch method {
-	case http.MethodGet:
-		if isObject {
-			if hasQuery("tagging") {
-				return "GetObjectTagging"
-			}
-			if hasQuery("acl") {
-				return "GetObjectAcl"
-			}
-			if hasQuery("legal-hold") {
-				return "GetObjectLegalHold"
-			}
-			if hasQuery("retention") {
-				return "GetObjectRetention"
-			}
-			return "GetObject"
-		} else {
-			if hasQuery("lifecycle") {
-				return "GetBucketLifecycle"
-			}
-			if hasQuery("policy") {
-				return "GetBucketPolicy"
-			}
-			if hasQuery("notification") {
-				return "GetBucketNotification"
-			}
-			if hasQuery("cors") {
-				return "GetBucketCors"
-			}
-			if hasQuery("encryption") {
-				return "GetBucketEncryption"
-			}
-			if hasQuery("tagging") {
-				return "GetBucketTagging"
-			}
-			if hasQuery("versioning") {
-				return "GetBucketVersioning"
-			}
-			if metadata.bucketName != "" {
-				return "ListObjectsV2"
-			}
-			return "ListBuckets"
-		}
-
-	case http.MethodPut:
-		if isObject {
-			if hasQuery("tagging") {
-				return "PutObjectTagging"
-			}
-			if hasQuery("acl") {
-				return "PutObjectAcl"
-			}
-			if hasQuery("legal-hold") {
-				return "PutObjectLegalHold"
-			}
-			if hasQuery("retention") {
-				return "PutObjectRetention"
-			}
-			return "PutObject"
-		} else {
-			if hasQuery("lifecycle") {
-				return "PutBucketLifecycle"
-			}
-			if hasQuery("policy") {
-				return "PutBucketPolicy"
-			}
-			if hasQuery("notification") {
-				return "PutBucketNotification"
-			}
-			if hasQuery("cors") {
-				return "PutBucketCors"
-			}
-			if hasQuery("encryption") {
-				return "PutBucketEncryption"
-			}
-			if hasQuery("tagging") {
-				return "PutBucketTagging"
-			}
-			if hasQuery("versioning") {
-				return "PutBucketVersioning"
-			}
-			return "CreateBucket"
-		}
-
-	case http.MethodDelete:
-		if isObject {
-			if hasQuery("tagging") {
-				return "DeleteObjectTagging"
-			}
-			return "DeleteObject"
-		} else {
-			if hasQuery("lifecycle") {
-				return "DeleteBucketLifecycle"
-			}
-			if hasQuery("policy") {
-				return "DeleteBucketPolicy"
-			}
-			if hasQuery("cors") {
-				return "DeleteBucketCors"
-			}
-			if hasQuery("encryption") {
-				return "DeleteBucketEncryption"
-			}
-			if hasQuery("tagging") {
-				return "DeleteBucketTagging"
-			}
-			return "DeleteBucket"
-		}
-
-	case http.MethodHead:
-		if isObject {
-			return "HeadObject"
-		}
-		return "HeadBucket"
-
-	case http.MethodPost:
-		if isObject {
-			if hasQuery("uploads") {
-				return "CreateMultipartUpload"
-			}
-			if hasQuery("restore") {
-				return "RestoreObject"
-			}
-			if hasQuery("select") {
-				return "SelectObjectContent"
-			}
-			return "PostObject"
-		} else {
-			if hasQuery("delete") {
-				return "DeleteObjects"
-			}
-		}
-	}
-
-	return method
 }

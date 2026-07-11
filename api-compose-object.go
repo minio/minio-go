@@ -470,7 +470,8 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 			if src.End >= srcCopySize || src.Start < 0 {
 				return UploadInfo{}, errInvalidArgument(
 					fmt.Sprintf("CopySrcOptions %d has invalid segment-to-copy [%d, %d] (size is %d)",
-						i, src.Start, src.End, srcCopySize))
+						i, src.Start, src.End, srcCopySize),
+				)
 			}
 			srcCopySize = src.End - src.Start + 1
 		}
@@ -478,7 +479,8 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 		// Only the last source may be less than `absMinPartSize`
 		if srcCopySize < absMinPartSize && i < len(srcs)-1 {
 			return UploadInfo{}, errInvalidArgument(
-				fmt.Sprintf("CopySrcOptions %d is too small (%d) and it is not the last part", i, srcCopySize))
+				fmt.Sprintf("CopySrcOptions %d is too small (%d) and it is not the last part", i, srcCopySize),
+			)
 		}
 
 		// Is data to copy too large?
@@ -495,7 +497,8 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 		// Do we need more parts than we are allowed?
 		if totalParts > maxPartsCount {
 			return UploadInfo{}, errInvalidArgument(fmt.Sprintf(
-				"Your proposed compose object requires more than %d parts", maxPartsCount))
+				"Your proposed compose object requires more than %d parts", maxPartsCount,
+			))
 		}
 	}
 

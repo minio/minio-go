@@ -183,7 +183,9 @@ func (o *GetObjectOptions) SetRange(start, end int64) error {
 		return errInvalidArgument(
 			fmt.Sprintf(
 				"Invalid range specified: start=%d end=%d",
-				start, end))
+				start, end,
+			),
+		)
 	}
 	return nil
 }
