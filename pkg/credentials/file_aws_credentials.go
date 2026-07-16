@@ -82,7 +82,7 @@ func (p *FileAWSCredentials) retrieve() (Value, error) {
 			// both .aws/config and .aws/credentials are valid
 			p.Filename = filepath.Join(homeDir, ".aws", "config")
 			fileInfo, err := os.Stat(p.Filename)
-			if err != nil || !fileInfo.IsDir() || fileInfo.Size() == 0 {
+			if err != nil || fileInfo.IsDir() || fileInfo.Size() == 0 {
 				p.Filename = filepath.Join(homeDir, ".aws", "credentials")
 			}
 		}
