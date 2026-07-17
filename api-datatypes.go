@@ -184,9 +184,19 @@ type ObjectInfo struct {
 	// eg: x-amz-meta-*, content-encoding etc.
 	Metadata http.Header `json:"metadata" xml:"-"`
 
-	// x-amz-meta-* headers stripped "x-amz-meta-" prefix containing the first value.
+	// UserMetadata contains x-amz-meta-* user metadata.
+	// StatObject and GetObject return it with the "X-Amz-Meta-" prefix
+	// stripped; list results with WithMetadata keep the exact values stored
+	// on the object (prefixed keys plus system entries such as content-type).
 	// Only returned by MinIO servers.
 	UserMetadata StringMap `json:"userMetadata,omitempty"`
+
+	// UserMetadataDecoded is the decoded form of the user metadata in list
+	// results, matching what StatObject and GetObject return in UserMetadata:
+	// x-amz-meta-* entries with the "X-Amz-Meta-" prefix stripped and RFC 2047
+	// encoded values decoded.
+	// Only populated by MinIO servers when listing with WithMetadata.
+	UserMetadataDecoded StringMap `json:"userMetadataDecoded,omitempty" xml:"-"`
 
 	// x-amz-tagging values in their k/v values.
 	// Only returned by MinIO servers.

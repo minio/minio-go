@@ -296,6 +296,7 @@ func (c *Client) listObjectsV2Query(ctx context.Context, bucketName, objectPrefi
 			return listBucketResult, err
 		}
 		listBucketResult.Contents[i].LastModified = listBucketResult.Contents[i].LastModified.Truncate(time.Millisecond)
+		listBucketResult.Contents[i].UserMetadataDecoded = decodeUserMetadata(obj.UserMetadata)
 	}
 
 	for i, obj := range listBucketResult.CommonPrefixes {
@@ -419,31 +420,32 @@ func (c *Client) listObjectVersions(ctx context.Context, bucketName string, opts
 			}
 			for _, version := range vers {
 				info := ObjectInfo{
-					ETag:              trimEtag(version.ETag),
-					Key:               version.Key,
-					LastModified:      version.LastModified.Truncate(time.Millisecond),
-					Size:              version.Size,
-					Owner:             version.Owner,
-					StorageClass:      version.StorageClass,
-					IsLatest:          version.IsLatest,
-					VersionID:         version.VersionID,
-					IsDeleteMarker:    version.isDeleteMarker,
-					UserTags:          version.UserTags,
-					UserMetadata:      version.UserMetadata,
-					Internal:          version.Internal,
-					NumVersions:       numVersions,
-					ChecksumAlgorithm: version.ChecksumAlgorithm,
-					ChecksumMode:      version.ChecksumType,
-					ChecksumCRC32:     version.ChecksumCRC32,
-					ChecksumCRC32C:    version.ChecksumCRC32C,
-					ChecksumSHA1:      version.ChecksumSHA1,
-					ChecksumSHA256:    version.ChecksumSHA256,
-					ChecksumCRC64NVME: version.ChecksumCRC64NVME,
-					ChecksumMD5:       version.ChecksumMD5,
-					ChecksumSHA512:    version.ChecksumSHA512,
-					ChecksumXXHash64:  version.ChecksumXXHash64,
-					ChecksumXXHash3:   version.ChecksumXXHash3,
-					ChecksumXXHash128: version.ChecksumXXHash128,
+					ETag:                trimEtag(version.ETag),
+					Key:                 version.Key,
+					LastModified:        version.LastModified.Truncate(time.Millisecond),
+					Size:                version.Size,
+					Owner:               version.Owner,
+					StorageClass:        version.StorageClass,
+					IsLatest:            version.IsLatest,
+					VersionID:           version.VersionID,
+					IsDeleteMarker:      version.isDeleteMarker,
+					UserTags:            version.UserTags,
+					UserMetadata:        version.UserMetadata,
+					UserMetadataDecoded: version.UserMetadataDecoded,
+					Internal:            version.Internal,
+					NumVersions:         numVersions,
+					ChecksumAlgorithm:   version.ChecksumAlgorithm,
+					ChecksumMode:        version.ChecksumType,
+					ChecksumCRC32:       version.ChecksumCRC32,
+					ChecksumCRC32C:      version.ChecksumCRC32C,
+					ChecksumSHA1:        version.ChecksumSHA1,
+					ChecksumSHA256:      version.ChecksumSHA256,
+					ChecksumCRC64NVME:   version.ChecksumCRC64NVME,
+					ChecksumMD5:         version.ChecksumMD5,
+					ChecksumSHA512:      version.ChecksumSHA512,
+					ChecksumXXHash64:    version.ChecksumXXHash64,
+					ChecksumXXHash3:     version.ChecksumXXHash3,
+					ChecksumXXHash128:   version.ChecksumXXHash128,
 				}
 				if !yield(info) {
 					return false
@@ -606,6 +608,7 @@ func (c *Client) listObjectVersionsQuery(ctx context.Context, bucketName string,
 		if err != nil {
 			return listObjectVersionsOutput, err
 		}
+		listObjectVersionsOutput.Versions[i].UserMetadataDecoded = decodeUserMetadata(obj.UserMetadata)
 	}
 
 	for i, obj := range listObjectVersionsOutput.CommonPrefixes {
