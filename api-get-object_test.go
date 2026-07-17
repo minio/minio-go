@@ -23,6 +23,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 )
 
@@ -144,5 +145,81 @@ func TestGetObjectReturnErrorIfServerSendsMore(t *testing.T) {
 	// We expect an error when reading back.
 	if _, err = io.ReadAll(obj); err != io.ErrUnexpectedEOF {
 		t.Fatalf("Expected %v, got %v", io.ErrUnexpectedEOF, err)
+	}
+}
+
+// TestObjectSeekAtObjectSizeAllowsSubsequentReadEOF verifies that seeking to (or
+// past) the object size succeeds for every whence per the io.Seeker contract,
+// and that io.EOF is reported by the subsequent Read rather than by Seek. See
+// https://github.com/minio/minio-go/issues/2155 and #2166.
+func TestObjectSeekAtObjectSizeAllowsSubsequentReadEOF(t *testing.T) {
+	o := &Object{
+		mutex:         &sync.Mutex{},
+		objectInfo:    ObjectInfo{Size: 10},
+		objectInfoSet: true,
+		isStarted:     true,
+	}
+
+	n, err := o.Seek(10, io.SeekStart)
+	if err != nil {
+		t.Fatalf("expected seeking to object size to succeed, got %v", err)
+	}
+	if n != 10 {
+		t.Fatalf("expected offset 10, got %d", n)
+	}
+	if _, err = o.Read(make([]byte, 1)); err != io.EOF {
+		t.Fatalf("expected read at object size to return io.EOF, got %v", err)
+	}
+
+	o.prevErr = nil
+	o.currOffset = 9
+	n, err = o.Seek(1, io.SeekCurrent)
+	if err != nil {
+		t.Fatalf("expected seeking current to object size to succeed, got %v", err)
+	}
+	if n != 10 {
+		t.Fatalf("expected offset 10, got %d", n)
+	}
+	if _, err = o.Read(make([]byte, 1)); err != io.EOF {
+		t.Fatalf("expected read at object size to return io.EOF, got %v", err)
+	}
+
+	o.prevErr = nil
+	n, err = o.Seek(0, io.SeekEnd)
+	if err != nil {
+		t.Fatalf("expected seeking to object end to succeed, got %v", err)
+	}
+	if n != 10 {
+		t.Fatalf("expected offset 10, got %d", n)
+	}
+	if _, err = o.Read(make([]byte, 1)); err != io.EOF {
+		t.Fatalf("expected read at object end to return io.EOF, got %v", err)
+	}
+}
+
+// TestObjectSeekCurrentNegativeOffset verifies that a negative offset with
+// io.SeekCurrent is honoured when the resulting absolute position is within the
+// object, and rejected only when it would move before the start of the object.
+// Regression test for https://github.com/minio/minio-go/issues/2155.
+func TestObjectSeekCurrentNegativeOffset(t *testing.T) {
+	o := &Object{
+		mutex:         &sync.Mutex{},
+		objectInfo:    ObjectInfo{Size: 10},
+		objectInfoSet: true,
+		isStarted:     true,
+		currOffset:    5,
+	}
+
+	n, err := o.Seek(-2, io.SeekCurrent)
+	if err != nil {
+		t.Fatalf("expected SeekCurrent with negative offset to succeed, got %v", err)
+	}
+	if n != 3 {
+		t.Fatalf("expected offset 3, got %d", n)
+	}
+
+	_, err = o.Seek(-10, io.SeekCurrent)
+	if err == nil {
+		t.Fatal("expected error when SeekCurrent would move before start of object")
 	}
 }
