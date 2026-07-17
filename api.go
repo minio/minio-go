@@ -568,6 +568,9 @@ func (c *Client) dumpHTTP(req *http.Request, resp *http.Response) error {
 	}
 
 	// Only display request header.
+	if req.Body != nil {
+		req.Body = http.NoBody
+	}
 	reqTrace, err := httputil.DumpRequestOut(req, false)
 	if err != nil {
 		return err
