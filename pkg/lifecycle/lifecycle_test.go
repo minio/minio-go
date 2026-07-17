@@ -528,7 +528,7 @@ func TestLifecycleMarshalXML(t *testing.T) {
 			expectedXMLOut: "<LifecycleConfiguration><Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload><ID>expire-incomplete-uploads-1</ID><Prefix>my_dir</Prefix><Status>Enabled</Status></Rule></LifecycleConfiguration>",
 		},
 		{
-			testDescription: "Ensure we always export Filter or Prefix. Specification explicitly mentions: 'Filter is required if the LifecycleRule does not contain a Prefix element.' (https://docs.aws.amazon.com/AmazonS3/latest/API/API_LifecycleRule.html)",
+			testDescription: "Ensure we always export Filter or Prefix (via zero-value RuleFilter). Specification explicitly mentions: 'Filter is required if the LifecycleRule does not contain a Prefix element.' (https://docs.aws.amazon.com/AmazonS3/latest/API/API_LifecycleRule.html)",
 			input: Configuration{
 				Rules: []Rule{
 					{
@@ -544,7 +544,7 @@ func TestLifecycleMarshalXML(t *testing.T) {
 			expectedXMLOut: "<LifecycleConfiguration><Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload><ID>expire-incomplete-uploads-2</ID><Filter><Prefix></Prefix></Filter><Status>Enabled</Status></Rule></LifecycleConfiguration>",
 		},
 		{
-			testDescription: "Ensure we always export Filter or Prefix. Specification explicitly mentions: 'Filter is required if the LifecycleRule does not contain a Prefix element.' (https://docs.aws.amazon.com/AmazonS3/latest/API/API_LifecycleRule.html)",
+			testDescription: "Ensure we always export Filter or Prefix (via empty top-level Prefix). Specification explicitly mentions: 'Filter is required if the LifecycleRule does not contain a Prefix element.' (https://docs.aws.amazon.com/AmazonS3/latest/API/API_LifecycleRule.html)",
 			input: Configuration{
 				Rules: []Rule{
 					{
@@ -557,15 +557,64 @@ func TestLifecycleMarshalXML(t *testing.T) {
 			},
 			expectedXMLOut: "<LifecycleConfiguration><Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload><ID>expire-incomplete-uploads-3</ID><Filter><Prefix></Prefix></Filter><Status>Enabled</Status></Rule></LifecycleConfiguration>",
 		},
+		{
+			testDescription: "Ensure a non-empty Filter marshals through the default path unchanged",
+			input: Configuration{
+				Rules: []Rule{
+					{
+						ID:     "expire-incomplete-uploads-4",
+						Status: "Enabled",
+						RuleFilter: Filter{
+							Prefix: "logs/",
+						},
+						AbortIncompleteMultipartUpload: AbortIncompleteMultipartUpload{DaysAfterInitiation: 1},
+					},
+				},
+			},
+			expectedXMLOut: "<LifecycleConfiguration><Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload><ID>expire-incomplete-uploads-4</ID><Filter><Prefix>logs/</Prefix></Filter><Status>Enabled</Status></Rule></LifecycleConfiguration>",
+		},
+		{
+			testDescription: "Ensure every Rule field survives the empty-Filter marshal path",
+			input: Configuration{
+				Rules: []Rule{
+					{
+						ID:                             "expire-full",
+						Status:                         "Enabled",
+						AbortIncompleteMultipartUpload: AbortIncompleteMultipartUpload{DaysAfterInitiation: 1},
+						Expiration:                     Expiration{Days: 30},
+						DelMarkerExpiration:            DelMarkerExpiration{Days: 7},
+						AllVersionsExpiration:          AllVersionsExpiration{Days: 10},
+						NoncurrentVersionExpiration:    NoncurrentVersionExpiration{NoncurrentDays: 5},
+						NoncurrentVersionTransition:    NoncurrentVersionTransition{NoncurrentDays: 3, StorageClass: "GLACIER"},
+						Transition:                     Transition{Days: 60, StorageClass: "GLACIER"},
+					},
+				},
+			},
+			expectedXMLOut: "<LifecycleConfiguration><Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload><Expiration><Days>30</Days></Expiration><DelMarkerExpiration><Days>7</Days></DelMarkerExpiration><AllVersionsExpiration><Days>10</Days></AllVersionsExpiration><ID>expire-full</ID><Filter><Prefix></Prefix></Filter><NoncurrentVersionExpiration><NoncurrentDays>5</NoncurrentDays></NoncurrentVersionExpiration><NoncurrentVersionTransition><StorageClass>GLACIER</StorageClass><NoncurrentDays>3</NoncurrentDays></NoncurrentVersionTransition><Status>Enabled</Status><Transition><StorageClass>GLACIER</StorageClass><Days>60</Days></Transition></Rule></LifecycleConfiguration>",
+		},
+		{
+			testDescription: "Ensure a size-only Filter marshals its size condition",
+			input: Configuration{
+				Rules: []Rule{
+					{
+						ID:         "expire-large",
+						Status:     "Enabled",
+						RuleFilter: Filter{ObjectSizeGreaterThan: 1048576},
+						Expiration: Expiration{Days: 30},
+					},
+				},
+			},
+			expectedXMLOut: "<LifecycleConfiguration><Rule><Expiration><Days>30</Days></Expiration><ID>expire-large</ID><Filter><ObjectSizeGreaterThan>1048576</ObjectSizeGreaterThan></Filter><Status>Enabled</Status></Rule></LifecycleConfiguration>",
+		},
 	}
 
 	for i, tc := range testCases {
 		xmlBytes, err := xml.Marshal(tc.input)
 		if err != nil {
-			t.Fatalf("%d: could not marshal the Configuration: %#v, %v", i+1, tc.input, err)
+			t.Fatalf("%d (%s): could not marshal the Configuration: %#v, %v", i+1, tc.testDescription, tc.input, err)
 		}
 		if string(xmlBytes) != tc.expectedXMLOut {
-			t.Fatalf("test: %s failed\nexpected: %s\ngot:      %s", tc.testDescription, tc.expectedXMLOut, string(xmlBytes))
+			t.Fatalf("%d (%s): failed\nexpected: %s\ngot:      %s", i+1, tc.testDescription, tc.expectedXMLOut, string(xmlBytes))
 		}
 	}
 }

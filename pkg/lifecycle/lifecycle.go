@@ -266,6 +266,8 @@ func (f Filter) MarshalJSON() ([]byte, error) {
 
 // MarshalXML - produces the xml representation of the Filter struct
 // only one of Prefix, And and Tag should be present in the output.
+// A zero-value Filter marshals as <Filter><Prefix></Prefix></Filter>;
+// Rule.MarshalXML decides whether the element is emitted at all.
 func (f Filter) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	if err := e.EncodeToken(start); err != nil {
 		return err
@@ -504,10 +506,14 @@ func (r Rule) MarshalJSON() ([]byte, error) {
 	return json.Marshal(newr)
 }
 
-// MarshalXML customizes marshal XML and ensures that <Filter/> is present if Prefix is empty.
+// MarshalXML customizes XML encoding of Rule: a rule with neither Filter nor
+// Prefix set emits an empty <Filter><Prefix></Prefix></Filter>, which the S3
+// specification requires when no Prefix element is present; a rule with only
+// a top-level Prefix omits the Filter element entirely.
 func (r Rule) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
-	// If both Filter and Prefix are empty, we need to emit an empty <Filter/> element.
 	if r.RuleFilter.IsNull() {
+		// ruleWrapper must mirror Rule field-for-field; a field added to Rule
+		// but not here would be silently dropped for rules without a Filter.
 		type ruleWrapper struct {
 			XMLName                        xml.Name                       `xml:"Rule,omitempty"`
 			AbortIncompleteMultipartUpload AbortIncompleteMultipartUpload `xml:"AbortIncompleteMultipartUpload,omitempty"`
@@ -536,7 +542,7 @@ func (r Rule) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 			Transition:                     r.Transition,
 		}
 		if r.Prefix == "" {
-			// will be explicitly marshaled as empty <Filter/>
+			// marshaled as <Filter><Prefix></Prefix></Filter>
 			w.RuleFilter = &r.RuleFilter
 		}
 
