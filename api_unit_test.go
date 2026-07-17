@@ -18,12 +18,73 @@
 package minio
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
+	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/minio/minio-go/v7/pkg/policy"
 )
+
+func TestSuccessStatusIncludesAccepted(t *testing.T) {
+	if !successStatus.Contains(http.StatusAccepted) {
+		t.Fatal("expected 202 Accepted to be treated as a successful response")
+	}
+}
+
+// TestRestoreObjectAccepts202 verifies that RestoreObject treats the
+// documented AWS success response for POST ?restore (202 Accepted, empty
+// body) as success, while a genuine error response still surfaces.
+// Regression test for https://github.com/minio/minio-go/issues/2223.
+func TestRestoreObjectAccepts202(t *testing.T) {
+	var restoreCalls int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Query().Has("restore") {
+			if atomic.AddInt64(&restoreCalls, 1) == 1 {
+				w.WriteHeader(http.StatusAccepted)
+				return
+			}
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<Error><Code>RestoreAlreadyInProgress</Code><Message>Object restore is already in progress</Message><Resource>/bkt/obj</Resource><RequestId>REQ</RequestId></Error>`))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	u, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := New(u.Host, &Options{
+		Creds:  credentials.NewStaticV4("ak", "sk", ""),
+		Secure: false,
+		Region: "us-east-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := RestoreRequest{}
+	req.SetDays(1)
+
+	if err := c.RestoreObject(context.Background(), "bkt", "obj", "", req); err != nil {
+		t.Fatalf("first restore request: expected success on 202 Accepted, got: %v", err)
+	}
+	err = c.RestoreObject(context.Background(), "bkt", "obj", "", req)
+	if err == nil || !strings.Contains(err.Error(), "already in progress") {
+		t.Fatalf("second restore request: expected RestoreAlreadyInProgress error, got: %v", err)
+	}
+	if n := atomic.LoadInt64(&restoreCalls); n != 2 {
+		t.Fatalf("expected exactly 2 restore requests (no retries), server saw %d", n)
+	}
+}
 
 // Tests valid hosts for location.
 func TestValidBucketLocation(t *testing.T) {
