@@ -419,3 +419,120 @@ func TestIMDSv1Blocked(t *testing.T) {
 		t.Errorf("Unexpected IMDSv2 failure %s", err)
 	}
 }
+
+func TestIAMCustomExpiryWindow(t *testing.T) {
+	server := initIMDSv2Server("2014-12-16T01:51:37Z", false)
+	defer server.Close()
+
+	p := &IAM{
+		Endpoint:     server.URL,
+		ExpiryWindow: 5 * time.Minute,
+	}
+	p.CurrentTime = func() time.Time {
+		return time.Date(2014, 12, 15, 21, 0, 0, 0, time.UTC)
+	}
+
+	creds, err := p.RetrieveWithCredContext(defaultCredContext)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if creds.AccessKeyID != "accessKey" {
+		t.Errorf("Expected \"accessKey\", got %s", creds.AccessKeyID)
+	}
+
+	// Expiration (2014-12-16T01:51:37Z) minus the 5 minute window.
+	expectedExpiry := time.Date(2014, 12, 16, 1, 46, 37, 0, time.UTC)
+	if !p.expiration.Equal(expectedExpiry) {
+		t.Errorf("Expected expiration %v, got %v", expectedExpiry, p.expiration)
+	}
+
+	p.CurrentTime = func() time.Time {
+		return time.Date(2014, 12, 16, 1, 46, 0, 0, time.UTC)
+	}
+	if p.IsExpired() {
+		t.Error("Expected creds to not be expired just before the window.")
+	}
+
+	p.CurrentTime = func() time.Time {
+		return time.Date(2014, 12, 16, 1, 47, 0, 0, time.UTC)
+	}
+	if !p.IsExpired() {
+		t.Error("Expected creds to be expired inside the window.")
+	}
+}
+
+func TestIAMZeroExpiryWindowKeepsDefault(t *testing.T) {
+	server := initIMDSv2Server("2014-12-16T01:51:37Z", false)
+	defer server.Close()
+
+	p := &IAM{
+		Endpoint: server.URL,
+	}
+	p.CurrentTime = func() time.Time {
+		return time.Date(2014, 12, 15, 21, 0, 0, 0, time.UTC)
+	}
+
+	if _, err := p.RetrieveWithCredContext(defaultCredContext); err != nil {
+		t.Fatal(err)
+	}
+
+	// The default 80% rule refreshes before the actual expiration.
+	originalExpiration := time.Date(2014, 12, 16, 1, 51, 37, 0, time.UTC)
+	if !p.expiration.Before(originalExpiration) {
+		t.Errorf("Expected expiration before %v with the default window, got %v", originalExpiration, p.expiration)
+	}
+	if p.IsExpired() {
+		t.Error("Expected creds to not be expired right after retrieval.")
+	}
+	if p.ExpiryWindow != 0 {
+		t.Errorf("Expected ExpiryWindow to stay 0 after retrieval, got %v", p.ExpiryWindow)
+	}
+}
+
+func TestIAMExpiryWindowExceedsLifetime(t *testing.T) {
+	server := initIMDSv2Server("2014-12-16T01:51:37Z", false)
+	defer server.Close()
+
+	p := &IAM{
+		Endpoint:     server.URL,
+		ExpiryWindow: 10 * time.Hour,
+	}
+	p.CurrentTime = func() time.Time {
+		return time.Date(2014, 12, 15, 21, 0, 0, 0, time.UTC)
+	}
+
+	if _, err := p.RetrieveWithCredContext(defaultCredContext); err != nil {
+		t.Fatal(err)
+	}
+
+	// A window that exceeds the credential lifetime expires the
+	// credentials immediately, forcing a refresh on every retrieval.
+	if !p.IsExpired() {
+		t.Error("Expected creds to be expired when the window exceeds the credential lifetime.")
+	}
+}
+
+func TestIAMExplicitDefaultExpiryWindow(t *testing.T) {
+	server := initIMDSv2Server("2014-12-16T01:51:37Z", false)
+	defer server.Close()
+
+	p := &IAM{
+		Endpoint:     server.URL,
+		ExpiryWindow: DefaultExpiryWindow,
+	}
+	p.CurrentTime = func() time.Time {
+		return time.Date(2014, 12, 15, 21, 0, 0, 0, time.UTC)
+	}
+
+	if _, err := p.RetrieveWithCredContext(defaultCredContext); err != nil {
+		t.Fatal(err)
+	}
+
+	originalExpiration := time.Date(2014, 12, 16, 1, 51, 37, 0, time.UTC)
+	if !p.expiration.Before(originalExpiration) {
+		t.Errorf("Expected expiration before %v with the default window, got %v", originalExpiration, p.expiration)
+	}
+	if p.IsExpired() {
+		t.Error("Expected creds to not be expired right after retrieval.")
+	}
+}
