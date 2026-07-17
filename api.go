@@ -567,7 +567,12 @@ func (c *Client) dumpHTTP(req *http.Request, resp *http.Response) error {
 		req.Header.Set("Authorization", redactSignature(origAuth))
 	}
 
-	// Only display request header.
+	//// Only display request header.
+	if req.Body != nil {
+		// httputil.DumpRequestOut call io.Copy(io.Discard, req.Body), then that would call the singer.getSigningKey.
+		// This is useless action.
+		req.Body = http.NoBody
+	}
 	reqTrace, err := httputil.DumpRequestOut(req, false)
 	if err != nil {
 		return err
