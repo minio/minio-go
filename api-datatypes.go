@@ -184,6 +184,14 @@ type ObjectInfo struct {
 	// eg: x-amz-meta-*, content-encoding etc.
 	Metadata http.Header `json:"metadata" xml:"-"`
 
+	// Headers is the raw, unfiltered set of response headers from the
+	// HEAD or GET request that produced this ObjectInfo, e.g.
+	// Content-Range for ranged requests. Set only when the object info
+	// is parsed from an HTTP object response (StatObject, GetObject);
+	// nil elsewhere, e.g. ListObjects or CopyObject results. It
+	// aliases the response headers and must be treated as read-only.
+	Headers http.Header `json:"-" xml:"-"`
+
 	// x-amz-meta-* headers stripped "x-amz-meta-" prefix containing the first value.
 	// Only returned by MinIO servers.
 	UserMetadata StringMap `json:"userMetadata,omitempty"`

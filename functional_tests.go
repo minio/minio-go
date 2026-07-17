@@ -795,6 +795,77 @@ func testListObjectVersions() {
 	logSuccess(testName, function, args, startTime)
 }
 
+func testStatObjectResponseHeaders() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "StatObject(bucketName, objectName, opts)"
+	args := map[string]interface{}{}
+
+	c, err := NewClient(ClientConfig{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
+		return
+	}
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	defer cleanupBucket(bucketName, c)
+
+	bufSize := dataFileMap["datafile-33-kB"]
+	reader := getDataReader("datafile-33-kB")
+	defer reader.Close()
+
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	args["objectName"] = objectName
+
+	_, err = c.PutObject(context.Background(), bucketName, objectName, reader, int64(bufSize), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject failed", err)
+		return
+	}
+
+	opts := minio.StatObjectOptions{}
+	err = opts.SetRange(0, 99)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "SetRange failed", err)
+		return
+	}
+	args["range"] = "0-99"
+
+	st, err := c.StatObject(context.Background(), bucketName, objectName, opts)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "StatObject failed", err)
+		return
+	}
+
+	if st.Size != 100 {
+		logError(testName, function, args, startTime, "", "StatObject ranged size mismatch", fmt.Errorf("got %d, want 100", st.Size))
+		return
+	}
+	wantContentRange := fmt.Sprintf("bytes 0-99/%d", bufSize)
+	gotContentRange := st.Headers.Get("Content-Range")
+	if gotContentRange != wantContentRange {
+		logError(testName, function, args, startTime, "", "StatObject response headers Content-Range mismatch", fmt.Errorf("got %q, want %q", gotContentRange, wantContentRange))
+		return
+	}
+	if st.Headers.Get("Etag") == "" {
+		logError(testName, function, args, startTime, "", "StatObject response headers missing ETag", errors.New("empty ETag header"))
+		return
+	}
+
+	logSuccess(testName, function, args, startTime)
+}
+
 func testStatObjectWithVersioning() {
 	// initialize logging params
 	startTime := time.Now()
@@ -15122,6 +15193,7 @@ func main() {
 		testRemoveObjects()
 		testRemoveObjectsIter()
 		testListObjectVersions()
+		testStatObjectResponseHeaders()
 		testStatObjectWithVersioning()
 		testGetObjectWithVersioning()
 		testCopyObjectWithVersioning()

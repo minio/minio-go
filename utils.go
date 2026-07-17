@@ -250,7 +250,7 @@ func extractObjMetadata(header http.Header) http.Header {
 }
 
 const (
-	// RFC 7231#section-7.1.1.1 timetamp format. e.g Tue, 29 Apr 2014 18:30:38 GMT
+	// RFC 7231#section-7.1.1.1 timestamp format. e.g Tue, 29 Apr 2014 18:30:38 GMT
 	rfc822TimeFormat                           = "Mon, 2 Jan 2006 15:04:05 GMT"
 	rfc822TimeFormatSingleDigitDay             = "Mon, _2 Jan 2006 15:04:05 GMT"
 	rfc822TimeFormatSingleDigitDayTwoDigitYear = "Mon, _2 Jan 06 15:04:05 GMT"
@@ -412,6 +412,7 @@ func ToObjectInfo(bucketName, objectName string, h http.Header) (ObjectInfo, err
 		// following function filters out a list of standard set of keys
 		// which are not part of object metadata.
 		Metadata:     metadata,
+		Headers:      h,
 		UserMetadata: userMetadata,
 		UserTags:     userTags.ToMap(),
 		UserTagCount: tagCount,

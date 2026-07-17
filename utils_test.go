@@ -544,3 +544,29 @@ func TestExtractObjMetadata(t *testing.T) {
 		})
 	}
 }
+
+func TestToObjectInfoHeaders(t *testing.T) {
+	header := http.Header{
+		"Etag":           []string{`"d41d8cd98f00b204e9800998ecf8427e"`},
+		"Content-Length": []string{"101"},
+		"Content-Type":   []string{"application/octet-stream"},
+		"Last-Modified":  []string{"Mon, 19 Aug 2024 12:00:00 GMT"},
+		"Content-Range":  []string{"bytes 0-100/2000"},
+		"X-Custom-Reply": []string{"custom-value"},
+	}
+	objInfo, err := ToObjectInfo("test-bucket", "test-object", header)
+	if err != nil {
+		t.Fatalf("ToObjectInfo() error = %v", err)
+	}
+	if got := objInfo.Headers.Get("Content-Range"); got != "bytes 0-100/2000" {
+		t.Errorf("Headers.Get(Content-Range) = %q, want %q", got, "bytes 0-100/2000")
+	}
+	if got := objInfo.Headers.Get("X-Custom-Reply"); got != "custom-value" {
+		t.Errorf("Headers.Get(X-Custom-Reply) = %q, want %q", got, "custom-value")
+	}
+	// The existing Metadata filter is unchanged: non-whitelisted response
+	// headers remain absent from Metadata and are reachable only via Headers.
+	if got := objInfo.Metadata.Get("Content-Range"); got != "" {
+		t.Errorf("Metadata.Get(Content-Range) = %q, want empty", got)
+	}
+}
