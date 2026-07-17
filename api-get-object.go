@@ -388,6 +388,14 @@ func (o *Object) Read(b []byte) (n int, err error) {
 		return 0, o.prevErr
 	}
 
+	// If the current offset is at or beyond the known object size, we are
+	// already at EOF - return io.EOF locally instead of issuing a range
+	// request the server would reject as unsatisfiable.
+	if o.objectInfoSet && o.objectInfo.Size > -1 && o.currOffset >= o.objectInfo.Size {
+		o.prevErr = io.EOF
+		return 0, io.EOF
+	}
+
 	// Create a new request.
 	readReq := getRequest{
 		isReadOp: true,
@@ -407,6 +415,13 @@ func (o *Object) Read(b []byte) (n int, err error) {
 	// Send and receive from the first request.
 	response, err := o.doGetRequest(readReq)
 	if err != nil && err != io.EOF {
+		// An InvalidRange response means the requested start is not
+		// satisfiable for the object as it currently exists: the read
+		// position is at or past EOF.
+		if ToErrorResponse(err).Code == InvalidRange {
+			o.prevErr = io.EOF
+			return 0, io.EOF
+		}
 		// Save the error for future calls.
 		o.prevErr = err
 		return response.Size, err
@@ -511,6 +526,12 @@ func (o *Object) ReadAt(b []byte, offset int64) (n int, err error) {
 	// Send and receive from the first request.
 	response, err := o.doGetRequest(readAtReq)
 	if err != nil && err != io.EOF {
+		// Reading at an offset at or beyond the object size yields
+		// InvalidRange from the server: report io.EOF, matching the
+		// io.ReaderAt contract for reads past the end.
+		if ToErrorResponse(err).Code == InvalidRange {
+			return 0, io.EOF
+		}
 		// Save the error.
 		o.prevErr = err
 		return response.Size, err
