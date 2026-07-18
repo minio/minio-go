@@ -20,6 +20,7 @@ package minio
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -103,6 +104,78 @@ func TestHookReadSeekerSeek(t *testing.T) {
 	}
 }
 
+// TestHookReadSeekerSeekNonSeekableHook verifies Seek succeeds when the
+// source is seekable but the hook is not: the hook sync is skipped
+// rather than failing the seek. Progress readers are plain io.Readers,
+// so this is the shape a retried upload with a progress bar takes.
+func TestHookReadSeekerSeekNonSeekableHook(t *testing.T) {
+	payload := []byte("0123456789")
+	source := bytes.NewReader(payload)
+	hook := bytes.NewBuffer(nil)
+
+	rs, ok := newHook(source, hook).(io.ReadSeeker)
+	if !ok {
+		t.Fatal("newHook over a seekable source must return an io.ReadSeeker")
+	}
+	buf := make([]byte, 4)
+	if _, err := io.ReadFull(rs, buf); err != nil {
+		t.Fatal(err)
+	}
+	n, err := rs.Seek(0, io.SeekStart)
+	if err != nil {
+		t.Fatalf("Seek with a non-seekable hook: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("Seek returned %d, want 0", n)
+	}
+	if _, err := io.ReadFull(rs, buf); err != nil {
+		t.Fatal(err)
+	}
+	if got := string(buf); got != "0123" {
+		t.Fatalf("read after seek = %q, want %q", got, "0123")
+	}
+}
+
+// stubSeeker is a ReadSeeker whose Seek reports a fixed offset and
+// error, for driving the error paths of hookReadSeeker.Seek.
+type stubSeeker struct {
+	off int64
+	err error
+}
+
+func (s *stubSeeker) Read([]byte) (int, error) { return 0, io.EOF }
+
+func (s *stubSeeker) Seek(int64, int) (int64, error) { return s.off, s.err }
+
+// TestHookReadSeekerSeekErrors pins the error paths of Seek: a
+// directly-constructed wrapper over a non-seekable source errors
+// instead of panicking, a failing source seek propagates, and a hook
+// offset diverging from the source is reported.
+func TestHookReadSeekerSeekErrors(t *testing.T) {
+	t.Run("non-seekable source errors", func(t *testing.T) {
+		hr := &hookReadSeeker{hookReader{source: bytes.NewBuffer(nil)}}
+		if _, err := hr.Seek(0, io.SeekStart); err == nil {
+			t.Fatal("Seek over a non-seekable source must error, not panic")
+		}
+	})
+	t.Run("source seek failure propagates", func(t *testing.T) {
+		wantErr := errors.New("seek failed")
+		hr := &hookReadSeeker{hookReader{source: &stubSeeker{err: wantErr}}}
+		n, err := hr.Seek(0, io.SeekStart)
+		if !errors.Is(err, wantErr) || n != 0 {
+			t.Fatalf("Seek = (%d, %v), want (0, %v)", n, err, wantErr)
+		}
+	})
+	t.Run("hook offset mismatch is reported", func(t *testing.T) {
+		source := bytes.NewReader([]byte("0123456789"))
+		hr := &hookReadSeeker{hookReader{source: source, hook: &stubSeeker{off: 5}}}
+		_, err := hr.Seek(2, io.SeekStart)
+		if err == nil || !strings.Contains(err.Error(), "hook seeker sought to offset 5, expected source offset 2") {
+			t.Fatalf("want offset-mismatch error, got %v", err)
+		}
+	})
+}
+
 // TestPutObjectRetryNonSeekable verifies retry behavior around
 // retryable server errors: a non-seekable body must be sent exactly
 // once and surface the server's error, while a seekable body is
@@ -181,10 +254,16 @@ func TestPutObjectRetryNonSeekable(t *testing.T) {
 		if len(got) != 2 {
 			t.Fatalf("seekable body sent %d times %v, want 2 attempts", len(got), got)
 		}
+		// The wire body carries aws-chunked signature framing on top
+		// of the payload, so assert a lower bound plus an identical
+		// resend rather than exact payload length.
 		for i, n := range got {
-			if n == 0 {
-				t.Fatalf("attempt %d sent an empty body", i+1)
+			if n < len(payload) {
+				t.Fatalf("attempt %d sent %d body bytes, want at least %d", i+1, n, len(payload))
 			}
+		}
+		if got[0] != got[1] {
+			t.Fatalf("retry sent %d body bytes, first attempt sent %d; retry must resend the identical body", got[1], got[0])
 		}
 	})
 

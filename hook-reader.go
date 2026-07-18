@@ -67,7 +67,7 @@ func (hr *hookReadSeeker) Seek(offset int64, whence int) (n int64, err error) {
 				return 0, err
 			}
 			if n != m {
-				return 0, fmt.Errorf("hook seeker sought %d bytes, expected source %d bytes", m, n)
+				return 0, fmt.Errorf("hook seeker sought to offset %d, expected source offset %d", m, n)
 			}
 		}
 	}
@@ -94,9 +94,9 @@ func (hr *hookReader) Read(b []byte) (n int, err error) {
 	return n, err
 }
 
-// newHook returns an io.Reader which implements hookReader that
-// reports the data read from the source to the hook. The returned
-// reader implements io.Seeker only when the source does.
+// newHook returns an io.Reader that reports the data read from the
+// source to the hook. The returned reader implements io.Seeker only
+// when the source does.
 func newHook(source, hook io.Reader) io.Reader {
 	hr := hookReader{source: source, hook: hook}
 	if _, ok := source.(io.Seeker); ok {
