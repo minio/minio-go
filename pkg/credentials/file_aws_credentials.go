@@ -200,6 +200,14 @@ func (p *FileAWSCredentials) retrieve(cc *CredContext) (Value, error) {
 		}, nil
 	}
 
+	// A profile carrying SSO configuration without sso_role_name cannot
+	// engage the SSO flow above; if it also has no static keys, returning
+	// the empty values below would silently yield anonymous credentials.
+	if id.String() == "" && secret.String() == "" &&
+		(iniProfile.Key("sso_session").String() != "" || iniProfile.Key("sso_start_url").String() != "") {
+		return Value{}, errors.New("profile has SSO configuration but no sso_role_name, and no static credentials")
+	}
+
 	p.retrieved = true
 	return Value{
 		AccessKeyID:     id.String(),
@@ -214,6 +222,9 @@ func (p *FileAWSCredentials) retrieve(cc *CredContext) (Value, error) {
 func (p *FileAWSCredentials) getSSOCredentials(cc *CredContext, iniConfig *ini.File, iniProfile *ini.Section) (ssoCredentials, error) {
 	ssoAccountID := iniProfile.Key("sso_account_id").String()
 	ssoRoleName := iniProfile.Key("sso_role_name").String()
+	if ssoAccountID == "" {
+		return ssoCredentials{}, errors.New("profile defines sso_role_name but no sso_account_id")
+	}
 
 	// Modern config: the profile references an [sso-session <name>] section
 	// and the cached token file is named after the SHA1 of the session name.
@@ -306,7 +317,7 @@ func (p *FileAWSCredentials) getSSOCredentials(cc *CredContext, iniConfig *ini.F
 	}
 
 	var ssoCreds ssoCredentials
-	if err := json.NewDecoder(resp.Body).Decode(&ssoCreds); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&ssoCreds); err != nil {
 		return ssoCredentials{}, fmt.Errorf("parsing SSO role credentials response: %w", err)
 	}
 	if ssoCreds.RoleCredentials.AccessKeyID == "" || ssoCreds.RoleCredentials.SecretAccessKey == "" {

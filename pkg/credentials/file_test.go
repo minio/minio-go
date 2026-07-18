@@ -175,7 +175,7 @@ func TestFileAWSSSO(t *testing.T) {
 		if r.URL.Path != "/federation/credentials" {
 			t.Errorf("Expected path /federation/credentials, got %s", r.URL.Path)
 		}
-		wantRole := map[string]string{"123456789": "myrole", "987654321": "legacyrole"}
+		wantRole := map[string]string{"123456789": "myrole", "987654321": "legacyrole", "222222222": "noregionrole", "333333333": "ghostrole"}
 		accountID := r.URL.Query().Get("account_id")
 		if _, ok := wantRole[accountID]; !ok {
 			t.Errorf("Unexpected account ID %s", accountID)
@@ -263,6 +263,24 @@ func TestFileAWSSSO(t *testing.T) {
 		checkValues(t, newSSOCreds("p1", cacheDir))
 	})
 
+	t.Run("token-region-fallback", func(t *testing.T) {
+		cacheDir := t.TempDir()
+		// Legacy profile without sso_region: the cached token's region must
+		// be used.
+		writeSSOCachedToken(t, cacheDir, "https://noregion.awsapps.com/start",
+			`{"startUrl": "https://noregion.awsapps.com/start", "region": "us-test-3", "accessToken": "my-access-token", "expiresAt": "2020-01-11T00:00:00Z"}`)
+		checkValues(t, newSSOCreds("p4-noregion", cacheDir))
+	})
+
+	t.Run("missing-session-section", func(t *testing.T) {
+		cacheDir := t.TempDir()
+		// sso_session names a section that does not exist: region resolution
+		// falls through to the cached token's region.
+		writeSSOCachedToken(t, cacheDir, "ghost",
+			`{"startUrl": "https://ghost.awsapps.com/start", "region": "us-test-4", "accessToken": "my-access-token", "expiresAt": "2020-01-11T00:00:00Z"}`)
+		checkValues(t, newSSOCreds("p5-ghost-session", cacheDir))
+	})
+
 	t.Run("portal-error-status", func(t *testing.T) {
 		cacheDir := t.TempDir()
 		writeSSOCachedToken(t, cacheDir, "main",
@@ -312,6 +330,34 @@ func TestFileAWSSSO(t *testing.T) {
 		_, err := newSSOCreds("p3-broken", t.TempDir()).GetWithContext(defaultCredContext)
 		if err == nil || !strings.Contains(err.Error(), "neither sso_session nor sso_start_url") {
 			t.Fatalf("Expected missing-sso-config error, got %v", err)
+		}
+	})
+
+	t.Run("incomplete-sso-no-role", func(t *testing.T) {
+		// SSO configuration without sso_role_name and without static keys
+		// must error instead of yielding empty anonymous credentials.
+		_, err := newSSOCreds("p6-norole", t.TempDir()).GetWithContext(defaultCredContext)
+		if err == nil || !strings.Contains(err.Error(), "no sso_role_name") {
+			t.Fatalf("Expected incomplete-SSO error naming sso_role_name, got %v", err)
+		}
+	})
+
+	t.Run("missing-account-id", func(t *testing.T) {
+		_, err := newSSOCreds("p7-noaccount", t.TempDir()).GetWithContext(defaultCredContext)
+		if err == nil || !strings.Contains(err.Error(), "no sso_account_id") {
+			t.Fatalf("Expected missing-account-id error, got %v", err)
+		}
+	})
+
+	t.Run("mixed-static-fallback", func(t *testing.T) {
+		// Incomplete SSO configuration alongside static keys: the static
+		// keys are used, matching aws-sdk-go-v2's static-first resolution.
+		credValues, err := newSSOCreds("p8-mixed", t.TempDir()).GetWithContext(defaultCredContext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if credValues.AccessKeyID != "mixedAccessKey" {
+			t.Errorf("Expected 'mixedAccessKey', got %s", credValues.AccessKeyID)
 		}
 	})
 
