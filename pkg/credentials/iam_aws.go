@@ -63,8 +63,10 @@ type IAM struct {
 	// The zero value keeps the default behavior of refreshing once 80%
 	// of the credential lifetime has elapsed. A positive value refreshes
 	// that long before the actual expiration; a value that meets or
-	// exceeds the credential lifetime causes a refresh on every retrieval.
-	// A negative value behaves like the default.
+	// exceeds the credential lifetime places the effective expiration at
+	// or before the moment of retrieval, so the credentials are refreshed
+	// on every subsequent retrieval. A negative value behaves like the
+	// default.
 	ExpiryWindow time.Duration
 
 	// Support for container authorization token https://docs.aws.amazon.com/sdkref/latest/guide/feature-container-credentials.html
