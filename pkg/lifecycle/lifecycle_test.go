@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -528,34 +529,17 @@ func TestLifecycleMarshalXML(t *testing.T) {
 			expectedXMLOut: "<LifecycleConfiguration><Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload><ID>expire-incomplete-uploads-1</ID><Prefix>my_dir</Prefix><Status>Enabled</Status></Rule></LifecycleConfiguration>",
 		},
 		{
-			testDescription: "Ensure we always export Filter or Prefix (via zero-value RuleFilter). Specification explicitly mentions: 'Filter is required if the LifecycleRule does not contain a Prefix element.' (https://docs.aws.amazon.com/AmazonS3/latest/API/API_LifecycleRule.html)",
+			testDescription: "Ensure we always export Filter or Prefix when both are empty (a zero-value RuleFilter and an empty top-level Prefix are the same zero Rule value). Specification explicitly mentions: 'Filter is required if the LifecycleRule does not contain a Prefix element.' (https://docs.aws.amazon.com/AmazonS3/latest/API/API_LifecycleRule.html)",
 			input: Configuration{
 				Rules: []Rule{
 					{
-						ID:     "expire-incomplete-uploads-2",
-						Status: "Enabled",
-						RuleFilter: Filter{
-							Prefix: "",
-						},
+						ID:                             "expire-incomplete-uploads-2",
+						Status:                         "Enabled",
 						AbortIncompleteMultipartUpload: AbortIncompleteMultipartUpload{DaysAfterInitiation: 1},
 					},
 				},
 			},
 			expectedXMLOut: "<LifecycleConfiguration><Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload><ID>expire-incomplete-uploads-2</ID><Filter><Prefix></Prefix></Filter><Status>Enabled</Status></Rule></LifecycleConfiguration>",
-		},
-		{
-			testDescription: "Ensure we always export Filter or Prefix (via empty top-level Prefix). Specification explicitly mentions: 'Filter is required if the LifecycleRule does not contain a Prefix element.' (https://docs.aws.amazon.com/AmazonS3/latest/API/API_LifecycleRule.html)",
-			input: Configuration{
-				Rules: []Rule{
-					{
-						ID:                             "expire-incomplete-uploads-3",
-						Status:                         "Enabled",
-						Prefix:                         "",
-						AbortIncompleteMultipartUpload: AbortIncompleteMultipartUpload{DaysAfterInitiation: 1},
-					},
-				},
-			},
-			expectedXMLOut: "<LifecycleConfiguration><Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload><ID>expire-incomplete-uploads-3</ID><Filter><Prefix></Prefix></Filter><Status>Enabled</Status></Rule></LifecycleConfiguration>",
 		},
 		{
 			testDescription: "Ensure a non-empty Filter marshals through the default path unchanged",
@@ -606,6 +590,34 @@ func TestLifecycleMarshalXML(t *testing.T) {
 			},
 			expectedXMLOut: "<LifecycleConfiguration><Rule><Expiration><Days>30</Days></Expiration><ID>expire-large</ID><Filter><ObjectSizeGreaterThan>1048576</ObjectSizeGreaterThan></Filter><Status>Enabled</Status></Rule></LifecycleConfiguration>",
 		},
+		{
+			testDescription: "Ensure a tag-only Filter marshals its tag condition",
+			input: Configuration{
+				Rules: []Rule{
+					{
+						ID:         "expire-tagged",
+						Status:     "Enabled",
+						RuleFilter: Filter{Tag: Tag{Key: "env", Value: "prod"}},
+						Expiration: Expiration{Days: 30},
+					},
+				},
+			},
+			expectedXMLOut: "<LifecycleConfiguration><Rule><Expiration><Days>30</Days></Expiration><ID>expire-tagged</ID><Filter><Tag><Key>env</Key><Value>prod</Value></Tag></Filter><Status>Enabled</Status></Rule></LifecycleConfiguration>",
+		},
+		{
+			testDescription: "Ensure an And Filter marshals its combined conditions",
+			input: Configuration{
+				Rules: []Rule{
+					{
+						ID:         "expire-and",
+						Status:     "Enabled",
+						RuleFilter: Filter{And: And{Prefix: "docs/", Tags: []Tag{{Key: "env", Value: "prod"}}}},
+						Expiration: Expiration{Days: 30},
+					},
+				},
+			},
+			expectedXMLOut: "<LifecycleConfiguration><Rule><Expiration><Days>30</Days></Expiration><ID>expire-and</ID><Filter><And><Prefix>docs/</Prefix><Tag><Key>env</Key><Value>prod</Value></Tag></And></Filter><Status>Enabled</Status></Rule></LifecycleConfiguration>",
+		},
 	}
 
 	for i, tc := range testCases {
@@ -615,6 +627,33 @@ func TestLifecycleMarshalXML(t *testing.T) {
 		}
 		if string(xmlBytes) != tc.expectedXMLOut {
 			t.Fatalf("%d (%s): failed\nexpected: %s\ngot:      %s", i+1, tc.testDescription, tc.expectedXMLOut, string(xmlBytes))
+		}
+	}
+}
+
+// TestRuleWrapperFieldParity asserts ruleWrapper stays a field-for-field
+// mirror of Rule, so Rule.MarshalXML cannot silently drop a field added to
+// Rule but not to the wrapper.
+func TestRuleWrapperFieldParity(t *testing.T) {
+	rt := reflect.TypeOf(Rule{})
+	wt := reflect.TypeOf(ruleWrapper{})
+	if rt.NumField() != wt.NumField() {
+		t.Fatalf("Rule has %d fields, ruleWrapper has %d", rt.NumField(), wt.NumField())
+	}
+	for i := range rt.NumField() {
+		rf, wf := rt.Field(i), wt.Field(i)
+		if rf.Name != wf.Name {
+			t.Fatalf("field %d: Rule has %q, ruleWrapper has %q", i, rf.Name, wf.Name)
+		}
+		if rXML, wXML := rf.Tag.Get("xml"), wf.Tag.Get("xml"); rXML != wXML {
+			t.Fatalf("field %s: Rule xml tag %q, ruleWrapper xml tag %q", rf.Name, rXML, wXML)
+		}
+		wantType := rf.Type
+		if rf.Name == "RuleFilter" {
+			wantType = reflect.PointerTo(rf.Type)
+		}
+		if wf.Type != wantType {
+			t.Fatalf("field %s: Rule type %v, ruleWrapper type %v (want %v)", rf.Name, rf.Type, wf.Type, wantType)
 		}
 	}
 }
