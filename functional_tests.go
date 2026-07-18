@@ -5379,7 +5379,7 @@ func testGetObjectReadSeekFunctional() {
 	}
 
 	if st.Size != int64(bufSize) {
-		logError(testName, function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+", got "+string(st.Size), err)
+		logError(testName, function, args, startTime, "", "Number of bytes does not match, expected "+strconv.Itoa(bufSize)+", got "+strconv.FormatInt(st.Size, 10), err)
 		return
 	}
 
@@ -5428,7 +5428,7 @@ func testGetObjectReadSeekFunctional() {
 		// Move larger than possible: seek past end now succeeds.
 		{int64(bufSize), 1, int64(bufSize) * 2, nil, false, 0, 0},
 		// Provide negative offset with CUR_SEEK: valid since the resulting
-		// absolute position stays within the object.
+		// absolute position is not negative.
 		{int64(-1), 1, int64(bufSize)*2 - 1, nil, false, 0, 0},
 		// Test with whence SEEK_END and with positive offset: seek past end
 		// now succeeds.
@@ -5464,6 +5464,15 @@ func testGetObjectReadSeekFunctional() {
 		// Compare only if shouldCmp is activated
 		if testCase.shouldCmp {
 			cmpData(r, testCase.start, testCase.end)
+		}
+		// A successful seek to or past the object end must defer io.EOF to the
+		// subsequent read.
+		if !testCase.shouldCmp && testCase.pos >= int64(bufSize) {
+			readN, readErr := r.Read(make([]byte, 1))
+			if readN != 0 || readErr != io.EOF {
+				logError(testName, function, args, startTime, "", fmt.Sprintf("Test %d, read after seek to/past object end expected zero bytes and io.EOF, got %d bytes and %v", i+1, readN, readErr), readErr)
+				return
+			}
 		}
 	}
 	logSuccess(testName, function, args, startTime)
@@ -6530,7 +6539,7 @@ func testSSECEncryptedGetObjectReadSeekFunctional() {
 	}
 
 	if st.Size != int64(bufSize) {
-		logError(testName, function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+", got "+string(st.Size), err)
+		logError(testName, function, args, startTime, "", "Number of bytes does not match, expected "+strconv.Itoa(bufSize)+", got "+strconv.FormatInt(st.Size, 10), err)
 		return
 	}
 
@@ -6576,7 +6585,7 @@ func testSSECEncryptedGetObjectReadSeekFunctional() {
 		// Move larger than possible: seek past end now succeeds.
 		{int64(bufSize), 1, int64(bufSize) * 2, nil, false, 0, 0},
 		// Provide negative offset with CUR_SEEK: valid since the resulting
-		// absolute position stays within the object.
+		// absolute position is not negative.
 		{int64(-1), 1, int64(bufSize)*2 - 1, nil, false, 0, 0},
 		// Test with whence SEEK_END and with positive offset: seek past end
 		// now succeeds.
@@ -6621,6 +6630,15 @@ func testSSECEncryptedGetObjectReadSeekFunctional() {
 		// Compare only if shouldCmp is activated
 		if testCase.shouldCmp {
 			cmpData(r, testCase.start, testCase.end)
+		}
+		// A successful seek to or past the object end must defer io.EOF to the
+		// subsequent read.
+		if !testCase.shouldCmp && testCase.pos >= int64(bufSize) {
+			readN, readErr := r.Read(make([]byte, 1))
+			if readN != 0 || readErr != io.EOF {
+				logError(testName, function, args, startTime, "", fmt.Sprintf("Test %d, read after seek to/past object end expected zero bytes and io.EOF, got %d bytes and %v", i+1, readN, readErr), readErr)
+				return
+			}
 		}
 	}
 
@@ -6699,7 +6717,7 @@ func testSSES3EncryptedGetObjectReadSeekFunctional() {
 	}
 
 	if st.Size != int64(bufSize) {
-		logError(testName, function, args, startTime, "", "Number of bytes does not match, expected "+string(int64(bufSize))+", got "+string(st.Size), err)
+		logError(testName, function, args, startTime, "", "Number of bytes does not match, expected "+strconv.Itoa(bufSize)+", got "+strconv.FormatInt(st.Size, 10), err)
 		return
 	}
 
@@ -6745,7 +6763,7 @@ func testSSES3EncryptedGetObjectReadSeekFunctional() {
 		// Move larger than possible: seek past end now succeeds.
 		{int64(bufSize), 1, int64(bufSize) * 2, nil, false, 0, 0},
 		// Provide negative offset with CUR_SEEK: valid since the resulting
-		// absolute position stays within the object.
+		// absolute position is not negative.
 		{int64(-1), 1, int64(bufSize)*2 - 1, nil, false, 0, 0},
 		// Test with whence SEEK_END and with positive offset: seek past end
 		// now succeeds.
@@ -6790,6 +6808,15 @@ func testSSES3EncryptedGetObjectReadSeekFunctional() {
 		// Compare only if shouldCmp is activated
 		if testCase.shouldCmp {
 			cmpData(r, testCase.start, testCase.end)
+		}
+		// A successful seek to or past the object end must defer io.EOF to the
+		// subsequent read.
+		if !testCase.shouldCmp && testCase.pos >= int64(bufSize) {
+			readN, readErr := r.Read(make([]byte, 1))
+			if readN != 0 || readErr != io.EOF {
+				logError(testName, function, args, startTime, "", fmt.Sprintf("Test %d, read after seek to/past object end expected zero bytes and io.EOF, got %d bytes and %v", i+1, readN, readErr), readErr)
+				return
+			}
 		}
 	}
 
@@ -8865,7 +8892,7 @@ func testGetObjectReadSeekFunctionalV2() {
 	}
 
 	if st.Size != int64(bufSize) {
-		logError(testName, function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(bufSize))+" got "+string(st.Size), err)
+		logError(testName, function, args, startTime, "", "Number of bytes in stat does not match, expected "+strconv.Itoa(bufSize)+" got "+strconv.FormatInt(st.Size, 10), err)
 		return
 	}
 
@@ -8876,7 +8903,7 @@ func testGetObjectReadSeekFunctionalV2() {
 		return
 	}
 	if n != offset {
-		logError(testName, function, args, startTime, "", "Number of seeked bytes does not match, expected "+string(offset)+" got "+string(n), err)
+		logError(testName, function, args, startTime, "", "Number of seeked bytes does not match, expected "+strconv.FormatInt(offset, 10)+" got "+strconv.FormatInt(n, 10), err)
 		return
 	}
 	n, err = r.Seek(0, 1)
@@ -8885,7 +8912,7 @@ func testGetObjectReadSeekFunctionalV2() {
 		return
 	}
 	if n != offset {
-		logError(testName, function, args, startTime, "", "Number of seeked bytes does not match, expected "+string(offset)+" got "+string(n), err)
+		logError(testName, function, args, startTime, "", "Number of seeked bytes does not match, expected "+strconv.FormatInt(offset, 10)+" got "+strconv.FormatInt(n, 10), err)
 		return
 	}
 	// Seeking past the object end with SEEK_END now succeeds per the
@@ -8899,8 +8926,9 @@ func testGetObjectReadSeekFunctionalV2() {
 		logError(testName, function, args, startTime, "", "Number of seeked bytes does not match, expected "+strconv.FormatInt(st.Size+offset, 10)+" got "+strconv.FormatInt(n, 10), err)
 		return
 	}
-	if _, err = r.Read(make([]byte, 1)); err != io.EOF {
-		logError(testName, function, args, startTime, "", "Read after seeking past object end should return EOF", err)
+	readN, readErr := r.Read(make([]byte, 1))
+	if readN != 0 || readErr != io.EOF {
+		logError(testName, function, args, startTime, "", "Read after seeking past object end should return zero bytes and EOF", readErr)
 		return
 	}
 	n, err = r.Seek(-offset, 2)
@@ -8909,7 +8937,7 @@ func testGetObjectReadSeekFunctionalV2() {
 		return
 	}
 	if n != st.Size-offset {
-		logError(testName, function, args, startTime, "", "Number of seeked bytes does not match, expected "+string(st.Size-offset)+" got "+string(n), err)
+		logError(testName, function, args, startTime, "", "Number of seeked bytes does not match, expected "+strconv.FormatInt(st.Size-offset, 10)+" got "+strconv.FormatInt(n, 10), err)
 		return
 	}
 
@@ -8932,7 +8960,7 @@ func testGetObjectReadSeekFunctionalV2() {
 		return
 	}
 	if n != (offset - 1) {
-		logError(testName, function, args, startTime, "", "Number of seeked bytes does not match, expected "+string(offset-1)+" got "+string(n), err)
+		logError(testName, function, args, startTime, "", "Number of seeked bytes does not match, expected "+strconv.FormatInt(offset-1, 10)+" got "+strconv.FormatInt(n, 10), err)
 		return
 	}
 

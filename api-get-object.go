@@ -548,9 +548,9 @@ func (o *Object) ReadAt(b []byte, offset int64) (n int, err error) {
 // and 2 means relative to the end.
 // Seek returns the new offset and an error, if any.
 //
-// Seeking to a negative offset is an error. Seeking to any positive
-// offset is legal, subsequent io operations succeed until the
-// underlying object is not closed.
+// Seeking to a position before the start of the object is an error.
+// Seeking to or past the end of the object is legal per the io.Seeker
+// contract; a subsequent Read reports io.EOF.
 func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 	if o == nil {
 		return 0, errInvalidArgument("Object is nil")

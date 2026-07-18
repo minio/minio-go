@@ -171,7 +171,6 @@ func TestObjectSeekAtObjectSizeAllowsSubsequentReadEOF(t *testing.T) {
 		t.Fatalf("expected read at object size to return io.EOF, got %v", err)
 	}
 
-	o.prevErr = nil
 	o.currOffset = 9
 	n, err = o.Seek(1, io.SeekCurrent)
 	if err != nil {
@@ -184,7 +183,6 @@ func TestObjectSeekAtObjectSizeAllowsSubsequentReadEOF(t *testing.T) {
 		t.Fatalf("expected read at object size to return io.EOF, got %v", err)
 	}
 
-	o.prevErr = nil
 	n, err = o.Seek(0, io.SeekEnd)
 	if err != nil {
 		t.Fatalf("expected seeking to object end to succeed, got %v", err)
@@ -195,10 +193,43 @@ func TestObjectSeekAtObjectSizeAllowsSubsequentReadEOF(t *testing.T) {
 	if _, err = o.Read(make([]byte, 1)); err != io.EOF {
 		t.Fatalf("expected read at object end to return io.EOF, got %v", err)
 	}
+
+	n, err = o.Seek(12, io.SeekStart)
+	if err != nil {
+		t.Fatalf("expected seeking past object size to succeed, got %v", err)
+	}
+	if n != 12 {
+		t.Fatalf("expected offset 12, got %d", n)
+	}
+	if _, err = o.Read(make([]byte, 1)); err != io.EOF {
+		t.Fatalf("expected read past object size to return io.EOF, got %v", err)
+	}
+
+	n, err = o.Seek(3, io.SeekCurrent)
+	if err != nil {
+		t.Fatalf("expected seeking current past object size to succeed, got %v", err)
+	}
+	if n != 15 {
+		t.Fatalf("expected offset 15, got %d", n)
+	}
+	if _, err = o.Read(make([]byte, 1)); err != io.EOF {
+		t.Fatalf("expected read past object size to return io.EOF, got %v", err)
+	}
+
+	n, err = o.Seek(2, io.SeekEnd)
+	if err != nil {
+		t.Fatalf("expected seeking past object end to succeed, got %v", err)
+	}
+	if n != 12 {
+		t.Fatalf("expected offset 12, got %d", n)
+	}
+	if _, err = o.Read(make([]byte, 1)); err != io.EOF {
+		t.Fatalf("expected read past object end to return io.EOF, got %v", err)
+	}
 }
 
 // TestObjectSeekCurrentNegativeOffset verifies that a negative offset with
-// io.SeekCurrent is honoured when the resulting absolute position is within the
+// io.SeekCurrent is honored when the resulting absolute position is within the
 // object, and rejected only when it would move before the start of the object.
 // Regression test for https://github.com/minio/minio-go/issues/2155.
 func TestObjectSeekCurrentNegativeOffset(t *testing.T) {
@@ -221,5 +252,40 @@ func TestObjectSeekCurrentNegativeOffset(t *testing.T) {
 	_, err = o.Seek(-10, io.SeekCurrent)
 	if err == nil {
 		t.Fatal("expected error when SeekCurrent would move before start of object")
+	}
+
+	_, err = o.Seek(-1, io.SeekStart)
+	if err == nil {
+		t.Fatal("expected error when SeekStart is given a negative offset")
+	}
+}
+
+// TestObjectSeekEndUnknownSize verifies that io.SeekEnd is rejected when the
+// object size is unknown.
+func TestObjectSeekEndUnknownSize(t *testing.T) {
+	o := &Object{
+		mutex:         &sync.Mutex{},
+		objectInfo:    ObjectInfo{Size: -1},
+		objectInfoSet: true,
+		isStarted:     true,
+	}
+
+	if _, err := o.Seek(0, io.SeekEnd); err == nil {
+		t.Fatal("expected error when seeking from end with unknown object size")
+	}
+}
+
+// TestObjectSeekInvalidWhence verifies that an unsupported whence value is
+// rejected.
+func TestObjectSeekInvalidWhence(t *testing.T) {
+	o := &Object{
+		mutex:         &sync.Mutex{},
+		objectInfo:    ObjectInfo{Size: 10},
+		objectInfoSet: true,
+		isStarted:     true,
+	}
+
+	if _, err := o.Seek(0, 3); err == nil {
+		t.Fatal("expected error for invalid whence")
 	}
 }
