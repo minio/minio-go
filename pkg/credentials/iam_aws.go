@@ -202,7 +202,11 @@ func (m *IAM) RetrieveWithCredContext(cc *CredContext) (Value, error) {
 
 		stsWebIdentityCreds, err := creds.RetrieveWithCredContext(cc)
 		if err == nil {
-			m.SetExpiration(creds.Expiration(), m.expiryWindow())
+			// Use the raw credential expiration, not creds.Expiration():
+			// the inner provider has already reduced its own expiration by
+			// DefaultExpiryWindow, and applying a window to the reduced
+			// value would compound the two.
+			m.SetExpiration(stsWebIdentityCreds.Expiration, m.expiryWindow())
 		}
 		return stsWebIdentityCreds, err
 
