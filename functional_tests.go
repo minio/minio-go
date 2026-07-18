@@ -858,8 +858,56 @@ func testStatObjectResponseHeaders() {
 		logError(testName, function, args, startTime, "", "StatObject response headers Content-Range mismatch", fmt.Errorf("got %q, want %q", gotContentRange, wantContentRange))
 		return
 	}
-	if st.Headers.Get("Etag") == "" {
+	if st.Headers.Get("ETag") == "" {
 		logError(testName, function, args, startTime, "", "StatObject response headers missing ETag", errors.New("empty ETag header"))
+		return
+	}
+
+	gopts := minio.GetObjectOptions{}
+	err = gopts.SetRange(0, 99)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "SetRange failed", err)
+		return
+	}
+	obj, err := c.GetObject(context.Background(), bucketName, objectName, gopts)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "GetObject failed", err)
+		return
+	}
+	defer obj.Close()
+	// Read first: a first-op Stat issues an un-ranged StatObject by design,
+	// so the ranged GET response headers are observable only after a read.
+	buf := make([]byte, 100)
+	if _, err = io.ReadFull(obj, buf); err != nil {
+		logError(testName, function, args, startTime, "", "GetObject ranged read failed", err)
+		return
+	}
+	gst, err := obj.Stat()
+	if err != nil {
+		logError(testName, function, args, startTime, "", "GetObject Stat failed", err)
+		return
+	}
+	if got := gst.Headers.Get("Content-Range"); got != wantContentRange {
+		logError(testName, function, args, startTime, "", "GetObject response headers Content-Range mismatch", fmt.Errorf("got %q, want %q", got, wantContentRange))
+		return
+	}
+
+	sawObject := false
+	for listInfo := range c.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{}) {
+		if listInfo.Err != nil {
+			logError(testName, function, args, startTime, "", "ListObjects failed", listInfo.Err)
+			return
+		}
+		if listInfo.Key == objectName {
+			sawObject = true
+		}
+		if listInfo.Headers != nil {
+			logError(testName, function, args, startTime, "", "ListObjects ObjectInfo.Headers expected nil", fmt.Errorf("got %v", listInfo.Headers))
+			return
+		}
+	}
+	if !sawObject {
+		logError(testName, function, args, startTime, "", "ListObjects did not list the uploaded object", errors.New("uploaded object missing from listing"))
 		return
 	}
 
