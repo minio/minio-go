@@ -403,7 +403,7 @@ func (c *Client) TraceOff() {
 // SetS3TransferAccelerate - turns s3 accelerated endpoint on or off for all your
 // requests. This feature is only specific to S3 for all other endpoints this
 // function does nothing. To read further details on s3 transfer acceleration
-// please vist -
+// please visit -
 // http://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html
 func (c *Client) SetS3TransferAccelerate(accelerateEndpoint string) {
 	if s3utils.IsAmazonEndpoint(*c.endpointURL) {
@@ -641,7 +641,7 @@ func (c *Client) do(req *http.Request) (resp *http.Response, err error) {
 	}
 
 	// If trace is enabled, dump http request and response,
-	// except when the traceErrorsOnly enabled and the response's status code is ok
+	// except when traceErrorsOnly is enabled and the response has a success status code
 	if c.isTraceEnabled && (!c.traceErrorsOnly || !successStatus.Contains(resp.StatusCode)) {
 		err = c.dumpHTTP(req, resp)
 		if err != nil {

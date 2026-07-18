@@ -18,11 +18,11 @@
 package minio
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -78,11 +78,70 @@ func TestRestoreObjectAccepts202(t *testing.T) {
 		t.Fatalf("first restore request: expected success on 202 Accepted, got: %v", err)
 	}
 	err = c.RestoreObject(context.Background(), "bkt", "obj", "", req)
-	if err == nil || !strings.Contains(err.Error(), "already in progress") {
+	if err == nil {
+		t.Fatal("second restore request: expected RestoreAlreadyInProgress error, got success")
+	}
+	errResp := ToErrorResponse(err)
+	if errResp.Code != "RestoreAlreadyInProgress" || errResp.StatusCode != http.StatusConflict {
 		t.Fatalf("second restore request: expected RestoreAlreadyInProgress error, got: %v", err)
 	}
 	if n := atomic.LoadInt64(&restoreCalls); n != 2 {
 		t.Fatalf("expected exactly 2 restore requests (no retries), server saw %d", n)
+	}
+}
+
+// TestTraceErrorsOnlySkipsSuccessStatuses verifies that errors-only tracing
+// suppresses every successStatus member (200, 202, 204, 206) uniformly and
+// still dumps a genuine error response.
+func TestTraceErrorsOnlySkipsSuccessStatuses(t *testing.T) {
+	var wantStatus int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(int(atomic.LoadInt32(&wantStatus)))
+	}))
+	defer srv.Close()
+
+	u, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := New(u.Host, &Options{
+		Creds:  credentials.NewStaticV4("ak", "sk", ""),
+		Secure: false,
+		Region: "us-east-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	c.TraceErrorsOnlyOn(&buf)
+
+	doRequest := func(status int32) {
+		t.Helper()
+		atomic.StoreInt32(&wantStatus, status)
+		req, err := http.NewRequest(http.MethodGet, srv.URL, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := c.do(req)
+		if err != nil {
+			t.Fatalf("status %d: unexpected transport error: %v", status, err)
+		}
+		if err := resp.Body.Close(); err != nil {
+			t.Fatalf("status %d: closing response body: %v", status, err)
+		}
+	}
+
+	for _, code := range []int32{http.StatusOK, http.StatusAccepted, http.StatusNoContent, http.StatusPartialContent} {
+		doRequest(code)
+		if buf.Len() != 0 {
+			t.Fatalf("status %d: expected no trace output in errors-only mode, got %d bytes", code, buf.Len())
+		}
+	}
+
+	doRequest(http.StatusConflict)
+	if buf.Len() == 0 {
+		t.Fatal("status 409: expected error response to be traced in errors-only mode")
 	}
 }
 
