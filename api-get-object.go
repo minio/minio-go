@@ -115,6 +115,12 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 					httpReader, objectInfo, _, err = c.getObject(gctx, bucketName, objectName, opts)
 					if err != nil {
 						resCh <- getResponse{Error: err}
+						// An unsatisfiable range is recoverable: the caller
+						// may Seek or ReadAt within bounds next, so keep
+						// serving requests instead of ending the stream.
+						if ToErrorResponse(err).Code == InvalidRange {
+							continue
+						}
 						return
 					}
 					etag = objectInfo.ETag
@@ -196,7 +202,10 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 				// if the object has been read or not to only initialize
 				// new ones when they haven't been already.
 				// All readAt requests are new requests.
-				if req.DidOffsetChange || !req.beenRead {
+				// A nil httpReader means the previous fetch failed and
+				// left no stream, so a new one must be established
+				// regardless of the offset bookkeeping.
+				if req.DidOffsetChange || !req.beenRead || httpReader == nil {
 					// Check whether this is snowball
 					// if yes do not use If-Match feature
 					// it doesn't work.
@@ -221,6 +230,12 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 					if err != nil {
 						resCh <- getResponse{
 							Error: err,
+						}
+						// An unsatisfiable range is recoverable: the caller
+						// may Seek or ReadAt within bounds next, so keep
+						// serving requests instead of ending the stream.
+						if ToErrorResponse(err).Code == InvalidRange {
+							continue
 						}
 						return
 					}
@@ -415,10 +430,11 @@ func (o *Object) Read(b []byte) (n int, err error) {
 	// Send and receive from the first request.
 	response, err := o.doGetRequest(readReq)
 	if err != nil && err != io.EOF {
-		// An InvalidRange response means the requested start is not
-		// satisfiable for the object as it currently exists: the read
-		// position is at or past EOF.
-		if ToErrorResponse(err).Code == InvalidRange {
+		// An InvalidRange response to a range generated from a non-zero
+		// read offset means the position is at or past EOF for the object
+		// as it currently exists. Offset zero sends only a caller-supplied
+		// range, whose InvalidRange must surface untranslated.
+		if o.currOffset > 0 && ToErrorResponse(err).Code == InvalidRange {
 			o.prevErr = io.EOF
 			return 0, io.EOF
 		}

@@ -143,7 +143,6 @@ func TestObjectSeekAtObjectSizeAllowsSubsequentReadEOF(t *testing.T) {
 		t.Fatalf("expected read at object size to return io.EOF, got %v", err)
 	}
 
-	o.prevErr = nil
 	o.currOffset = 9
 	n, err = o.Seek(1, io.SeekCurrent)
 	if err != nil {
@@ -156,7 +155,6 @@ func TestObjectSeekAtObjectSizeAllowsSubsequentReadEOF(t *testing.T) {
 		t.Fatalf("expected read at object size to return io.EOF, got %v", err)
 	}
 
-	o.prevErr = nil
 	n, err = o.Seek(0, io.SeekEnd)
 	if err != nil {
 		t.Fatalf("expected seeking to object end to succeed, got %v", err)
@@ -169,11 +167,12 @@ func TestObjectSeekAtObjectSizeAllowsSubsequentReadEOF(t *testing.T) {
 	}
 }
 
-// eofRangeTestServer mimics a server answering HEAD with the object size,
-// plain GET with the full payload, and range GET with 206 for satisfiable
-// ranges or 416 InvalidRange when the range starts at or beyond the size,
-// as captured in issue #2166. It counts GET requests.
-func eofRangeTestServer(t *testing.T, payload []byte, getCount *int32) *httptest.Server {
+// eofRangeTestServer mimics a server answering HEAD with headSize (which may
+// deliberately overstate the payload to simulate a stale cached size), plain
+// GET with the full payload, and range GET with 206 for satisfiable ranges or
+// 416 InvalidRange when the range starts at or beyond the payload size, as
+// captured in issue #2166. It counts GET requests.
+func eofRangeTestServer(t *testing.T, payload []byte, headSize int, getCount *int32) *httptest.Server {
 	t.Helper()
 	size := len(payload)
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -182,7 +181,7 @@ func eofRangeTestServer(t *testing.T, payload []byte, getCount *int32) *httptest
 		w.Header().Set("Accept-Ranges", "bytes")
 
 		if r.Method == http.MethodHead {
-			w.Header().Set("Content-Length", strconv.Itoa(size))
+			w.Header().Set("Content-Length", strconv.Itoa(headSize))
 			return
 		}
 		atomic.AddInt32(getCount, 1)
@@ -220,7 +219,7 @@ func eofRangeTestServer(t *testing.T, payload []byte, getCount *int32) *httptest
 func TestGetObjectReadAtEOFReturnsEOF(t *testing.T) {
 	payload := []byte("0123456789")
 	var gets int32
-	srv := eofRangeTestServer(t, payload, &gets)
+	srv := eofRangeTestServer(t, payload, len(payload), &gets)
 	defer srv.Close()
 
 	clnt, err := New(srv.Listener.Addr().String(), &Options{
@@ -277,6 +276,114 @@ func TestGetObjectReadAtEOFReturnsEOF(t *testing.T) {
 	}
 	if _, err = obj.ReadAt(buf, int64(len(payload))); err != io.EOF {
 		t.Fatalf("ReadAt(size): expected io.EOF, got %v", err)
+	}
+
+	// The at-EOF ReadAt must not end the stream: an in-range ReadAt on the
+	// same object still returns data.
+	n, err = obj.ReadAt(buf, 0)
+	if err != nil && err != io.EOF {
+		t.Fatalf("ReadAt(0) after at-EOF ReadAt: expected data, got %v", err)
+	}
+	if n != len(buf) || !bytes.Equal(buf, payload[:n]) {
+		t.Fatalf("ReadAt(0) after at-EOF ReadAt: expected %q, got %q", payload[:len(buf)], buf[:n])
+	}
+
+	// A metadata request between a failed fetch and the next read clears the
+	// re-establish flag; the read must still not use the dead reader.
+	if _, err = obj.ReadAt(buf, int64(len(payload))); err != io.EOF {
+		t.Fatalf("ReadAt(size) second time: expected io.EOF, got %v", err)
+	}
+	if _, err = obj.Stat(); err != nil {
+		t.Fatalf("Stat after at-EOF ReadAt: expected success, got %v", err)
+	}
+	n, err = obj.Read(buf)
+	if err != nil && err != io.EOF {
+		t.Fatalf("Read after Stat following at-EOF ReadAt: expected data, got %v", err)
+	}
+	if n != len(buf) || !bytes.Equal(buf, payload[:n]) {
+		t.Fatalf("Read after Stat following at-EOF ReadAt: expected %q, got %q", payload[:len(buf)], buf[:n])
+	}
+}
+
+// TestGetObjectReadUserRangeInvalidRangeSurfaces pins that a caller-supplied
+// unsatisfiable range - the only range a read at offset zero ever sends - is
+// caller misuse, not EOF, and keeps surfacing the server's InvalidRange.
+func TestGetObjectReadUserRangeInvalidRangeSurfaces(t *testing.T) {
+	payload := []byte("0123456789")
+	var gets int32
+	srv := eofRangeTestServer(t, payload, len(payload), &gets)
+	defer srv.Close()
+
+	clnt, err := New(srv.Listener.Addr().String(), &Options{
+		Region: "us-east-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	opts := GetObjectOptions{}
+	if err := opts.SetRange(int64(len(payload)+1), int64(len(payload)+10)); err != nil {
+		t.Fatal(err)
+	}
+	obj, err := clnt.GetObject(context.Background(), "bucketName", "objectName", opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer obj.Close()
+	_, err = obj.Read(make([]byte, 4))
+	if err == io.EOF {
+		t.Fatal("Read with caller-set unsatisfiable range: expected InvalidRange to surface, got io.EOF")
+	}
+	if code := ToErrorResponse(err).Code; code != InvalidRange {
+		t.Fatalf("Read with caller-set unsatisfiable range: expected code %q, got %v", InvalidRange, err)
+	}
+}
+
+// TestGetObjectReadStaleSizeReturnsEOF covers the read path where the
+// advertised size is stale-high (object shrunk after Stat): the local at-EOF
+// guard cannot fire, the offset-generated range draws a 416 from the server,
+// and the error must translate to io.EOF.
+func TestGetObjectReadStaleSizeReturnsEOF(t *testing.T) {
+	payload := []byte("0123456789")
+	var gets int32
+	srv := eofRangeTestServer(t, payload, 2*len(payload), &gets)
+	defer srv.Close()
+
+	clnt, err := New(srv.Listener.Addr().String(), &Options{
+		Region: "us-east-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	obj, err := clnt.GetObject(context.Background(), "bucketName", "objectName", GetObjectOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer obj.Close()
+	// Seek runs Stat, which reports the stale doubled size, so seeking past
+	// the real payload end succeeds and the local at-EOF guard cannot fire.
+	if _, err = obj.Seek(int64(len(payload)+5), io.SeekStart); err != nil {
+		t.Fatalf("Seek past real size with stale Stat size: expected success, got %v", err)
+	}
+	if _, err = obj.Read(make([]byte, 4)); err != io.EOF {
+		t.Fatalf("Read past real object end: expected io.EOF, got %v", err)
+	}
+	if got := atomic.LoadInt32(&gets); got != 1 {
+		t.Fatalf("stale-size read issued %d GET request(s), expected exactly 1", got)
+	}
+
+	// The translated EOF must be recoverable: seek back and read real data.
+	if _, err = obj.Seek(0, io.SeekStart); err != nil {
+		t.Fatalf("Seek(0, SeekStart) after translated EOF: expected success, got %v", err)
+	}
+	buf := make([]byte, 4)
+	n, err := obj.Read(buf)
+	if err != nil && err != io.EOF {
+		t.Fatalf("Read after re-seek: expected data, got %v", err)
+	}
+	if n != len(buf) || !bytes.Equal(buf, payload[:n]) {
+		t.Fatalf("Read after re-seek: expected %q, got %q", payload[:len(buf)], buf[:n])
 	}
 }
 
