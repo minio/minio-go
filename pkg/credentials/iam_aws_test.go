@@ -581,15 +581,16 @@ func TestIAMCustomExpiryWindowWebIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(f.Name())
-	f.Write([]byte("token"))
-	f.Close()
+	if _, err := f.Write([]byte("token")); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", f.Name())
 	t.Setenv("AWS_ROLE_ARN", "arn:aws:sts::123456789012:assumed-role/FederatedWebIdentityRole/app1")
 	creds, err := p.RetrieveWithCredContext(defaultCredContext)
-	os.Unsetenv("AWS_WEB_IDENTITY_TOKEN_FILE")
-	os.Unsetenv("AWS_ROLE_ARN")
 	if err != nil {
 		t.Fatal(err)
 	}
