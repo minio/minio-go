@@ -106,9 +106,9 @@ func NewIAM(endpoint string) *Credentials {
 }
 
 // expiryWindow returns the configured ExpiryWindow, falling back to
-// DefaultExpiryWindow when unset.
+// DefaultExpiryWindow when unset or negative.
 func (m *IAM) expiryWindow() time.Duration {
-	if m.ExpiryWindow == 0 {
+	if m.ExpiryWindow <= 0 {
 		return DefaultExpiryWindow
 	}
 	return m.ExpiryWindow
