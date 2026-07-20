@@ -361,6 +361,23 @@ func TestFileAWSSSO(t *testing.T) {
 		}
 	})
 
+	t.Run("mixed-complete-static-precedence", func(t *testing.T) {
+		// Complete SSO configuration alongside a complete static key pair:
+		// the static keys win, matching aws-sdk-go-v2's static-first
+		// resolution. The empty cache dir would make the SSO flow fail with
+		// a missing-token error, so success proves it was never engaged.
+		credValues, err := newSSOCreds("p9-mixed-complete", t.TempDir()).GetWithContext(defaultCredContext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if credValues.AccessKeyID != "completeAccessKey" {
+			t.Errorf("Expected 'completeAccessKey', got %s", credValues.AccessKeyID)
+		}
+		if credValues.SecretAccessKey != "completeSecret" {
+			t.Errorf("Expected 'completeSecret', got %s", credValues.SecretAccessKey)
+		}
+	})
+
 	t.Run("region-indeterminable", func(t *testing.T) {
 		cacheDir := t.TempDir()
 		// Legacy profile without sso_region and a cached token without

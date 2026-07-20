@@ -181,9 +181,13 @@ func (p *FileAWSCredentials) retrieve(cc *CredContext) (Value, error) {
 		}, nil
 	}
 
+	// A complete static key pair takes precedence over SSO configuration in
+	// the same profile, matching aws-sdk-go-v2's resolution order.
+	hasStaticKeys := id.String() != "" && secret.String() != ""
+
 	// If the profile is configured for AWS SSO, obtain credentials from the
 	// token cached by `aws sso login`.
-	if iniProfile.Key("sso_role_name").String() != "" {
+	if !hasStaticKeys && iniProfile.Key("sso_role_name").String() != "" {
 		ssoCreds, err := p.getSSOCredentials(cc, iniConfig, iniProfile)
 		if err != nil {
 			return Value{}, err
