@@ -436,7 +436,18 @@ func (o *Object) Stat() (ObjectInfo, error) {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
 
-	if o.prevErr != nil && o.prevErr != io.EOF || o.isClosed {
+	if o.prevErr != nil && o.prevErr != io.EOF {
+		return ObjectInfo{}, o.prevErr
+	}
+
+	// When the object info is already known (e.g. the RDMA GET path, whose
+	// payload is delivered out-of-band so the object is created closed, or a
+	// previously completed request) report it, even for a closed object.
+	if o.objectInfoSet {
+		return o.objectInfo, nil
+	}
+
+	if o.isClosed {
 		return ObjectInfo{}, o.prevErr
 	}
 
