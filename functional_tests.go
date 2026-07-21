@@ -5418,28 +5418,37 @@ func testGetObjectReadSeekFunctional() {
 		{0, 0, 0, nil, true, 0, 0},
 		// Start from offset 2048, fetch data and compare
 		{2048, 0, 2048, nil, true, 2048, bufSize},
-		// Start from offset larger than possible: seek now succeeds per the
-		// io.Seeker contract; a subsequent read reports io.EOF.
-		{int64(bufSize) + 1024, 0, int64(bufSize) + 1024, nil, false, 0, 0},
+		// Start from offset larger than possible: Seek rejects it with io.EOF
+		// and keeps the offset unchanged.
+		{int64(bufSize) + 1024, 0, 0, io.EOF, false, 0, 0},
 		// Move to offset 0 without comparing
 		{0, 0, 0, nil, false, 0, 0},
 		// Move one step forward and compare
 		{1, 1, 1, nil, true, 1, bufSize},
-		// Move larger than possible: seek past end now succeeds.
-		{int64(bufSize), 1, int64(bufSize) * 2, nil, false, 0, 0},
+		// Move larger than possible: Seek returns io.EOF.
+		{int64(bufSize), 1, 0, io.EOF, false, 0, 0},
 		// Provide negative offset with CUR_SEEK: valid since the resulting
-		// absolute position is not negative.
-		{int64(-1), 1, int64(bufSize)*2 - 1, nil, false, 0, 0},
-		// Test with whence SEEK_END and with positive offset: seek past end
-		// now succeeds.
-		{1024, 2, int64(bufSize) + 1024, nil, false, 0, 0},
+		// absolute position is within the object.
+		{int64(-1), 1, int64(bufSize) - 1, nil, false, 0, 0},
+		// Test with whence SEEK_END and with positive offset: Seek returns
+		// io.EOF.
+		{1024, 2, 0, io.EOF, false, 0, 0},
 		// Test with whence SEEK_END and with negative offset
 		{-1024, 2, int64(bufSize) - 1024, nil, true, bufSize - 1024, bufSize},
 		// Test with whence SEEK_END and with large negative offset
 		{-int64(bufSize) * 2, 2, 0, seekErr, true, 0, 0},
+		// Seek to exactly the object end; the subsequent read reports io.EOF.
+		{0, 2, int64(bufSize), nil, false, 0, 0},
 	}
 
 	for i, testCase := range testCases {
+		// Snapshot the cursor so rejected seeks can be asserted side-effect
+		// free.
+		prevPos, err := r.Seek(0, io.SeekCurrent)
+		if err != nil {
+			logError(testName, function, args, startTime, "", fmt.Sprintf("Test %d, reading the current position failed", i+1), err)
+			return
+		}
 		// Perform seek operation
 		n, err := r.Seek(testCase.offset, testCase.whence)
 		// We expect an error
@@ -5454,6 +5463,12 @@ func testGetObjectReadSeekFunctional() {
 		}
 		// If we expect an error go to the next loop
 		if testCase.err != nil {
+			// A rejected seek must leave the cursor unchanged.
+			curPos, cerr := r.Seek(0, io.SeekCurrent)
+			if cerr != nil || curPos != prevPos {
+				logError(testName, function, args, startTime, "", fmt.Sprintf("Test %d, cursor after rejected seek: expected %d, got %d", i+1, prevPos, curPos), cerr)
+				return
+			}
 			continue
 		}
 		// Check the returned seek pos
@@ -5465,12 +5480,12 @@ func testGetObjectReadSeekFunctional() {
 		if testCase.shouldCmp {
 			cmpData(r, testCase.start, testCase.end)
 		}
-		// A successful seek to or past the object end must defer io.EOF to the
+		// A successful seek to the object end must defer io.EOF to the
 		// subsequent read.
-		if !testCase.shouldCmp && testCase.pos >= int64(bufSize) {
+		if !testCase.shouldCmp && testCase.err == nil && testCase.pos >= int64(bufSize) {
 			readN, readErr := r.Read(make([]byte, 1))
 			if readN != 0 || readErr != io.EOF {
-				logError(testName, function, args, startTime, "", fmt.Sprintf("Test %d, read after seek to/past object end expected zero bytes and io.EOF, got %d bytes and %v", i+1, readN, readErr), readErr)
+				logError(testName, function, args, startTime, "", fmt.Sprintf("Test %d, read after seek to object end expected zero bytes and io.EOF, got %d bytes and %v", i+1, readN, readErr), readErr)
 				return
 			}
 		}
@@ -6575,30 +6590,39 @@ func testSSECEncryptedGetObjectReadSeekFunctional() {
 		{0, 0, 0, nil, true, 0, 0},
 		// Start from offset 2048, fetch data and compare
 		{2048, 0, 2048, nil, true, 2048, bufSize},
-		// Start from offset larger than possible: seek now succeeds per the
-		// io.Seeker contract; a subsequent read reports io.EOF.
-		{int64(bufSize) + 1024, 0, int64(bufSize) + 1024, nil, false, 0, 0},
+		// Start from offset larger than possible: Seek rejects it with io.EOF
+		// and keeps the offset unchanged.
+		{int64(bufSize) + 1024, 0, 0, io.EOF, false, 0, 0},
 		// Move to offset 0 without comparing
 		{0, 0, 0, nil, false, 0, 0},
 		// Move one step forward and compare
 		{1, 1, 1, nil, true, 1, bufSize},
-		// Move larger than possible: seek past end now succeeds.
-		{int64(bufSize), 1, int64(bufSize) * 2, nil, false, 0, 0},
+		// Move larger than possible: Seek returns io.EOF.
+		{int64(bufSize), 1, 0, io.EOF, false, 0, 0},
 		// Provide negative offset with CUR_SEEK: valid since the resulting
-		// absolute position is not negative.
-		{int64(-1), 1, int64(bufSize)*2 - 1, nil, false, 0, 0},
-		// Test with whence SEEK_END and with positive offset: seek past end
-		// now succeeds.
-		{1024, 2, int64(bufSize) + 1024, nil, false, 0, 0},
+		// absolute position is within the object.
+		{int64(-1), 1, int64(bufSize) - 1, nil, false, 0, 0},
+		// Test with whence SEEK_END and with positive offset: Seek returns
+		// io.EOF.
+		{1024, 2, 0, io.EOF, false, 0, 0},
 		// Test with whence SEEK_END and with negative offset
 		{-1024, 2, int64(bufSize) - 1024, nil, true, bufSize - 1024, bufSize},
 		// Test with whence SEEK_END and with large negative offset
 		{-int64(bufSize) * 2, 2, 0, fmt.Errorf("Seeking at negative offset not allowed for 2"), false, 0, 0},
 		// Test with invalid whence
 		{0, 3, 0, fmt.Errorf("Invalid whence 3"), false, 0, 0},
+		// Seek to exactly the object end; the subsequent read reports io.EOF.
+		{0, 2, int64(bufSize), nil, false, 0, 0},
 	}
 
 	for i, testCase := range testCases {
+		// Snapshot the cursor so rejected seeks can be asserted side-effect
+		// free.
+		prevPos, err := r.Seek(0, io.SeekCurrent)
+		if err != nil {
+			logError(testName, function, args, startTime, "", fmt.Sprintf("Test %d, reading the current position failed", i+1), err)
+			return
+		}
 		// Perform seek operation
 		n, err := r.Seek(testCase.offset, testCase.whence)
 		if err != nil && testCase.err == nil {
@@ -6620,6 +6644,12 @@ func testSSECEncryptedGetObjectReadSeekFunctional() {
 					fmt.Sprintf("Test %d, unexpected err value: expected: %s, found: %s", i+1, testCase.err, err), err)
 				return
 			}
+			// A rejected seek must leave the cursor unchanged.
+			curPos, cerr := r.Seek(0, io.SeekCurrent)
+			if cerr != nil || curPos != prevPos {
+				logError(testName, function, args, startTime, "", fmt.Sprintf("Test %d, cursor after rejected seek: expected %d, got %d", i+1, prevPos, curPos), cerr)
+				return
+			}
 		}
 		// Check the returned seek pos
 		if n != testCase.pos {
@@ -6631,12 +6661,12 @@ func testSSECEncryptedGetObjectReadSeekFunctional() {
 		if testCase.shouldCmp {
 			cmpData(r, testCase.start, testCase.end)
 		}
-		// A successful seek to or past the object end must defer io.EOF to the
+		// A successful seek to the object end must defer io.EOF to the
 		// subsequent read.
-		if !testCase.shouldCmp && testCase.pos >= int64(bufSize) {
+		if !testCase.shouldCmp && testCase.err == nil && testCase.pos >= int64(bufSize) {
 			readN, readErr := r.Read(make([]byte, 1))
 			if readN != 0 || readErr != io.EOF {
-				logError(testName, function, args, startTime, "", fmt.Sprintf("Test %d, read after seek to/past object end expected zero bytes and io.EOF, got %d bytes and %v", i+1, readN, readErr), readErr)
+				logError(testName, function, args, startTime, "", fmt.Sprintf("Test %d, read after seek to object end expected zero bytes and io.EOF, got %d bytes and %v", i+1, readN, readErr), readErr)
 				return
 			}
 		}
@@ -6753,30 +6783,39 @@ func testSSES3EncryptedGetObjectReadSeekFunctional() {
 		{0, 0, 0, nil, true, 0, 0},
 		// Start from offset 2048, fetch data and compare
 		{2048, 0, 2048, nil, true, 2048, bufSize},
-		// Start from offset larger than possible: seek now succeeds per the
-		// io.Seeker contract; a subsequent read reports io.EOF.
-		{int64(bufSize) + 1024, 0, int64(bufSize) + 1024, nil, false, 0, 0},
+		// Start from offset larger than possible: Seek rejects it with io.EOF
+		// and keeps the offset unchanged.
+		{int64(bufSize) + 1024, 0, 0, io.EOF, false, 0, 0},
 		// Move to offset 0 without comparing
 		{0, 0, 0, nil, false, 0, 0},
 		// Move one step forward and compare
 		{1, 1, 1, nil, true, 1, bufSize},
-		// Move larger than possible: seek past end now succeeds.
-		{int64(bufSize), 1, int64(bufSize) * 2, nil, false, 0, 0},
+		// Move larger than possible: Seek returns io.EOF.
+		{int64(bufSize), 1, 0, io.EOF, false, 0, 0},
 		// Provide negative offset with CUR_SEEK: valid since the resulting
-		// absolute position is not negative.
-		{int64(-1), 1, int64(bufSize)*2 - 1, nil, false, 0, 0},
-		// Test with whence SEEK_END and with positive offset: seek past end
-		// now succeeds.
-		{1024, 2, int64(bufSize) + 1024, nil, false, 0, 0},
+		// absolute position is within the object.
+		{int64(-1), 1, int64(bufSize) - 1, nil, false, 0, 0},
+		// Test with whence SEEK_END and with positive offset: Seek returns
+		// io.EOF.
+		{1024, 2, 0, io.EOF, false, 0, 0},
 		// Test with whence SEEK_END and with negative offset
 		{-1024, 2, int64(bufSize) - 1024, nil, true, bufSize - 1024, bufSize},
 		// Test with whence SEEK_END and with large negative offset
 		{-int64(bufSize) * 2, 2, 0, fmt.Errorf("Seeking at negative offset not allowed for 2"), false, 0, 0},
 		// Test with invalid whence
 		{0, 3, 0, fmt.Errorf("Invalid whence 3"), false, 0, 0},
+		// Seek to exactly the object end; the subsequent read reports io.EOF.
+		{0, 2, int64(bufSize), nil, false, 0, 0},
 	}
 
 	for i, testCase := range testCases {
+		// Snapshot the cursor so rejected seeks can be asserted side-effect
+		// free.
+		prevPos, err := r.Seek(0, io.SeekCurrent)
+		if err != nil {
+			logError(testName, function, args, startTime, "", fmt.Sprintf("Test %d, reading the current position failed", i+1), err)
+			return
+		}
 		// Perform seek operation
 		n, err := r.Seek(testCase.offset, testCase.whence)
 		if err != nil && testCase.err == nil {
@@ -6798,6 +6837,12 @@ func testSSES3EncryptedGetObjectReadSeekFunctional() {
 					fmt.Sprintf("Test %d, unexpected err value: expected: %s, found: %s", i+1, testCase.err, err), err)
 				return
 			}
+			// A rejected seek must leave the cursor unchanged.
+			curPos, cerr := r.Seek(0, io.SeekCurrent)
+			if cerr != nil || curPos != prevPos {
+				logError(testName, function, args, startTime, "", fmt.Sprintf("Test %d, cursor after rejected seek: expected %d, got %d", i+1, prevPos, curPos), cerr)
+				return
+			}
 		}
 		// Check the returned seek pos
 		if n != testCase.pos {
@@ -6809,12 +6854,12 @@ func testSSES3EncryptedGetObjectReadSeekFunctional() {
 		if testCase.shouldCmp {
 			cmpData(r, testCase.start, testCase.end)
 		}
-		// A successful seek to or past the object end must defer io.EOF to the
+		// A successful seek to the object end must defer io.EOF to the
 		// subsequent read.
-		if !testCase.shouldCmp && testCase.pos >= int64(bufSize) {
+		if !testCase.shouldCmp && testCase.err == nil && testCase.pos >= int64(bufSize) {
 			readN, readErr := r.Read(make([]byte, 1))
 			if readN != 0 || readErr != io.EOF {
-				logError(testName, function, args, startTime, "", fmt.Sprintf("Test %d, read after seek to/past object end expected zero bytes and io.EOF, got %d bytes and %v", i+1, readN, readErr), readErr)
+				logError(testName, function, args, startTime, "", fmt.Sprintf("Test %d, read after seek to object end expected zero bytes and io.EOF, got %d bytes and %v", i+1, readN, readErr), readErr)
 				return
 			}
 		}
@@ -8915,20 +8960,41 @@ func testGetObjectReadSeekFunctionalV2() {
 		logError(testName, function, args, startTime, "", "Number of seeked bytes does not match, expected "+strconv.FormatInt(offset, 10)+" got "+strconv.FormatInt(n, 10), err)
 		return
 	}
-	// Seeking past the object end with SEEK_END now succeeds per the
-	// io.Seeker contract; the subsequent read reports io.EOF.
+	// Seeking past the object end with SEEK_END is rejected with io.EOF and
+	// leaves the offset unchanged.
 	n, err = r.Seek(offset, 2)
+	if err != io.EOF {
+		logError(testName, function, args, startTime, "", "Seek past object end should return io.EOF", err)
+		return
+	}
+	if n != 0 {
+		logError(testName, function, args, startTime, "", "Seek past object end should return offset 0, got "+strconv.FormatInt(n, 10), err)
+		return
+	}
+	// A rejected seek must leave the cursor unchanged.
+	n, err = r.Seek(0, 1)
 	if err != nil {
 		logError(testName, function, args, startTime, "", "Seek failed", err)
 		return
 	}
-	if n != st.Size+offset {
-		logError(testName, function, args, startTime, "", "Number of seeked bytes does not match, expected "+strconv.FormatInt(st.Size+offset, 10)+" got "+strconv.FormatInt(n, 10), err)
+	if n != offset {
+		logError(testName, function, args, startTime, "", "Cursor moved after rejected seek, expected "+strconv.FormatInt(offset, 10)+" got "+strconv.FormatInt(n, 10), err)
+		return
+	}
+	// Seeking to exactly the object end succeeds; the subsequent read reports
+	// io.EOF.
+	n, err = r.Seek(0, 2)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "Seek failed", err)
+		return
+	}
+	if n != st.Size {
+		logError(testName, function, args, startTime, "", "Number of seeked bytes does not match, expected "+strconv.FormatInt(st.Size, 10)+" got "+strconv.FormatInt(n, 10), err)
 		return
 	}
 	readN, readErr := r.Read(make([]byte, 1))
 	if readN != 0 || readErr != io.EOF {
-		logError(testName, function, args, startTime, "", "Read after seeking past object end should return zero bytes and EOF", readErr)
+		logError(testName, function, args, startTime, "", "Read after seeking to object end should return zero bytes and EOF", readErr)
 		return
 	}
 	n, err = r.Seek(-offset, 2)

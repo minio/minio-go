@@ -115,6 +115,12 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 					httpReader, objectInfo, _, err = c.getObject(gctx, bucketName, objectName, opts)
 					if err != nil {
 						resCh <- getResponse{Error: err}
+						// An unsatisfiable range is recoverable: the caller
+						// may Seek or ReadAt within bounds next, so keep
+						// serving requests instead of ending the stream.
+						if ToErrorResponse(err).Code == InvalidRange {
+							continue
+						}
 						return
 					}
 					etag = objectInfo.ETag
@@ -196,7 +202,10 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 				// if the object has been read or not to only initialize
 				// new ones when they haven't been already.
 				// All readAt requests are new requests.
-				if req.DidOffsetChange || !req.beenRead {
+				// A nil httpReader means the previous fetch failed and
+				// left no stream, so a new one must be established
+				// regardless of the offset bookkeeping.
+				if req.DidOffsetChange || !req.beenRead || httpReader == nil {
 					// Check whether this is snowball
 					// if yes do not use If-Match feature
 					// it doesn't work.
@@ -221,6 +230,12 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 					if err != nil {
 						resCh <- getResponse{
 							Error: err,
+						}
+						// An unsatisfiable range is recoverable: the caller
+						// may Seek or ReadAt within bounds next, so keep
+						// serving requests instead of ending the stream.
+						if ToErrorResponse(err).Code == InvalidRange {
+							continue
 						}
 						return
 					}
@@ -414,6 +429,14 @@ func (o *Object) Read(b []byte) (n int, err error) {
 	// Send and receive from the first request.
 	response, err := o.doGetRequest(readReq)
 	if err != nil && err != io.EOF {
+		// An InvalidRange response to a range generated from a non-zero
+		// read offset means the position is at or past EOF for the object
+		// as it currently exists. Offset zero sends only a caller-supplied
+		// range, whose InvalidRange must surface untranslated.
+		if o.currOffset > 0 && ToErrorResponse(err).Code == InvalidRange {
+			o.prevErr = io.EOF
+			return 0, io.EOF
+		}
 		// Save the error for future calls.
 		o.prevErr = err
 		return response.Size, err
@@ -518,6 +541,12 @@ func (o *Object) ReadAt(b []byte, offset int64) (n int, err error) {
 	// Send and receive from the first request.
 	response, err := o.doGetRequest(readAtReq)
 	if err != nil && err != io.EOF {
+		// Reading at an offset at or beyond the object size yields
+		// InvalidRange from the server: report io.EOF, matching the
+		// io.ReaderAt contract for reads past the end.
+		if ToErrorResponse(err).Code == InvalidRange {
+			return 0, io.EOF
+		}
 		// Save the error.
 		o.prevErr = err
 		return response.Size, err
@@ -549,8 +578,9 @@ func (o *Object) ReadAt(b []byte, offset int64) (n int, err error) {
 // Seek returns the new offset and an error, if any.
 //
 // Seeking to a position before the start of the object is an error.
-// Seeking to or past the end of the object is legal per the io.Seeker
-// contract; a subsequent Read reports io.EOF.
+// Seeking to the end of the object is legal; the subsequent Read reports
+// io.EOF. When the object size is known, seeking past the end returns
+// io.EOF from Seek itself and leaves the offset unchanged.
 func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 	if o == nil {
 		return 0, errInvalidArgument("Object is nil")
@@ -608,10 +638,15 @@ func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 		newOffset = o.objectInfo.Size + offset
 	}
 	// Seeking to a position before the start of the object is not allowed for
-	// any whence. Seeking to or past the end is allowed per the io.Seeker
-	// contract; the subsequent Read reports io.EOF.
+	// any whence.
 	if newOffset < 0 {
 		return 0, errInvalidArgument(fmt.Sprintf("Seeking at negative offset not allowed for %d", whence))
+	}
+	// Seeking past the end of the object is rejected with io.EOF, preserving
+	// long-standing behavior. Seeking to exactly the end is legal and the
+	// subsequent Read reports io.EOF.
+	if o.objectInfo.Size > -1 && newOffset > o.objectInfo.Size {
+		return 0, io.EOF
 	}
 	// Reset the saved error since we successfully seeked, let the Read
 	// and ReadAt decide.
