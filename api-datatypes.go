@@ -192,7 +192,7 @@ type ObjectInfo struct {
 	// object response (StatObject, GetObject); nil elsewhere, e.g. in
 	// ListObjects results, on error paths, or for RDMA-backed GetObject.
 	// It aliases the response headers and must be treated as read-only.
-	Headers http.Header `json:"-" xml:"-"`
+	Headers http.Header `json:"rawHeaders,omitempty" xml:"-"`
 
 	// x-amz-meta-* headers stripped "x-amz-meta-" prefix containing the first value.
 	// Only returned by MinIO servers.
