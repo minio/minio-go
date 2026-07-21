@@ -646,8 +646,13 @@ func fillNonZero(t *testing.T, v reflect.Value) {
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		v.SetUint(1)
 	case reflect.Struct:
-		if v.Type() == reflect.TypeOf(time.Time{}) {
+		switch v.Type() {
+		case reflect.TypeOf(time.Time{}):
 			v.Set(reflect.ValueOf(time.Date(2026, time.July, 21, 0, 0, 0, 0, time.UTC)))
+			return
+		case reflect.TypeOf(xml.Name{}):
+			// XMLName is element metadata, not data; filling it would
+			// rename elements instead of exercising field emission.
 			return
 		}
 		for i := range v.NumField() {
@@ -697,7 +702,11 @@ func TestRuleWrapperCopyCompleteness(t *testing.T) {
 	// The default encoding emits the null Filter as
 	// <Filter><Prefix></Prefix></Filter>; the wrapper path omits the element
 	// entirely because Prefix is non-empty. Everything else must match.
-	wantStr := strings.Replace(string(want), "<Filter><Prefix></Prefix></Filter>", "", 1)
+	const nullFilter = "<Filter><Prefix></Prefix></Filter>"
+	if !strings.Contains(string(want), nullFilter) {
+		t.Fatalf("default encoding no longer emits a null Filter as %s; update this test\ngot: %s", nullFilter, string(want))
+	}
+	wantStr := strings.Replace(string(want), nullFilter, "", 1)
 	if string(got) != wantStr {
 		t.Fatalf("wrapper path dropped or altered a field\nexpected: %s\ngot:      %s", wantStr, string(got))
 	}
