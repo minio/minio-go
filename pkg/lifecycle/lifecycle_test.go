@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -628,6 +629,77 @@ func TestLifecycleMarshalXML(t *testing.T) {
 		if string(xmlBytes) != tc.expectedXMLOut {
 			t.Fatalf("%d (%s): failed\nexpected: %s\ngot:      %s", i+1, tc.testDescription, tc.expectedXMLOut, string(xmlBytes))
 		}
+	}
+}
+
+// fillNonZero recursively sets v to a non-zero value so the field it belongs
+// to cannot be suppressed by an omitempty tag or an isNull-style check.
+func fillNonZero(t *testing.T, v reflect.Value) {
+	t.Helper()
+	switch v.Kind() {
+	case reflect.String:
+		v.SetString("x")
+	case reflect.Bool:
+		v.SetBool(true)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		v.SetInt(1)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		v.SetUint(1)
+	case reflect.Struct:
+		if v.Type() == reflect.TypeOf(time.Time{}) {
+			v.Set(reflect.ValueOf(time.Date(2026, time.July, 21, 0, 0, 0, 0, time.UTC)))
+			return
+		}
+		for i := range v.NumField() {
+			fillNonZero(t, v.Field(i))
+		}
+	case reflect.Slice:
+		elem := reflect.New(v.Type().Elem()).Elem()
+		fillNonZero(t, elem)
+		v.Set(reflect.Append(v, elem))
+	default:
+		t.Fatalf("fillNonZero: extend for unsupported kind %v (%v)", v.Kind(), v.Type())
+	}
+}
+
+// TestRuleWrapperCopyCompleteness fills every Rule field except XMLName and
+// RuleFilter (kept null so Rule.MarshalXML takes the wrapper path) with a
+// non-zero value, then requires the wrapper-path output to match the default
+// struct-tag encoding. A field assignment forgotten in the ruleWrapper
+// literal inside Rule.MarshalXML would be zero-valued and omitted there,
+// which TestRuleWrapperFieldParity alone cannot catch.
+func TestRuleWrapperCopyCompleteness(t *testing.T) {
+	var r Rule
+	rv := reflect.ValueOf(&r).Elem()
+	for i := range rv.NumField() {
+		switch rv.Type().Field(i).Name {
+		case "XMLName", "RuleFilter":
+			continue
+		}
+		fillNonZero(t, rv.Field(i))
+	}
+
+	got, err := xml.Marshal(Configuration{Rules: []Rule{r}})
+	if err != nil {
+		t.Fatalf("could not marshal Rule through the wrapper path: %v", err)
+	}
+
+	type ruleAlias Rule
+	type aliasConfiguration struct {
+		XMLName xml.Name    `xml:"LifecycleConfiguration"`
+		Rules   []ruleAlias `xml:"Rule"`
+	}
+	want, err := xml.Marshal(aliasConfiguration{Rules: []ruleAlias{ruleAlias(r)}})
+	if err != nil {
+		t.Fatalf("could not marshal Rule through the default encoding: %v", err)
+	}
+
+	// The default encoding emits the null Filter as
+	// <Filter><Prefix></Prefix></Filter>; the wrapper path omits the element
+	// entirely because Prefix is non-empty. Everything else must match.
+	wantStr := strings.Replace(string(want), "<Filter><Prefix></Prefix></Filter>", "", 1)
+	if string(got) != wantStr {
+		t.Fatalf("wrapper path dropped or altered a field\nexpected: %s\ngot:      %s", wantStr, string(got))
 	}
 }
 

@@ -508,8 +508,10 @@ func (r Rule) MarshalJSON() ([]byte, error) {
 
 // ruleWrapper mirrors Rule field-for-field, with RuleFilter as a pointer so
 // Rule.MarshalXML controls whether the Filter element is emitted; a field
-// added to Rule but not here would be silently dropped for rules without a
-// Filter.
+// added to Rule but not here — or added here but not assigned in the
+// Rule.MarshalXML literal — would be silently dropped for rules without a
+// Filter. TestRuleWrapperFieldParity guards the mirror and
+// TestRuleWrapperCopyCompleteness guards the copy.
 type ruleWrapper struct {
 	XMLName                        xml.Name                       `xml:"Rule,omitempty"`
 	AbortIncompleteMultipartUpload AbortIncompleteMultipartUpload `xml:"AbortIncompleteMultipartUpload,omitempty"`
