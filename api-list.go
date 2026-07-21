@@ -126,9 +126,9 @@ func (c *Client) listObjectsV2(ctx context.Context, bucketName string, opts List
 	}
 
 	// Return object owner information by default
-	if opts.FetchOwner == nil {
-		fetchOwner := true
-		opts.FetchOwner = &fetchOwner
+	fetchOwner := true
+	if opts.FetchOwner != nil {
+		fetchOwner = *opts.FetchOwner
 	}
 
 	return func(yield func(ObjectInfo) bool) {
@@ -157,7 +157,7 @@ func (c *Client) listObjectsV2(ctx context.Context, bucketName string, opts List
 
 			// Get list of objects a maximum of 1000 per request.
 			result, err := c.listObjectsV2Query(ctx, bucketName, opts.Prefix, continuationToken,
-				*opts.FetchOwner, opts.WithMetadata, delimiter, opts.StartAfter, opts.MaxKeys, opts.headers)
+				fetchOwner, opts.WithMetadata, delimiter, opts.StartAfter, opts.MaxKeys, opts.headers)
 			if err != nil {
 				yield(ObjectInfo{Err: err})
 				return
