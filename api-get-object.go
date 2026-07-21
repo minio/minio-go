@@ -150,8 +150,8 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 					}
 				} else {
 					if req.disableRange {
-						// First request is a Seek or ReadAt call.
-						// Only need to run a StatObject until an actual Read or ReadAt request comes through.
+						// First request is a Seek call.
+						// Only need to run a StatObject until an actual Read request comes through.
 
 						// Remove range header if already set, for stat Operations to get original file size.
 						delete(opts.headers, "Range")
@@ -281,7 +281,7 @@ type getRequest struct {
 	isReadOp          bool  // Determines if this request is a Read or Read/At request.
 	isFirstReq        bool  // Determines if this request is the first time an object is being accessed.
 	settingObjectInfo bool  // Determines if this request is to set the objectInfo of an object.
-	disableRange      bool  // Disable range header when do Seek or ReadAt reqeust
+	disableRange      bool  // Disable range header when doing a Seek request
 }
 
 // get response message container to reply back for the request.
@@ -513,8 +513,7 @@ func (o *Object) ReadAt(b []byte, offset int64) (n int, err error) {
 	readAtReq := getRequest{
 		isReadOp:        true,
 		isReadAt:        true,
-		DidOffsetChange: true, // Offset always changes.
-		disableRange:    true,
+		DidOffsetChange: true,       // Offset always changes.
 		beenRead:        o.beenRead, // Set if this is the first request to try and read.
 		Offset:          offset,     // Set the offset.
 		Buffer:          b,
