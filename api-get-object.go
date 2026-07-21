@@ -149,11 +149,13 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 						didRead:    true,
 					}
 				} else {
-					// First request is a Stat or Seek call.
-					// Only need to run a StatObject until an actual Read or ReadAt request comes through.
+					if req.disableRange {
+						// First request is a Seek or ReadAt call.
+						// Only need to run a StatObject until an actual Read or ReadAt request comes through.
 
-					// Remove range header if already set, for stat Operations to get original file size.
-					delete(opts.headers, "Range")
+						// Remove range header if already set, for stat Operations to get original file size.
+						delete(opts.headers, "Range")
+					}
 					objectInfo, err = c.StatObject(gctx, bucketName, objectName, StatObjectOptions(opts))
 					if err != nil {
 						resCh <- getResponse{
@@ -170,7 +172,9 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 				}
 			} else if req.settingObjectInfo { // Request is just to get objectInfo.
 				// Remove range header if already set, for stat Operations to get original file size.
-				delete(opts.headers, "Range")
+				if req.disableRange {
+					delete(opts.headers, "Range")
+				}
 				// Check whether this is snowball
 				// if yes do not use If-Match feature
 				// it doesn't work.
@@ -277,6 +281,7 @@ type getRequest struct {
 	isReadOp          bool  // Determines if this request is a Read or Read/At request.
 	isFirstReq        bool  // Determines if this request is the first time an object is being accessed.
 	settingObjectInfo bool  // Determines if this request is to set the objectInfo of an object.
+	disableRange      bool  // Disable range header when do Seek or ReadAt reqeust
 }
 
 // get response message container to reply back for the request.
@@ -508,7 +513,8 @@ func (o *Object) ReadAt(b []byte, offset int64) (n int, err error) {
 	readAtReq := getRequest{
 		isReadOp:        true,
 		isReadAt:        true,
-		DidOffsetChange: true,       // Offset always changes.
+		DidOffsetChange: true, // Offset always changes.
+		disableRange:    true,
 		beenRead:        o.beenRead, // Set if this is the first request to try and read.
 		Offset:          offset,     // Set the offset.
 		Buffer:          b,
@@ -579,9 +585,10 @@ func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 	if !o.isStarted || !o.objectInfoSet {
 		// Create the new Seek request.
 		seekReq := getRequest{
-			isReadOp:   false,
-			Offset:     offset,
-			isFirstReq: true,
+			isReadOp:     false,
+			Offset:       offset,
+			isFirstReq:   true,
+			disableRange: true,
 		}
 		// Send and receive from the seek request.
 		_, err := o.doGetRequest(seekReq)
