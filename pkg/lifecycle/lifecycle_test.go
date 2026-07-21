@@ -636,6 +636,11 @@ func TestLifecycleMarshalXML(t *testing.T) {
 // to cannot be suppressed by an omitempty tag or an isNull-style check.
 func fillNonZero(t *testing.T, v reflect.Value) {
 	t.Helper()
+	// Unexported fields cannot be set and are invisible to xml.Marshal, so
+	// they need no exercising.
+	if !v.CanSet() {
+		return
+	}
 	switch v.Kind() {
 	case reflect.String:
 		v.SetString("x")
