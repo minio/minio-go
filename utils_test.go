@@ -629,8 +629,10 @@ func TestAmzRestoreToStruct(t *testing.T) {
 			} else if !expTime.IsZero() {
 				t.Errorf("did not expect expiry time, got %v", expTime)
 			}
-        })
-    }
+		})
+	}
+}
+
 func TestToObjectInfoHeaders(t *testing.T) {
 	header := http.Header{
 		"Etag":            []string{`"d41d8cd98f00b204e9800998ecf8427e"`},
