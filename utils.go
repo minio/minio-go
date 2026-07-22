@@ -436,6 +436,7 @@ func ToObjectInfo(bucketName, objectName string, h http.Header) (ObjectInfo, err
 		// following function filters out a list of standard set of keys
 		// which are not part of object metadata.
 		Metadata:     metadata,
+		Headers:      h,
 		UserMetadata: userMetadata,
 		UserTags:     userTags.ToMap(),
 		UserTagCount: tagCount,
