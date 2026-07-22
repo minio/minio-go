@@ -27,7 +27,7 @@ import (
 // notified about the exact number of bytes read from the primary
 // source on each Read operation. It deliberately implements neither
 // io.Seeker nor io.Closer: retry logic treats a seekable body as
-// rewindable, and the transport layer closes bodies that implement
+// rewindable, and executeMethod closes request bodies that implement
 // io.Closer — a caller-supplied reader must be shielded from both.
 type hookReader struct {
 	source io.Reader
@@ -41,18 +41,13 @@ type hookReader struct {
 // retrying over a drained reader.
 type hookReadSeeker struct {
 	hookReader
+	seeker io.Seeker
 }
 
 // Seek implements io.Seeker. Seeks source first, and if necessary
 // seeks hook if Seek method is appropriately found.
 func (hr *hookReadSeeker) Seek(offset int64, whence int) (n int64, err error) {
-	sourceSeeker, ok := hr.source.(io.Seeker)
-	if !ok {
-		// Unreachable by construction: newHook only builds a
-		// hookReadSeeker around a seekable source.
-		return 0, fmt.Errorf("source reader %T is not seekable", hr.source)
-	}
-	n, err = sourceSeeker.Seek(offset, whence)
+	n, err = hr.seeker.Seek(offset, whence)
 	if err != nil {
 		return 0, err
 	}
@@ -99,8 +94,8 @@ func (hr *hookReader) Read(b []byte) (n int, err error) {
 // when the source does.
 func newHook(source, hook io.Reader) io.Reader {
 	hr := hookReader{source: source, hook: hook}
-	if _, ok := source.(io.Seeker); ok {
-		return &hookReadSeeker{hookReader: hr}
+	if seeker, ok := source.(io.Seeker); ok {
+		return &hookReadSeeker{hookReader: hr, seeker: seeker}
 	}
 	return &hr
 }

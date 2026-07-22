@@ -147,20 +147,16 @@ func (s *stubSeeker) Read([]byte) (int, error) { return 0, io.EOF }
 
 func (s *stubSeeker) Seek(int64, int) (int64, error) { return s.off, s.err }
 
-// TestHookReadSeekerSeekErrors pins the error paths of Seek: a
-// directly-constructed wrapper over a non-seekable source errors
-// instead of panicking, a failing source seek propagates, and a hook
-// offset diverging from the source is reported.
+// TestHookReadSeekerSeekErrors pins the error paths of Seek: a failing
+// source seek propagates, and a hook offset diverging from the source
+// is reported.
 func TestHookReadSeekerSeekErrors(t *testing.T) {
-	t.Run("non-seekable source errors", func(t *testing.T) {
-		hr := &hookReadSeeker{hookReader{source: bytes.NewBuffer(nil)}}
-		if _, err := hr.Seek(0, io.SeekStart); err == nil {
-			t.Fatal("Seek over a non-seekable source must error, not panic")
-		}
-	})
 	t.Run("source seek failure propagates", func(t *testing.T) {
 		wantErr := errors.New("seek failed")
-		hr := &hookReadSeeker{hookReader{source: &stubSeeker{err: wantErr}}}
+		hr, ok := newHook(&stubSeeker{err: wantErr}, nil).(io.Seeker)
+		if !ok {
+			t.Fatal("newHook over a seekable source must return an io.Seeker")
+		}
 		n, err := hr.Seek(0, io.SeekStart)
 		if !errors.Is(err, wantErr) || n != 0 {
 			t.Fatalf("Seek = (%d, %v), want (0, %v)", n, err, wantErr)
@@ -168,7 +164,10 @@ func TestHookReadSeekerSeekErrors(t *testing.T) {
 	})
 	t.Run("hook offset mismatch is reported", func(t *testing.T) {
 		source := bytes.NewReader([]byte("0123456789"))
-		hr := &hookReadSeeker{hookReader{source: source, hook: &stubSeeker{off: 5}}}
+		hr, ok := newHook(source, &stubSeeker{off: 5}).(io.Seeker)
+		if !ok {
+			t.Fatal("newHook over a seekable source must return an io.Seeker")
+		}
 		_, err := hr.Seek(2, io.SeekStart)
 		if err == nil || !strings.Contains(err.Error(), "hook seeker sought to offset 5, expected source offset 2") {
 			t.Fatalf("want offset-mismatch error, got %v", err)
