@@ -66,7 +66,9 @@ func TestListObjectVersionsHonorsStartAfter(t *testing.T) {
 
 // TestListObjectsUserMetadataDecoded verifies that listing with WithMetadata
 // keeps UserMetadata exactly as returned by the server while
-// UserMetadataDecoded carries the decoded form StatObject would return.
+// UserMetadataDecoded carries the prefix-stripped keys StatObject would
+// return, with values passed through verbatim — an RFC 2047-looking value
+// must NOT be MIME-decoded, since list responses carry the stored values.
 // Regression test for https://github.com/minio/minio-go/issues/2054.
 func TestListObjectsUserMetadataDecoded(t *testing.T) {
 	const userMetadataXML = `<UserMetadata>` +
@@ -84,7 +86,7 @@ func TestListObjectsUserMetadataDecoded(t *testing.T) {
 	}
 	wantDecoded := StringMap{
 		"Hello":   "World",
-		"Encoded": "rené",
+		"Encoded": "=?UTF-8?q?ren=C3=A9?=",
 	}
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -99,8 +99,8 @@ type Version struct {
 	// content-type. Only returned by MinIO servers.
 	UserMetadata StringMap `json:"userMetadata,omitempty"`
 
-	// UserMetadataDecoded is the decoded form of UserMetadata, matching what
-	// StatObject and GetObject return in ObjectInfo.UserMetadata. See
+	// UserMetadataDecoded is UserMetadata in the keyed form StatObject and
+	// GetObject return in ObjectInfo.UserMetadata. See
 	// ObjectInfo.UserMetadataDecoded.
 	UserMetadataDecoded StringMap `json:"userMetadataDecoded,omitempty" xml:"-"`
 

@@ -254,22 +254,17 @@ func extractObjMetadata(header http.Header) http.Header {
 }
 
 // decodeUserMetadata converts raw object metadata, as returned inside the
-// <UserMetadata> element of MinIO list responses, into the decoded form that
+// <UserMetadata> element of MinIO list responses, into the keyed form that
 // StatObject and GetObject return in ObjectInfo.UserMetadata: only
-// "X-Amz-Meta-*" entries are kept, with the prefix stripped and RFC 2047
-// encoded values decoded. Returns nil if raw contains no user metadata.
+// "X-Amz-Meta-*" entries are kept, with the prefix stripped. Values are
+// passed through verbatim — list responses carry the stored values, so the
+// SDK applies no decoding. Returns nil if raw contains no user metadata.
 func decodeUserMetadata(raw StringMap) StringMap {
 	var decoded StringMap
 	for k, v := range raw {
 		k = textproto.CanonicalMIMEHeaderKey(k)
 		if !strings.HasPrefix(k, amzMetaPrefix) {
 			continue
-		}
-		if strings.HasPrefix(v, "=?") {
-			decoder := mime.WordDecoder{}
-			if d, err := decoder.DecodeHeader(v); err == nil {
-				v = d
-			}
 		}
 		if decoded == nil {
 			decoded = make(StringMap, len(raw))
