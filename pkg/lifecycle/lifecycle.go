@@ -506,25 +506,20 @@ func (r Rule) MarshalJSON() ([]byte, error) {
 	return json.Marshal(newr)
 }
 
-// ruleWrapper mirrors Rule field-for-field, with RuleFilter as a pointer so
-// Rule.MarshalXML controls whether the Filter element is emitted; a field
-// added to Rule but not here — or added here but not assigned in the
-// Rule.MarshalXML literal — would be silently dropped for rules without a
-// Filter. TestRuleWrapperFieldParity guards the mirror and
-// TestRuleWrapperCopyCompleteness guards the copy.
+// ruleAlias drops Rule's methods so EncodeElement falls back to the default
+// struct-tag encoding.
+type ruleAlias Rule
+
+// ruleWrapper embeds ruleAlias, so it needs no updating when Rule gains a
+// field. Its RuleFilter is shallower than the embedded one, and encoding/xml's
+// depth-based field shadowing suppresses the deeper field, so <Filter> is
+// emitted only through this pointer: nil omits the element, a set pointer
+// emits it (empty) as the last child of <Rule>.
+// TestRuleWrapperCopyCompleteness guards both the shadowing and the
+// completeness of the embedded encoding.
 type ruleWrapper struct {
-	XMLName                        xml.Name                       `xml:"Rule,omitempty"`
-	AbortIncompleteMultipartUpload AbortIncompleteMultipartUpload `xml:"AbortIncompleteMultipartUpload,omitempty"`
-	Expiration                     Expiration                     `xml:"Expiration,omitempty"`
-	DelMarkerExpiration            DelMarkerExpiration            `xml:"DelMarkerExpiration,omitempty"`
-	AllVersionsExpiration          AllVersionsExpiration          `xml:"AllVersionsExpiration,omitempty"`
-	ID                             string                         `xml:"ID"`
-	RuleFilter                     *Filter                        `xml:"Filter,omitempty"`
-	NoncurrentVersionExpiration    NoncurrentVersionExpiration    `xml:"NoncurrentVersionExpiration,omitempty"`
-	NoncurrentVersionTransition    NoncurrentVersionTransition    `xml:"NoncurrentVersionTransition,omitempty"`
-	Prefix                         string                         `xml:"Prefix,omitempty"`
-	Status                         string                         `xml:"Status"`
-	Transition                     Transition                     `xml:"Transition,omitempty"`
+	ruleAlias
+	RuleFilter *Filter `xml:"Filter,omitempty"`
 }
 
 // MarshalXML customizes XML encoding of Rule: a rule with neither Filter nor
@@ -532,30 +527,15 @@ type ruleWrapper struct {
 // specification requires when no Prefix element is present; a rule with only
 // a top-level Prefix omits the Filter element entirely.
 func (r Rule) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
-	if r.RuleFilter.IsNull() {
-		w := ruleWrapper{
-			AbortIncompleteMultipartUpload: r.AbortIncompleteMultipartUpload,
-			Expiration:                     r.Expiration,
-			DelMarkerExpiration:            r.DelMarkerExpiration,
-			AllVersionsExpiration:          r.AllVersionsExpiration,
-			ID:                             r.ID,
-			NoncurrentVersionExpiration:    r.NoncurrentVersionExpiration,
-			NoncurrentVersionTransition:    r.NoncurrentVersionTransition,
-			Prefix:                         r.Prefix,
-			Status:                         r.Status,
-			Transition:                     r.Transition,
-		}
-		if r.Prefix == "" {
-			w.RuleFilter = &r.RuleFilter
-		}
-
-		return e.EncodeElement(w, start)
+	if !r.RuleFilter.IsNull() {
+		return e.EncodeElement(ruleAlias(r), start)
 	}
 
-	// ruleAlias drops Rule's methods so EncodeElement falls back to the
-	// default struct-tag encoding.
-	type ruleAlias Rule
-	return e.EncodeElement(ruleAlias(r), start)
+	w := ruleWrapper{ruleAlias: ruleAlias(r)}
+	if r.Prefix == "" {
+		w.RuleFilter = &w.ruleAlias.RuleFilter
+	}
+	return e.EncodeElement(w, start)
 }
 
 // Rule represents a single rule in lifecycle configuration

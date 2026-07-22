@@ -540,7 +540,7 @@ func TestLifecycleMarshalXML(t *testing.T) {
 					},
 				},
 			},
-			expectedXMLOut: "<LifecycleConfiguration><Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload><ID>expire-incomplete-uploads-2</ID><Filter><Prefix></Prefix></Filter><Status>Enabled</Status></Rule></LifecycleConfiguration>",
+			expectedXMLOut: "<LifecycleConfiguration><Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload><ID>expire-incomplete-uploads-2</ID><Status>Enabled</Status><Filter><Prefix></Prefix></Filter></Rule></LifecycleConfiguration>",
 		},
 		{
 			testDescription: "Ensure a non-empty Filter marshals through the default path unchanged",
@@ -575,7 +575,7 @@ func TestLifecycleMarshalXML(t *testing.T) {
 					},
 				},
 			},
-			expectedXMLOut: "<LifecycleConfiguration><Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload><Expiration><Days>30</Days></Expiration><DelMarkerExpiration><Days>7</Days></DelMarkerExpiration><AllVersionsExpiration><Days>10</Days></AllVersionsExpiration><ID>expire-full</ID><Filter><Prefix></Prefix></Filter><NoncurrentVersionExpiration><NoncurrentDays>5</NoncurrentDays></NoncurrentVersionExpiration><NoncurrentVersionTransition><StorageClass>GLACIER</StorageClass><NoncurrentDays>3</NoncurrentDays></NoncurrentVersionTransition><Status>Enabled</Status><Transition><StorageClass>GLACIER</StorageClass><Days>60</Days></Transition></Rule></LifecycleConfiguration>",
+			expectedXMLOut: "<LifecycleConfiguration><Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload><Expiration><Days>30</Days></Expiration><DelMarkerExpiration><Days>7</Days></DelMarkerExpiration><AllVersionsExpiration><Days>10</Days></AllVersionsExpiration><ID>expire-full</ID><NoncurrentVersionExpiration><NoncurrentDays>5</NoncurrentDays></NoncurrentVersionExpiration><NoncurrentVersionTransition><StorageClass>GLACIER</StorageClass><NoncurrentDays>3</NoncurrentDays></NoncurrentVersionTransition><Status>Enabled</Status><Transition><StorageClass>GLACIER</StorageClass><Days>60</Days></Transition><Filter><Prefix></Prefix></Filter></Rule></LifecycleConfiguration>",
 		},
 		{
 			testDescription: "Ensure a size-only Filter marshals its size condition",
@@ -689,9 +689,11 @@ func fillNonZero(t *testing.T, v reflect.Value) {
 // TestRuleWrapperCopyCompleteness fills every Rule field except XMLName and
 // RuleFilter (kept null so Rule.MarshalXML takes the wrapper path) with a
 // non-zero value, then requires the wrapper-path output to match the default
-// struct-tag encoding. A field assignment forgotten in the ruleWrapper
-// literal inside Rule.MarshalXML would be zero-valued and omitted there,
-// which TestRuleWrapperFieldParity alone cannot catch.
+// struct-tag encoding: with Prefix set the null Filter must vanish, and with
+// Prefix empty exactly one empty Filter must be emitted, as the last child of
+// Rule. This pins encoding/xml's depth-based shadowing of the embedded
+// RuleFilter — if the wrapper's shallower pointer ever stopped shadowing it,
+// the Filter would be dropped, doubled, or misplaced here.
 func TestRuleWrapperCopyCompleteness(t *testing.T) {
 	var r Rule
 	rv := reflect.ValueOf(&r).Elem()
@@ -703,57 +705,46 @@ func TestRuleWrapperCopyCompleteness(t *testing.T) {
 		fillNonZero(t, rv.Field(i))
 	}
 
-	got, err := xml.Marshal(Configuration{Rules: []Rule{r}})
-	if err != nil {
-		t.Fatalf("could not marshal Rule through the wrapper path: %v", err)
-	}
-
-	type ruleAlias Rule
 	type aliasConfiguration struct {
 		XMLName xml.Name    `xml:"LifecycleConfiguration"`
 		Rules   []ruleAlias `xml:"Rule"`
 	}
-	want, err := xml.Marshal(aliasConfiguration{Rules: []ruleAlias{ruleAlias(r)}})
-	if err != nil {
-		t.Fatalf("could not marshal Rule through the default encoding: %v", err)
-	}
-
-	// The default encoding emits the null Filter as
-	// <Filter><Prefix></Prefix></Filter>; the wrapper path omits the element
-	// entirely because Prefix is non-empty. Everything else must match.
 	const nullFilter = "<Filter><Prefix></Prefix></Filter>"
-	if !strings.Contains(string(want), nullFilter) {
-		t.Fatalf("default encoding no longer emits a null Filter as %s; update this test\ngot: %s", nullFilter, string(want))
-	}
-	wantStr := strings.Replace(string(want), nullFilter, "", 1)
-	if string(got) != wantStr {
-		t.Fatalf("wrapper path dropped or altered a field\nexpected: %s\ngot:      %s", wantStr, string(got))
-	}
-}
 
-// TestRuleWrapperFieldParity asserts ruleWrapper stays a field-for-field
-// mirror of Rule, so Rule.MarshalXML cannot silently drop a field added to
-// Rule but not to the wrapper.
-func TestRuleWrapperFieldParity(t *testing.T) {
-	rt := reflect.TypeOf(Rule{})
-	wt := reflect.TypeOf(ruleWrapper{})
-	if rt.NumField() != wt.NumField() {
-		t.Fatalf("Rule has %d fields, ruleWrapper has %d", rt.NumField(), wt.NumField())
+	marshalBoth := func(r Rule) (got, want string) {
+		gotBytes, err := xml.Marshal(Configuration{Rules: []Rule{r}})
+		if err != nil {
+			t.Fatalf("could not marshal Rule through the wrapper path: %v", err)
+		}
+		wantBytes, err := xml.Marshal(aliasConfiguration{Rules: []ruleAlias{ruleAlias(r)}})
+		if err != nil {
+			t.Fatalf("could not marshal Rule through the default encoding: %v", err)
+		}
+		if !strings.Contains(string(wantBytes), nullFilter) {
+			t.Fatalf("default encoding no longer emits a null Filter as %s; update this test\ngot: %s", nullFilter, string(wantBytes))
+		}
+		return string(gotBytes), string(wantBytes)
 	}
-	for i := range rt.NumField() {
-		rf, wf := rt.Field(i), wt.Field(i)
-		if rf.Name != wf.Name {
-			t.Fatalf("field %d: Rule has %q, ruleWrapper has %q", i, rf.Name, wf.Name)
+
+	t.Run("prefix set omits Filter", func(t *testing.T) {
+		got, want := marshalBoth(r)
+		want = strings.Replace(want, nullFilter, "", 1)
+		if got != want {
+			t.Fatalf("wrapper path dropped or altered a field\nexpected: %s\ngot:      %s", want, got)
 		}
-		if rXML, wXML := rf.Tag.Get("xml"), wf.Tag.Get("xml"); rXML != wXML {
-			t.Fatalf("field %s: Rule xml tag %q, ruleWrapper xml tag %q", rf.Name, rXML, wXML)
+	})
+
+	t.Run("prefix empty emits Filter last", func(t *testing.T) {
+		r := r
+		r.Prefix = ""
+		got, want := marshalBoth(r)
+		// The default encoding emits the null Filter in its declared field
+		// position and Prefix as an empty element is omitted; the wrapper
+		// moves the Filter to the last child of Rule.
+		want = strings.Replace(want, nullFilter, "", 1)
+		want = strings.Replace(want, "</Rule>", nullFilter+"</Rule>", 1)
+		if got != want {
+			t.Fatalf("wrapper path dropped, doubled, or misplaced a field\nexpected: %s\ngot:      %s", want, got)
 		}
-		wantType := rf.Type
-		if rf.Name == "RuleFilter" {
-			wantType = reflect.PointerTo(rf.Type)
-		}
-		if wf.Type != wantType {
-			t.Fatalf("field %s: Rule type %v, ruleWrapper type %v (want %v)", rf.Name, rf.Type, wf.Type, wantType)
-		}
-	}
+	})
 }
