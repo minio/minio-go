@@ -184,6 +184,16 @@ type ObjectInfo struct {
 	// eg: x-amz-meta-*, content-encoding etc.
 	Metadata http.Header `json:"metadata" xml:"-"`
 
+	// Headers is the unfiltered set of response headers from the
+	// HEAD or GET request that produced this ObjectInfo, e.g.
+	// Content-Range for ranged requests. RFC 2047-encoded
+	// x-amz-meta-*/x-minio-meta-* values appear MIME-decoded, matching
+	// Metadata. Set only when the object info is parsed from an HTTP
+	// object response (StatObject, GetObject); nil elsewhere, e.g. in
+	// ListObjects results, on error paths, or for RDMA-backed GetObject.
+	// It aliases the response headers and must be treated as read-only.
+	Headers http.Header `json:"rawHeaders,omitempty" xml:"-"`
+
 	// UserMetadata contains x-amz-meta-* user metadata.
 	// StatObject and GetObject return it with the "X-Amz-Meta-" prefix
 	// stripped; list results with WithMetadata keep the exact values stored
