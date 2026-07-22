@@ -99,10 +99,10 @@ type Version struct {
 	// content-type. Only returned by MinIO servers.
 	UserMetadata StringMap `json:"userMetadata,omitempty"`
 
-	// UserMetadataDecoded is UserMetadata in the keyed form StatObject and
+	// UserMetadataStripped is UserMetadata in the keyed form StatObject and
 	// GetObject return in ObjectInfo.UserMetadata. See
-	// ObjectInfo.UserMetadataDecoded.
-	UserMetadataDecoded StringMap `json:"userMetadataDecoded,omitempty" xml:"-"`
+	// ObjectInfo.UserMetadataStripped.
+	UserMetadataStripped StringMap `json:"userMetadataStripped,omitempty" xml:"-"`
 
 	// x-amz-tagging values in their k/v values.
 	// Only returned by MinIO servers.

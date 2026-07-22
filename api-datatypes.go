@@ -191,12 +191,12 @@ type ObjectInfo struct {
 	// Only returned by MinIO servers.
 	UserMetadata StringMap `json:"userMetadata,omitempty"`
 
-	// UserMetadataDecoded is the user metadata from list results in the
+	// UserMetadataStripped is the user metadata from list results in the
 	// keyed form StatObject and GetObject return in UserMetadata:
 	// x-amz-meta-* entries with the "X-Amz-Meta-" prefix stripped. Values
 	// are the stored values, passed through verbatim.
 	// Only populated by MinIO servers when listing with WithMetadata.
-	UserMetadataDecoded StringMap `json:"userMetadataDecoded,omitempty" xml:"-"`
+	UserMetadataStripped StringMap `json:"userMetadataStripped,omitempty" xml:"-"`
 
 	// x-amz-tagging values in their k/v values.
 	// Only returned by MinIO servers.

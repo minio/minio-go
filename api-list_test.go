@@ -64,13 +64,13 @@ func TestListObjectVersionsHonorsStartAfter(t *testing.T) {
 	}
 }
 
-// TestListObjectsUserMetadataDecoded verifies that listing with WithMetadata
+// TestListObjectsUserMetadataStripped verifies that listing with WithMetadata
 // keeps UserMetadata exactly as returned by the server while
-// UserMetadataDecoded carries the prefix-stripped keys StatObject would
+// UserMetadataStripped carries the prefix-stripped keys StatObject would
 // return, with values passed through verbatim — an RFC 2047-looking value
 // must NOT be MIME-decoded, since list responses carry the stored values.
 // Regression test for https://github.com/minio/minio-go/issues/2054.
-func TestListObjectsUserMetadataDecoded(t *testing.T) {
+func TestListObjectsUserMetadataStripped(t *testing.T) {
 	const userMetadataXML = `<UserMetadata>` +
 		`<X-Amz-Meta-Hello>World</X-Amz-Meta-Hello>` +
 		`<X-Amz-Meta-Encoded>=?UTF-8?q?ren=C3=A9?=</X-Amz-Meta-Encoded>` +
@@ -84,7 +84,7 @@ func TestListObjectsUserMetadataDecoded(t *testing.T) {
 		"content-type":       "application/octet-stream",
 		"expires":            "Mon, 01 Jan 0001 00:00:00 GMT",
 	}
-	wantDecoded := StringMap{
+	wantStripped := StringMap{
 		"Hello":   "World",
 		"Encoded": "=?UTF-8?q?ren=C3=A9?=",
 	}
@@ -134,8 +134,8 @@ func TestListObjectsUserMetadataDecoded(t *testing.T) {
 			if !maps.Equal(obj.UserMetadata, wantRaw) {
 				t.Errorf("withVersions=%v: UserMetadata changed, got %v, want %v", withVersions, obj.UserMetadata, wantRaw)
 			}
-			if !maps.Equal(obj.UserMetadataDecoded, wantDecoded) {
-				t.Errorf("withVersions=%v: UserMetadataDecoded got %v, want %v", withVersions, obj.UserMetadataDecoded, wantDecoded)
+			if !maps.Equal(obj.UserMetadataStripped, wantStripped) {
+				t.Errorf("withVersions=%v: UserMetadataStripped got %v, want %v", withVersions, obj.UserMetadataStripped, wantStripped)
 			}
 		}
 		if seen != 1 {
