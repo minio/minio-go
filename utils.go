@@ -63,7 +63,7 @@ func amzExpirationToExpiryDateRuleID(expiration string) (time.Time, string) {
 	return time.Time{}, ""
 }
 
-var restoreRegex = regexp.MustCompile(`ongoing-request="(.*?)"(, expiry-date="(.*?)")?`)
+var restoreRegex = regexp.MustCompile(`ongoing-request="(.*?)"(, ?expiry-date="(.*?)")?`)
 
 func amzRestoreToStruct(restore string) (ongoing bool, expTime time.Time, err error) {
 	matches := restoreRegex.FindStringSubmatch(restore)
