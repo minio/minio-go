@@ -200,6 +200,9 @@ func isValidExpiry(expires time.Duration) error {
 	return nil
 }
 
+// amzMetaPrefix is the canonical prefix of S3 user metadata headers.
+const amzMetaPrefix = "X-Amz-Meta-"
+
 // Extract only necessary metadata header key/values by
 // filtering them out with a list of custom header keys.
 func extractObjMetadata(header http.Header) http.Header {
@@ -216,7 +219,7 @@ func extractObjMetadata(header http.Header) http.Header {
 		"X-Amz-Website-Redirect-Location",
 		"X-Amz-Server-Side-Encryption",
 		"X-Amz-Tagging-Count",
-		"X-Amz-Meta-",
+		amzMetaPrefix,
 		"X-Minio-Meta-",
 		// Add new headers to be preserved.
 		// if you add new headers here, please extend
@@ -231,7 +234,7 @@ func extractObjMetadata(header http.Header) http.Header {
 				continue
 			}
 			found = true
-			if prefix == "X-Amz-Meta-" || prefix == "X-Minio-Meta-" {
+			if prefix == amzMetaPrefix || prefix == "X-Minio-Meta-" {
 				for index, val := range v {
 					if strings.HasPrefix(val, "=?") {
 						decoder := mime.WordDecoder{}
@@ -259,7 +262,7 @@ func decodeUserMetadata(raw StringMap) StringMap {
 	var decoded StringMap
 	for k, v := range raw {
 		k = textproto.CanonicalMIMEHeaderKey(k)
-		if !strings.HasPrefix(k, "X-Amz-Meta-") {
+		if !strings.HasPrefix(k, amzMetaPrefix) {
 			continue
 		}
 		if strings.HasPrefix(v, "=?") {
@@ -271,7 +274,7 @@ func decodeUserMetadata(raw StringMap) StringMap {
 		if decoded == nil {
 			decoded = make(StringMap, len(raw))
 		}
-		decoded[strings.TrimPrefix(k, "X-Amz-Meta-")] = v
+		decoded[strings.TrimPrefix(k, amzMetaPrefix)] = v
 	}
 	return decoded
 }
@@ -378,8 +381,8 @@ func ToObjectInfo(bucketName, objectName string, h http.Header) (ObjectInfo, err
 	metadata := extractObjMetadata(h)
 	userMetadata := make(map[string]string)
 	for k, v := range metadata {
-		if strings.HasPrefix(k, "X-Amz-Meta-") {
-			userMetadata[strings.TrimPrefix(k, "X-Amz-Meta-")] = v[0]
+		if strings.HasPrefix(k, amzMetaPrefix) {
+			userMetadata[strings.TrimPrefix(k, amzMetaPrefix)] = v[0]
 		}
 	}
 
