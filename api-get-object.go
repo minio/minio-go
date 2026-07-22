@@ -150,6 +150,7 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 					}
 
 					objectSize := int64(0)
+					// case for ReadFull with range request
 					if !req.isReadAt && req.Offset == 0 {
 						objectSize = objectInfo.Size
 					}
@@ -213,6 +214,7 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 					objectInfo: objectInfo,
 				}
 			} else {
+				objectSize := int64(0)
 				// Offset changes fetch the new object at an Offset.
 				// Because the httpReader may not be set by the first
 				// request if it was a stat or seek it must be checked
@@ -247,6 +249,10 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 						}
 						return
 					}
+					// case for ReadFull with range request
+					if !req.isReadAt && req.Offset == 0 {
+						objectSize = objectInfo.Size
+					}
 					totalRead = 0
 				}
 
@@ -273,9 +279,9 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 					// it to io.EOF - return unexpected EOF.
 					err = io.ErrUnexpectedEOF
 				}
-
 				// Reply back how much was read.
 				resCh <- getResponse{
+					ObjectSize: objectSize,
 					Size:       size,
 					Error:      err,
 					didRead:    true,
