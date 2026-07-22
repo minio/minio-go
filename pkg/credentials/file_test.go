@@ -378,6 +378,24 @@ func TestFileAWSSSO(t *testing.T) {
 		}
 	})
 
+	t.Run("incomplete-sso-partial-static-key", func(t *testing.T) {
+		// SSO markers plus only an access key must error rather than
+		// return half a key pair.
+		_, err := newSSOCreds("p10-partial-key", t.TempDir()).GetWithContext(defaultCredContext)
+		if err == nil || !strings.Contains(err.Error(), "no sso_role_name") {
+			t.Fatalf("Expected incomplete-SSO error for partial static key, got %v", err)
+		}
+	})
+
+	t.Run("incomplete-sso-partial-static-secret", func(t *testing.T) {
+		// SSO markers plus only a secret must error rather than return
+		// half a key pair.
+		_, err := newSSOCreds("p11-partial-secret", t.TempDir()).GetWithContext(defaultCredContext)
+		if err == nil || !strings.Contains(err.Error(), "no sso_role_name") {
+			t.Fatalf("Expected incomplete-SSO error for partial static secret, got %v", err)
+		}
+	})
+
 	t.Run("region-indeterminable", func(t *testing.T) {
 		cacheDir := t.TempDir()
 		// Legacy profile without sso_region and a cached token without
@@ -387,6 +405,286 @@ func TestFileAWSSSO(t *testing.T) {
 		_, err := newSSOCreds("p4-noregion", cacheDir).GetWithContext(defaultCredContext)
 		if err == nil || !strings.Contains(err.Error(), "unable to determine AWS SSO region") {
 			t.Fatalf("Expected region-indeterminable error, got %v", err)
+		}
+	})
+}
+
+func TestSSOPortalBaseURL(t *testing.T) {
+	cases := []struct {
+		region string
+		want   string
+	}{
+		{"us-east-1", "https://portal.sso.us-east-1.amazonaws.com"},
+		{"us-gov-west-1", "https://portal.sso.us-gov-west-1.amazonaws.com"},
+		{"cn-north-1", "https://portal.sso.cn-north-1.amazonaws.com.cn"},
+		{"us-iso-east-1", "https://portal.sso.us-iso-east-1.c2s.ic.gov"},
+		{"us-isob-east-1", "https://portal.sso.us-isob-east-1.sc2s.sgov.gov"},
+		{"eu-isoe-west-1", "https://portal.sso.eu-isoe-west-1.cloud.adc-e.uk"},
+		{"us-isof-south-1", "https://portal.sso.us-isof-south-1.csp.hci.ic.gov"},
+		{"eusc-de-east-1", "https://portal.sso.eusc-de-east-1.amazonaws.eu"},
+	}
+	for _, tc := range cases {
+		if got := ssoPortalBaseURL(tc.region); got != tc.want {
+			t.Errorf("ssoPortalBaseURL(%s) = %s, want %s", tc.region, got, tc.want)
+		}
+	}
+}
+
+// TestFileAWSDefaultDiscovery covers the empty-Filename path: the AWS config
+// file and the shared credentials file are merged with credentials-file
+// precedence, so profiles written by `aws configure sso` are found without
+// pointing Filename anywhere.
+func TestFileAWSDefaultDiscovery(t *testing.T) {
+	os.Clearenv()
+
+	testNow := func() time.Time { return time.Date(2020, time.January, 10, 1, 1, 1, 1, time.UTC) }
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprintln(w, `{"roleCredentials": {"accessKeyId": "ssoAccessKey", "secretAccessKey": "ssoSecret", "sessionToken": "ssoToken", "expiration": 1702317362000}}`)
+	}))
+	defer ts.Close()
+
+	writeAWSFile := func(t *testing.T, home, name, body string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Join(home, ".aws"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(home, ".aws", name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	setHome := func(t *testing.T, home string) {
+		t.Helper()
+		t.Setenv("HOME", home)        // os.UserHomeDir on Unix
+		t.Setenv("USERPROFILE", home) // os.UserHomeDir on Windows
+	}
+
+	t.Run("sso-profile-from-config-file", func(t *testing.T) {
+		home := t.TempDir()
+		writeAWSFile(t, home, "config", `[profile dev]
+sso_session = main
+sso_account_id = 123456789
+sso_role_name = myrole
+
+[sso-session main]
+sso_region = us-test-2
+sso_start_url = https://testacct.awsapps.com/start
+`)
+		setHome(t, home)
+		cacheDir := t.TempDir()
+		writeSSOCachedToken(t, cacheDir, "main",
+			`{"startUrl": "https://testacct.awsapps.com/start", "region": "us-test-2", "accessToken": "my-access-token", "expiresAt": "2020-01-11T00:00:00Z"}`)
+		creds := New(&FileAWSCredentials{
+			Expiry:               Expiry{CurrentTime: testNow},
+			Profile:              "dev",
+			overrideSSOCacheDir:  cacheDir,
+			overrideSSOPortalURL: ts.URL,
+		})
+		credValues, err := creds.GetWithContext(defaultCredContext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if credValues.AccessKeyID != "ssoAccessKey" {
+			t.Errorf("Expected 'ssoAccessKey', got %s", credValues.AccessKeyID)
+		}
+	})
+
+	t.Run("aws-profile-env", func(t *testing.T) {
+		// The issue #1930 shape: an empty FileAWSCredentials plus only
+		// AWS_PROFILE in the environment.
+		home := t.TempDir()
+		writeAWSFile(t, home, "config", `[profile fromenv]
+aws_access_key_id = envKey
+aws_secret_access_key = envSecret
+`)
+		setHome(t, home)
+		t.Setenv("AWS_PROFILE", "fromenv")
+		credValues, err := New(&FileAWSCredentials{}).GetWithContext(defaultCredContext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if credValues.AccessKeyID != "envKey" {
+			t.Errorf("Expected 'envKey', got %s", credValues.AccessKeyID)
+		}
+	})
+
+	t.Run("credentials-file-precedence", func(t *testing.T) {
+		home := t.TempDir()
+		writeAWSFile(t, home, "config", `[profile dev]
+aws_access_key_id = configKey
+aws_secret_access_key = configSecret
+`)
+		writeAWSFile(t, home, "credentials", `[dev]
+aws_access_key_id = credsKey
+aws_secret_access_key = credsSecret
+`)
+		setHome(t, home)
+		credValues, err := New(&FileAWSCredentials{Profile: "dev"}).GetWithContext(defaultCredContext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if credValues.AccessKeyID != "credsKey" {
+			t.Errorf("Expected 'credsKey', got %s", credValues.AccessKeyID)
+		}
+		if credValues.SecretAccessKey != "credsSecret" {
+			t.Errorf("Expected 'credsSecret', got %s", credValues.SecretAccessKey)
+		}
+	})
+
+	t.Run("profile-merged-across-files", func(t *testing.T) {
+		// SSO markers in the config file and a complete static pair in the
+		// credentials file merge into one profile; the static pair wins,
+		// matching aws-sdk-go-v2's static-first resolution.
+		home := t.TempDir()
+		writeAWSFile(t, home, "config", `[profile dev]
+sso_start_url = https://merged.awsapps.com/start
+`)
+		writeAWSFile(t, home, "credentials", `[dev]
+aws_access_key_id = credsKey
+aws_secret_access_key = credsSecret
+`)
+		setHome(t, home)
+		credValues, err := New(&FileAWSCredentials{Profile: "dev"}).GetWithContext(defaultCredContext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if credValues.AccessKeyID != "credsKey" {
+			t.Errorf("Expected 'credsKey', got %s", credValues.AccessKeyID)
+		}
+	})
+
+	t.Run("aws-config-file-env", func(t *testing.T) {
+		home := t.TempDir()
+		setHome(t, home)
+		configPath := filepath.Join(t.TempDir(), "custom-config")
+		if err := os.WriteFile(configPath, []byte(`[profile envprof]
+aws_access_key_id = customKey
+aws_secret_access_key = customSecret
+`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("AWS_CONFIG_FILE", configPath)
+		credValues, err := New(&FileAWSCredentials{Profile: "envprof"}).GetWithContext(defaultCredContext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if credValues.AccessKeyID != "customKey" {
+			t.Errorf("Expected 'customKey', got %s", credValues.AccessKeyID)
+		}
+	})
+
+	t.Run("partial-pair-in-credentials-does-not-clobber", func(t *testing.T) {
+		// A credentials-file section carrying only half the static key
+		// pair must not overwrite half of the config file's complete
+		// pair; the SDK merges the pair atomically.
+		home := t.TempDir()
+		writeAWSFile(t, home, "config", `[profile dev]
+aws_access_key_id = configKey
+aws_secret_access_key = configSecret
+`)
+		writeAWSFile(t, home, "credentials", `[dev]
+aws_access_key_id = loneKey
+`)
+		setHome(t, home)
+		credValues, err := New(&FileAWSCredentials{Profile: "dev"}).GetWithContext(defaultCredContext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if credValues.AccessKeyID != "configKey" {
+			t.Errorf("Expected 'configKey', got %s", credValues.AccessKeyID)
+		}
+		if credValues.SecretAccessKey != "configSecret" {
+			t.Errorf("Expected 'configSecret', got %s", credValues.SecretAccessKey)
+		}
+	})
+
+	t.Run("isolated-session-token-in-credentials-ignored", func(t *testing.T) {
+		// An aws_session_token in a credentials-file section lacking the
+		// complete key pair is dropped, matching the SDK.
+		home := t.TempDir()
+		writeAWSFile(t, home, "config", `[profile dev]
+aws_access_key_id = configKey
+aws_secret_access_key = configSecret
+`)
+		writeAWSFile(t, home, "credentials", `[dev]
+aws_session_token = loneToken
+`)
+		setHome(t, home)
+		credValues, err := New(&FileAWSCredentials{Profile: "dev"}).GetWithContext(defaultCredContext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if credValues.SessionToken != "" {
+			t.Errorf("Expected empty session token, got %s", credValues.SessionToken)
+		}
+	})
+
+	t.Run("bare-profile-in-config-ignored", func(t *testing.T) {
+		// A non-default config-file section without the "profile " prefix
+		// is an invalid profile name; the AWS SDK ignores it.
+		home := t.TempDir()
+		writeAWSFile(t, home, "config", `[dev]
+aws_access_key_id = bareKey
+aws_secret_access_key = bareSecret
+`)
+		setHome(t, home)
+		_, err := New(&FileAWSCredentials{Profile: "dev"}).GetWithContext(defaultCredContext)
+		if err == nil {
+			t.Fatal("Expected error: unprefixed config-file profile must be ignored")
+		}
+	})
+
+	t.Run("prefixed-profile-in-credentials-ignored", func(t *testing.T) {
+		// A "profile "-prefixed section is invalid in the credentials
+		// file; the AWS SDK ignores it.
+		home := t.TempDir()
+		writeAWSFile(t, home, "credentials", `[profile dev]
+aws_access_key_id = prefixedKey
+aws_secret_access_key = prefixedSecret
+`)
+		setHome(t, home)
+		_, err := New(&FileAWSCredentials{Profile: "dev"}).GetWithContext(defaultCredContext)
+		if err == nil {
+			t.Fatal("Expected error: prefixed credentials-file profile must be ignored")
+		}
+	})
+
+	t.Run("profile-default-replaces-bare-default", func(t *testing.T) {
+		// When one config file defines both [default] and
+		// [profile default], the prefixed form wins wholesale: no key from
+		// the bare section may leak into the resolved profile.
+		home := t.TempDir()
+		writeAWSFile(t, home, "config", `[default]
+aws_access_key_id = bareKey
+aws_secret_access_key = bareSecret
+aws_session_token = staleToken
+
+[profile default]
+aws_access_key_id = prefixedKey
+aws_secret_access_key = prefixedSecret
+`)
+		setHome(t, home)
+		credValues, err := New(&FileAWSCredentials{}).GetWithContext(defaultCredContext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if credValues.AccessKeyID != "prefixedKey" {
+			t.Errorf("Expected 'prefixedKey', got %s", credValues.AccessKeyID)
+		}
+		if credValues.SessionToken != "" {
+			t.Errorf("Expected empty session token, got %s", credValues.SessionToken)
+		}
+	})
+
+	t.Run("neither-file", func(t *testing.T) {
+		home := t.TempDir()
+		setHome(t, home)
+		_, err := New(&FileAWSCredentials{Profile: "nope"}).GetWithContext(defaultCredContext)
+		if err == nil {
+			t.Fatal("Expected error when neither AWS file exists")
+		}
+		if !os.IsNotExist(err) {
+			t.Errorf("Expected os.IsNotExist to hold for missing default files, got %v", err)
 		}
 	})
 }

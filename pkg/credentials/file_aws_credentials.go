@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"os/exec"
@@ -79,19 +80,20 @@ type ssoCachedToken struct {
 // directory, and keeps track if those credentials are expired.
 //
 // Profile ini file example: $HOME/.aws/credentials
-//
-// Profiles configured for AWS SSO (sso_session / sso_* keys) live in the AWS
-// config file ($HOME/.aws/config), whose non-default sections are named
-// "profile <name>"; point Filename at that file to use them.
 type FileAWSCredentials struct {
 	Expiry
 
 	// Path to the shared credentials file.
 	//
-	// If empty will look for "AWS_SHARED_CREDENTIALS_FILE" env variable. If the
-	// env value is empty will default to current user's home directory.
-	// Linux/OSX: "$HOME/.aws/credentials"
-	// Windows:   "%USERPROFILE%\.aws\credentials"
+	// If empty, the default AWS files are merged instead: the AWS config
+	// file ("AWS_CONFIG_FILE" env variable or "$HOME/.aws/config") loaded
+	// first, then the shared credentials file
+	// ("AWS_SHARED_CREDENTIALS_FILE" env variable or
+	// "$HOME/.aws/credentials") overriding matching keys, the same
+	// resolution the AWS SDK uses. Profiles written by `aws configure sso`
+	// live in the config file and are discovered this way.
+	//
+	// If set, only this one file is read.
 	Filename string
 
 	// AWS Profile to extract credentials from the shared credentials file. If empty
@@ -121,26 +123,26 @@ func NewFileAWSCredentials(filename, profile string) *Credentials {
 }
 
 func (p *FileAWSCredentials) retrieve(cc *CredContext) (Value, error) {
-	if p.Filename == "" {
-		p.Filename = os.Getenv("AWS_SHARED_CREDENTIALS_FILE")
-		if p.Filename == "" {
-			homeDir, err := os.UserHomeDir()
-			if err != nil {
-				return Value{}, err
-			}
-			p.Filename = filepath.Join(homeDir, ".aws", "credentials")
-		}
-	}
-	if p.Profile == "" {
-		p.Profile = os.Getenv("AWS_PROFILE")
-		if p.Profile == "" {
-			p.Profile = "default"
+	profile := p.Profile
+	if profile == "" {
+		profile = os.Getenv("AWS_PROFILE")
+		if profile == "" {
+			profile = "default"
 		}
 	}
 
 	p.retrieved = false
 
-	iniConfig, iniProfile, err := loadProfile(p.Filename, p.Profile)
+	var (
+		iniConfig  *ini.File
+		iniProfile *ini.Section
+		err        error
+	)
+	if p.Filename != "" {
+		iniConfig, iniProfile, err = loadProfile(p.Filename, profile)
+	} else {
+		iniConfig, iniProfile, err = loadDefaultProfiles(profile)
+	}
 	if err != nil {
 		return Value{}, err
 	}
@@ -205,11 +207,11 @@ func (p *FileAWSCredentials) retrieve(cc *CredContext) (Value, error) {
 	}
 
 	// A profile carrying SSO configuration without sso_role_name cannot
-	// engage the SSO flow above; if it also has no static keys, returning
-	// the empty values below would silently yield anonymous credentials.
-	if id.String() == "" && secret.String() == "" &&
+	// engage the SSO flow above; without a complete static key pair the
+	// values below would be anonymous or half a key pair.
+	if !hasStaticKeys &&
 		(iniProfile.Key("sso_session").String() != "" || iniProfile.Key("sso_start_url").String() != "") {
-		return Value{}, errors.New("profile has SSO configuration but no sso_role_name, and no static credentials")
+		return Value{}, errors.New("profile has SSO configuration but no sso_role_name, and no complete static credentials")
 	}
 
 	p.retrieved = true
@@ -289,7 +291,7 @@ func (p *FileAWSCredentials) getSSOCredentials(cc *CredContext, iniConfig *ini.F
 
 	portalURL := p.overrideSSOPortalURL
 	if portalURL == "" {
-		portalURL = fmt.Sprintf("https://portal.sso.%s.amazonaws.com", ssoRegion)
+		portalURL = ssoPortalBaseURL(ssoRegion)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), ssoPortalRequestTimeout)
 	defer cancel()
@@ -330,6 +332,29 @@ func (p *FileAWSCredentials) getSSOCredentials(cc *CredContext, iniConfig *ini.F
 	return ssoCreds, nil
 }
 
+// ssoPortalBaseURL returns the AWS SSO portal endpoint for region. The DNS
+// suffix follows the region's AWS partition per aws-sdk-go-v2 endpoint
+// metadata; regions of unlisted partitions, including aws-us-gov, use the
+// standard amazonaws.com suffix.
+func ssoPortalBaseURL(region string) string {
+	suffix := "amazonaws.com"
+	switch {
+	case strings.HasPrefix(region, "cn-"):
+		suffix = "amazonaws.com.cn"
+	case strings.HasPrefix(region, "us-iso-"):
+		suffix = "c2s.ic.gov"
+	case strings.HasPrefix(region, "us-isob-"):
+		suffix = "sc2s.sgov.gov"
+	case strings.HasPrefix(region, "eu-isoe-"):
+		suffix = "cloud.adc-e.uk"
+	case strings.HasPrefix(region, "us-isof-"):
+		suffix = "csp.hci.ic.gov"
+	case strings.HasPrefix(region, "eusc-"):
+		suffix = "amazonaws.eu"
+	}
+	return fmt.Sprintf("https://portal.sso.%s.%s", region, suffix)
+}
+
 // Retrieve reads and extracts the shared credentials from the current
 // users home directory.
 //
@@ -364,4 +389,129 @@ func loadProfile(filename, profile string) (*ini.File, *ini.Section, error) {
 		}
 	}
 	return config, iniProfile, nil
+}
+
+// loadDefaultProfiles loads profile from the default AWS files, mirroring
+// the AWS SDK's shared-config resolution: the config file (AWS_CONFIG_FILE
+// or ~/.aws/config) is loaded first and the shared credentials file
+// (AWS_SHARED_CREDENTIALS_FILE or ~/.aws/credentials) overrides matching
+// keys. A missing file is tolerated as long as the other one loads.
+func loadDefaultProfiles(profile string) (*ini.File, *ini.Section, error) {
+	configFilename := os.Getenv("AWS_CONFIG_FILE")
+	credsFilename := os.Getenv("AWS_SHARED_CREDENTIALS_FILE")
+	var loadErrs []error
+	if configFilename == "" || credsFilename == "" {
+		// A home-dir failure only rules out the files defaulted under it;
+		// a file named via env var must still load.
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			loadErrs = append(loadErrs, err)
+		} else {
+			if configFilename == "" {
+				configFilename = filepath.Join(homeDir, ".aws", "config")
+			}
+			if credsFilename == "" {
+				credsFilename = filepath.Join(homeDir, ".aws", "credentials")
+			}
+		}
+	}
+
+	merged := ini.Empty()
+	loaded := false
+	if configFilename != "" {
+		if config, err := ini.Load(configFilename); err != nil {
+			loadErrs = append(loadErrs, err)
+		} else {
+			loaded = true
+			mergeAWSConfigSections(merged, config)
+		}
+	}
+	if credsFilename != "" {
+		if config, err := ini.Load(credsFilename); err != nil {
+			loadErrs = append(loadErrs, err)
+		} else {
+			loaded = true
+			mergeAWSCredentialsSections(merged, config)
+		}
+	}
+	if !loaded {
+		// Prefer a non-not-exist error (a parse failure is the informative
+		// one); otherwise return the last error bare so the legacy
+		// os.IsNotExist probe on a missing-files result keeps working.
+		err := loadErrs[len(loadErrs)-1]
+		for _, e := range loadErrs {
+			if !errors.Is(e, fs.ErrNotExist) {
+				err = e
+				break
+			}
+		}
+		return nil, nil, err
+	}
+	iniProfile, err := merged.GetSection(profile)
+	if err != nil {
+		return nil, nil, err
+	}
+	return merged, iniProfile, nil
+}
+
+// mergeAWSConfigSections copies the AWS config file's sections into dst
+// under the SDK's config-file rules: bare sections other than "default" and
+// "sso-session <name>" are invalid profile names and ignored, and a
+// "profile <name>" section is renamed to <name>, replacing a bare
+// same-named section wholesale rather than merging with it.
+func mergeAWSConfigSections(dst, src *ini.File) {
+	for _, section := range src.Sections() {
+		name := section.Name()
+		if name == ini.DefaultSection || strings.HasPrefix(name, "profile ") ||
+			(!strings.EqualFold(name, "default") && !strings.HasPrefix(name, "sso-session ")) {
+			continue
+		}
+		copySectionKeys(dst.Section(name), section)
+	}
+	for _, section := range src.Sections() {
+		name := section.Name()
+		if !strings.HasPrefix(name, "profile ") {
+			continue
+		}
+		dstSection := dst.Section(strings.TrimPrefix(name, "profile "))
+		for _, key := range dstSection.Keys() {
+			dstSection.DeleteKey(key.Name())
+		}
+		copySectionKeys(dstSection, section)
+	}
+}
+
+// mergeAWSCredentialsSections copies the shared credentials file's sections
+// into dst, overriding matching keys; "profile "-prefixed section names are
+// invalid in the credentials file and ignored. When a section overrides an
+// existing profile, the static credentials move atomically the way the
+// SDK's mergeSections does: aws_access_key_id, aws_secret_access_key and
+// aws_session_token are only taken from a section carrying the complete
+// key pair, so a partial pair cannot clobber half of an existing one.
+func mergeAWSCredentialsSections(dst, src *ini.File) {
+	for _, section := range src.Sections() {
+		name := section.Name()
+		if name == ini.DefaultSection || strings.HasPrefix(name, "profile ") {
+			continue
+		}
+		_, err := dst.GetSection(name)
+		newSection := err != nil
+		hasPair := section.HasKey("aws_access_key_id") && section.HasKey("aws_secret_access_key")
+		dstSection := dst.Section(name)
+		for _, key := range section.Keys() {
+			switch key.Name() {
+			case "aws_access_key_id", "aws_secret_access_key", "aws_session_token":
+				if !newSection && !hasPair {
+					continue
+				}
+			}
+			dstSection.Key(key.Name()).SetValue(key.Value())
+		}
+	}
+}
+
+func copySectionKeys(dst, src *ini.Section) {
+	for _, key := range src.Keys() {
+		dst.Key(key.Name()).SetValue(key.Value())
+	}
 }
