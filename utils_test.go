@@ -175,6 +175,7 @@ func TestIsValidEndpointURL(t *testing.T) {
 		{"https://storage.googleapis.com/", nil, true},
 		{"https://z3.amazonaws.com", nil, true},
 		{"https://mybalancer.us-east-1.elb.amazonaws.com", nil, true},
+		{"https://test-access-point-000000000000.op-00000000000000000.s3-outposts.eu-central-1.amazonaws.com", nil, true},
 		{"192.168.1.1", errInvalidArgument("Endpoint url cannot have fully qualified paths."), false},
 		{"https://amazon.googleapis.com/", errInvalidArgument("Google Cloud Storage endpoint should be 'storage.googleapis.com'."), false},
 		{"https://storage.googleapis.com/bucket/", errInvalidArgument("Endpoint url cannot have fully qualified paths."), false},
@@ -182,6 +183,7 @@ func TestIsValidEndpointURL(t *testing.T) {
 		{"https://.s3server.example.com/", errInvalidArgument("Endpoint: .s3server.example.com does not follow ip address or domain name standards."), false},
 		{"https://s3server.example_/", errInvalidArgument("Endpoint: s3server.example_ does not follow ip address or domain name standards."), false},
 		{"https://_s3server.example.com/", errInvalidArgument("Endpoint: _s3server.example.com does not follow ip address or domain name standards."), false},
+		{"https://s3-outposts.eu-central-1.amazonaws.com", errInvalidArgument("S3 Outposts endpoint must match <prefix>.s3-outposts.<region>.amazonaws.com"), false},
 	}
 
 	for i, testCase := range testCases {

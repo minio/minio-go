@@ -82,7 +82,7 @@ func TestChunkSignature(t *testing.T) {
 	secretAccessKeyID := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 	expectedSignature := "ad80c730a21e5b8d04586a2213dd63b9a0e99e0e2307b0ade35a65485a288648"
 	chunkCheckSum := sum256hex(chunkData)
-	actualSignature := buildChunkSignature(chunkCheckSum, reqTime, location, previousSignature, secretAccessKeyID)
+	actualSignature := buildChunkSignature(chunkCheckSum, reqTime, location, previousSignature, secretAccessKeyID, ServiceTypeS3)
 	if actualSignature != expectedSignature {
 		t.Errorf("Expected %s but received %s", expectedSignature, actualSignature)
 	}
@@ -97,7 +97,7 @@ func TestTrailerChunkSignature(t *testing.T) {
 	secretAccessKeyID := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 	expectedSignature := "41e14ac611e27a8bb3d66c3bad6856f209297767d5dd4fc87d8fa9e422e03faf"
 	chunkCheckSum := sum256hex(chunkData)
-	actualSignature := buildTrailerChunkSignature(chunkCheckSum, reqTime, location, previousSignature, secretAccessKeyID)
+	actualSignature := buildTrailerChunkSignature(chunkCheckSum, reqTime, location, previousSignature, secretAccessKeyID, ServiceTypeS3)
 	if actualSignature != expectedSignature {
 		t.Errorf("Expected %s but received %s", expectedSignature, actualSignature)
 	}

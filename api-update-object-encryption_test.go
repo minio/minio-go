@@ -92,6 +92,7 @@ func TestUpdateObjectEncryptionSuccess(t *testing.T) {
 		capturedPath = r.URL.Path
 		capturedQuery = r.URL.Query()
 		capturedBody, _ = io.ReadAll(r.Body)
+		w.Header().Set("x-amz-version-id", "returned-version-id")
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()
@@ -116,9 +117,14 @@ func TestUpdateObjectEncryptionSuccess(t *testing.T) {
 		VersionID:        "test-version-id",
 	}
 
-	err = client.UpdateObjectEncryption(context.Background(), "mybucket", "myobject", opts)
+	result, err := client.UpdateObjectEncryption(context.Background(), "mybucket", "myobject", opts)
 	if err != nil {
 		t.Fatalf("UpdateObjectEncryption failed: %v", err)
+	}
+
+	// Verify returned version ID from response header.
+	if result.VersionID != "returned-version-id" {
+		t.Fatalf("Expected VersionID 'returned-version-id', got %q", result.VersionID)
 	}
 
 	// Verify request method.
@@ -178,7 +184,7 @@ func TestUpdateObjectEncryptionNoVersionID(t *testing.T) {
 		t.Fatalf("Failed to create client: %v", err)
 	}
 
-	err = client.UpdateObjectEncryption(context.Background(), "mybucket", "myobject", UpdateObjectEncryptionOptions{
+	_, err = client.UpdateObjectEncryption(context.Background(), "mybucket", "myobject", UpdateObjectEncryptionOptions{
 		KMSKeyArn: "my-key",
 	})
 	if err != nil {
@@ -212,7 +218,7 @@ func TestUpdateObjectEncryptionServerError(t *testing.T) {
 		t.Fatalf("Failed to create client: %v", err)
 	}
 
-	err = client.UpdateObjectEncryption(context.Background(), "mybucket", "myobject", UpdateObjectEncryptionOptions{
+	_, err = client.UpdateObjectEncryption(context.Background(), "mybucket", "myobject", UpdateObjectEncryptionOptions{
 		KMSKeyArn: "my-key",
 	})
 	if err == nil {
@@ -234,7 +240,7 @@ func TestUpdateObjectEncryptionInvalidBucket(t *testing.T) {
 		t.Fatalf("Failed to create client: %v", err)
 	}
 
-	err = client.UpdateObjectEncryption(context.Background(), "", "myobject", UpdateObjectEncryptionOptions{
+	_, err = client.UpdateObjectEncryption(context.Background(), "", "myobject", UpdateObjectEncryptionOptions{
 		KMSKeyArn: "my-key",
 	})
 	if err == nil {
@@ -251,7 +257,7 @@ func TestUpdateObjectEncryptionInvalidObject(t *testing.T) {
 		t.Fatalf("Failed to create client: %v", err)
 	}
 
-	err = client.UpdateObjectEncryption(context.Background(), "mybucket", "", UpdateObjectEncryptionOptions{
+	_, err = client.UpdateObjectEncryption(context.Background(), "mybucket", "", UpdateObjectEncryptionOptions{
 		KMSKeyArn: "my-key",
 	})
 	if err == nil {
@@ -268,7 +274,7 @@ func TestUpdateObjectEncryptionEmptyKMSKeyArn(t *testing.T) {
 		t.Fatalf("Failed to create client: %v", err)
 	}
 
-	err = client.UpdateObjectEncryption(context.Background(), "mybucket", "myobject", UpdateObjectEncryptionOptions{
+	_, err = client.UpdateObjectEncryption(context.Background(), "mybucket", "myobject", UpdateObjectEncryptionOptions{
 		KMSKeyArn: "",
 	})
 	if err == nil {
