@@ -148,8 +148,14 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 						httpReader.Close()
 						httpReader = nil
 					}
+
+					objectSize := int64(0)
+					if !req.isReadAt && req.Offset == 0 {
+						objectSize = objectInfo.Size
+					}
 					// Send back the first response.
 					resCh <- getResponse{
+						ObjectSize: objectSize,
 						objectInfo: objectInfo,
 						Size:       size,
 						Error:      err,
@@ -467,10 +473,10 @@ func (o *Object) Stat() (ObjectInfo, error) {
 	// payload is delivered out-of-band so the object is created closed, or a
 	// previously completed request) report it, even for a closed object.
 	if o.objectInfoSet {
-		if o.currOffset >= o.totalSize {
+		if o.currOffset > o.totalSize {
 			return ObjectInfo{}, io.EOF
 		}
-		if o.currOffset < o.totalSize {
+		if o.currOffset <= o.totalSize {
 			o.objectInfo.Size = o.totalSize - o.currOffset
 		}
 		return o.objectInfo, nil
@@ -492,10 +498,10 @@ func (o *Object) Stat() (ObjectInfo, error) {
 			return ObjectInfo{}, err
 		}
 	}
-	if o.currOffset >= o.totalSize {
+	if o.currOffset > o.totalSize {
 		return ObjectInfo{}, io.EOF
 	}
-	if o.currOffset < o.totalSize {
+	if o.currOffset <= o.totalSize {
 		o.objectInfo.Size = o.totalSize - o.currOffset
 	}
 	return o.objectInfo, nil
