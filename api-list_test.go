@@ -67,8 +67,8 @@ func TestListObjectVersionsHonorsStartAfter(t *testing.T) {
 // TestListObjectsUserMetadataStripped verifies that listing with WithMetadata
 // keeps UserMetadata exactly as returned by the server while
 // UserMetadataStripped carries the prefix-stripped keys StatObject would
-// return, with values passed through verbatim — an RFC 2047-looking value
-// must NOT be MIME-decoded, since list responses carry the stored values.
+// return, with values passed through verbatim: an RFC 2047-looking value
+// must NOT be MIME-decoded.
 // Regression test for https://github.com/minio/minio-go/issues/2054.
 func TestListObjectsUserMetadataStripped(t *testing.T) {
 	const userMetadataXML = `<UserMetadata>` +

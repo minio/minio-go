@@ -277,12 +277,12 @@ func extractObjMetadata(header http.Header) http.Header {
 	return filteredHeader
 }
 
-// stripUserMetadata converts raw object metadata, as returned inside the
-// <UserMetadata> element of MinIO list responses, into the keyed form that
-// StatObject and GetObject return in ObjectInfo.UserMetadata: only
-// "X-Amz-Meta-*" entries are kept, with the prefix stripped. Values are
-// passed through verbatim — list responses carry the stored values, so the
-// SDK applies no decoding. Returns nil if raw contains no user metadata.
+// stripUserMetadata converts the raw <UserMetadata> element of MinIO list
+// responses into the keyed form StatObject and GetObject return in
+// ObjectInfo.UserMetadata: only "X-Amz-Meta-*" entries are kept, with the
+// prefix stripped and values passed through verbatim (list responses carry
+// the stored values, so no decoding applies). Returns nil if raw contains
+// no user metadata.
 func stripUserMetadata(raw StringMap) StringMap {
 	var stripped StringMap
 	for k, v := range raw {

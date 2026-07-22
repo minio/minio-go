@@ -203,8 +203,8 @@ type ObjectInfo struct {
 
 	// UserMetadataStripped is the user metadata from list results in the
 	// keyed form StatObject and GetObject return in UserMetadata:
-	// x-amz-meta-* entries with the "X-Amz-Meta-" prefix stripped. Values
-	// are the stored values, passed through verbatim.
+	// x-amz-meta-* entries with the "X-Amz-Meta-" prefix stripped and
+	// values passed through verbatim.
 	// Only populated by MinIO servers when listing with WithMetadata.
 	UserMetadataStripped StringMap `json:"userMetadataStripped,omitempty" xml:"-"`
 
