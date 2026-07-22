@@ -240,8 +240,11 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 					} else if req.Offset > 0 { // Range is set with respect to the offset.
 						opts.SetRange(req.Offset, 0)
 					} else {
-						// Remove range header if already set
-						delete(opts.headers, "Range")
+						if originalRangeHeader == "" {
+							delete(opts.headers, "Range")
+						} else {
+							opts.headers["Range"] = originalRangeHeader
+						}
 					}
 					httpReader, objectInfo, _, err = c.getObject(gctx, bucketName, objectName, opts)
 					if err != nil {
