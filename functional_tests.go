@@ -5569,8 +5569,8 @@ func testGetObjectReadAtFunctional() {
 		return
 	}
 
-	if st.Size != int64(bufSize) {
-		logError(testName, function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(bufSize))+", got "+string(st.Size), err)
+	if st.Size != (int64(bufSize) - int64(len(bufRead))) {
+		logError(testName, function, args, startTime, "", "Number of bytes in stat does not match, expected "+strconv.Itoa(bufSize)+", got "+strconv.Itoa(bufSize-len(bufRead)), err)
 		return
 	}
 
@@ -5746,7 +5746,7 @@ func testGetObjectReadAtWhenEOFWasReached() {
 		return
 	}
 
-	if st.Size != int64(bufSize) {
+	if st.Size != (int64(bufSize) - int64(len(buf1))) {
 		logError(testName, function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(bufSize))+", got "+string(st.Size), err)
 		return
 	}
@@ -6879,7 +6879,7 @@ func testSSECEncryptedGetObjectReadAtFunctional() {
 	}
 
 	if st.Size != int64(bufSize) {
-		logError(testName, function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(bufSize))+", got "+string(st.Size), err)
+		logError(testName, function, args, startTime, "", "Number of bytes in stat does not match, expected "+strconv.Itoa(bufSize)+", got "+strconv.Itoa(int(st.Size)), err)
 		return
 	}
 
