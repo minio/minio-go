@@ -547,7 +547,7 @@ func TestLifecycleMarshalXML(t *testing.T) {
 			input: Configuration{
 				Rules: []Rule{
 					{
-						ID:     "expire-incomplete-uploads-4",
+						ID:     "expire-incomplete-uploads-3",
 						Status: "Enabled",
 						RuleFilter: Filter{
 							Prefix: "logs/",
@@ -556,7 +556,7 @@ func TestLifecycleMarshalXML(t *testing.T) {
 					},
 				},
 			},
-			expectedXMLOut: "<LifecycleConfiguration><Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload><ID>expire-incomplete-uploads-4</ID><Filter><Prefix>logs/</Prefix></Filter><Status>Enabled</Status></Rule></LifecycleConfiguration>",
+			expectedXMLOut: "<LifecycleConfiguration><Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload><ID>expire-incomplete-uploads-3</ID><Filter><Prefix>logs/</Prefix></Filter><Status>Enabled</Status></Rule></LifecycleConfiguration>",
 		},
 		{
 			testDescription: "Ensure every Rule field survives the empty-Filter marshal path",
@@ -590,6 +590,20 @@ func TestLifecycleMarshalXML(t *testing.T) {
 				},
 			},
 			expectedXMLOut: "<LifecycleConfiguration><Rule><Expiration><Days>30</Days></Expiration><ID>expire-large</ID><Filter><ObjectSizeGreaterThan>1048576</ObjectSizeGreaterThan></Filter><Status>Enabled</Status></Rule></LifecycleConfiguration>",
+		},
+		{
+			testDescription: "Ensure an ObjectSizeLessThan-only Filter marshals its size condition",
+			input: Configuration{
+				Rules: []Rule{
+					{
+						ID:         "expire-small",
+						Status:     "Enabled",
+						RuleFilter: Filter{ObjectSizeLessThan: 1024},
+						Expiration: Expiration{Days: 30},
+					},
+				},
+			},
+			expectedXMLOut: "<LifecycleConfiguration><Rule><Expiration><Days>30</Days></Expiration><ID>expire-small</ID><Filter><ObjectSizeLessThan>1024</ObjectSizeLessThan></Filter><Status>Enabled</Status></Rule></LifecycleConfiguration>",
 		},
 		{
 			testDescription: "Ensure a tag-only Filter marshals its tag condition",
