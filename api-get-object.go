@@ -215,6 +215,7 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 				}
 			} else {
 				objectSize := int64(0)
+				renewReader := false
 				// Offset changes fetch the new object at an Offset.
 				// Because the httpReader may not be set by the first
 				// request if it was a stat or seek it must be checked
@@ -253,6 +254,7 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 					if !req.isReadAt && req.Offset == 0 {
 						objectSize = objectInfo.Size
 					}
+					renewReader = true
 					totalRead = 0
 				}
 
@@ -278,6 +280,10 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 					// body returns an error, instead of converting
 					// it to io.EOF - return unexpected EOF.
 					err = io.ErrUnexpectedEOF
+				}
+				if renewReader && req.isReadAt {
+					httpReader.Close()
+					httpReader = nil
 				}
 				// Reply back how much was read.
 				resCh <- getResponse{
@@ -400,7 +406,7 @@ func (o *Object) setOffset(bytesRead int64) error {
 	// Update the currentOffset.
 	o.currOffset += bytesRead
 
-	if o.objectInfo.Size > -1 && o.currOffset >= o.objectInfo.Size {
+	if o.totalSize > -1 && o.currOffset >= o.totalSize {
 		return io.EOF
 	}
 	return nil
@@ -545,7 +551,7 @@ func (o *Object) ReadAt(b []byte, offset int64) (n int, err error) {
 	if o.objectInfoSet {
 		// If offset is negative than we return io.EOF.
 		// If offset is greater than or equal to object size we return io.EOF.
-		if (o.objectInfo.Size > -1 && offset >= o.objectInfo.Size) || offset < 0 {
+		if (o.totalSize > -1 && offset >= o.totalSize) || offset < 0 {
 			return 0, io.EOF
 		}
 	}
@@ -645,18 +651,18 @@ func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 	default:
 		return 0, errInvalidArgument(fmt.Sprintf("Invalid whence %d", whence))
 	case 0:
-		if o.objectInfo.Size > -1 && offset > o.objectInfo.Size {
+		if o.totalSize > -1 && offset > o.totalSize {
 			return 0, io.EOF
 		}
 		newOffset = offset
 	case 1:
-		if o.objectInfo.Size > -1 && o.currOffset+offset > o.objectInfo.Size {
+		if o.totalSize > -1 && o.currOffset+offset > o.totalSize {
 			return 0, io.EOF
 		}
 		newOffset += offset
 	case 2:
 		// If we don't know the object size return an error for io.SeekEnd
-		if o.objectInfo.Size < 0 {
+		if o.totalSize < 0 {
 			return 0, errInvalidArgument("Whence END is not supported when the object size is unknown")
 		}
 		// Seeking to positive offset is valid for whence '2', but
@@ -666,10 +672,10 @@ func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 			return 0, io.EOF
 		}
 		// Seeking to negative position not allowed for whence.
-		if o.objectInfo.Size+offset < 0 {
+		if o.totalSize+offset < 0 {
 			return 0, errInvalidArgument(fmt.Sprintf("Seeking at negative offset not allowed for %d", whence))
 		}
-		newOffset = o.objectInfo.Size + offset
+		newOffset = o.totalSize + offset
 	}
 	// Reset the saved error since we successfully seeked, let the Read
 	// and ReadAt decide.
