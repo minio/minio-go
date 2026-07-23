@@ -383,6 +383,7 @@ func TestObjectSeekAtObjectSizeAllowsSubsequentReadEOF(t *testing.T) {
 		objectInfo:    ObjectInfo{Size: 10},
 		objectInfoSet: true,
 		isStarted:     true,
+		totalSize:     10,
 	}
 
 	n, err := o.Seek(10, io.SeekStart)
@@ -429,6 +430,7 @@ func TestObjectSeekPastObjectSizeReturnsEOF(t *testing.T) {
 		objectInfo:    ObjectInfo{Size: 10},
 		objectInfoSet: true,
 		isStarted:     true,
+		totalSize:     10,
 	}
 
 	n, err := o.Seek(11, io.SeekStart)
@@ -517,6 +519,7 @@ func TestObjectSeekEndUnknownSize(t *testing.T) {
 		objectInfo:    ObjectInfo{Size: -1},
 		objectInfoSet: true,
 		isStarted:     true,
+		totalSize:     -1,
 	}
 
 	if _, err := o.Seek(0, io.SeekEnd); err == nil {
