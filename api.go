@@ -586,17 +586,18 @@ func (c *Client) dumpHTTP(req *http.Request, resp *http.Response, doErr error) e
 		// Only display response header.
 		var respTrace []byte
 
-	// For errors we make sure to dump response body as well.
-	if !successStatus.Contains(resp.StatusCode) {
-		respTrace, err = httputil.DumpResponse(resp, true)
-		if err != nil {
-			return err
-		}
+		// For errors we make sure to dump response body as well.
+		if !successStatus.Contains(resp.StatusCode) {
+			respTrace, err = httputil.DumpResponse(resp, true)
+			if err != nil {
+				return err
+			}
 
-		// Write response to trace output.
-		_, err = fmt.Fprintln(c.traceOutput, strings.TrimSuffix(string(respTrace), "\r\n"))
-		if err != nil {
-			return err
+			// Write response to trace output.
+			_, err = fmt.Fprintln(c.traceOutput, strings.TrimSuffix(string(respTrace), "\r\n"))
+			if err != nil {
+				return err
+			}
 		}
 	}
 
