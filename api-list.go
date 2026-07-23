@@ -741,8 +741,8 @@ type ListObjectsOptions struct {
 	// Use the deprecated list objects V1 API
 	UseV1 bool
 
-	// FetchOwner indicates whether return object owner information.
-	// Enabled by default if un-set.
+	// FetchOwner indicates whether to return object owner information.
+	// It defaults to true when unset.
 	FetchOwner *bool
 
 	headers http.Header
