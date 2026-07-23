@@ -5714,11 +5714,22 @@ func testGetObjectWithRange() {
 	}
 
 	var r *minio.Object
-
-	New := func(rangeRange bool) {
+	testIndex := 0
+	baseSize := 0
+	New := func() {
 		opts := minio.GetObjectOptions{}
-		if rangeRange {
+		switch testIndex {
+		case 0:
+			baseSize = bufSize
+		case 1:
 			opts.SetRange(100, 1000)
+			baseSize = 1000 - 100 + 1
+		case 2:
+			opts.SetRange(100, 0)
+			baseSize = bufSize - 100
+		case 3:
+			opts.SetRange(0, 1000)
+			baseSize = 1000 + 1
 		}
 		r, err = c.GetObject(context.Background(), bucketName, objectName, opts)
 		if err != nil {
@@ -5732,7 +5743,7 @@ func testGetObjectWithRange() {
 			logError(testName, function, args, startTime, "", "Failed to get object stat", err)
 		}
 		if int(st.Size) != size {
-			logError(testName, function, args, startTime, "", "Incorrect size returned", fmt.Errorf("Expected size %d, got %d", size, int(st.Size)))
+			logError(testName, function, args, startTime, "", "Incorrect size returned", fmt.Errorf("Test index %d Expected size %d, got %d", testIndex, size, int(st.Size)))
 		}
 	}
 	Read := func(size int) {
@@ -5771,15 +5782,11 @@ func testGetObjectWithRange() {
 			logError(testName, function, args, startTime, "", "Failed to read from object", err)
 		}
 	}
-	baseSize := bufSize
-	for index := range 2 {
-		rangeTest := index == 1
-		if rangeTest {
-			baseSize = 1000 - 100 + 1
-		}
+	for index := range 4 {
+		testIndex = index
 		// case 1: stat first and then read 100 bytes for per read
 		{
-			New(rangeTest)
+			New()
 			Size(baseSize)
 			Read(100)
 			Size(baseSize - 100)
@@ -5792,7 +5799,7 @@ func testGetObjectWithRange() {
 		}
 		// case 2: read 100 bytes for per read
 		{
-			New(rangeTest)
+			New()
 			Read(100)
 			Size(baseSize - 100)
 			Read(100)
@@ -5804,7 +5811,7 @@ func testGetObjectWithRange() {
 		}
 		// case 3: Stat -> Read -> ReadAt -> Read
 		{
-			New(rangeTest)
+			New()
 			Size(baseSize)
 			Read(100)
 			Size(baseSize - 100)
@@ -5816,7 +5823,7 @@ func testGetObjectWithRange() {
 		}
 		// case 4:  Read -> ReadAt -> Read
 		{
-			New(rangeTest)
+			New()
 			Read(100)
 			Size(baseSize - 100)
 			// should not move the offset, so next stat is not changed
@@ -5827,7 +5834,7 @@ func testGetObjectWithRange() {
 		}
 		// case 5: Stat -> Read -> ReadAt -> Read -> Seek -> Read
 		{
-			New(rangeTest)
+			New()
 			Size(baseSize)
 			Read(100)
 			Size(baseSize - 100)
@@ -5843,7 +5850,7 @@ func testGetObjectWithRange() {
 		}
 		// case 6:  Read -> ReadAt -> Read -> Seek -> Read
 		{
-			New(rangeTest)
+			New()
 			Read(100)
 			Size(baseSize - 100)
 			// should not move the offset, so next stat is not changed
@@ -5858,14 +5865,14 @@ func testGetObjectWithRange() {
 		}
 		// case 7:  Stat -> ReadAll -> ReadAt
 		{
-			New(rangeTest)
+			New()
 			Size(baseSize)
 			ReadAll()
 			ReadAt(100, 100)
 		}
 		// case 8:  ReadAll -> ReadAt
 		{
-			New(rangeTest)
+			New()
 			ReadAll()
 			ReadAt(100, 100)
 		}
