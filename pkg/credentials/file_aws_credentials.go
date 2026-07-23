@@ -154,37 +154,10 @@ func (p *FileAWSCredentials) retrieve(cc *CredContext) (Value, error) {
 	// Default to empty string if not found.
 	token := iniProfile.Key("aws_session_token")
 
-	// If credential_process is defined, obtain credentials by executing
-	// the external process
-	credentialProcess := strings.TrimSpace(iniProfile.Key("credential_process").String())
-	if credentialProcess != "" {
-		args := strings.Fields(credentialProcess)
-		if len(args) <= 1 {
-			return Value{}, errors.New("invalid credential process args")
-		}
-		cmd := exec.Command(args[0], args[1:]...)
-		out, err := cmd.Output()
-		if err != nil {
-			return Value{}, err
-		}
-		var externalProcessCredentials externalProcessCredentials
-		err = json.Unmarshal([]byte(out), &externalProcessCredentials)
-		if err != nil {
-			return Value{}, err
-		}
-		p.retrieved = true
-		p.SetExpiration(externalProcessCredentials.Expiration, DefaultExpiryWindow)
-		return Value{
-			AccessKeyID:     externalProcessCredentials.AccessKeyID,
-			SecretAccessKey: externalProcessCredentials.SecretAccessKey,
-			SessionToken:    externalProcessCredentials.SessionToken,
-			Expiration:      externalProcessCredentials.Expiration,
-			SignerType:      SignatureV4,
-		}, nil
-	}
-
-	// A complete static key pair takes precedence over SSO configuration in
-	// the same profile, matching aws-sdk-go-v2's resolution order.
+	// A complete static key pair takes precedence over SSO configuration
+	// and credential_process in the same profile, matching aws-sdk-go-v2's
+	// resolution order: static credentials, then SSO, then
+	// credential_process.
 	hasStaticKeys := id.String() != "" && secret.String() != ""
 
 	// If the profile is configured for AWS SSO, obtain credentials from the
@@ -212,6 +185,36 @@ func (p *FileAWSCredentials) retrieve(cc *CredContext) (Value, error) {
 	if !hasStaticKeys &&
 		(iniProfile.Key("sso_session").String() != "" || iniProfile.Key("sso_start_url").String() != "") {
 		return Value{}, errors.New("profile has SSO configuration but no sso_role_name, and no complete static credentials")
+	}
+
+	// If credential_process is defined, obtain credentials by executing the
+	// external process. Static credentials and SSO in the same profile both
+	// take precedence over it, matching aws-sdk-go-v2.
+	credentialProcess := strings.TrimSpace(iniProfile.Key("credential_process").String())
+	if !hasStaticKeys && credentialProcess != "" {
+		args := strings.Fields(credentialProcess)
+		if len(args) <= 1 {
+			return Value{}, errors.New("invalid credential process args")
+		}
+		cmd := exec.Command(args[0], args[1:]...)
+		out, err := cmd.Output()
+		if err != nil {
+			return Value{}, err
+		}
+		var externalProcessCredentials externalProcessCredentials
+		err = json.Unmarshal([]byte(out), &externalProcessCredentials)
+		if err != nil {
+			return Value{}, err
+		}
+		p.retrieved = true
+		p.SetExpiration(externalProcessCredentials.Expiration, DefaultExpiryWindow)
+		return Value{
+			AccessKeyID:     externalProcessCredentials.AccessKeyID,
+			SecretAccessKey: externalProcessCredentials.SecretAccessKey,
+			SessionToken:    externalProcessCredentials.SessionToken,
+			Expiration:      externalProcessCredentials.Expiration,
+			SignerType:      SignatureV4,
+		}, nil
 	}
 
 	p.retrieved = true
@@ -395,7 +398,10 @@ func loadProfile(filename, profile string) (*ini.File, *ini.Section, error) {
 // the AWS SDK's shared-config resolution: the config file (AWS_CONFIG_FILE
 // or ~/.aws/config) is loaded first and the shared credentials file
 // (AWS_SHARED_CREDENTIALS_FILE or ~/.aws/credentials) overrides matching
-// keys. A missing file is tolerated as long as the other one loads.
+// keys. A missing file is tolerated as long as the other one loads; a file
+// that exists but fails to parse aborts resolution, like aws-sdk-go-v2,
+// because silently skipping it could resolve credentials from the wrong
+// (lower-precedence) source.
 func loadDefaultProfiles(profile string) (*ini.File, *ini.Section, error) {
 	configFilename := os.Getenv("AWS_CONFIG_FILE")
 	credsFilename := os.Getenv("AWS_SHARED_CREDENTIALS_FILE")
@@ -419,25 +425,33 @@ func loadDefaultProfiles(profile string) (*ini.File, *ini.Section, error) {
 	merged := ini.Empty()
 	loaded := false
 	if configFilename != "" {
-		if config, err := ini.Load(configFilename); err != nil {
-			loadErrs = append(loadErrs, err)
-		} else {
+		config, err := ini.Load(configFilename)
+		switch {
+		case err == nil:
 			loaded = true
 			mergeAWSConfigSections(merged, config)
+		case errors.Is(err, fs.ErrNotExist):
+			loadErrs = append(loadErrs, err)
+		default:
+			return nil, nil, err
 		}
 	}
 	if credsFilename != "" {
-		if config, err := ini.Load(credsFilename); err != nil {
-			loadErrs = append(loadErrs, err)
-		} else {
+		config, err := ini.Load(credsFilename)
+		switch {
+		case err == nil:
 			loaded = true
 			mergeAWSCredentialsSections(merged, config)
+		case errors.Is(err, fs.ErrNotExist):
+			loadErrs = append(loadErrs, err)
+		default:
+			return nil, nil, err
 		}
 	}
 	if !loaded {
-		// Prefer a non-not-exist error (a parse failure is the informative
-		// one); otherwise return the last error bare so the legacy
-		// os.IsNotExist probe on a missing-files result keeps working.
+		// Prefer the home-dir error when there is one (the informative
+		// failure); otherwise return the last not-exist error bare so the
+		// legacy os.IsNotExist probe on a missing-files result keeps working.
 		err := loadErrs[len(loadErrs)-1]
 		for _, e := range loadErrs {
 			if !errors.Is(e, fs.ErrNotExist) {

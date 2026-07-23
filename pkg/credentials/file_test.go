@@ -676,6 +676,136 @@ aws_secret_access_key = prefixedSecret
 		}
 	})
 
+	t.Run("static-over-credential-process-across-files", func(t *testing.T) {
+		// credential_process in the config file must not preempt a complete
+		// static pair in the credentials file: aws-sdk-go-v2 resolves static
+		// credentials first, and before the two-file merge this shape
+		// returned the static pair. /bin/false fails loudly if executed.
+		home := t.TempDir()
+		writeAWSFile(t, home, "config", `[profile dev]
+credential_process = /bin/false unused-arg
+`)
+		writeAWSFile(t, home, "credentials", `[dev]
+aws_access_key_id = credsKey
+aws_secret_access_key = credsSecret
+`)
+		setHome(t, home)
+		credValues, err := New(&FileAWSCredentials{Profile: "dev"}).GetWithContext(defaultCredContext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if credValues.AccessKeyID != "credsKey" {
+			t.Errorf("Expected 'credsKey', got %s", credValues.AccessKeyID)
+		}
+	})
+
+	t.Run("sso-over-credential-process", func(t *testing.T) {
+		// A complete SSO profile outranks credential_process in the same
+		// profile, matching aws-sdk-go-v2's switch order.
+		home := t.TempDir()
+		writeAWSFile(t, home, "config", `[profile dev]
+credential_process = /bin/false unused-arg
+sso_session = main
+sso_account_id = 123456789
+sso_role_name = myrole
+
+[sso-session main]
+sso_region = us-test-2
+sso_start_url = https://testacct.awsapps.com/start
+`)
+		setHome(t, home)
+		cacheDir := t.TempDir()
+		writeSSOCachedToken(t, cacheDir, "main",
+			`{"startUrl": "https://testacct.awsapps.com/start", "region": "us-test-2", "accessToken": "my-access-token", "expiresAt": "2020-01-11T00:00:00Z"}`)
+		creds := New(&FileAWSCredentials{
+			Expiry:               Expiry{CurrentTime: testNow},
+			Profile:              "dev",
+			overrideSSOCacheDir:  cacheDir,
+			overrideSSOPortalURL: ts.URL,
+		})
+		credValues, err := creds.GetWithContext(defaultCredContext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if credValues.AccessKeyID != "ssoAccessKey" {
+			t.Errorf("Expected 'ssoAccessKey', got %s", credValues.AccessKeyID)
+		}
+	})
+
+	t.Run("incomplete-sso-not-rescued-by-credential-process", func(t *testing.T) {
+		// SSO precedes credential_process in aws-sdk-go-v2, so a profile
+		// carrying SSO markers without sso_role_name errors rather than
+		// falling through to the process.
+		home := t.TempDir()
+		writeAWSFile(t, home, "config", `[profile dev]
+credential_process = /bin/false unused-arg
+sso_start_url = https://testacct.awsapps.com/start
+`)
+		setHome(t, home)
+		_, err := New(&FileAWSCredentials{Profile: "dev"}).GetWithContext(defaultCredContext)
+		if err == nil {
+			t.Fatal("Expected error for incomplete SSO profile with credential_process")
+		}
+		if !strings.Contains(err.Error(), "sso_role_name") {
+			t.Errorf("Expected incomplete-SSO error, got %v", err)
+		}
+	})
+
+	t.Run("credential-process-without-static-or-sso", func(t *testing.T) {
+		// With neither a static pair nor SSO in the merged profile,
+		// credential_process still runs via default discovery.
+		if runtime.GOOS == "windows" {
+			t.Skip("\"/bin/cat\": file does not exist")
+		}
+		wd, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		home := t.TempDir()
+		writeAWSFile(t, home, "config", `[profile dev]
+credential_process = /bin/cat `+filepath.Join(wd, "credentials.json")+`
+`)
+		setHome(t, home)
+		credValues, err := New(&FileAWSCredentials{Profile: "dev"}).GetWithContext(defaultCredContext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if credValues.AccessKeyID != "accessKey" {
+			t.Errorf("Expected 'accessKey', got %s", credValues.AccessKeyID)
+		}
+	})
+
+	t.Run("malformed-credentials-file-aborts", func(t *testing.T) {
+		// A credentials file that exists but fails to parse must surface
+		// its error even when the config file loads: silently skipping the
+		// higher-precedence file could select unintended credentials.
+		home := t.TempDir()
+		writeAWSFile(t, home, "config", `[profile dev]
+aws_access_key_id = configKey
+aws_secret_access_key = configSecret
+`)
+		writeAWSFile(t, home, "credentials", "[dev\naws_access_key_id = credsKey\n")
+		setHome(t, home)
+		_, err := New(&FileAWSCredentials{Profile: "dev"}).GetWithContext(defaultCredContext)
+		if err == nil {
+			t.Fatal("Expected parse error for malformed credentials file")
+		}
+	})
+
+	t.Run("malformed-config-file-aborts", func(t *testing.T) {
+		home := t.TempDir()
+		writeAWSFile(t, home, "config", "[profile dev\ncredential_process = /bin/false x\n")
+		writeAWSFile(t, home, "credentials", `[dev]
+aws_access_key_id = credsKey
+aws_secret_access_key = credsSecret
+`)
+		setHome(t, home)
+		_, err := New(&FileAWSCredentials{Profile: "dev"}).GetWithContext(defaultCredContext)
+		if err == nil {
+			t.Fatal("Expected parse error for malformed config file")
+		}
+	})
+
 	t.Run("neither-file", func(t *testing.T) {
 		home := t.TempDir()
 		setHome(t, home)
