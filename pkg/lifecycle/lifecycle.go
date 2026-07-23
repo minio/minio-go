@@ -265,9 +265,10 @@ func (f Filter) MarshalJSON() ([]byte, error) {
 }
 
 // MarshalXML - produces the xml representation of the Filter struct
-// only one of Prefix, And and Tag should be present in the output.
+// at most one of Prefix, And, Tag, ObjectSizeGreaterThan and
+// ObjectSizeLessThan is present in the output.
 // A zero-value Filter marshals as <Filter><Prefix></Prefix></Filter>;
-// Rule.MarshalXML decides whether the element is emitted at all.
+// suppressing the element entirely is the caller's responsibility.
 func (f Filter) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	if err := e.EncodeToken(start); err != nil {
 		return err
@@ -515,17 +516,18 @@ type ruleAlias Rule
 // depth-based field shadowing suppresses the deeper field, so <Filter> is
 // emitted only through this pointer: nil omits the element, a set pointer
 // emits it (empty) as the last child of <Rule>.
-// TestRuleWrapperCopyCompleteness guards both the shadowing and the
-// completeness of the embedded encoding.
 type ruleWrapper struct {
 	ruleAlias
 	RuleFilter *Filter `xml:"Filter,omitempty"`
 }
 
 // MarshalXML customizes XML encoding of Rule: a rule with neither Filter nor
-// Prefix set emits an empty <Filter><Prefix></Prefix></Filter>, which the S3
-// specification requires when no Prefix element is present; a rule with only
-// a top-level Prefix omits the Filter element entirely.
+// Prefix set emits an empty <Filter><Prefix></Prefix></Filter> as the last
+// child of <Rule> — S3 requires a Filter when no Prefix element is present;
+// the empty <Prefix> child is this library's representation of an empty
+// filter. A rule with only a top-level Prefix omits the Filter element; a
+// non-null Filter marshals through the default encoding in its declared
+// field position. MarshalJSON is unaffected and still omits a null Filter.
 func (r Rule) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	if !r.RuleFilter.IsNull() {
 		return e.EncodeElement(ruleAlias(r), start)
