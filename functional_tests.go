@@ -10470,7 +10470,8 @@ func testSSECMultipartEncryptedToSSECCopyObjectPart() {
 
 	var completeParts []minio.CompletePart
 
-	part, err := c.PutObjectPart(context.Background(), bucketName, objectName, uploadID, 1,
+	part, err := c.PutObjectPart(
+		context.Background(), bucketName, objectName, uploadID, 1,
 		bytes.NewReader(buf[:5*1024*1024]), 5*1024*1024,
 		minio.PutObjectPartOptions{SSE: srcencryption},
 	)
@@ -10480,7 +10481,8 @@ func testSSECMultipartEncryptedToSSECCopyObjectPart() {
 	}
 	completeParts = append(completeParts, minio.CompletePart{PartNumber: part.PartNumber, ETag: part.ETag})
 
-	part, err = c.PutObjectPart(context.Background(), bucketName, objectName, uploadID, 2,
+	part, err = c.PutObjectPart(
+		context.Background(), bucketName, objectName, uploadID, 2,
 		bytes.NewReader(buf[5*1024*1024:]), 1024*1024,
 		minio.PutObjectPartOptions{SSE: srcencryption},
 	)

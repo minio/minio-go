@@ -118,6 +118,9 @@ type Client struct {
 	rdmaOnce    sync.Once         //nolint:unused
 	rdmaHandle  *rdmaClientHandle //nolint:unused
 	rdmaInitErr error             //nolint:unused
+
+	// Middlewares
+	middlewares []Middleware
 }
 
 // Options for New method
@@ -170,6 +173,9 @@ type Options struct {
 	// when the caller supplies PutObjectOptions.RDMABuffer / GetObjectOptions.RDMABuffer.
 	// No-op unless built with -tags=rdma.
 	EnableRDMA bool
+
+	// Middlewares to run on s3 operations.
+	Middlewares []Middleware
 }
 
 // Global constants.
@@ -218,6 +224,11 @@ func New(endpoint string, opts *Options) (*Client, error) {
 	}
 
 	return clnt, nil
+}
+
+// AddMiddleware adds a middleware to the chain.
+func (c *Client) AddMiddleware(m Middleware) {
+	c.middlewares = append(c.middlewares, m)
 }
 
 // EndpointURL returns the URL of the S3-compatible endpoint that this client connects to.
@@ -340,6 +351,7 @@ func privateNew(endpoint string, opts *Options) (*Client, error) {
 		clnt.maxRetries = opts.MaxRetries
 	}
 
+	clnt.middlewares = opts.Middlewares
 	// Return.
 	return clnt, nil
 }
@@ -708,6 +720,21 @@ func (c *Client) executeMethod(ctx context.Context, method string, metadata requ
 		metadata.trailer.Set(metadata.addCrc.Key(), base64.StdEncoding.EncodeToString(crc.Sum(nil)))
 	}
 
+	execCtx := ExecutionContext{
+		Method:      method,
+		BucketName:  metadata.bucketName,
+		ObjectName:  metadata.objectName,
+		QueryValues: metadata.queryValues,
+	}
+
+	for _, m := range c.middlewares {
+		if initM, ok := m.(InitializeMiddleware); ok {
+			if ctx, err = initM.Initialize(ctx, execCtx); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	for range c.newRetryTimer(ctx, reqRetry, DefaultRetryUnit, DefaultRetryCap, MaxJitter) {
 		// Retry executes the following function body if request has an
 		// error until maxRetries have been exhausted, retry attempts are
@@ -732,6 +759,13 @@ func (c *Client) executeMethod(ctx context.Context, method string, metadata requ
 
 			return nil, err
 		}
+		for _, m := range c.middlewares {
+			if finalizeM, ok := m.(FinalizeMiddleware); ok {
+				if err = finalizeM.Finalize(ctx, execCtx, req); err != nil {
+					return nil, err
+				}
+			}
+		}
 
 		// Initiate the request.
 		res, err = c.do(req)
@@ -743,9 +777,24 @@ func (c *Client) executeMethod(ctx context.Context, method string, metadata requ
 			return nil, err
 		}
 
+		var mwError error
+		for _, m := range c.middlewares {
+			if deserializeM, ok := m.(DeserializeMiddleware); ok {
+				if dErr := deserializeM.Deserialize(ctx, execCtx, res); dErr != nil {
+					mwError = errors.Join(mwError, dErr)
+				}
+			}
+		}
+
+		if mwError != nil {
+			err = errors.Join(err, mwError)
+		}
 		success := successStatus.Contains(res.StatusCode)
 		if success && !metadata.expect200OKWithError {
-			// We do not expect 2xx to return an error return.
+			if mwError != nil {
+				closeResponse(res)
+				return nil, err
+			}
 			return res, nil
 		} // in all other situations we must first parse the body as ErrorResponse
 
@@ -890,6 +939,19 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 	req, err = http.NewRequestWithContext(ctx, method, targetURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+	execCtx := ExecutionContext{
+		Method:      method,
+		BucketName:  metadata.bucketName,
+		ObjectName:  metadata.objectName,
+		QueryValues: metadata.queryValues,
+	}
+	for _, m := range c.middlewares {
+		if serializeM, ok := m.(SerializeMiddleware); ok {
+			if err = serializeM.Serialize(ctx, execCtx, req); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	var (
