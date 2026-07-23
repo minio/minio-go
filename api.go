@@ -403,7 +403,7 @@ func (c *Client) TraceOff() {
 // SetS3TransferAccelerate - turns s3 accelerated endpoint on or off for all your
 // requests. This feature is only specific to S3 for all other endpoints this
 // function does nothing. To read further details on s3 transfer acceleration
-// please vist -
+// please visit -
 // http://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html
 func (c *Client) SetS3TransferAccelerate(accelerateEndpoint string) {
 	if s3utils.IsAmazonEndpoint(*c.endpointURL) {
@@ -568,6 +568,9 @@ func (c *Client) dumpHTTP(req *http.Request, resp *http.Response, doErr error) e
 	}
 
 	// Only display request header.
+	if req.Body != nil {
+		req.Body = http.NoBody
+	}
 	reqTrace, err := httputil.DumpRequestOut(req, false)
 	if err != nil {
 		return err
@@ -583,19 +586,11 @@ func (c *Client) dumpHTTP(req *http.Request, resp *http.Response, doErr error) e
 		// Only display response header.
 		var respTrace []byte
 
-		// For errors we make sure to dump response body as well.
-		if resp.StatusCode != http.StatusOK &&
-			resp.StatusCode != http.StatusPartialContent &&
-			resp.StatusCode != http.StatusNoContent {
-			respTrace, err = httputil.DumpResponse(resp, true)
-			if err != nil {
-				return err
-			}
-		} else {
-			respTrace, err = httputil.DumpResponse(resp, false)
-			if err != nil {
-				return err
-			}
+	// For errors we make sure to dump response body as well.
+	if !successStatus.Contains(resp.StatusCode) {
+		respTrace, err = httputil.DumpResponse(resp, true)
+		if err != nil {
+			return err
 		}
 
 		// Write response to trace output.
@@ -656,8 +651,8 @@ func (c *Client) do(req *http.Request) (resp *http.Response, err error) {
 	}
 
 	// If trace is enabled, dump http request and response,
-	// except when the traceErrorsOnly enabled and the response's status code is ok
-	if c.isTraceEnabled && (!c.traceErrorsOnly || resp.StatusCode != http.StatusOK) {
+	// except when traceErrorsOnly is enabled and the response has a success status code
+	if c.isTraceEnabled && (!c.traceErrorsOnly || !successStatus.Contains(resp.StatusCode)) {
 		err = c.dumpHTTP(req, resp, nil)
 		if err != nil {
 			return nil, err
@@ -670,6 +665,7 @@ func (c *Client) do(req *http.Request) (resp *http.Response, err error) {
 // List of success status.
 var successStatus = set.CreateIntSet(
 	http.StatusOK,
+	http.StatusAccepted,
 	http.StatusNoContent,
 	http.StatusPartialContent,
 )
