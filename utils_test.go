@@ -126,6 +126,20 @@ func TestGetEndpointURL(t *testing.T) {
 		{"[::1]:443", true, "https://[::1]:443", nil, true},
 		{"[::1]:9000", false, "http://[::1]:9000", nil, true},
 		{"[::1]:9000", true, "https://[::1]:9000", nil, true},
+		{"https://storage.example.com:6781", true, "https://storage.example.com:6781", nil, true},
+		{"HTTPS://storage.example.com:6781", true, "https://storage.example.com:6781", nil, true},
+		{"https://storage.example.com:6781/", true, "https://storage.example.com:6781/", nil, true},
+		{"http://127.0.0.1:9000", false, "http://127.0.0.1:9000", nil, true},
+		{"https://[::1]:9000", true, "https://[::1]:9000", nil, true},
+		{"storage.example.com?redirect=https://mirror.example.com", true, "https://storage.example.com?redirect=https://mirror.example.com", nil, true},
+		{"https://storage.example.com:6781", false, "", errInvalidArgument("Endpoint url scheme \"https\" conflicts with the secure option; remove the scheme from the endpoint or align the secure option."), false},
+		{"HTTPS://storage.example.com:6781", false, "", errInvalidArgument("Endpoint url scheme \"https\" conflicts with the secure option; remove the scheme from the endpoint or align the secure option."), false},
+		{"http://127.0.0.1:9000", true, "", errInvalidArgument("Endpoint url scheme \"http\" conflicts with the secure option; remove the scheme from the endpoint or align the secure option."), false},
+		{"https://storage.example.com:6781/bucket", true, "", errInvalidArgument("Endpoint url cannot have fully qualified paths."), false},
+		{"ws://storage.example.com:6781", true, "", errInvalidArgument("Endpoint url scheme \"ws\" is unsupported; use http or https or omit the scheme."), false},
+		{"://storage.example.com:6781", true, "", errInvalidArgument("Endpoint url scheme \"\" is unsupported; use http or https or omit the scheme."), false},
+		{"https://exa mple.com:6781", true, "", errors.New(`parse "https://exa mple.com:6781": invalid character " " in host name`), false},
+		{"https://", true, "", errInvalidArgument("Endpoint:  does not follow ip address or domain name standards."), false},
 		{"13333.123123.-", true, "", errInvalidArgument(fmt.Sprintf("Endpoint: %s does not follow ip address or domain name standards.", "13333.123123.-")), false},
 		{"13333.123123.-", true, "", errInvalidArgument(fmt.Sprintf("Endpoint: %s does not follow ip address or domain name standards.", "13333.123123.-")), false},
 		{"s3.aamzza.-", true, "", errInvalidArgument(fmt.Sprintf("Endpoint: %s does not follow ip address or domain name standards.", "s3.aamzza.-")), false},
@@ -542,5 +556,40 @@ func TestExtractObjMetadata(t *testing.T) {
 				t.Errorf("extractObjMetadata() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestToObjectInfoHeaders(t *testing.T) {
+	header := http.Header{
+		"Etag":            []string{`"d41d8cd98f00b204e9800998ecf8427e"`},
+		"Content-Length":  []string{"101"},
+		"Content-Type":    []string{"application/octet-stream"},
+		"Last-Modified":   []string{"Mon, 19 Aug 2024 12:00:00 GMT"},
+		"Content-Range":   []string{"bytes 0-100/2000"},
+		"X-Custom-Reply":  []string{"custom-value"},
+		"X-Amz-Meta-Note": []string{"=?UTF-8?Q?d=C3=A9j=C3=A0?="},
+	}
+	objInfo, err := ToObjectInfo("test-bucket", "test-object", header)
+	if err != nil {
+		t.Fatalf("ToObjectInfo() error = %v", err)
+	}
+	if got := objInfo.Headers.Get("Content-Range"); got != "bytes 0-100/2000" {
+		t.Errorf("Headers.Get(Content-Range) = %q, want %q", got, "bytes 0-100/2000")
+	}
+	if got := objInfo.Headers.Get("X-Custom-Reply"); got != "custom-value" {
+		t.Errorf("Headers.Get(X-Custom-Reply) = %q, want %q", got, "custom-value")
+	}
+	// The existing Metadata filter is unchanged: non-whitelisted response
+	// headers remain absent from Metadata and are reachable only via Headers.
+	if got := objInfo.Metadata.Get("Content-Range"); got != "" {
+		t.Errorf("Metadata.Get(Content-Range) = %q, want empty", got)
+	}
+	// RFC 2047-encoded metadata values appear MIME-decoded via Headers,
+	// matching Metadata (the decode is applied to the shared header map).
+	if got := objInfo.Headers.Get("X-Amz-Meta-Note"); got != "déjà" {
+		t.Errorf("Headers.Get(X-Amz-Meta-Note) = %q, want %q", got, "déjà")
+	}
+	if got, want := objInfo.Headers.Get("X-Amz-Meta-Note"), objInfo.Metadata.Get("X-Amz-Meta-Note"); got != want {
+		t.Errorf("Headers meta value = %q, Metadata meta value = %q, want equal", got, want)
 	}
 }

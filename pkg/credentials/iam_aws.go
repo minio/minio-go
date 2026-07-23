@@ -58,6 +58,17 @@ type IAM struct {
 	// Region configurable custom region for STS
 	Region string
 
+	// ExpiryWindow configures how long before the actual credential
+	// expiration the credentials are considered expired and refreshed.
+	// The zero value keeps the default behavior of refreshing once 80%
+	// of the credential lifetime has elapsed. A positive value refreshes
+	// that long before the actual expiration; a value that meets or
+	// exceeds the credential lifetime places the effective expiration at
+	// or before the moment of retrieval, so the credentials are refreshed
+	// on every subsequent retrieval. A negative value behaves like the
+	// default.
+	ExpiryWindow time.Duration
+
 	// Support for container authorization token https://docs.aws.amazon.com/sdkref/latest/guide/feature-container-credentials.html
 	Container struct {
 		AuthorizationToken     string
@@ -92,6 +103,15 @@ func NewIAM(endpoint string) *Credentials {
 	return New(&IAM{
 		Endpoint: endpoint,
 	})
+}
+
+// expiryWindow returns the configured ExpiryWindow, falling back to
+// DefaultExpiryWindow when unset or negative.
+func (m *IAM) expiryWindow() time.Duration {
+	if m.ExpiryWindow <= 0 {
+		return DefaultExpiryWindow
+	}
+	return m.ExpiryWindow
 }
 
 // RetrieveWithCredContext is like Retrieve with Cred Context
@@ -184,7 +204,11 @@ func (m *IAM) RetrieveWithCredContext(cc *CredContext) (Value, error) {
 
 		stsWebIdentityCreds, err := creds.RetrieveWithCredContext(cc)
 		if err == nil {
-			m.SetExpiration(creds.Expiration(), DefaultExpiryWindow)
+			// Use the raw credential expiration, not creds.Expiration():
+			// the inner provider has already reduced its own expiration by
+			// DefaultExpiryWindow, and applying a window to the reduced
+			// value would compound the two.
+			m.SetExpiration(stsWebIdentityCreds.Expiration, m.expiryWindow())
 		}
 		return stsWebIdentityCreds, err
 
@@ -220,8 +244,7 @@ func (m *IAM) RetrieveWithCredContext(cc *CredContext) (Value, error) {
 	if err != nil {
 		return Value{}, err
 	}
-	// Expiry window is set to 10secs.
-	m.SetExpiration(roleCreds.Expiration, DefaultExpiryWindow)
+	m.SetExpiration(roleCreds.Expiration, m.expiryWindow())
 
 	return Value{
 		AccessKeyID:     roleCreds.AccessKeyID,
