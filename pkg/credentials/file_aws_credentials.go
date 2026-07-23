@@ -39,7 +39,7 @@ import (
 // ssoPortalRequestTimeout bounds the AWS SSO portal role-credentials request.
 const ssoPortalRequestTimeout = time.Minute
 
-// A externalProcessCredentials stores the output of a credential_process
+// An externalProcessCredentials stores the output of a credential_process
 type externalProcessCredentials struct {
 	Version         int
 	SessionToken    string
@@ -48,13 +48,13 @@ type externalProcessCredentials struct {
 	Expiration      time.Time
 }
 
-// A ssoCredentials stores the response of fetching role credentials for
+// An ssoCredentials stores the response of fetching role credentials for
 // an AWS SSO role from the SSO portal.
 type ssoCredentials struct {
 	RoleCredentials ssoRoleCredentials `json:"roleCredentials"`
 }
 
-// A ssoRoleCredentials stores the role-specific credentials portion of
+// An ssoRoleCredentials stores the role-specific credentials portion of
 // an SSO role credentials response. Expiration is milliseconds since
 // the Unix epoch.
 type ssoRoleCredentials struct {
@@ -160,6 +160,14 @@ func (p *FileAWSCredentials) retrieve(cc *CredContext) (Value, error) {
 	// credential_process.
 	hasStaticKeys := id.String() != "" && secret.String() != ""
 
+	// Exactly one half of a static key pair is never usable and poisons
+	// downstream consumers — Chain accepts a Value when either field is
+	// set — so it is rejected before any resolution, matching
+	// aws-sdk-go-v2's partial-credentials validation.
+	if !hasStaticKeys && (id.String() != "" || secret.String() != "") {
+		return Value{}, errors.New("profile has partial static credentials: aws_access_key_id and aws_secret_access_key must both be set")
+	}
+
 	// If the profile is configured for AWS SSO, obtain credentials from the
 	// token cached by `aws sso login`.
 	if !hasStaticKeys && iniProfile.Key("sso_role_name").String() != "" {
@@ -181,9 +189,10 @@ func (p *FileAWSCredentials) retrieve(cc *CredContext) (Value, error) {
 
 	// A profile carrying SSO configuration without sso_role_name cannot
 	// engage the SSO flow above; without a complete static key pair the
-	// values below would be anonymous or half a key pair.
+	// values below would be anonymous.
 	if !hasStaticKeys &&
-		(iniProfile.Key("sso_session").String() != "" || iniProfile.Key("sso_start_url").String() != "") {
+		(iniProfile.Key("sso_session").String() != "" || iniProfile.Key("sso_start_url").String() != "" ||
+			iniProfile.Key("sso_account_id").String() != "" || iniProfile.Key("sso_region").String() != "") {
 		return Value{}, errors.New("profile has SSO configuration but no sso_role_name, and no complete static credentials")
 	}
 
@@ -244,8 +253,19 @@ func (p *FileAWSCredentials) getSSOCredentials(cc *CredContext, iniConfig *ini.F
 	ssoRegion := iniProfile.Key("sso_region").String()
 	if ssoSessionName != "" {
 		if sessionSection, err := iniConfig.GetSection("sso-session " + ssoSessionName); err == nil {
+			// aws-sdk-go-v2 rejects profile sso_region/sso_start_url
+			// values that contradict the sso-session; guessing between
+			// the two could silently query the wrong portal.
 			if region := sessionSection.Key("sso_region").String(); region != "" {
+				if ssoRegion != "" && ssoRegion != region {
+					return ssoCredentials{}, fmt.Errorf("sso_region %q in profile must match sso_region %q in sso-session %q", ssoRegion, region, ssoSessionName)
+				}
 				ssoRegion = region
+			}
+			if sessionStartURL := sessionSection.Key("sso_start_url").String(); sessionStartURL != "" {
+				if profileStartURL := iniProfile.Key("sso_start_url").String(); profileStartURL != "" && profileStartURL != sessionStartURL {
+					return ssoCredentials{}, fmt.Errorf("sso_start_url %q in profile must match sso_start_url %q in sso-session %q", profileStartURL, sessionStartURL, ssoSessionName)
+				}
 			}
 		}
 	} else {
@@ -498,10 +518,12 @@ func mergeAWSConfigSections(dst, src *ini.File) {
 // mergeAWSCredentialsSections copies the shared credentials file's sections
 // into dst, overriding matching keys; "profile "-prefixed section names are
 // invalid in the credentials file and ignored. When a section overrides an
-// existing profile, the static credentials move atomically the way the
-// SDK's mergeSections does: aws_access_key_id, aws_secret_access_key and
-// aws_session_token are only taken from a section carrying the complete
-// key pair, so a partial pair cannot clobber half of an existing one.
+// existing profile, the static credentials move atomically:
+// aws_access_key_id, aws_secret_access_key and aws_session_token are only
+// taken from an overriding section carrying the complete key pair, so a
+// partial pair cannot clobber half of an existing one. A section new to
+// the merge is copied as-is; a partial pair it carries is rejected at
+// resolution time, matching aws-sdk-go-v2's partial-credentials error.
 func mergeAWSCredentialsSections(dst, src *ini.File) {
 	for _, section := range src.Sections() {
 		name := section.Name()

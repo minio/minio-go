@@ -382,8 +382,8 @@ func TestFileAWSSSO(t *testing.T) {
 		// SSO markers plus only an access key must error rather than
 		// return half a key pair.
 		_, err := newSSOCreds("p10-partial-key", t.TempDir()).GetWithContext(defaultCredContext)
-		if err == nil || !strings.Contains(err.Error(), "no sso_role_name") {
-			t.Fatalf("Expected incomplete-SSO error for partial static key, got %v", err)
+		if err == nil || !strings.Contains(err.Error(), "partial static credentials") {
+			t.Fatalf("Expected partial-credentials error for partial static key, got %v", err)
 		}
 	})
 
@@ -391,8 +391,8 @@ func TestFileAWSSSO(t *testing.T) {
 		// SSO markers plus only a secret must error rather than return
 		// half a key pair.
 		_, err := newSSOCreds("p11-partial-secret", t.TempDir()).GetWithContext(defaultCredContext)
-		if err == nil || !strings.Contains(err.Error(), "no sso_role_name") {
-			t.Fatalf("Expected incomplete-SSO error for partial static secret, got %v", err)
+		if err == nil || !strings.Contains(err.Error(), "partial static credentials") {
+			t.Fatalf("Expected partial-credentials error for partial static secret, got %v", err)
 		}
 	})
 
@@ -772,6 +772,151 @@ credential_process = /bin/cat `+filepath.Join(wd, "credentials.json")+`
 		}
 		if credValues.AccessKeyID != "accessKey" {
 			t.Errorf("Expected 'accessKey', got %s", credValues.AccessKeyID)
+		}
+	})
+
+	t.Run("incomplete-sso-account-id-only-errors", func(t *testing.T) {
+		// A profile carrying any SSO marker without sso_role_name errors
+		// instead of returning anonymous credentials, like aws-sdk-go-v2's
+		// legacy-SSO validation.
+		home := t.TempDir()
+		writeAWSFile(t, home, "config", `[profile dev]
+sso_account_id = 123456789
+`)
+		setHome(t, home)
+		_, err := New(&FileAWSCredentials{Profile: "dev"}).GetWithContext(defaultCredContext)
+		if err == nil {
+			t.Fatal("Expected error for sso_account_id without sso_role_name")
+		}
+		if !strings.Contains(err.Error(), "sso_role_name") {
+			t.Errorf("Expected incomplete-SSO error, got %v", err)
+		}
+	})
+
+	t.Run("incomplete-sso-region-only-errors", func(t *testing.T) {
+		home := t.TempDir()
+		writeAWSFile(t, home, "config", `[profile dev]
+sso_region = us-test-2
+`)
+		setHome(t, home)
+		_, err := New(&FileAWSCredentials{Profile: "dev"}).GetWithContext(defaultCredContext)
+		if err == nil {
+			t.Fatal("Expected error for sso_region without sso_role_name")
+		}
+	})
+
+	t.Run("sso-region-mismatch-errors", func(t *testing.T) {
+		// A profile sso_region contradicting its sso-session's region is
+		// rejected, matching aws-sdk-go-v2, rather than silently picking one.
+		home := t.TempDir()
+		writeAWSFile(t, home, "config", `[profile dev]
+sso_session = main
+sso_account_id = 123456789
+sso_role_name = myrole
+sso_region = us-other-1
+
+[sso-session main]
+sso_region = us-test-2
+sso_start_url = https://testacct.awsapps.com/start
+`)
+		setHome(t, home)
+		_, err := New(&FileAWSCredentials{Profile: "dev"}).GetWithContext(defaultCredContext)
+		if err == nil {
+			t.Fatal("Expected error for profile sso_region conflicting with sso-session")
+		}
+		if !strings.Contains(err.Error(), "must match") {
+			t.Errorf("Expected region-mismatch error, got %v", err)
+		}
+	})
+
+	t.Run("sso-session-matching-profile-values-ok", func(t *testing.T) {
+		// Redundant-but-consistent profile sso_region/sso_start_url values
+		// (equal to the sso-session's) stay accepted.
+		home := t.TempDir()
+		writeAWSFile(t, home, "config", `[profile dev]
+sso_session = main
+sso_account_id = 123456789
+sso_role_name = myrole
+sso_region = us-test-2
+sso_start_url = https://testacct.awsapps.com/start
+
+[sso-session main]
+sso_region = us-test-2
+sso_start_url = https://testacct.awsapps.com/start
+`)
+		setHome(t, home)
+		cacheDir := t.TempDir()
+		writeSSOCachedToken(t, cacheDir, "main",
+			`{"startUrl": "https://testacct.awsapps.com/start", "region": "us-test-2", "accessToken": "my-access-token", "expiresAt": "2020-01-11T00:00:00Z"}`)
+		creds := New(&FileAWSCredentials{
+			Expiry:               Expiry{CurrentTime: testNow},
+			Profile:              "dev",
+			overrideSSOCacheDir:  cacheDir,
+			overrideSSOPortalURL: ts.URL,
+		})
+		credValues, err := creds.GetWithContext(defaultCredContext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if credValues.AccessKeyID != "ssoAccessKey" {
+			t.Errorf("Expected 'ssoAccessKey', got %s", credValues.AccessKeyID)
+		}
+	})
+
+	t.Run("sso-start-url-mismatch-errors", func(t *testing.T) {
+		home := t.TempDir()
+		writeAWSFile(t, home, "config", `[profile dev]
+sso_session = main
+sso_account_id = 123456789
+sso_role_name = myrole
+sso_start_url = https://other.awsapps.com/start
+
+[sso-session main]
+sso_region = us-test-2
+sso_start_url = https://testacct.awsapps.com/start
+`)
+		setHome(t, home)
+		_, err := New(&FileAWSCredentials{Profile: "dev"}).GetWithContext(defaultCredContext)
+		if err == nil {
+			t.Fatal("Expected error for profile sso_start_url conflicting with sso-session")
+		}
+		if !strings.Contains(err.Error(), "must match") {
+			t.Errorf("Expected start-url-mismatch error, got %v", err)
+		}
+	})
+
+	t.Run("partial-static-pair-errors", func(t *testing.T) {
+		// A credentials-file-only profile carrying half a static key pair
+		// errors instead of returning a half-populated Value, which would
+		// satisfy Chain's either-field-set acceptance and stop provider
+		// fallback with unusable credentials.
+		home := t.TempDir()
+		writeAWSFile(t, home, "credentials", `[dev]
+aws_access_key_id = loneKey
+`)
+		setHome(t, home)
+		_, err := New(&FileAWSCredentials{Profile: "dev"}).GetWithContext(defaultCredContext)
+		if err == nil {
+			t.Fatal("Expected error for partial static pair")
+		}
+		if !strings.Contains(err.Error(), "partial static credentials") {
+			t.Errorf("Expected partial-static error, got %v", err)
+		}
+	})
+
+	t.Run("partial-static-pair-errors-single-file", func(t *testing.T) {
+		// The same rejection applies on the explicit-Filename path.
+		dir := t.TempDir()
+		path := filepath.Join(dir, "creds")
+		if err := os.WriteFile(path, []byte("[dev]\naws_secret_access_key = loneSecret\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		_, err := NewFileAWSCredentials(path, "dev").GetWithContext(defaultCredContext)
+		if err == nil {
+			t.Fatal("Expected error for partial static pair via explicit Filename")
+		}
+		if !strings.Contains(err.Error(), "partial static credentials") {
+			t.Errorf("Expected partial-static error, got %v", err)
 		}
 	})
 
