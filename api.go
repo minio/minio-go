@@ -592,12 +592,17 @@ func (c *Client) dumpHTTP(req *http.Request, resp *http.Response, doErr error) e
 			if err != nil {
 				return err
 			}
-
-			// Write response to trace output.
-			_, err = fmt.Fprintln(c.traceOutput, strings.TrimSuffix(string(respTrace), "\r\n"))
+		} else {
+			respTrace, err = httputil.DumpResponse(resp, false)
 			if err != nil {
 				return err
 			}
+		}
+
+		// Write response to trace output.
+		_, err = fmt.Fprint(c.traceOutput, strings.TrimSuffix(string(respTrace), "\r\n"))
+		if err != nil {
+			return err
 		}
 	}
 

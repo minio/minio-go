@@ -39,7 +39,7 @@ func TestDumpHTTPLargeBodyDoesNotAllocate(t *testing.T) {
 	var m0, m1 runtime.MemStats
 	runtime.GC()
 	runtime.ReadMemStats(&m0)
-	if err := c.dumpHTTP(req, resp,nil); err != nil {
+	if err := c.dumpHTTP(req, resp, nil); err != nil {
 		t.Fatal(err)
 	}
 	runtime.ReadMemStats(&m1)
