@@ -105,8 +105,32 @@ func sumMD5Base64(data []byte) string {
 	return base64.StdEncoding.EncodeToString(hash.Sum(nil))
 }
 
-// getEndpointURL - construct a new endpoint.
+// getEndpointURL - construct a new endpoint from a host[:port] endpoint
+// or an http(s):// URL whose scheme agrees with the secure option.
 func getEndpointURL(endpoint string, secure bool) (*url.URL, error) {
+	// An endpoint that already carries a scheme is parsed directly instead
+	// of prefixing another scheme. It must agree with the secure option
+	// since signing and transport behavior are derived from that option.
+	// A "://" preceded by a path, query, or fragment delimiter is endpoint
+	// data rather than a scheme, so such endpoints keep the scheme-less path.
+	if i := strings.Index(endpoint, "://"); i == 0 || (i > 0 && !strings.ContainsAny(endpoint[:i], "/?#")) {
+		scheme := strings.ToLower(endpoint[:i])
+		if scheme != "http" && scheme != "https" {
+			return nil, errInvalidArgument("Endpoint url scheme \"" + scheme + "\" is unsupported; use http or https or omit the scheme.")
+		}
+		endpointURL, err := url.Parse(endpoint)
+		if err != nil {
+			return nil, err
+		}
+		if secure != (endpointURL.Scheme == "https") {
+			return nil, errInvalidArgument("Endpoint url scheme \"" + endpointURL.Scheme + "\" conflicts with the secure option; remove the scheme from the endpoint or align the secure option.")
+		}
+		if err := isValidEndpointURL(*endpointURL); err != nil {
+			return nil, err
+		}
+		return endpointURL, nil
+	}
+
 	// If secure is false, use 'http' scheme.
 	scheme := "https"
 	if !secure {
@@ -250,7 +274,7 @@ func extractObjMetadata(header http.Header) http.Header {
 }
 
 const (
-	// RFC 7231#section-7.1.1.1 timetamp format. e.g Tue, 29 Apr 2014 18:30:38 GMT
+	// RFC 7231#section-7.1.1.1 timestamp format. e.g Tue, 29 Apr 2014 18:30:38 GMT
 	rfc822TimeFormat                           = "Mon, 2 Jan 2006 15:04:05 GMT"
 	rfc822TimeFormatSingleDigitDay             = "Mon, _2 Jan 2006 15:04:05 GMT"
 	rfc822TimeFormatSingleDigitDayTwoDigitYear = "Mon, _2 Jan 06 15:04:05 GMT"
@@ -412,6 +436,7 @@ func ToObjectInfo(bucketName, objectName string, h http.Header) (ObjectInfo, err
 		// following function filters out a list of standard set of keys
 		// which are not part of object metadata.
 		Metadata:     metadata,
+		Headers:      h,
 		UserMetadata: userMetadata,
 		UserTags:     userTags.ToMap(),
 		UserTagCount: tagCount,
