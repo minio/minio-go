@@ -5715,8 +5715,8 @@ func testGetObjectReadAtFunctional() {
 		return
 	}
 
-	if st.Size != int64(bufSize) {
-		logError(testName, function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(bufSize))+", got "+string(st.Size), err)
+	if st.Size != (int64(bufSize) - int64(len(bufRead))) {
+		logError(testName, function, args, startTime, "", "Number of bytes in stat does not match, expected "+strconv.Itoa(bufSize)+", got "+strconv.Itoa(bufSize-len(bufRead)), err)
 		return
 	}
 
@@ -5811,6 +5811,228 @@ func testGetObjectReadAtFunctional() {
 	logSuccess(testName, function, args, startTime)
 }
 
+// testGetObjectWithRange - get object with range
+func testGetObjectWithRange() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "GetObject(bucketName, objectName)"
+	args := map[string]interface{}{}
+
+	c, err := NewClient(ClientConfig{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
+		return
+	}
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	defer cleanupBucket(bucketName, c)
+
+	// Generate 33K of data.
+	bufSize := dataFileMap["datafile-33-kB"]
+	reader := getDataReader("datafile-33-kB")
+	defer reader.Close()
+
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	args["objectName"] = objectName
+
+	buf, err := io.ReadAll(reader)
+	if err != nil {
+		logError(testName, function, args, startTime, "", "ReadAll failed", err)
+		return
+	}
+
+	// Save the data
+	_, err = c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(buf), int64(len(buf)), minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject failed", err)
+		return
+	}
+
+	var r *minio.Object
+	testIndex := 0
+	baseSize := 0
+	New := func() {
+		opts := minio.GetObjectOptions{}
+		switch testIndex {
+		case 0:
+			baseSize = bufSize
+		case 1:
+			opts.SetRange(100, 1000)
+			baseSize = 1000 - 100 + 1
+		case 2:
+			opts.SetRange(100, 0)
+			baseSize = bufSize - 100
+		case 3:
+			opts.SetRange(0, 1000)
+			baseSize = 1000 + 1
+		}
+		r, err = c.GetObject(context.Background(), bucketName, objectName, opts)
+		if err != nil {
+			logError(testName, function, args, startTime, "", "Failed to create MinIO client object", err)
+		}
+	}
+
+	Size := func(size int) {
+		st, err := r.Stat()
+		if err != nil {
+			logError(testName, function, args, startTime, "", "Failed to get object stat", err)
+		}
+		if int(st.Size) != size {
+			logError(testName, function, args, startTime, "", "Incorrect size returned", fmt.Errorf("Test index %d Expected size %d, got %d", testIndex, size, int(st.Size)))
+		}
+	}
+	Read := func(size int) {
+		b := make([]byte, size)
+		_, err := r.Read(b)
+		if err != nil {
+			logError(testName, function, args, startTime, "", "Failed to read from object", err)
+		}
+	}
+
+	ReadFull := func(size int) {
+		b := make([]byte, size)
+		_, err := r.Read(b)
+		if err != nil {
+			logError(testName, function, args, startTime, "", "Failed to read from object", err)
+		}
+	}
+
+	ReadAll := func() {
+		_, err := io.ReadAll(r)
+		if err != nil {
+			logError(testName, function, args, startTime, "", "Failed to read from object", err)
+		}
+	}
+
+	Seek := func(offset int64, whence int) {
+		_, err := r.Seek(offset, whence)
+		if err != nil {
+			logError(testName, function, args, startTime, "", "Failed to seek in object", err)
+		}
+	}
+	ReadAt := func(offset int64, size int64) {
+		b := make([]byte, size)
+		_, err := r.ReadAt(b, offset)
+		if err != nil {
+			logError(testName, function, args, startTime, "", "Failed to read from object", err)
+		}
+	}
+	for index := range 4 {
+		testIndex = index
+		// case 1: stat first and then read 100 bytes for per read
+		{
+			New()
+			Size(baseSize)
+			Read(100)
+			Size(baseSize - 100)
+			Read(100)
+			Size(baseSize - 200)
+			Read(100)
+			Size(baseSize - 300)
+			ReadFull(100)
+			Size(baseSize - 400)
+		}
+		// case 2: read 100 bytes for per read
+		{
+			New()
+			Read(100)
+			Size(baseSize - 100)
+			Read(100)
+			Size(baseSize - 200)
+			Read(100)
+			Size(baseSize - 300)
+			ReadFull(100)
+			Size(baseSize - 400)
+		}
+		// case 3: Stat -> Read -> ReadAt -> Read
+		{
+			New()
+			Size(baseSize)
+			Read(100)
+			Size(baseSize - 100)
+			// should not move the offset, so next stat is not changed
+			ReadAt(100, 100)
+			Size(baseSize - 100)
+			Read(100)
+			Size(baseSize - 200)
+		}
+		// case 4:  Read -> ReadAt -> Read
+		{
+			New()
+			Read(100)
+			Size(baseSize - 100)
+			// should not move the offset, so next stat is not changed
+			ReadAt(100, 100)
+			Size(baseSize - 100)
+			Read(100)
+			Size(baseSize - 200)
+		}
+		// case 5: Stat -> Read -> ReadAt -> Read -> Seek -> Read
+		{
+			New()
+			Size(baseSize)
+			Read(100)
+			Size(baseSize - 100)
+			// should not move the offset, so next stat is not changed
+			ReadAt(100, 100)
+			Size(baseSize - 100)
+			Read(100)
+			Size(baseSize - 200)
+			Seek(100, io.SeekCurrent)
+			Size(baseSize - 300)
+			Read(100)
+			Size(baseSize - 400)
+		}
+		// case 6:  Read -> ReadAt -> Read -> Seek -> Read
+		{
+			New()
+			Read(100)
+			Size(baseSize - 100)
+			// should not move the offset, so next stat is not changed
+			ReadAt(100, 100)
+			Size(baseSize - 100)
+			Read(100)
+			Size(baseSize - 200)
+			Seek(100, io.SeekCurrent)
+			Size(baseSize - 300)
+			Read(100)
+			Size(baseSize - 400)
+		}
+		// case 7:  Stat -> ReadAll -> ReadAt
+		{
+			New()
+			Size(baseSize)
+			ReadAll()
+			ReadAt(100, 100)
+		}
+		// case 8:  ReadAll -> ReadAt
+		{
+			New()
+			ReadAll()
+			ReadAt(100, 100)
+		}
+		// case9: Seek first
+		{
+			New()
+			Seek(100, io.SeekCurrent)
+			Size(baseSize - 100)
+			Read(100)
+			Size(baseSize - 200)
+		}
+	}
+}
+
 // Reproduces issue https://github.com/minio/minio-go/issues/1137
 func testGetObjectReadAtWhenEOFWasReached() {
 	// initialize logging params
@@ -5892,7 +6114,7 @@ func testGetObjectReadAtWhenEOFWasReached() {
 		return
 	}
 
-	if st.Size != int64(bufSize) {
+	if st.Size != (int64(bufSize) - int64(len(buf1))) {
 		logError(testName, function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(bufSize))+", got "+string(st.Size), err)
 		return
 	}
@@ -7079,7 +7301,7 @@ func testSSECEncryptedGetObjectReadAtFunctional() {
 	}
 
 	if st.Size != int64(bufSize) {
-		logError(testName, function, args, startTime, "", "Number of bytes in stat does not match, expected "+string(int64(bufSize))+", got "+string(st.Size), err)
+		logError(testName, function, args, startTime, "", "Number of bytes in stat does not match, expected "+strconv.Itoa(bufSize)+", got "+strconv.Itoa(int(st.Size)), err)
 		return
 	}
 
@@ -15316,6 +15538,7 @@ func main() {
 		testMakeBucketError()
 		testMakeBucketRegions()
 		testPutObjectWithMetadata()
+		testGetObjectWithRange()
 		testPutObjectReadAt()
 		testPutObjectStreaming()
 		testPutObjectPreconditionOnNonExistent()
