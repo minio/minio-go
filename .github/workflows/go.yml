@@ -45,10 +45,18 @@ jobs:
           sudo apt install devscripts -y
           mkdir -p /tmp/certs-dir
           cp testcerts/* /tmp/certs-dir
-          # Test against the AIStor :edge image so the latest AIStor APIs
+          # Test against an AIStor :edge image so recent AIStor APIs
           # (object annotations) and checksum algorithms (xxhash3/xxhash128,
           # sha512, md5) are available to the functional tests.
-          docker pull registry.k5.min.dev/aistor/minio:edge
+          # Pinned to the last-known-good :edge build (DEVELOPMENT.2026-07-22T23-55-45Z,
+          # server commit 40cd9374): :edge builds from DEVELOPMENT.2026-07-23T17-46-49Z
+          # (server commit b5ee91d7) through at least DEVELOPMENT.2026-07-24T01-18-23Z
+          # (server commit 7dac4a40) reject PutObject under the FREE-plan license
+          # below with "This feature is not available for Free tier licenses", which
+          # fails core_test.go on every PR. Unpin back to :edge once the license
+          # regression is resolved (tracking: https://github.com/allanrogerr/minio-go/issues/1).
+          AISTOR_IMAGE="registry.k5.min.dev/aistor/minio@sha256:5d9e9007305eb22c096f278f2e150c85be8c919e5f0e37b827835a3f933ea43f"
+          docker pull "${AISTOR_IMAGE}"
           # Free-tier AIStor license so the server allows writes (without a
           # license the server boots read-only). This is a public FREE-plan
           # license, not a secret.
@@ -62,7 +70,7 @@ jobs:
             -e MINIO_CI_CD=true \
             -e MINIO_KMS_SECRET_KEY="${MINIO_KMS_SECRET_KEY}" \
             -e MINIO_LICENSE="${MINIO_LICENSE}" \
-            registry.k5.min.dev/aistor/minio:edge \
+            "${AISTOR_IMAGE}" \
             server --quiet --certs-dir /certs /data/{1...4}
           for _ in $(seq 1 60); do
             if curl -sf --cacert /tmp/certs-dir/public.crt https://localhost:9000/minio/health/ready >/dev/null; then
