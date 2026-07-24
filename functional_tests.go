@@ -6022,6 +6022,14 @@ func testGetObjectWithRange() {
 			ReadAll()
 			ReadAt(100, 100)
 		}
+		// case9: Seek first
+		{
+			New()
+			Seek(100, io.SeekCurrent)
+			Size(baseSize - 100)
+			Read(100)
+			Size(baseSize - 200)
+		}
 	}
 }
 

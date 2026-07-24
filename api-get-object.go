@@ -502,6 +502,8 @@ func (o *Object) Read(b []byte) (n int, err error) {
 }
 
 // Stat returns the ObjectInfo structure describing Object.
+// When requesting a partial object or reading has started,
+// the size returned will reflect the remaining size.
 func (o *Object) Stat() (ObjectInfo, error) {
 	if o == nil {
 		return ObjectInfo{}, errInvalidArgument("Object is nil")
