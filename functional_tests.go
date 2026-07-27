@@ -172,9 +172,12 @@ func logError(testName, function string, args map[string]interface{}, startTime 
 	// If server returns NotImplemented we assume it is gateway mode and hence log it as info and move on to next tests
 	// Special case for ComposeObject API as it is implemented on client side and adds specific error details like `Error in upload-part-copy` in
 	// addition to NotImplemented error returned from server
-	if isErrNotImplemented(err) {
+	switch {
+	case isErrNotImplemented(err):
 		logIgnored(testName, function, args, startTime, message)
-	} else {
+	case isErrFreeTierLicense(err):
+		logNotAvailable(testName, function, args, startTime, message)
+	default:
 		logFailure(testName, function, args, startTime, alert, message, err)
 		if !isRunOnFail() {
 			panic(fmt.Sprintf("Test failed with message: %s, err: %v", message, err))
@@ -203,6 +206,15 @@ func logIgnored(testName, function string, args map[string]interface{}, startTim
 		With(
 			"status", "NA",
 			"alert", strings.Split(alert, " ")[0]+" is NotImplemented",
+		).Info("")
+}
+
+// log not applicable test runs for license-gated features
+func logNotAvailable(testName, function string, args map[string]interface{}, startTime time.Time, alert string) {
+	baseLogger(testName, function, args, startTime).
+		With(
+			"status", "NA",
+			"alert", strings.Split(alert, " ")[0]+" requires a paid-tier license",
 		).Info("")
 }
 
@@ -277,6 +289,11 @@ func cleanupVersionedBucket(bucketName string, c *minio.Client) error {
 
 func isErrNotImplemented(err error) bool {
 	return minio.ToErrorResponse(err).Code == minio.NotImplemented
+}
+
+// isErrFreeTierLicense reports whether the server rejected the request because it requires a paid-tier license.
+func isErrFreeTierLicense(err error) bool {
+	return minio.ToErrorResponse(err).Code == minio.XMinioPaidTierLicenseRequired
 }
 
 func isRunOnFail() bool {
