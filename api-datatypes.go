@@ -194,9 +194,19 @@ type ObjectInfo struct {
 	// It aliases the response headers and must be treated as read-only.
 	Headers http.Header `json:"rawHeaders,omitempty" xml:"-"`
 
-	// x-amz-meta-* headers stripped "x-amz-meta-" prefix containing the first value.
+	// UserMetadata contains x-amz-meta-* user metadata.
+	// StatObject and GetObject return it with the "X-Amz-Meta-" prefix
+	// stripped; list results with WithMetadata keep the exact values stored
+	// on the object (prefixed keys plus system entries such as content-type).
 	// Only returned by MinIO servers.
 	UserMetadata StringMap `json:"userMetadata,omitempty"`
+
+	// UserMetadataStripped is the user metadata from list results in the
+	// keyed form StatObject and GetObject return in UserMetadata:
+	// x-amz-meta-* entries with the "X-Amz-Meta-" prefix stripped and
+	// values passed through verbatim.
+	// Only populated by MinIO servers when listing with WithMetadata.
+	UserMetadataStripped StringMap `json:"userMetadataStripped,omitempty" xml:"-"`
 
 	// x-amz-tagging values in their k/v values.
 	// Only returned by MinIO servers.
