@@ -94,9 +94,15 @@ type Version struct {
 	StorageClass string
 	VersionID    string `xml:"VersionId"`
 
-	// x-amz-meta-* headers stripped "x-amz-meta-" prefix containing the first value.
-	// Only returned by MinIO servers.
+	// UserMetadata contains the exact stored object metadata: x-amz-meta-*
+	// entries with their prefixed keys plus system entries such as
+	// content-type. Only returned by MinIO servers.
 	UserMetadata StringMap `json:"userMetadata,omitempty"`
+
+	// UserMetadataStripped is UserMetadata in the keyed form StatObject and
+	// GetObject return in ObjectInfo.UserMetadata. See
+	// ObjectInfo.UserMetadataStripped.
+	UserMetadataStripped StringMap `json:"userMetadataStripped,omitempty" xml:"-"`
 
 	// x-amz-tagging values in their k/v values.
 	// Only returned by MinIO servers.
