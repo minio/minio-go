@@ -554,7 +554,7 @@ type requestMetadata struct {
 }
 
 // dumpHTTP - dump HTTP request and response.
-func (c *Client) dumpHTTP(req *http.Request, resp *http.Response) error {
+func (c *Client) dumpHTTP(req *http.Request, resp *http.Response, doErr error) error {
 	// Starts http dump.
 	_, err := fmt.Fprintln(c.traceOutput, "---------START-HTTP---------")
 	if err != nil {
@@ -582,26 +582,36 @@ func (c *Client) dumpHTTP(req *http.Request, resp *http.Response) error {
 		return err
 	}
 
-	// Only display response header.
-	var respTrace []byte
+	if resp != nil {
+		// Only display response header.
+		var respTrace []byte
 
-	// For errors we make sure to dump response body as well.
-	if !successStatus.Contains(resp.StatusCode) {
-		respTrace, err = httputil.DumpResponse(resp, true)
-		if err != nil {
-			return err
+		// For errors we make sure to dump response body as well.
+		if !successStatus.Contains(resp.StatusCode) {
+			respTrace, err = httputil.DumpResponse(resp, true)
+			if err != nil {
+				return err
+			}
+		} else {
+			respTrace, err = httputil.DumpResponse(resp, false)
+			if err != nil {
+				return err
+			}
 		}
-	} else {
-		respTrace, err = httputil.DumpResponse(resp, false)
+
+		// Write response to trace output.
+		_, err = fmt.Fprint(c.traceOutput, strings.TrimSuffix(string(respTrace), "\r\n"))
 		if err != nil {
 			return err
 		}
 	}
 
-	// Write response to trace output.
-	_, err = fmt.Fprint(c.traceOutput, strings.TrimSuffix(string(respTrace), "\r\n"))
-	if err != nil {
-		return err
+	if doErr != nil {
+		// Write error to trace output.
+		_, err = fmt.Fprintln(c.traceOutput, strings.TrimSuffix(string(doErr.Error()), "\r\n"))
+		if err != nil {
+			return err
+		}
 	}
 
 	// Ends the http dump.
@@ -624,6 +634,9 @@ func (c *Client) do(req *http.Request) (resp *http.Response, err error) {
 
 	resp, err = c.httpClient.Do(req)
 	if err != nil {
+		if c.isTraceEnabled {
+			_ = c.dumpHTTP(req, nil, err)
+		}
 		// Handle this specifically for now until future Golang versions fix this issue properly.
 		if urlErr, ok := err.(*url.Error); ok {
 			if strings.Contains(urlErr.Err.Error(), "EOF") {
@@ -646,7 +659,7 @@ func (c *Client) do(req *http.Request) (resp *http.Response, err error) {
 	// If trace is enabled, dump http request and response,
 	// except when traceErrorsOnly is enabled and the response has a success status code
 	if c.isTraceEnabled && (!c.traceErrorsOnly || !successStatus.Contains(resp.StatusCode)) {
-		err = c.dumpHTTP(req, resp)
+		err = c.dumpHTTP(req, resp, nil)
 		if err != nil {
 			return nil, err
 		}
