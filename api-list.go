@@ -127,6 +127,9 @@ func (c *Client) listObjectsV2(ctx context.Context, bucketName string, opts List
 
 	// Return object owner information by default
 	fetchOwner := true
+	if opts.FetchOwner != nil {
+		fetchOwner = *opts.FetchOwner
+	}
 
 	return func(yield func(ObjectInfo) bool) {
 		if contextCanceled(ctx) {
@@ -740,6 +743,10 @@ type ListObjectsOptions struct {
 
 	// Use the deprecated list objects V1 API
 	UseV1 bool
+
+	// FetchOwner indicates whether to return object owner information.
+	// It defaults to true when unset.
+	FetchOwner *bool
 
 	headers http.Header
 }
