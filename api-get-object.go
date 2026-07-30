@@ -81,6 +81,8 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 	reqCh := make(chan getRequest)
 	// Create response channel.
 	resCh := make(chan getResponse)
+	// record original range header for stat operation.
+	originalRangeHeader := opts.Header().Get("Range")
 
 	// This routine feeds partial object data as and when the caller reads.
 	go func() {
@@ -147,19 +149,35 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 						// it to io.EOF - return unexpected EOF.
 						err = io.ErrUnexpectedEOF
 					}
+					// when doing a readAt, we can't reuse the httpReader for next read action.
+					if req.isReadAt {
+						httpReader.Close()
+						httpReader = nil
+					}
+
+					objectSize := int64(0)
+					// case for ReadFull with range request
+					if !req.isReadAt && req.Offset == 0 {
+						objectSize = objectInfo.Size
+					}
 					// Send back the first response.
 					resCh <- getResponse{
+						ObjectSize: objectSize,
 						objectInfo: objectInfo,
 						Size:       size,
 						Error:      err,
 						didRead:    true,
 					}
 				} else {
-					// First request is a Stat or Seek call.
-					// Only need to run a StatObject until an actual Read or ReadAt request comes through.
+					if originalRangeHeader == "" {
+						// First request is a Seek call.
+						// Only need to run a StatObject until an actual Read request comes through.
 
-					// Remove range header if already set, for stat Operations to get original file size.
-					delete(opts.headers, "Range")
+						// Remove range header if already set, for stat Operations to get original file size.
+						delete(opts.headers, "Range")
+					} else {
+						opts.headers["Range"] = originalRangeHeader
+					}
 					objectInfo, err = c.StatObject(gctx, bucketName, objectName, StatObjectOptions(opts))
 					if err != nil {
 						resCh <- getResponse{
@@ -171,12 +189,17 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 					etag = objectInfo.ETag
 					// Send back the first response.
 					resCh <- getResponse{
+						ObjectSize: objectInfo.Size,
 						objectInfo: objectInfo,
 					}
 				}
 			} else if req.settingObjectInfo { // Request is just to get objectInfo.
 				// Remove range header if already set, for stat Operations to get original file size.
-				delete(opts.headers, "Range")
+				if originalRangeHeader == "" {
+					delete(opts.headers, "Range")
+				} else {
+					opts.headers["Range"] = originalRangeHeader
+				}
 				// Check whether this is snowball
 				// if yes do not use If-Match feature
 				// it doesn't work.
@@ -193,9 +216,12 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 				}
 				// Send back the objectInfo.
 				resCh <- getResponse{
+					ObjectSize: objectInfo.Size,
 					objectInfo: objectInfo,
 				}
 			} else {
+				objectSize := int64(0)
+				renewReader := false
 				// Offset changes fetch the new object at an Offset.
 				// Because the httpReader may not be set by the first
 				// request if it was a stat or seek it must be checked
@@ -223,8 +249,11 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 					} else if req.Offset > 0 { // Range is set with respect to the offset.
 						opts.SetRange(req.Offset, 0)
 					} else {
-						// Remove range header if already set
-						delete(opts.headers, "Range")
+						if originalRangeHeader == "" {
+							delete(opts.headers, "Range")
+						} else {
+							opts.headers["Range"] = originalRangeHeader
+						}
 					}
 					httpReader, objectInfo, _, err = c.getObject(gctx, bucketName, objectName, opts)
 					if err != nil {
@@ -239,6 +268,11 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 						}
 						return
 					}
+					// case for ReadFull with range request
+					if !req.isReadAt && req.Offset == 0 {
+						objectSize = objectInfo.Size
+					}
+					renewReader = true
 					totalRead = 0
 				}
 
@@ -265,9 +299,13 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 					// it to io.EOF - return unexpected EOF.
 					err = io.ErrUnexpectedEOF
 				}
-
+				if renewReader && req.isReadAt {
+					httpReader.Close()
+					httpReader = nil
+				}
 				// Reply back how much was read.
 				resCh <- getResponse{
+					ObjectSize: objectSize,
 					Size:       size,
 					Error:      err,
 					didRead:    true,
@@ -296,6 +334,7 @@ type getRequest struct {
 
 // get response message container to reply back for the request.
 type getResponse struct {
+	ObjectSize int64
 	Size       int
 	Error      error
 	didRead    bool       // Lets subsequent calls know whether or not httpReader has been initiated.
@@ -314,6 +353,7 @@ type Object struct {
 	ctx        context.Context
 	cancel     context.CancelFunc
 	currOffset int64
+	totalSize  int64
 	objectInfo ObjectInfo
 
 	// Ask lower level to initiate data fetching based on currOffset
@@ -371,6 +411,10 @@ func (o *Object) doGetRequest(request getRequest) (getResponse, error) {
 	// Data are ready on the wire, no need to reinitiate connection in lower level
 	o.seekData = false
 
+	if response.ObjectSize != 0 {
+		o.totalSize = response.ObjectSize
+	}
+
 	return response, response.Error
 }
 
@@ -380,7 +424,7 @@ func (o *Object) setOffset(bytesRead int64) error {
 	// Update the currentOffset.
 	o.currOffset += bytesRead
 
-	if o.objectInfo.Size > -1 && o.currOffset >= o.objectInfo.Size {
+	if o.totalSize > -1 && o.currOffset >= o.totalSize {
 		return io.EOF
 	}
 	return nil
@@ -458,6 +502,8 @@ func (o *Object) Read(b []byte) (n int, err error) {
 }
 
 // Stat returns the ObjectInfo structure describing Object.
+// When requesting a partial object or reading has started,
+// the size returned will reflect the remaining size.
 func (o *Object) Stat() (ObjectInfo, error) {
 	if o == nil {
 		return ObjectInfo{}, errInvalidArgument("Object is nil")
@@ -474,6 +520,12 @@ func (o *Object) Stat() (ObjectInfo, error) {
 	// payload is delivered out-of-band so the object is created closed, or a
 	// previously completed request) report it, even for a closed object.
 	if o.objectInfoSet {
+		if o.currOffset > o.totalSize {
+			return ObjectInfo{}, io.EOF
+		}
+		if o.currOffset <= o.totalSize {
+			o.objectInfo.Size = o.totalSize - o.currOffset
+		}
 		return o.objectInfo, nil
 	}
 
@@ -493,7 +545,12 @@ func (o *Object) Stat() (ObjectInfo, error) {
 			return ObjectInfo{}, err
 		}
 	}
-
+	if o.currOffset > o.totalSize {
+		return ObjectInfo{}, io.EOF
+	}
+	if o.currOffset <= o.totalSize {
+		o.objectInfo.Size = o.totalSize - o.currOffset
+	}
 	return o.objectInfo, nil
 }
 
@@ -529,7 +586,7 @@ func (o *Object) ReadAt(b []byte, offset int64) (n int, err error) {
 	if o.objectInfoSet {
 		// If offset is negative than we return io.EOF.
 		// If offset is greater than or equal to object size we return io.EOF.
-		if (o.objectInfo.Size > -1 && offset >= o.objectInfo.Size) || offset < 0 {
+		if (o.totalSize > -1 && offset >= o.totalSize) || offset < 0 {
 			return 0, io.EOF
 		}
 	}
@@ -643,10 +700,10 @@ func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 		newOffset += offset
 	case 2:
 		// If we don't know the object size return an error for io.SeekEnd
-		if o.objectInfo.Size < 0 {
+		if o.totalSize < 0 {
 			return 0, errInvalidArgument("Whence END is not supported when the object size is unknown")
 		}
-		newOffset = o.objectInfo.Size + offset
+		newOffset = o.totalSize + offset
 	}
 	// Seeking to a position before the start of the object is not allowed for
 	// any whence.
