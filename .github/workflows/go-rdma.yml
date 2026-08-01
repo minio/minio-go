@@ -24,12 +24,14 @@ jobs:
     - name: Checkout minio-go
       uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       with:
+        persist-credentials: false
         path: "minio-go"
 
     - name: Checkout minio-cpp
       uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       with:
         repository: minio/minio-cpp
+        persist-credentials: false
         path: "minio-cpp"
 
     - name: Checkout vcpkg
@@ -40,6 +42,7 @@ jobs:
         # runner image ships (scripts use string(JSON ... STRING_ENCODE)
         # since microsoft/vcpkg@5397c5c9f), which fails every arm64 run.
         ref: cd61e1e26a038e82d6550a3ebbe0fbbfe7da78e3 # tag 2026.06.24
+        persist-credentials: false
         path: "vcpkg"
 
     - name: Install system dependencies
