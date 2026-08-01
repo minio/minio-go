@@ -848,8 +848,20 @@ func (c *Client) executeMethod(ctx context.Context, method string, metadata requ
 	return res, err
 }
 
+// credsRetrievalPanic carries a panic value out of the de-duplicated
+// credential retrieval goroutine so newRequest can resume it on each
+// caller's goroutine.
+type credsRetrievalPanic struct{ value any }
+
+func (p credsRetrievalPanic) Error() string {
+	return fmt.Sprintf("credentials retrieval panicked: %v", p.value)
+}
+
 // newRequest - instantiate a new HTTP request for a given method.
 func (c *Client) newRequest(ctx context.Context, method string, metadata requestMetadata) (req *http.Request, err error) {
+	if ctx == nil {
+		return nil, errInvalidArgument("context cannot be nil")
+	}
 	// If no method is supplied default to 'POST'.
 	if method == "" {
 		method = http.MethodPost
@@ -882,21 +894,56 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 		return nil, err
 	}
 
-	if c.httpTrace != nil {
-		ctx = httptrace.WithClientTrace(ctx, c.httpTrace)
-	}
-
-	// make sure to de-dup calls to credential services, this reduces
-	// the overall load to the endpoint generating credential service.
-	value, err, _ := c.credsGroup.Do(metadata.bucketName, func() (credentials.Value, error) {
-		if s3utils.IsS3ExpressBucket(metadata.bucketName) && s3utils.IsAmazonEndpoint(*c.endpointURL) {
-			return c.CreateSession(ctx, metadata.bucketName, SessionReadWrite)
+	// Cached, unexpired credentials (or an absent provider — anonymous
+	// access) are served inline; a retrieval that races expiry runs
+	// inline too, serialized by the Credentials mutex. S3 Express
+	// sessions always go through the de-dup group.
+	express := s3utils.IsS3ExpressBucket(metadata.bucketName) && s3utils.IsAmazonEndpoint(*c.endpointURL)
+	var value credentials.Value
+	if !express && (c.credsProvider == nil || !c.credsProvider.IsExpired()) {
+		value, err = c.credsProvider.GetWithContext(c.credContext(ctx))
+	} else {
+		// The provider retrieval is detached (context.WithoutCancel) so
+		// one caller's cancellation cannot fail concurrent waiters; each
+		// waiter stops waiting when its own context ends, though a
+		// caller arriving mid-retrieval blocks in IsExpired on the
+		// Credentials mutex until the retrieval completes. The S3
+		// Express session request keeps the caller context: a full S3
+		// operation's retries must stay cancellable, so its waiters
+		// share the winner's fate. A retrieval panic resumes on each
+		// waiting caller's goroutine (credsRetrievalPanic); a
+		// runtime.Goexit is not propagated — waiters wait out their own
+		// contexts.
+		resCh := c.credsGroup.DoChan(metadata.bucketName, func() (v credentials.Value, rerr error) {
+			defer func() {
+				if r := recover(); r != nil {
+					rerr = credsRetrievalPanic{value: r}
+				}
+			}()
+			if express {
+				return c.CreateSession(ctx, metadata.bucketName, SessionReadWrite)
+			}
+			// Get credentials from the configured credentials provider.
+			return c.credsProvider.GetWithContext(c.credContext(context.WithoutCancel(ctx)))
+		})
+		select {
+		case res := <-resCh:
+			if cp, ok := res.Err.(credsRetrievalPanic); ok {
+				panic(cp.value)
+			}
+			value, err = res.Val, res.Err
+		case <-ctx.Done():
+			return nil, ctx.Err()
 		}
-		// Get credentials from the configured credentials provider.
-		return c.credsProvider.GetWithContext(c.CredContext())
-	})
+	}
 	if err != nil {
 		return nil, err
+	}
+
+	// Attach the trace after credential retrieval so credential
+	// requests stay untraced.
+	if c.httpTrace != nil {
+		ctx = httptrace.WithClientTrace(ctx, c.httpTrace)
 	}
 
 	// Initialize a new HTTP request for the method.
@@ -1170,6 +1217,14 @@ func (c *Client) CredContext() *credentials.CredContext {
 		Client:   httpClient,
 		Endpoint: c.endpointURL.String(),
 	}
+}
+
+// credContext returns the client's CredContext with ctx attached as the
+// caller context for credential retrieval.
+func (c *Client) credContext(ctx context.Context) *credentials.CredContext {
+	cc := c.CredContext()
+	cc.Context = ctx
+	return cc
 }
 
 // GetCreds returns the access creds for the client

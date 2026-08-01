@@ -18,9 +18,12 @@
 package credentials
 
 import (
+	"context"
 	"crypto/sha1"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -1029,3 +1032,101 @@ func TestFileMinioClient(t *testing.T) {
 		t.Error("Should be expired if not loaded")
 	}
 }
+
+// TestFileAWSSSOCallerContext verifies that the caller context carried by
+// CredContext cancels or bounds the SSO portal request, and that the
+// provider-level ssoPortalRequestTimeout bound stays enforced alongside it.
+func TestFileAWSSSOCallerContext(t *testing.T) {
+	os.Clearenv()
+
+	testNow := func() time.Time { return time.Date(2020, time.January, 10, 1, 1, 1, 1, time.UTC) }
+
+	newSSOCreds := func(portalURL, cacheDir string) *Credentials {
+		return New(&FileAWSCredentials{
+			Expiry:               Expiry{CurrentTime: testNow},
+			Filename:             "credentials-sso.sample",
+			Profile:              "p1",
+			overrideSSOCacheDir:  cacheDir,
+			overrideSSOPortalURL: portalURL,
+		})
+	}
+	newCacheDir := func(t *testing.T) string {
+		cacheDir := t.TempDir()
+		writeSSOCachedToken(t, cacheDir, "main",
+			`{"startUrl": "https://testacct.awsapps.com/start", "region": "us-test-2", "accessToken": "my-access-token", "expiresAt": "2020-01-11T00:00:00Z"}`)
+		return cacheDir
+	}
+
+	t.Run("caller-cancel", func(t *testing.T) {
+		requestArrived := make(chan struct{})
+		ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+			close(requestArrived)
+			<-r.Context().Done()
+		}))
+		defer ts.Close()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go func() {
+			<-requestArrived
+			cancel()
+		}()
+
+		start := time.Now()
+		_, err := newSSOCreds(ts.URL, newCacheDir(t)).GetWithContext(&CredContext{Client: ts.Client(), Context: ctx})
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("Expected context.Canceled, got %v", err)
+		}
+		if elapsed := time.Since(start); elapsed >= ssoPortalRequestTimeout {
+			t.Fatalf("Cancellation took %v, bounded by the provider timeout instead of the caller context", elapsed)
+		}
+	})
+
+	t.Run("caller-deadline", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+			<-r.Context().Done()
+		}))
+		defer ts.Close()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
+
+		_, err := newSSOCreds(ts.URL, newCacheDir(t)).GetWithContext(&CredContext{Client: ts.Client(), Context: ctx})
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("Expected context.DeadlineExceeded, got %v", err)
+		}
+	})
+
+	// A deadline is only observable client-side (it does not travel over
+	// HTTP), so the provider-bound check inspects the outgoing request's
+	// context in a RoundTripper instead of an httptest handler.
+	t.Run("provider-bound-retained", func(t *testing.T) {
+		deadlineCh := make(chan time.Time, 1)
+		client := &http.Client{Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			dl, _ := req.Context().Deadline()
+			deadlineCh <- dl
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(`{"roleCredentials": {"accessKeyId": "accessKey", "secretAccessKey": "secret", "sessionToken": "token", "expiration": 1702317362000}}`)),
+			}, nil
+		})}
+
+		_, err := newSSOCreds("https://portal.sso.invalid", newCacheDir(t)).GetWithContext(&CredContext{Client: client, Context: context.Background()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		dl := <-deadlineCh
+		if dl.IsZero() {
+			t.Fatal("Expected the SSO portal request context to carry the provider-level deadline")
+		}
+		if until := time.Until(dl); until > ssoPortalRequestTimeout || until < ssoPortalRequestTimeout/2 {
+			t.Fatalf("Expected a deadline about ssoPortalRequestTimeout from now, got %v", until)
+		}
+	})
+}
+
+// roundTripperFunc adapts a function to http.RoundTripper.
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }

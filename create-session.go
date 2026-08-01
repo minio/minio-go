@@ -143,7 +143,7 @@ func (c *Client) createSessionRequest(ctx context.Context, bucketName string, se
 	c.setUserAgent(req)
 
 	// Get credentials from the configured credentials provider.
-	value, err := c.credsProvider.GetWithContext(c.CredContext())
+	value, err := c.credsProvider.GetWithContext(c.credContext(ctx))
 	if err != nil {
 		return nil, err
 	}

@@ -20,11 +20,14 @@
 package credentials
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -604,5 +607,54 @@ func TestIAMCustomExpiryWindowWebIdentity(t *testing.T) {
 	expectedExpiry := time.Date(2014, 12, 16, 1, 46, 37, 0, time.UTC)
 	if !p.expiration.Equal(expectedExpiry) {
 		t.Errorf("Expected expiration %v, got %v", expectedExpiry, p.expiration)
+	}
+}
+
+// TestEcsTaskCallerContextCancel verifies that the caller context carried by
+// CredContext cancels an in-flight ECS task credentials request.
+func TestEcsTaskCallerContextCancel(t *testing.T) {
+	requestArrived := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		close(requestArrived)
+		<-r.Context().Done()
+	}))
+	defer server.Close()
+
+	t.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "/v2/credentials?id=task_credential_id")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		<-requestArrived
+		cancel()
+	}()
+
+	p := &IAM{Endpoint: server.URL}
+	_, err := p.RetrieveWithCredContext(&CredContext{Client: http.DefaultClient, Context: ctx})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Expected context.Canceled, got %v", err)
+	}
+}
+
+// TestIAMCallerContextCanceled verifies that an already-canceled caller
+// context aborts the EC2/IMDS credentials flow promptly instead of running
+// the metadata requests to completion.
+func TestIAMCallerContextCanceled(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+	}))
+	defer server.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	p := &IAM{Endpoint: server.URL}
+	_, err := p.RetrieveWithCredContext(&CredContext{Client: http.DefaultClient, Context: ctx})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Expected context.Canceled, got %v", err)
+	}
+	if n := requests.Load(); n != 0 {
+		t.Fatalf("Expected no metadata requests with a canceled caller context, got %d", n)
 	}
 }
