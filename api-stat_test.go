@@ -21,35 +21,40 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
+	"reflect"
 	"testing"
 
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
-// Tests that StatObject returns the delete-marker ObjectInfo fields
-// (VersionID, IsDeleteMarker) and the MethodNotAllowed error code when a
-// versioned HEAD hits a delete marker (HTTP 405).
-func TestStatObjectDeleteMarker(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set(amzDeleteMarker, "true")
-		w.Header().Set(amzVersionID, "test-version-id")
-		w.WriteHeader(http.StatusMethodNotAllowed)
-	}))
-	defer srv.Close()
+// newTestStatClient returns a Client pointed at an httptest server that
+// serves handler; the server is closed via t.Cleanup.
+func newTestStatClient(t *testing.T, handler http.HandlerFunc) *Client {
+	t.Helper()
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
 
-	u, err := url.Parse(srv.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	clnt, err := New(u.Host, &Options{
+	clnt, err := New(srv.Listener.Addr().String(), &Options{
 		Creds:  credentials.NewStaticV4("foo", "foo12345", ""),
 		Region: "us-east-1",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
+	return clnt
+}
+
+// Tests that StatObject returns the delete-marker ObjectInfo fields
+// (VersionID and IsDeleteMarker — ReplicationReady is deliberately not
+// merged into this return) and the MethodNotAllowed error code when a
+// versioned HEAD hits a delete marker (HTTP 405).
+func TestStatObjectDeleteMarker(t *testing.T) {
+	clnt := newTestStatClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set(amzDeleteMarker, "true")
+		w.Header().Set(amzVersionID, "test-version-id")
+		w.Header().Set(minioTgtReplicationReady, "true")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	})
 
 	objInfo, err := clnt.StatObject(context.Background(), "bucket-name", "object-name",
 		StatObjectOptions{VersionID: "test-version-id"})
@@ -63,11 +68,18 @@ func TestStatObjectDeleteMarker(t *testing.T) {
 	if errResp.StatusCode != http.StatusMethodNotAllowed {
 		t.Errorf("error status = %d, want %d", errResp.StatusCode, http.StatusMethodNotAllowed)
 	}
+	if errResp.BucketName != "bucket-name" || errResp.Key != "object-name" {
+		t.Errorf("error bucket/key = %q/%q, want %q/%q",
+			errResp.BucketName, errResp.Key, "bucket-name", "object-name")
+	}
 	if !objInfo.IsDeleteMarker {
 		t.Error("expected IsDeleteMarker to be true")
 	}
 	if objInfo.VersionID != "test-version-id" {
 		t.Errorf("VersionID = %q, want %q", objInfo.VersionID, "test-version-id")
+	}
+	if objInfo.ReplicationReady {
+		t.Error("expected ReplicationReady to stay false on the delete-marker return")
 	}
 }
 
@@ -75,6 +87,7 @@ func TestStatObjectDeleteMarker(t *testing.T) {
 // shape (the x-amz-delete-marker header, or a version-targeted stat)
 // falls through to the generic error path with the raw status code.
 func TestStatObjectMethodNotAllowedGeneric(t *testing.T) {
+	const wantCode = "405 Method Not Allowed"
 	tests := []struct {
 		name         string
 		deleteMarker bool
@@ -85,35 +98,21 @@ func TestStatObjectMethodNotAllowedGeneric(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			clnt := newTestStatClient(t, func(w http.ResponseWriter, _ *http.Request) {
 				if tt.deleteMarker {
 					w.Header().Set(amzDeleteMarker, "true")
 				}
 				w.Header().Set(amzVersionID, "test-version-id")
 				w.WriteHeader(http.StatusMethodNotAllowed)
-			}))
-			defer srv.Close()
-
-			u, err := url.Parse(srv.URL)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			clnt, err := New(u.Host, &Options{
-				Creds:  credentials.NewStaticV4("foo", "foo12345", ""),
-				Region: "us-east-1",
 			})
-			if err != nil {
-				t.Fatal(err)
-			}
 
 			objInfo, err := clnt.StatObject(context.Background(), "bucket-name", "object-name",
 				StatObjectOptions{VersionID: tt.versionID})
 			if err == nil {
 				t.Fatal("expected error, got nil")
 			}
-			if errResp := ToErrorResponse(err); errResp.Code != "405 Method Not Allowed" {
-				t.Errorf("error code = %q, want %q", errResp.Code, "405 Method Not Allowed")
+			if errResp := ToErrorResponse(err); errResp.Code != wantCode {
+				t.Errorf("error code = %q, want %q", errResp.Code, wantCode)
 			}
 			if objInfo.IsDeleteMarker != tt.deleteMarker {
 				t.Errorf("IsDeleteMarker = %v, want %v", objInfo.IsDeleteMarker, tt.deleteMarker)
@@ -130,26 +129,12 @@ func TestStatObjectMethodNotAllowedGeneric(t *testing.T) {
 func TestStatObjectNoContentSuccess(t *testing.T) {
 	for _, status := range []int{http.StatusAccepted, http.StatusNoContent} {
 		t.Run(http.StatusText(status), func(t *testing.T) {
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			clnt := newTestStatClient(t, func(w http.ResponseWriter, _ *http.Request) {
 				w.Header().Set("Last-Modified", "Thu, 30 Jul 2026 00:00:00 GMT")
 				w.Header().Set("ETag", `"deadbeef"`)
 				w.Header().Set(amzVersionID, "test-version-id")
 				w.WriteHeader(status)
-			}))
-			defer srv.Close()
-
-			u, err := url.Parse(srv.URL)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			clnt, err := New(u.Host, &Options{
-				Creds:  credentials.NewStaticV4("foo", "foo12345", ""),
-				Region: "us-east-1",
 			})
-			if err != nil {
-				t.Fatal(err)
-			}
 
 			objInfo, err := clnt.StatObject(context.Background(), "bucket-name", "object-name", StatObjectOptions{})
 			if err != nil {
@@ -187,7 +172,7 @@ func TestStatObjectNoResponse(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unreachable endpoint, got nil")
 	}
-	if objInfo.IsDeleteMarker || objInfo.VersionID != "" || objInfo.ETag != "" {
+	if !reflect.DeepEqual(objInfo, ObjectInfo{}) {
 		t.Errorf("expected zero ObjectInfo, got %+v", objInfo)
 	}
 }
@@ -196,26 +181,12 @@ func TestStatObjectNoResponse(t *testing.T) {
 // headers on a generic error response, e.g. HEAD on an object whose
 // latest version is a delete marker (HTTP 404).
 func TestStatObjectErrorHeaders(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	clnt := newTestStatClient(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set(amzDeleteMarker, "true")
 		w.Header().Set(amzVersionID, "test-version-id")
 		w.Header().Set(minioTgtReplicationReady, "true")
 		w.WriteHeader(http.StatusNotFound)
-	}))
-	defer srv.Close()
-
-	u, err := url.Parse(srv.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	clnt, err := New(u.Host, &Options{
-		Creds:  credentials.NewStaticV4("foo", "foo12345", ""),
-		Region: "us-east-1",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	objInfo, err := clnt.StatObject(context.Background(), "bucket-name", "object-name", StatObjectOptions{})
 	if err == nil {

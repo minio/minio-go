@@ -24,22 +24,27 @@ jobs:
     - name: Checkout minio-go
       uses: actions/checkout@v4
       with:
+        persist-credentials: false
         path: "minio-go"
 
     - name: Checkout minio-cpp
       uses: actions/checkout@v4
       with:
         repository: minio/minio-cpp
+        persist-credentials: false
         path: "minio-cpp"
 
     - name: Checkout vcpkg
       uses: actions/checkout@v4
       with:
         repository: microsoft/vcpkg
-        # Pinned: vcpkg master requires a newer CMake than the arm64
-        # runner image ships (scripts use string(JSON ... STRING_ENCODE)
-        # since microsoft/vcpkg@5397c5c9f), which fails every arm64 run.
+        # Pinned: vcpkg master needs CMake >= 4.3 (scripts use
+        # string(JSON ... STRING_ENCODE) since microsoft/vcpkg@5397c5c9f).
+        # vcpkg bootstraps its own CMake 4.4 on linux-amd64 but not on
+        # linux-arm64, which falls back to apt's CMake 3.28 and fails
+        # every arm64 run. Unpin once vcpkg supplies an arm64 CMake.
         ref: cd61e1e26a038e82d6550a3ebbe0fbbfe7da78e3 # tag 2026.06.24
+        persist-credentials: false
         path: "vcpkg"
 
     - name: Install system dependencies

@@ -57,7 +57,11 @@ func (c *Client) BucketExists(ctx context.Context, bucketName string) (bool, err
 }
 
 // StatObject verifies if object exists, you have permission to access it
-// and returns information about the object.
+// and returns information about the object. When the returned error is
+// non-nil but a response was received, the ObjectInfo still carries the
+// VersionID and IsDeleteMarker values parsed from the response headers,
+// plus ReplicationReady on every error path except the versioned
+// delete-marker 405.
 func (c *Client) StatObject(ctx context.Context, bucketName, objectName string, opts StatObjectOptions) (ObjectInfo, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
@@ -92,8 +96,9 @@ func (c *Client) StatObject(ctx context.Context, bucketName, objectName string, 
 	})
 	defer closeResponse(resp)
 	if err != nil {
-		// Surface the version, delete-marker, and replication-ready
-		// fields carried in the response headers alongside the error.
+		// executeMethod returns a non-nil error for every non-success
+		// status. When a response exists, its headers still carry the
+		// version and delete-marker fields — surface them with the error.
 		if resp == nil {
 			return ObjectInfo{}, err
 		}
@@ -115,7 +120,7 @@ func (c *Client) StatObject(ctx context.Context, bucketName, objectName string, 
 		return ObjectInfo{
 			VersionID:        resp.Header.Get(amzVersionID),
 			IsDeleteMarker:   deleteMarker,
-			ReplicationReady: replicationReady,
+			ReplicationReady: replicationReady, // whether delete marker can be replicated
 		}, err
 	}
 
