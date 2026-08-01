@@ -92,32 +92,31 @@ func (c *Client) StatObject(ctx context.Context, bucketName, objectName string, 
 	})
 	defer closeResponse(resp)
 	if err != nil {
-		return ObjectInfo{}, err
-	}
-
-	if resp != nil {
+		// Surface the version, delete-marker, and replication-ready
+		// fields carried in the response headers alongside the error.
+		if resp == nil {
+			return ObjectInfo{}, err
+		}
 		deleteMarker := resp.Header.Get(amzDeleteMarker) == "true"
 		replicationReady := resp.Header.Get(minioTgtReplicationReady) == "true"
-		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
-			if resp.StatusCode == http.StatusMethodNotAllowed && opts.VersionID != "" && deleteMarker {
-				errResp := ErrorResponse{
-					StatusCode: resp.StatusCode,
-					Code:       MethodNotAllowed,
-					Message:    s3ErrorResponseMap[MethodNotAllowed],
-					BucketName: bucketName,
-					Key:        objectName,
-				}
-				return ObjectInfo{
-					VersionID:      resp.Header.Get(amzVersionID),
-					IsDeleteMarker: deleteMarker,
-				}, errResp
+		if resp.StatusCode == http.StatusMethodNotAllowed && opts.VersionID != "" && deleteMarker {
+			errResp := ErrorResponse{
+				StatusCode: resp.StatusCode,
+				Code:       MethodNotAllowed,
+				Message:    s3ErrorResponseMap[MethodNotAllowed],
+				BucketName: bucketName,
+				Key:        objectName,
 			}
 			return ObjectInfo{
-				VersionID:        resp.Header.Get(amzVersionID),
-				IsDeleteMarker:   deleteMarker,
-				ReplicationReady: replicationReady, // whether delete marker can be replicated
-			}, httpRespToErrorResponse(resp, bucketName, objectName)
+				VersionID:      resp.Header.Get(amzVersionID),
+				IsDeleteMarker: deleteMarker,
+			}, errResp
 		}
+		return ObjectInfo{
+			VersionID:        resp.Header.Get(amzVersionID),
+			IsDeleteMarker:   deleteMarker,
+			ReplicationReady: replicationReady,
+		}, err
 	}
 
 	return ToObjectInfo(bucketName, objectName, resp.Header)
