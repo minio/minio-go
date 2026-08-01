@@ -95,9 +95,9 @@ type CredContext struct {
 }
 
 // requestContext returns the caller context carried by cc, or
-// context.Background() when cc or its Context is nil.
+// context.Background() when no Context is set.
 func (cc *CredContext) requestContext() context.Context {
-	if cc == nil || cc.Context == nil {
+	if cc.Context == nil {
 		return context.Background()
 	}
 	return cc.Context

@@ -406,7 +406,7 @@ func getCredentials(ctx context.Context, client *http.Client, endpoint string) (
 	if err != nil {
 		// A dead caller context is not an IMDSv2 availability signal.
 		if cerr := ctx.Err(); cerr != nil {
-			return ec2RoleCredRespBody{}, cerr
+			return ec2RoleCredRespBody{}, fmt.Errorf("%w (imds token fetch: %v)", cerr, err)
 		}
 		// Return only errors for valid situations, if the IMDSv2 is not enabled
 		// we will not be able to get the token, in such a situation we have

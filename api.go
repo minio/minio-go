@@ -850,7 +850,9 @@ func (c *Client) executeMethod(ctx context.Context, method string, metadata requ
 
 // credsRetrievalPanic carries a panic value out of the de-duplicated
 // credential retrieval goroutine so newRequest can resume it on each
-// caller's goroutine.
+// caller's goroutine. The value is re-raised verbatim, as if the provider
+// had panicked on the caller's goroutine; the retrieval goroutine's stack
+// is not carried along.
 type credsRetrievalPanic struct{ value any }
 
 func (p credsRetrievalPanic) Error() string {
@@ -860,6 +862,7 @@ func (p credsRetrievalPanic) Error() string {
 // newRequest - instantiate a new HTTP request for a given method.
 func (c *Client) newRequest(ctx context.Context, method string, metadata requestMetadata) (req *http.Request, err error) {
 	if ctx == nil {
+		// Deriving from a nil context (context.WithoutCancel below) panics.
 		return nil, errInvalidArgument("context cannot be nil")
 	}
 	// If no method is supplied default to 'POST'.
@@ -896,13 +899,20 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 
 	// Cached, unexpired credentials (or an absent provider — anonymous
 	// access) are served inline; a retrieval that races expiry runs
-	// inline too, serialized by the Credentials mutex. S3 Express
-	// sessions always go through the de-dup group.
+	// inline too, with the caller's live context, serialized by the
+	// Credentials mutex. A still-fresh cached S3 Express session is
+	// served inline as well; actual retrievals go through the de-dup
+	// group.
 	express := s3utils.IsS3ExpressBucket(metadata.bucketName) && s3utils.IsAmazonEndpoint(*c.endpointURL)
 	var value credentials.Value
-	if !express && (c.credsProvider == nil || !c.credsProvider.IsExpired()) {
+	var served bool
+	if express {
+		value, served = c.sessionFromCache(metadata.bucketName)
+	} else if c.credsProvider == nil || !c.credsProvider.IsExpired() {
 		value, err = c.credsProvider.GetWithContext(c.credContext(ctx))
-	} else {
+		served = true
+	}
+	if !served {
 		// The provider retrieval is detached (context.WithoutCancel) so
 		// one caller's cancellation cannot fail concurrent waiters; each
 		// waiter stops waiting when its own context ends, though a
@@ -914,6 +924,10 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 		// waiting caller's goroutine (credsRetrievalPanic); a
 		// runtime.Goexit is not propagated — each caller waits until its
 		// own context ends, indefinitely when it has none.
+		retrieveCtx := ctx
+		if !express {
+			retrieveCtx = context.WithoutCancel(ctx)
+		}
 		resCh := c.credsGroup.DoChan(metadata.bucketName, func() (v credentials.Value, rerr error) {
 			defer func() {
 				if r := recover(); r != nil {
@@ -921,20 +935,28 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 				}
 			}()
 			if express {
-				return c.CreateSession(ctx, metadata.bucketName, SessionReadWrite)
+				return c.CreateSession(retrieveCtx, metadata.bucketName, SessionReadWrite)
 			}
 			// Get credentials from the configured credentials provider.
-			return c.credsProvider.GetWithContext(c.credContext(context.WithoutCancel(ctx)))
+			return c.credsProvider.GetWithContext(c.credContext(retrieveCtx))
 		})
+		var res singleflight.Result[credentials.Value]
 		select {
-		case res := <-resCh:
-			if cp, ok := res.Err.(credsRetrievalPanic); ok {
-				panic(cp.value)
-			}
-			value, err = res.Val, res.Err
+		case res = <-resCh:
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			// A result already delivered when the cancellation fires is
+			// preferred over the caller's context error.
+			select {
+			case res = <-resCh:
+			default:
+				return nil, ctx.Err()
+			}
 		}
+		var cp credsRetrievalPanic
+		if errors.As(res.Err, &cp) {
+			panic(cp.value)
+		}
+		value, err = res.Val, res.Err
 	}
 	if err != nil {
 		return nil, err

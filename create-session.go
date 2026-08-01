@@ -51,6 +51,20 @@ type createSessionResult struct {
 	} `xml:",omitempty"`
 }
 
+// expressSessionRenewalLeeway is how long before its expiration a cached
+// S3 Express session stops being served, leaving room for renewal.
+const expressSessionRenewalLeeway = 10 * time.Second
+
+// sessionFromCache returns the cached S3 Express session credentials for
+// bucketName while they remain outside the renewal leeway.
+func (c *Client) sessionFromCache(bucketName string) (credentials.Value, bool) {
+	v, ok := c.bucketSessionCache.Get(bucketName)
+	if !ok || !v.Expiration.After(time.Now().Add(expressSessionRenewalLeeway)) {
+		return credentials.Value{}, false
+	}
+	return v, true
+}
+
 // CreateSession - https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html
 // the returning credentials may be cached depending on the expiration of the original
 // credential, credentials will get renewed 10 secs earlier than when its gonna expire
@@ -60,10 +74,7 @@ func (c *Client) CreateSession(ctx context.Context, bucketName string, sessionMo
 		return credentials.Value{}, err
 	}
 
-	v, ok := c.bucketSessionCache.Get(bucketName)
-	if ok && v.Expiration.After(time.Now().Add(10*time.Second)) {
-		// Verify if the credentials will not expire
-		// in another 10 seconds, if not we renew it again.
+	if v, ok := c.sessionFromCache(bucketName); ok {
 		return v, nil
 	}
 

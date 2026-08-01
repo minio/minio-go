@@ -23,7 +23,24 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
+
+// retrieveWithin bounds a synchronous credential retrieval so a context
+// wiring regression fails in seconds instead of hanging to the package
+// timeout.
+func retrieveWithin(t *testing.T, what string, fn func() error) error {
+	t.Helper()
+	errCh := make(chan error, 1)
+	go func() { errCh <- fn() }()
+	select {
+	case err := <-errCh:
+		return err
+	case <-time.After(30 * time.Second):
+		t.Fatalf("timed out waiting for %s", what)
+		return nil
+	}
+}
 
 // TestSTSAssumeRoleCallerContextCancel verifies that the caller context
 // carried by CredContext cancels an in-flight AssumeRole request.
@@ -45,7 +62,10 @@ func TestSTSAssumeRoleCallerContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {
-		<-requestArrived
+		select {
+		case <-requestArrived:
+		case <-time.After(10 * time.Second):
+		}
 		cancel()
 	}()
 
@@ -56,7 +76,15 @@ func TestSTSAssumeRoleCallerContextCancel(t *testing.T) {
 			SecretKey: "secret",
 		},
 	}
-	_, err := m.RetrieveWithCredContext(&CredContext{Client: server.Client(), Context: ctx})
+	err := retrieveWithin(t, "the AssumeRole retrieval", func() error {
+		_, err := m.RetrieveWithCredContext(&CredContext{Client: server.Client(), Context: ctx})
+		return err
+	})
+	select {
+	case <-requestArrived:
+	default:
+		t.Fatal("timed out waiting for the AssumeRole request to arrive")
+	}
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Expected context.Canceled, got %v", err)
 	}

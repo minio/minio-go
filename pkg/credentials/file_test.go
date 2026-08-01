@@ -1059,21 +1059,41 @@ func TestFileAWSSSOCallerContext(t *testing.T) {
 
 	t.Run("caller-cancel", func(t *testing.T) {
 		requestArrived := make(chan struct{})
+		// The explicit release keeps the deferred Close from waiting on
+		// the handler when a regression leaves the request context
+		// un-canceled.
+		handlerDone := make(chan struct{})
 		ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 			close(requestArrived)
-			<-r.Context().Done()
+			select {
+			case <-r.Context().Done():
+			case <-handlerDone:
+			}
 		}))
 		defer ts.Close()
+		defer close(handlerDone)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		go func() {
-			<-requestArrived
+			select {
+			case <-requestArrived:
+			case <-time.After(10 * time.Second):
+			}
 			cancel()
 		}()
 
+		creds := newSSOCreds(ts.URL, newCacheDir(t))
 		start := time.Now()
-		_, err := newSSOCreds(ts.URL, newCacheDir(t)).GetWithContext(&CredContext{Client: ts.Client(), Context: ctx})
+		err := retrieveWithin(t, "the SSO portal retrieval", func() error {
+			_, err := creds.GetWithContext(&CredContext{Client: ts.Client(), Context: ctx})
+			return err
+		})
+		select {
+		case <-requestArrived:
+		default:
+			t.Fatal("timed out waiting for the SSO portal request to arrive")
+		}
 		if !errors.Is(err, context.Canceled) {
 			t.Fatalf("Expected context.Canceled, got %v", err)
 		}
@@ -1083,15 +1103,24 @@ func TestFileAWSSSOCallerContext(t *testing.T) {
 	})
 
 	t.Run("caller-deadline", func(t *testing.T) {
+		handlerDone := make(chan struct{})
 		ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-			<-r.Context().Done()
+			select {
+			case <-r.Context().Done():
+			case <-handlerDone:
+			}
 		}))
 		defer ts.Close()
+		defer close(handlerDone)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 		defer cancel()
 
-		_, err := newSSOCreds(ts.URL, newCacheDir(t)).GetWithContext(&CredContext{Client: ts.Client(), Context: ctx})
+		creds := newSSOCreds(ts.URL, newCacheDir(t))
+		err := retrieveWithin(t, "the SSO portal retrieval", func() error {
+			_, err := creds.GetWithContext(&CredContext{Client: ts.Client(), Context: ctx})
+			return err
+		})
 		if !errors.Is(err, context.DeadlineExceeded) {
 			t.Fatalf("Expected context.DeadlineExceeded, got %v", err)
 		}

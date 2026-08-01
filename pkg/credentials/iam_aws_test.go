@@ -27,6 +27,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -614,23 +615,41 @@ func TestIAMCustomExpiryWindowWebIdentity(t *testing.T) {
 // CredContext cancels an in-flight ECS task credentials request.
 func TestEcsTaskCallerContextCancel(t *testing.T) {
 	requestArrived := make(chan struct{})
+	// The explicit release keeps the deferred Close from waiting on the
+	// handler when a regression leaves the request context un-canceled.
+	handlerDone := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		close(requestArrived)
-		<-r.Context().Done()
+		select {
+		case <-r.Context().Done():
+		case <-handlerDone:
+		}
 	}))
 	defer server.Close()
+	defer close(handlerDone)
 
 	t.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "/v2/credentials?id=task_credential_id")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {
-		<-requestArrived
+		select {
+		case <-requestArrived:
+		case <-time.After(10 * time.Second):
+		}
 		cancel()
 	}()
 
 	p := &IAM{Endpoint: server.URL}
-	_, err := p.RetrieveWithCredContext(&CredContext{Client: http.DefaultClient, Context: ctx})
+	err := retrieveWithin(t, "the ECS credentials retrieval", func() error {
+		_, err := p.RetrieveWithCredContext(&CredContext{Client: http.DefaultClient, Context: ctx})
+		return err
+	})
+	select {
+	case <-requestArrived:
+	default:
+		t.Fatal("timed out waiting for the ECS credentials request to arrive")
+	}
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Expected context.Canceled, got %v", err)
 	}
@@ -646,6 +665,11 @@ func TestIAMCallerContextCanceled(t *testing.T) {
 	}))
 	defer server.Close()
 
+	// Reach the IMDS arm regardless of the ambient environment.
+	t.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "")
+	t.Setenv("AWS_CONTAINER_CREDENTIALS_FULL_URI", "")
+	t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", "")
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -653,6 +677,11 @@ func TestIAMCallerContextCanceled(t *testing.T) {
 	_, err := p.RetrieveWithCredContext(&CredContext{Client: http.DefaultClient, Context: ctx})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Expected context.Canceled, got %v", err)
+	}
+	// The token-fetch detail pins that the dead-caller guard produced the
+	// error, not the IMDSv1 fallback failing on the same canceled context.
+	if !strings.Contains(err.Error(), "imds token fetch") {
+		t.Fatalf("Expected the dead-caller guard's error with token-fetch detail, got %v", err)
 	}
 	if n := requests.Load(); n != 0 {
 		t.Fatalf("Expected no metadata requests with a canceled caller context, got %d", n)
