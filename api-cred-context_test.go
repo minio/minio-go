@@ -22,6 +22,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -110,6 +111,54 @@ func TestCredsCancelDoesNotPoisonWaiters(t *testing.T) {
 
 	if err := <-waiterErr; err != nil {
 		t.Fatalf("Expected the concurrent waiter to succeed, got %v", err)
+	}
+}
+
+// expressSessionTransport records the first request's query and blocks
+// every request until its context ends.
+type expressSessionTransport struct {
+	started    chan struct{}
+	once       sync.Once
+	firstQuery string
+}
+
+func (tr *expressSessionTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	tr.once.Do(func() {
+		tr.firstQuery = req.URL.RawQuery
+		close(tr.started)
+	})
+	<-req.Context().Done()
+	return nil, req.Context().Err()
+}
+
+// TestExpressCreateSessionCallerCancel verifies that the S3 Express session
+// retrieval keeps the caller context: canceling the caller aborts the
+// in-flight CreateSession request. The first-request query assertion pins
+// that the express arm ran — only CreateSession sends "?session".
+func TestExpressCreateSessionCallerCancel(t *testing.T) {
+	tr := &expressSessionTransport{started: make(chan struct{})}
+	clnt, err := New("s3.amazonaws.com", &Options{
+		Creds:     credentials.NewStaticV4("k", "s", ""),
+		Region:    "us-east-1",
+		Transport: tr,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		<-tr.started
+		cancel()
+	}()
+
+	_, err = clnt.BucketExists(ctx, "mybucket--use1-az4--x-s3")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Expected context.Canceled from the express session retrieval, got %v", err)
+	}
+	if !strings.Contains(tr.firstQuery, "session") {
+		t.Fatalf("Expected the first request to be the CreateSession call (query %q lacks \"session\")", tr.firstQuery)
 	}
 }
 

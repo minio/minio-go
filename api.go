@@ -912,8 +912,8 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 		// operation's retries must stay cancellable, so its waiters
 		// share the winner's fate. A retrieval panic resumes on each
 		// waiting caller's goroutine (credsRetrievalPanic); a
-		// runtime.Goexit is not propagated — waiters wait out their own
-		// contexts.
+		// runtime.Goexit is not propagated — each caller waits until its
+		// own context ends, indefinitely when it has none.
 		resCh := c.credsGroup.DoChan(metadata.bucketName, func() (v credentials.Value, rerr error) {
 			defer func() {
 				if r := recover(); r != nil {
