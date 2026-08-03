@@ -821,7 +821,7 @@ func (c *Client) getObject(ctx context.Context, bucketName, objectName string, o
 
 	// Wrap the response body with checksum verification when requested.
 	// The checksum is computed as a stream on the reader and verified at EOF.
-	var body io.ReadCloser = resp.Body
+	var body = resp.Body
 	if opts.Checksum && objectStat.ChecksumAlgorithm != "" && objectStat.ChecksumMode == ChecksumFullObjectMode.String() && opts.headers["Range"] != "" {
 		if hasherReader := NewChecksumVerifyingReader(objectStat, resp.Body); hasherReader != nil {
 			body = hasherReader

@@ -362,7 +362,7 @@ func NewChecksumVerifyingReader(obj ObjectInfo, r io.ReadCloser) *ChecksumVerify
 func (c *ChecksumVerifyingReader) Read(p []byte) (int, error) {
 	n, err := c.ReadCloser.Read(p)
 	if n > 0 {
-		n2, err := c.Hash.Write(p[:n])
+		n2, err := c.Write(p[:n])
 		if err != nil {
 			return 0, err
 		}
@@ -371,7 +371,7 @@ func (c *ChecksumVerifyingReader) Read(p []byte) (int, error) {
 		}
 	}
 	if err == io.EOF {
-		if got := base64.StdEncoding.EncodeToString(c.Hash.Sum(nil)); got != c.expectChecksum {
+		if got := base64.StdEncoding.EncodeToString(c.Sum(nil)); got != c.expectChecksum {
 			return n, fmt.Errorf("checksum mismatch, expected %s, got %s", c.expectChecksum, got)
 		}
 	}
