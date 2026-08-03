@@ -281,6 +281,9 @@ func TestEcsTask(t *testing.T) {
 	p := &IAM{
 		Endpoint: server.URL,
 	}
+	// Reach the ECS arm regardless of the ambient environment: a web
+	// identity token file takes precedence over the container relative URI.
+	t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", "")
 	t.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "/v2/credentials?id=task_credential_id")
 	creds, err := p.RetrieveWithCredContext(defaultCredContext)
 	os.Unsetenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI")
@@ -308,6 +311,10 @@ func TestEcsTaskFullURI(t *testing.T) {
 	server := initEcsTaskTestServer("2014-12-16T01:51:37Z")
 	defer server.Close()
 	p := &IAM{}
+	// Reach the full-URI arm regardless of the ambient environment: the
+	// web identity token file and the relative URI both take precedence.
+	t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", "")
+	t.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "")
 	t.Setenv("AWS_CONTAINER_CREDENTIALS_FULL_URI",
 		fmt.Sprintf("%s%s", server.URL, "/v2/credentials?id=task_credential_id"))
 	creds, err := p.RetrieveWithCredContext(defaultCredContext)
@@ -614,45 +621,21 @@ func TestIAMCustomExpiryWindowWebIdentity(t *testing.T) {
 // TestEcsTaskCallerContextCancel verifies that the caller context carried by
 // CredContext cancels an in-flight ECS task credentials request.
 func TestEcsTaskCallerContextCancel(t *testing.T) {
-	requestArrived := make(chan struct{})
-	// The explicit release keeps the deferred Close from waiting on the
-	// handler when a regression leaves the request context un-canceled.
-	handlerDone := make(chan struct{})
-	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-		close(requestArrived)
-		select {
-		case <-r.Context().Done():
-		case <-handlerDone:
-		}
-	}))
-	defer server.Close()
-	defer close(handlerDone)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	server, requestArrived := newCancelProbeServer(t, cancel)
 
 	// Reach the ECS arm regardless of the ambient environment: a web
 	// identity token file takes precedence over the container relative URI.
 	t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", "")
 	t.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "/v2/credentials?id=task_credential_id")
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() {
-		select {
-		case <-requestArrived:
-		case <-time.After(10 * time.Second):
-		}
-		cancel()
-	}()
-
 	p := &IAM{Endpoint: server.URL}
 	err := retrieveWithin(t, "the ECS credentials retrieval", func() error {
-		_, err := p.RetrieveWithCredContext(&CredContext{Client: http.DefaultClient, Context: ctx})
+		_, err := p.RetrieveWithCredContext(&CredContext{Client: server.Client(), Context: ctx})
 		return err
 	})
-	select {
-	case <-requestArrived:
-	default:
-		t.Fatal("timed out waiting for the ECS credentials request to arrive")
-	}
+	requireRequestArrived(t, requestArrived, "the ECS credentials request")
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Expected context.Canceled, got %v", err)
 	}
@@ -677,7 +660,7 @@ func TestIAMCallerContextCanceled(t *testing.T) {
 	cancel()
 
 	p := &IAM{Endpoint: server.URL}
-	_, err := p.RetrieveWithCredContext(&CredContext{Client: http.DefaultClient, Context: ctx})
+	_, err := p.RetrieveWithCredContext(&CredContext{Client: server.Client(), Context: ctx})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Expected context.Canceled, got %v", err)
 	}

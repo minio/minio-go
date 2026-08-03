@@ -67,8 +67,8 @@ func (c *Client) sessionFromCache(bucketName string) (credentials.Value, bool) {
 
 // CreateSession - https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html
 // the returning credentials may be cached depending on the expiration of the original
-// credential, credentials will get renewed 10 secs earlier than when its gonna expire
-// allowing for some leeway in the renewal process.
+// credential; a cached session stops being served expressSessionRenewalLeeway before
+// it expires, allowing for some leeway in the renewal process.
 func (c *Client) CreateSession(ctx context.Context, bucketName string, sessionMode SessionMode) (cred credentials.Value, err error) {
 	if err := s3utils.CheckValidBucketNameS3Express(bucketName); err != nil {
 		return credentials.Value{}, err

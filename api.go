@@ -862,7 +862,8 @@ func (p credsRetrievalPanic) Error() string {
 // newRequest - instantiate a new HTTP request for a given method.
 func (c *Client) newRequest(ctx context.Context, method string, metadata requestMetadata) (req *http.Request, err error) {
 	if ctx == nil {
-		// Deriving from a nil context (context.WithoutCancel below) panics.
+		// A nil context would be dereferenced below — by the bucket
+		// location lookup, the waiter select, and context.WithoutCancel.
 		return nil, errInvalidArgument("context cannot be nil")
 	}
 	// If no method is supplied default to 'POST'.
@@ -917,7 +918,12 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 		// one caller's cancellation cannot fail concurrent waiters; each
 		// waiter stops waiting when its own context ends, though a
 		// caller arriving mid-retrieval blocks in IsExpired on the
-		// Credentials mutex until the retrieval completes. The S3
+		// Credentials mutex until the retrieval completes. Detachment
+		// strips the caller's deadline along with its cancellation: on
+		// this path the caller context governs only the wait, and reaches
+		// the credential request itself only outside the group — on the
+		// inline not-expired path above and the direct call sites
+		// (presign, bucket location, express CreateSession). The S3
 		// Express session request keeps the caller context: a full S3
 		// operation's retries must stay cancellable, so its waiters
 		// share the winner's fate. A retrieval panic resumes on each

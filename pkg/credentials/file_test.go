@@ -1058,30 +1058,9 @@ func TestFileAWSSSOCallerContext(t *testing.T) {
 	}
 
 	t.Run("caller-cancel", func(t *testing.T) {
-		requestArrived := make(chan struct{})
-		// The explicit release keeps the deferred Close from waiting on
-		// the handler when a regression leaves the request context
-		// un-canceled.
-		handlerDone := make(chan struct{})
-		ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-			close(requestArrived)
-			select {
-			case <-r.Context().Done():
-			case <-handlerDone:
-			}
-		}))
-		defer ts.Close()
-		defer close(handlerDone)
-
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		go func() {
-			select {
-			case <-requestArrived:
-			case <-time.After(10 * time.Second):
-			}
-			cancel()
-		}()
+		ts, requestArrived := newCancelProbeServer(t, cancel)
 
 		creds := newSSOCreds(ts.URL, newCacheDir(t))
 		start := time.Now()
@@ -1089,15 +1068,14 @@ func TestFileAWSSSOCallerContext(t *testing.T) {
 			_, err := creds.GetWithContext(&CredContext{Client: ts.Client(), Context: ctx})
 			return err
 		})
-		select {
-		case <-requestArrived:
-		default:
-			t.Fatal("timed out waiting for the SSO portal request to arrive")
-		}
+		requireRequestArrived(t, requestArrived, "the SSO portal request")
 		if !errors.Is(err, context.Canceled) {
 			t.Fatalf("Expected context.Canceled, got %v", err)
 		}
-		if elapsed := time.Since(start); elapsed >= ssoPortalRequestTimeout {
+		// Anything but the caller's cancel (the provider bound, transport
+		// limits) takes ssoPortalRequestTimeout or longer; a prompt return
+		// attributes the cancellation to the caller context.
+		if elapsed := time.Since(start); elapsed >= probeWaitBound {
 			t.Fatalf("Cancellation took %v, bounded by the provider timeout instead of the caller context", elapsed)
 		}
 	})
@@ -1117,12 +1095,19 @@ func TestFileAWSSSOCallerContext(t *testing.T) {
 		defer cancel()
 
 		creds := newSSOCreds(ts.URL, newCacheDir(t))
+		start := time.Now()
 		err := retrieveWithin(t, "the SSO portal retrieval", func() error {
 			_, err := creds.GetWithContext(&CredContext{Client: ts.Client(), Context: ctx})
 			return err
 		})
 		if !errors.Is(err, context.DeadlineExceeded) {
 			t.Fatalf("Expected context.DeadlineExceeded, got %v", err)
+		}
+		// The provider's own bound also surfaces DeadlineExceeded; only a
+		// prompt return attributes the expiry to the 50 ms caller
+		// deadline, since the provider bound needs ssoPortalRequestTimeout.
+		if elapsed := time.Since(start); elapsed >= probeWaitBound {
+			t.Fatalf("Deadline expiry took %v, bounded by the provider timeout instead of the caller context", elapsed)
 		}
 	})
 
@@ -1145,7 +1130,12 @@ func TestFileAWSSSOCallerContext(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		dl := <-deadlineCh
+		var dl time.Time
+		select {
+		case dl = <-deadlineCh:
+		case <-time.After(probeWaitBound):
+			t.Fatal("timed out waiting for the SSO portal request deadline")
+		}
 		if dl.IsZero() {
 			t.Fatal("Expected the SSO portal request context to carry the provider-level deadline")
 		}
