@@ -61,7 +61,8 @@ func (c *Client) BucketExists(ctx context.Context, bucketName string) (bool, err
 // non-nil but a response was received, the ObjectInfo still carries the
 // VersionID and IsDeleteMarker values parsed from the response headers,
 // plus ReplicationReady on every error path except the versioned
-// delete-marker 405.
+// delete-marker 405 (an asymmetry preserved from the pre-v7.0.93
+// behavior, which populated ReplicationReady on the generic branch only).
 func (c *Client) StatObject(ctx context.Context, bucketName, objectName string, opts StatObjectOptions) (ObjectInfo, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
