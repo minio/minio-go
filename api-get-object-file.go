@@ -72,7 +72,7 @@ func (c *Client) FGetObject(ctx context.Context, bucketName, objectName, filePat
 	filePartPath := filepath.Join(filepath.Dir(filePath), sum256Hex([]byte(filepath.Base(filePath)+objectStat.ETag))+".part.minio")
 
 	// If exists, open in append mode. If not create it as a part file.
-	filePart, err := os.OpenFile(filePartPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	filePart, err := os.OpenFile(filePartPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0o600)
 	if err != nil {
 		return err
 	}
@@ -98,6 +98,7 @@ func (c *Client) FGetObject(ctx context.Context, bucketName, objectName, filePat
 	// appropriate range offsets to read from.
 	if st.Size() > 0 {
 		opts.SetRange(st.Size(), 0)
+		opts.checkSumReader = filePart
 	}
 
 	// Seek to current position for incoming reader.

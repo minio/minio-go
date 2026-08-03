@@ -19,6 +19,7 @@ package minio
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -48,6 +49,8 @@ type GetObjectOptions struct {
 	// For multipart objects this is a checksum of part checksums.
 	// https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	Checksum bool
+	// when not nil, base on this reader to calculate checksum.
+	checkSumReader io.Reader
 
 	// RDMABuffer, when non-nil and Options.EnableRDMA=true, downloads directly
 	// into a contiguous buffer via libminiocpp.so. The returned *Object's

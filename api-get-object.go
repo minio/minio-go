@@ -819,11 +819,16 @@ func (c *Client) getObject(ctx context.Context, bucketName, objectName string, o
 		return nil, ObjectInfo{}, nil, err
 	}
 
-	// Wrap the response body with checksum verification when requested.
-	// The checksum is computed as a stream on the reader and verified at EOF.
 	body := resp.Body
-	if opts.Checksum && objectStat.ChecksumAlgorithm != "" && objectStat.ChecksumMode == ChecksumFullObjectMode.String() && opts.headers["Range"] == "" {
+	if opts.Checksum && objectStat.ChecksumAlgorithm != "" && objectStat.ChecksumMode == ChecksumFullObjectMode.String() && (opts.headers["Range"] == "" || opts.checkSumReader != nil) {
 		if hasherReader := c.NewChecksumVerifyingReader(objectStat, resp.Body); hasherReader != nil {
+			// Include already downloaded data when resuming a download.
+			if opts.checkSumReader != nil {
+				if _, err := io.Copy(hasherReader.Hash, opts.checkSumReader); err != nil {
+					closeResponse(resp)
+					return nil, ObjectInfo{}, nil, err
+				}
+			}
 			body = hasherReader
 		}
 	}
