@@ -112,6 +112,13 @@ func (c *Client) FGetObject(ctx context.Context, bucketName, objectName, filePat
 		return err
 	}
 
+	// Verify the checksum of the downloaded object before committing the file.
+	if cr, ok := objectReader.(*ChecksumVerifyingReader); ok {
+		if err = cr.VerifyChecksum(); err != nil {
+			return err
+		}
+	}
+
 	// Close the file before rename, this is specifically needed for Windows users.
 	closeAndRemove = false
 	if err = filePart.Close(); err != nil {

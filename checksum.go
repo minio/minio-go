@@ -379,11 +379,21 @@ func (c *ChecksumVerifyingReader) Read(p []byte) (int, error) {
 		}
 	}
 	if err == io.EOF {
-		if got := base64.StdEncoding.EncodeToString(c.Sum(nil)); got != c.expectChecksum {
-			return n, fmt.Errorf("checksum mismatch, expected %s, got %s", c.expectChecksum, got)
+		if verr := c.VerifyChecksum(); verr != nil {
+			return n, verr
 		}
 	}
 	return n, err
+}
+
+// VerifyChecksum compares the computed checksum with the expected value and
+// returns an error on mismatch. It should be called after all data has been
+// read, e.g. by FGetObject after io.CopyN completes.
+func (c *ChecksumVerifyingReader) VerifyChecksum() error {
+	if got := base64.StdEncoding.EncodeToString(c.Sum(nil)); got != c.expectChecksum {
+		return fmt.Errorf("checksum mismatch, expected %s, got %s", c.expectChecksum, got)
+	}
+	return nil
 }
 
 // ChecksumReader reads all of r and returns a checksum of type c.
