@@ -24,6 +24,9 @@ import (
 	"hash"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -68,7 +71,7 @@ func TestGetSeedSignature(t *testing.T) {
 	req = StreamingSignV4(req, accessKeyID, secretAccessKeyID, "", "us-east-1", int64(dataLen), reqTime, newSHA256Hasher())
 	actualSeedSignature := req.Body.(*StreamingReader).seedSignature
 
-	expectedSeedSignature := "38cab3af09aa15ddf29e26e36236f60fb6bfb6243a20797ae9a8183674526079"
+	expectedSeedSignature := "007480502de61457e955731b0f5d191f7e6f54a8a0f6cc7974a5ebd887965686"
 	if actualSeedSignature != expectedSeedSignature {
 		t.Errorf("Expected %s but received %s", expectedSeedSignature, actualSeedSignature)
 	}
@@ -117,7 +120,7 @@ func TestSetStreamingAuthorization(t *testing.T) {
 	reqTime, _ := time.Parse(iso8601DateFormat, "20130524T000000Z")
 	req = StreamingSignV4(req, accessKeyID, secretAccessKeyID, "", location, dataLen, reqTime, newSHA256Hasher())
 
-	expectedAuthorization := "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request,SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-decoded-content-length;x-amz-storage-class,Signature=38cab3af09aa15ddf29e26e36236f60fb6bfb6243a20797ae9a8183674526079"
+	expectedAuthorization := "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request,SignedHeaders=content-encoding;host;x-amz-content-sha256;x-amz-date;x-amz-decoded-content-length;x-amz-storage-class,Signature=007480502de61457e955731b0f5d191f7e6f54a8a0f6cc7974a5ebd887965686"
 
 	actualAuthorization := req.Header.Get("Authorization")
 	if actualAuthorization != expectedAuthorization {
@@ -177,4 +180,181 @@ func TestStreamingReader(t *testing.T) {
 		t.Errorf("Expected no error but received %v  %d", err, len(b))
 	}
 	req.Body.Close()
+}
+
+func TestStreamingSignV4ContentEncoding(t *testing.T) {
+	accessKeyID := "AKIAIOSFODNN7EXAMPLE"
+	secretAccessKeyID := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+	reqTime, err := time.Parse(iso8601DateFormat, "20130524T000000Z")
+	if err != nil {
+		t.Fatalf("Failed to parse time - %v", err)
+	}
+
+	testCases := []struct {
+		name            string
+		contentEncoding string
+		trailer         http.Header
+		expected        string
+	}{
+		{"no trailer", "", nil, "aws-chunked"},
+		{"with trailer", "", http.Header{"X-Amz-Checksum-Crc32c": []string{""}}, "aws-chunked"},
+		{"user encoding preserved", "gzip", nil, "aws-chunked,gzip"},
+		{"already aws-chunked", "aws-chunked", nil, "aws-chunked"},
+		{"already aws-chunked mixed case", "AWS-CHUNKED", nil, "AWS-CHUNKED"},
+		{"token after user encoding", "gzip, aws-chunked", nil, "gzip, aws-chunked"},
+		{"whitespace only", " ", nil, "aws-chunked"},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			dataLen := int64(payloadChunkSize)
+			body := io.NopCloser(bytes.NewReader(bytes.Repeat([]byte("a"), int(dataLen))))
+			req := NewRequest(http.MethodPut, "/examplebucket/chunkObject.txt", body)
+			if testCase.contentEncoding != "" {
+				req.Header.Set("Content-Encoding", testCase.contentEncoding)
+			}
+			req.Trailer = testCase.trailer
+
+			req = StreamingSignV4(req, accessKeyID, secretAccessKeyID, "", "us-east-1", dataLen, reqTime, newSHA256Hasher())
+
+			if gotEncoding := req.Header.Get("Content-Encoding"); gotEncoding != testCase.expected {
+				t.Errorf("Content-Encoding = %q, want %q", gotEncoding, testCase.expected)
+			}
+			auth := req.Header.Get("Authorization")
+			_, after, found := strings.Cut(auth, "SignedHeaders=")
+			if !found {
+				t.Fatalf("SignedHeaders missing from Authorization: %s", auth)
+			}
+			signedHeaders, _, _ := strings.Cut(after, ",")
+			if !slices.Contains(strings.Split(signedHeaders, ";"), "content-encoding") {
+				t.Errorf("content-encoding missing from SignedHeaders %q", signedHeaders)
+			}
+			if err := req.Body.Close(); err != nil {
+				t.Errorf("Failed to close request body - %v", err)
+			}
+		})
+	}
+}
+
+func TestStreamingSignV4ContentEncodingOnWire(t *testing.T) {
+	accessKeyID := "AKIAIOSFODNN7EXAMPLE"
+	secretAccessKeyID := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+	reqTime, err := time.Parse(iso8601DateFormat, "20130524T000000Z")
+	if err != nil {
+		t.Fatalf("Failed to parse time - %v", err)
+	}
+
+	type wireHeaders struct {
+		contentEncoding  string
+		transferEncoding []string
+	}
+	received := make(chan wireHeaders, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		received <- wireHeaders{r.Header.Get("Content-Encoding"), r.TransferEncoding}
+	}))
+	defer srv.Close()
+
+	dataLen := int64(payloadChunkSize)
+	req, err := http.NewRequest(http.MethodPut, srv.URL+"/examplebucket/chunkObject.txt", bytes.NewReader(bytes.Repeat([]byte("a"), int(dataLen))))
+	if err != nil {
+		t.Fatalf("Failed to create request - %v", err)
+	}
+	req = StreamingSignV4(req, accessKeyID, secretAccessKeyID, "", "us-east-1", dataLen, reqTime, newSHA256Hasher())
+
+	resp, err := srv.Client().Do(req)
+	if err != nil {
+		t.Fatalf("Request failed - %v", err)
+	}
+	if err := resp.Body.Close(); err != nil {
+		t.Errorf("Failed to close response body - %v", err)
+	}
+
+	got := <-received
+	if got.contentEncoding != "aws-chunked" {
+		t.Errorf("server received Content-Encoding = %q, want %q", got.contentEncoding, "aws-chunked")
+	}
+	if len(got.transferEncoding) != 0 {
+		t.Errorf("server received Transfer-Encoding = %v, want none", got.transferEncoding)
+	}
+}
+
+func TestStreamingUnsignedV4ContentEncoding(t *testing.T) {
+	reqTime, err := time.Parse(iso8601DateFormat, "20130524T000000Z")
+	if err != nil {
+		t.Fatalf("Failed to parse time - %v", err)
+	}
+	dataLen := int64(payloadChunkSize)
+	body := io.NopCloser(bytes.NewReader(bytes.Repeat([]byte("a"), int(dataLen))))
+	req := NewRequest(http.MethodPut, "/examplebucket/chunkObject.txt", body)
+	req.Trailer = http.Header{"X-Amz-Checksum-Crc32c": []string{""}}
+
+	req = StreamingUnsignedV4(req, "", dataLen, reqTime)
+
+	if gotEncoding := req.Header.Get("Content-Encoding"); gotEncoding != "aws-chunked" {
+		t.Errorf("Content-Encoding = %q, want %q", gotEncoding, "aws-chunked")
+	}
+	if err := req.Body.Close(); err != nil {
+		t.Errorf("Failed to close request body - %v", err)
+	}
+}
+
+func TestSignV4TrailerContentEncoding(t *testing.T) {
+	accessKeyID := "AKIAIOSFODNN7EXAMPLE"
+	secretAccessKeyID := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+	trailer := http.Header{"X-Amz-Checksum-Crc32c": []string{""}}
+
+	dataLen := int64(payloadChunkSize)
+	body := io.NopCloser(bytes.NewReader(bytes.Repeat([]byte("a"), int(dataLen))))
+	req := NewRequest(http.MethodPut, "/examplebucket/chunkObject.txt", body)
+	req.ContentLength = dataLen
+	req.Header.Set("Content-Encoding", "gzip")
+
+	req = SignV4Trailer(*req, accessKeyID, secretAccessKeyID, "", "us-east-1", trailer)
+
+	if gotEncoding := req.Header.Get("Content-Encoding"); gotEncoding != "aws-chunked,gzip" {
+		t.Errorf("Content-Encoding = %q, want %q", gotEncoding, "aws-chunked,gzip")
+	}
+	if err := req.Body.Close(); err != nil {
+		t.Errorf("Failed to close request body - %v", err)
+	}
+}
+
+func TestUnsignedTrailerContentEncoding(t *testing.T) {
+	trailer := http.Header{"X-Amz-Checksum-Crc32c": []string{""}}
+
+	dataLen := int64(payloadChunkSize)
+	body := io.NopCloser(bytes.NewReader(bytes.Repeat([]byte("a"), int(dataLen))))
+	req := NewRequest(http.MethodPut, "/examplebucket/chunkObject.txt", body)
+	req.ContentLength = dataLen
+	req.Header.Set("Content-Encoding", "gzip")
+
+	req = UnsignedTrailer(*req, trailer)
+
+	if gotEncoding := req.Header.Get("Content-Encoding"); gotEncoding != "aws-chunked,gzip" {
+		t.Errorf("Content-Encoding = %q, want %q", gotEncoding, "aws-chunked,gzip")
+	}
+	if err := req.Body.Close(); err != nil {
+		t.Errorf("Failed to close request body - %v", err)
+	}
+}
+
+func TestSetAwsChunkedContentEncodingMultiValue(t *testing.T) {
+	req := NewRequest(http.MethodPut, "/examplebucket/chunkObject.txt", nil)
+	req.Header.Add("Content-Encoding", "gzip")
+	req.Header.Add("Content-Encoding", "br")
+
+	setAwsChunkedContentEncoding(req)
+
+	if gotEncoding := req.Header.Get("Content-Encoding"); gotEncoding != "aws-chunked,gzip,br" {
+		t.Errorf("Content-Encoding = %q, want %q", gotEncoding, "aws-chunked,gzip,br")
+	}
+
+	req = NewRequest(http.MethodPut, "/examplebucket/chunkObject.txt", nil)
+	req.Header.Add("Content-Encoding", "gzip")
+	req.Header.Add("Content-Encoding", "aws-chunked")
+
+	setAwsChunkedContentEncoding(req)
+
+	if got := req.Header.Values("Content-Encoding"); !slices.Equal(got, []string{"gzip", "aws-chunked"}) {
+		t.Errorf("Content-Encoding values = %v, want unchanged [gzip aws-chunked]", got)
+	}
 }
