@@ -205,3 +205,20 @@ func TestStatObjectErrorHeaders(t *testing.T) {
 		t.Error("expected ReplicationReady to be true")
 	}
 }
+
+// Tests that the delete-marker branch is gated on the 405 status: a
+// non-405 error carrying the same delete-marker and version shape must
+// still take the generic path.
+func TestStatObjectDeleteMarkerNon405(t *testing.T) {
+	clnt := newTestStatClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set(amzDeleteMarker, "true")
+		w.Header().Set(amzVersionID, "test-version-id")
+		w.WriteHeader(http.StatusNotFound)
+	})
+
+	_, err := clnt.StatObject(context.Background(), "bucket-name", "object-name",
+		StatObjectOptions{VersionID: "test-version-id"})
+	if errResp := ToErrorResponse(err); errResp.Code != NoSuchKey {
+		t.Errorf("error code = %q, want %q", errResp.Code, NoSuchKey)
+	}
+}
