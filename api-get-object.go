@@ -823,7 +823,7 @@ func (c *Client) getObject(ctx context.Context, bucketName, objectName string, o
 	// The checksum is computed as a stream on the reader and verified at EOF.
 	body := resp.Body
 	if opts.Checksum && objectStat.ChecksumAlgorithm != "" && objectStat.ChecksumMode == ChecksumFullObjectMode.String() && opts.headers["Range"] == "" {
-		if hasherReader := NewChecksumVerifyingReader(objectStat, resp.Body); hasherReader != nil {
+		if hasherReader := c.NewChecksumVerifyingReader(objectStat, resp.Body); hasherReader != nil {
 			body = hasherReader
 		}
 	}

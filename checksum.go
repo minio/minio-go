@@ -329,7 +329,7 @@ type ChecksumVerifyingReader struct {
 // NewChecksumVerifyingReader wraps the given response body with checksum verification
 // for the given ObjectInfo based on its ChecksumAlgorithm field. It returns nil
 // if the object has no supported checksum algorithm.
-func NewChecksumVerifyingReader(obj ObjectInfo, r io.ReadCloser) *ChecksumVerifyingReader {
+func (c *Client) NewChecksumVerifyingReader(obj ObjectInfo, r io.ReadCloser) *ChecksumVerifyingReader {
 	switch obj.ChecksumAlgorithm {
 	case "CRC32":
 		return &ChecksumVerifyingReader{ReadCloser: r, Hash: ChecksumCRC32.Hasher(), expectChecksum: obj.ChecksumCRC32}
@@ -338,11 +338,11 @@ func NewChecksumVerifyingReader(obj ObjectInfo, r io.ReadCloser) *ChecksumVerify
 	case "SHA1":
 		return &ChecksumVerifyingReader{ReadCloser: r, Hash: ChecksumSHA1.Hasher(), expectChecksum: obj.ChecksumSHA1}
 	case "SHA256":
-		return &ChecksumVerifyingReader{ReadCloser: r, Hash: ChecksumSHA256.Hasher(), expectChecksum: obj.ChecksumSHA256}
+		return &ChecksumVerifyingReader{ReadCloser: r, Hash: c.sha256Hasher(), expectChecksum: obj.ChecksumSHA256}
 	case "CRC64NVME":
 		return &ChecksumVerifyingReader{ReadCloser: r, Hash: ChecksumCRC64NVME.Hasher(), expectChecksum: obj.ChecksumCRC64NVME}
 	case "MD5":
-		return &ChecksumVerifyingReader{ReadCloser: r, Hash: ChecksumMD5.Hasher(), expectChecksum: obj.ChecksumMD5}
+		return &ChecksumVerifyingReader{ReadCloser: r, Hash: c.md5Hasher(), expectChecksum: obj.ChecksumMD5}
 	case "SHA512":
 		return &ChecksumVerifyingReader{ReadCloser: r, Hash: ChecksumSHA512.Hasher(), expectChecksum: obj.ChecksumSHA512}
 	case "XXHASH64":
@@ -354,6 +354,14 @@ func NewChecksumVerifyingReader(obj ObjectInfo, r io.ReadCloser) *ChecksumVerify
 	default:
 		return nil
 	}
+}
+
+// Close closes the underlying response body and releases the hasher.
+func (c *ChecksumVerifyingReader) Close() error {
+	if closer, ok := c.Hash.(interface{ Close() }); ok {
+		closer.Close()
+	}
+	return c.ReadCloser.Close()
 }
 
 // Read reads data from the underlying reader while computing the checksum.
