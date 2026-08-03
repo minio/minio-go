@@ -32,20 +32,12 @@ jobs:
         repository: minio/minio-cpp
         path: "minio-cpp"
 
-    - name: Upgrade CMake (Fix vcpkg compatibility)
-      if: matrix.config.os == 'ubuntu-24.04-arm'
-      run: |
-        wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
-        echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ noble main' | sudo tee /etc/apt/sources.list.d/kitware.list
-        sudo apt update
-        sudo apt install cmake -y
-        cmake --version
-
     - name: Checkout vcpkg
       uses: actions/checkout@v4
       with:
         repository: microsoft/vcpkg
         path: "vcpkg"
+        ref: 2026.06.24
 
     - name: Install system dependencies
       run: |
