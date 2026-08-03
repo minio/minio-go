@@ -179,16 +179,21 @@ func TestStatObjectNoResponse(t *testing.T) {
 
 // Tests that StatObject surfaces the delete-marker and replication-ready
 // headers on a generic error response, e.g. HEAD on an object whose
-// latest version is a delete marker (HTTP 404).
+// latest version is a delete marker (HTTP 404) — and that the
+// IsReplicationReadyForDeleteMarker option puts the matching check
+// header on the request.
 func TestStatObjectErrorHeaders(t *testing.T) {
-	clnt := newTestStatClient(t, func(w http.ResponseWriter, _ *http.Request) {
+	var gotReplicationReadyCheck string
+	clnt := newTestStatClient(t, func(w http.ResponseWriter, r *http.Request) {
+		gotReplicationReadyCheck = r.Header.Get(isMinioTgtReplicationReady)
 		w.Header().Set(amzDeleteMarker, "true")
 		w.Header().Set(amzVersionID, "test-version-id")
 		w.Header().Set(minioTgtReplicationReady, "true")
 		w.WriteHeader(http.StatusNotFound)
 	})
 
-	objInfo, err := clnt.StatObject(context.Background(), "bucket-name", "object-name", StatObjectOptions{})
+	objInfo, err := clnt.StatObject(context.Background(), "bucket-name", "object-name",
+		StatObjectOptions{Internal: AdvancedGetOptions{IsReplicationReadyForDeleteMarker: true}})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -203,6 +208,10 @@ func TestStatObjectErrorHeaders(t *testing.T) {
 	}
 	if !objInfo.ReplicationReady {
 		t.Error("expected ReplicationReady to be true")
+	}
+	if gotReplicationReadyCheck != "true" {
+		t.Errorf("request header %s = %q, want %q",
+			isMinioTgtReplicationReady, gotReplicationReadyCheck, "true")
 	}
 }
 
