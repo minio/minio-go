@@ -628,6 +628,9 @@ func TestEcsTaskCallerContextCancel(t *testing.T) {
 	defer server.Close()
 	defer close(handlerDone)
 
+	// Reach the ECS arm regardless of the ambient environment: a web
+	// identity token file takes precedence over the container relative URI.
+	t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", "")
 	t.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "/v2/credentials?id=task_credential_id")
 
 	ctx, cancel := context.WithCancel(context.Background())
