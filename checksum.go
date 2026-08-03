@@ -317,18 +317,15 @@ func (c ChecksumType) String() string {
 	return "<invalid>"
 }
 
-// ChecksumVerifyingReader wraps an io.ReadCloser and verifies the checksum of
-// the data as it is read. The checksum is computed on the fly and validated at
-// EOF, causing the read to fail if it does not match.
+// ChecksumVerifyingReader verifies the checksum of data as it is read.
 type ChecksumVerifyingReader struct {
 	io.ReadCloser
 	hash.Hash
 	expectChecksum string
 }
 
-// NewChecksumVerifyingReader wraps the given response body with checksum verification
-// for the given ObjectInfo based on its ChecksumAlgorithm field. It returns nil
-// if the object has no supported checksum algorithm.
+// NewChecksumVerifyingReader returns a checksum-verifying reader for obj,
+// wrapping the given response body, or nil if the algorithm is unsupported.
 func (c *Client) NewChecksumVerifyingReader(obj ObjectInfo, r io.ReadCloser) *ChecksumVerifyingReader {
 	switch obj.ChecksumAlgorithm {
 	case "CRC32":
@@ -364,9 +361,7 @@ func (c *ChecksumVerifyingReader) Close() error {
 	return c.ReadCloser.Close()
 }
 
-// Read reads data from the underlying reader while computing the checksum.
-// At EOF the computed checksum is compared with the expected value and an
-// error is returned on mismatch.
+// Read reads data and verifies the checksum at EOF.
 func (c *ChecksumVerifyingReader) Read(p []byte) (int, error) {
 	n, err := c.ReadCloser.Read(p)
 	if n > 0 {
@@ -386,9 +381,7 @@ func (c *ChecksumVerifyingReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// VerifyChecksum compares the computed checksum with the expected value and
-// returns an error on mismatch. It should be called after all data has been
-// read, e.g. by FGetObject after io.CopyN completes.
+// VerifyChecksum returns an error if the computed checksum does not match.
 func (c *ChecksumVerifyingReader) VerifyChecksum() error {
 	if got := base64.StdEncoding.EncodeToString(c.Sum(nil)); got != c.expectChecksum {
 		return fmt.Errorf("checksum mismatch, expected %s, got %s", c.expectChecksum, got)
