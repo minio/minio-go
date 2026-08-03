@@ -25,6 +25,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"hash"
 	"io"
 	"math/bits"
@@ -314,6 +315,67 @@ func (c ChecksumType) String() string {
 		return "XXHASH128"
 	}
 	return "<invalid>"
+}
+
+// ChecksumVerifyingReader wraps an io.ReadCloser and verifies the checksum of
+// the data as it is read. The checksum is computed on the fly and validated at
+// EOF, causing the read to fail if it does not match.
+type ChecksumVerifyingReader struct {
+	io.ReadCloser
+	hash.Hash
+	expectChecksum string
+}
+
+// NewChecksumVerifyingReader wraps the given response body with checksum verification
+// for the given ObjectInfo based on its ChecksumAlgorithm field. It returns nil
+// if the object has no supported checksum algorithm.
+func NewChecksumVerifyingReader(obj ObjectInfo, r io.ReadCloser) *ChecksumVerifyingReader {
+	switch obj.ChecksumAlgorithm {
+	case "CRC32":
+		return &ChecksumVerifyingReader{ReadCloser: r, Hash: ChecksumCRC32.Hasher(), expectChecksum: obj.ChecksumCRC32}
+	case "CRC32C":
+		return &ChecksumVerifyingReader{ReadCloser: r, Hash: ChecksumCRC32C.Hasher(), expectChecksum: obj.ChecksumCRC32C}
+	case "SHA1":
+		return &ChecksumVerifyingReader{ReadCloser: r, Hash: ChecksumSHA1.Hasher(), expectChecksum: obj.ChecksumSHA1}
+	case "SHA256":
+		return &ChecksumVerifyingReader{ReadCloser: r, Hash: ChecksumSHA256.Hasher(), expectChecksum: obj.ChecksumSHA256}
+	case "CRC64NVME":
+		return &ChecksumVerifyingReader{ReadCloser: r, Hash: ChecksumCRC64NVME.Hasher(), expectChecksum: obj.ChecksumCRC64NVME}
+	case "MD5":
+		return &ChecksumVerifyingReader{ReadCloser: r, Hash: ChecksumMD5.Hasher(), expectChecksum: obj.ChecksumMD5}
+	case "SHA512":
+		return &ChecksumVerifyingReader{ReadCloser: r, Hash: ChecksumSHA512.Hasher(), expectChecksum: obj.ChecksumSHA512}
+	case "XXHASH64":
+		return &ChecksumVerifyingReader{ReadCloser: r, Hash: ChecksumXXHash64.Hasher(), expectChecksum: obj.ChecksumXXHash64}
+	case "XXHASH3":
+		return &ChecksumVerifyingReader{ReadCloser: r, Hash: ChecksumXXHash3.Hasher(), expectChecksum: obj.ChecksumXXHash3}
+	case "XXHASH128":
+		return &ChecksumVerifyingReader{ReadCloser: r, Hash: ChecksumXXHash128.Hasher(), expectChecksum: obj.ChecksumXXHash128}
+	default:
+		return nil
+	}
+}
+
+// Read reads data from the underlying reader while computing the checksum.
+// At EOF the computed checksum is compared with the expected value and an
+// error is returned on mismatch.
+func (c *ChecksumVerifyingReader) Read(p []byte) (int, error) {
+	n, err := c.ReadCloser.Read(p)
+	if n > 0 {
+		n2, err := c.Hash.Write(p[:n])
+		if err != nil {
+			return 0, err
+		}
+		if n2 != n {
+			return 0, io.ErrShortWrite
+		}
+	}
+	if err == io.EOF {
+		if got := base64.StdEncoding.EncodeToString(c.Hash.Sum(nil)); got != c.expectChecksum {
+			return n, fmt.Errorf("checksum mismatch, expected %s, got %s", c.expectChecksum, got)
+		}
+	}
+	return n, err
 }
 
 // ChecksumReader reads all of r and returns a checksum of type c.

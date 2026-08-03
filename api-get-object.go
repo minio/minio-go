@@ -819,6 +819,18 @@ func (c *Client) getObject(ctx context.Context, bucketName, objectName string, o
 		return nil, ObjectInfo{}, nil, err
 	}
 
+	// Wrap the response body with checksum verification when requested.
+	// The checksum is computed as a stream on the reader and verified at EOF,
+	// failing the operation if it does not match. Only requests of FULL_OBJECT
+	// checksum mode are verified; composite checksums are skipped since they
+	// cannot be compared directly.
+	var body io.ReadCloser = resp.Body
+	if opts.Checksum && objectStat.ChecksumAlgorithm != "" && objectStat.ChecksumMode == ChecksumFullObjectMode.String() && opts.headers["Range"] != "" {
+		if hasherReader := NewChecksumVerifyingReader(objectStat, resp.Body); hasherReader != nil {
+			body = hasherReader
+		}
+	}
+
 	// do not close body here, caller will close
-	return resp.Body, objectStat, resp.Header, nil
+	return body, objectStat, resp.Header, nil
 }
