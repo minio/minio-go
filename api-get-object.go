@@ -820,8 +820,8 @@ func (c *Client) getObject(ctx context.Context, bucketName, objectName string, o
 	}
 
 	body := resp.Body
-	if opts.Checksum && objectStat.ChecksumAlgorithm != "" && objectStat.ChecksumMode == ChecksumFullObjectMode.String() && (opts.headers["Range"] == "" || opts.checkSumReader != nil) {
-		if hasherReader := c.NewChecksumVerifyingReader(objectStat, resp.Body); hasherReader != nil {
+	if opts.Checksum && objectStat.ChecksumMode == ChecksumFullObjectMode.String() && (opts.headers["Range"] == "" || opts.checkSumReader != nil) {
+		if hasherReader := c.newChecksumVerifyingReader(objectStat, resp.Body); hasherReader != nil {
 			// Include already downloaded data when resuming a download.
 			if opts.checkSumReader != nil {
 				if _, err := io.Copy(hasherReader.Hash, opts.checkSumReader); err != nil {

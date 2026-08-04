@@ -113,7 +113,7 @@ func (c *Client) FGetObject(ctx context.Context, bucketName, objectName, filePat
 	}
 
 	// Verify the checksum of the downloaded object before committing the file.
-	if cr, ok := objectReader.(*ChecksumVerifyingReader); ok {
+	if cr, ok := objectReader.(*checksumVerifyingReader); ok {
 		if err = cr.VerifyChecksum(); err != nil {
 			return err
 		}
