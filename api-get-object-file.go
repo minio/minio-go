@@ -100,8 +100,8 @@ func (c *Client) FGetObject(ctx context.Context, bucketName, objectName, filePat
 		opts.SetRange(st.Size(), 0)
 		if opts.Checksum && objectStat.ChecksumMode == ChecksumFullObjectMode.String() {
 			if hasherReader := c.newChecksumVerifyingReader(objectStat); hasherReader != nil {
-				_, err = io.CopyN(hasherReader.Hash, filePart, st.Size())
-				if err != nil {
+				if _, err = io.CopyN(hasherReader.Hash, filePart, st.Size()); err != nil {
+					_ = hasherReader.Close()
 					return err
 				}
 				opts.checkSumReader = hasherReader
@@ -125,6 +125,7 @@ func (c *Client) FGetObject(ctx context.Context, bucketName, objectName, filePat
 		if err = cr.VerifyChecksum(); err != nil {
 			return err
 		}
+		cr.Close()
 	}
 
 	// Close the file before rename, this is specifically needed for Windows users.

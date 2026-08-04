@@ -357,10 +357,13 @@ func (c *checksumVerifyingReader) SetReader(r io.ReadCloser) {
 	c.ReadCloser = r
 }
 
-// Close closes the underlying reader and returns any pooled hasher.
+// Close returns any pooled hasher and closes the underlying reader if one is set.
 func (c *checksumVerifyingReader) Close() error {
 	if closer, ok := c.Hash.(interface{ Close() }); ok {
 		closer.Close()
+	}
+	if c.ReadCloser == nil {
+		return nil
 	}
 	return c.ReadCloser.Close()
 }
@@ -391,7 +394,7 @@ func (c *checksumVerifyingReader) VerifyChecksum() error {
 	if got := base64.StdEncoding.EncodeToString(c.Sum(nil)); got != c.expectChecksum {
 		return fmt.Errorf("checksum mismatch, expected %s, got %s", c.expectChecksum, got)
 	}
-	return c.Close()
+	return nil
 }
 
 // ChecksumReader reads all of r and returns a checksum of type c.
