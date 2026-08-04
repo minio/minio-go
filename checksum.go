@@ -391,7 +391,7 @@ func (c *checksumVerifyingReader) VerifyChecksum() error {
 	if got := base64.StdEncoding.EncodeToString(c.Sum(nil)); got != c.expectChecksum {
 		return fmt.Errorf("checksum mismatch, expected %s, got %s", c.expectChecksum, got)
 	}
-	return nil
+	return c.Close()
 }
 
 // ChecksumReader reads all of r and returns a checksum of type c.
