@@ -37,7 +37,6 @@ jobs:
       with:
         repository: microsoft/vcpkg
         path: "vcpkg"
-        ref: 2026.06.24
 
     - name: Install system dependencies
       run: |
