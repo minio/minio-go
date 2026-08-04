@@ -100,6 +100,7 @@ func (c *Client) FGetObject(ctx context.Context, bucketName, objectName, filePat
 		opts.SetRange(st.Size(), 0)
 		if opts.Checksum && objectStat.ChecksumMode == ChecksumFullObjectMode.String() {
 			if hasherReader := c.newChecksumVerifyingReader(objectStat); hasherReader != nil {
+				// Read existing file data into hash.
 				if _, err = io.CopyN(hasherReader.Hash, filePart, st.Size()); err != nil {
 					_ = hasherReader.Close()
 					return err
