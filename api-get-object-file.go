@@ -98,7 +98,14 @@ func (c *Client) FGetObject(ctx context.Context, bucketName, objectName, filePat
 	// appropriate range offsets to read from.
 	if st.Size() > 0 {
 		opts.SetRange(st.Size(), 0)
-		opts.checkSumReader = filePart
+		if opts.Checksum && objectStat.ChecksumMode == ChecksumFullObjectMode.String() {
+			hasherReader := c.newChecksumVerifyingReader(objectStat)
+			_, err = io.CopyN(hasherReader.Hash, filePart, objectStat.Size)
+			if err != nil {
+				return err
+			}
+			opts.checkSumReader = hasherReader
+		}
 	}
 
 	// Seek to current position for incoming reader.

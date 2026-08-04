@@ -19,7 +19,6 @@ package minio
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -53,7 +52,7 @@ type GetObjectOptions struct {
 	// the file into place. Reads that stop before EOF are not verified.
 	Checksum bool
 	// If not nil, continue checksum hash verification on the existing data.
-	checkSumReader io.Reader
+	checkSumReader *checksumVerifyingReader
 
 	// RDMABuffer, when non-nil and Options.EnableRDMA=true, downloads directly
 	// into a contiguous buffer via libminiocpp.so. The returned *Object's
