@@ -112,8 +112,13 @@ func (c *Client) FGetObject(ctx context.Context, bucketName, objectName, filePat
 	// Seek to current position for incoming reader.
 	objectReader, objectStat, _, err := c.getObject(ctx, bucketName, objectName, opts)
 	if err != nil {
+		if opts.checkSumReader != nil {
+			_ = opts.checkSumReader.Close()
+		}
 		return err
 	}
+
+	defer objectReader.Close()
 
 	// Write to the part file.
 	if _, err = io.CopyN(filePart, objectReader, objectStat.Size); err != nil {
@@ -125,7 +130,6 @@ func (c *Client) FGetObject(ctx context.Context, bucketName, objectName, filePat
 		if err = cr.VerifyChecksum(); err != nil {
 			return err
 		}
-		cr.Close()
 	}
 
 	// Close the file before rename, this is specifically needed for Windows users.
