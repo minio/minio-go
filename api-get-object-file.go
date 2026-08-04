@@ -99,12 +99,13 @@ func (c *Client) FGetObject(ctx context.Context, bucketName, objectName, filePat
 	if st.Size() > 0 {
 		opts.SetRange(st.Size(), 0)
 		if opts.Checksum && objectStat.ChecksumMode == ChecksumFullObjectMode.String() {
-			hasherReader := c.newChecksumVerifyingReader(objectStat)
-			_, err = io.CopyN(hasherReader.Hash, filePart, st.Size())
-			if err != nil {
-				return err
+			if hasherReader := c.newChecksumVerifyingReader(objectStat); hasherReader != nil {
+				_, err = io.CopyN(hasherReader.Hash, filePart, st.Size())
+				if err != nil {
+					return err
+				}
+				opts.checkSumReader = hasherReader
 			}
-			opts.checkSumReader = hasherReader
 		}
 	}
 
