@@ -26,6 +26,13 @@ import (
 
 var ErrRDMANotConnected = errors.New("RDMA infrastructure not connected")
 
+// maxRDMABufferSize is the largest buffer a single cuObject registration
+// (cuMemObjGetDescriptor, inside libminiocpp) can pin — 4 GiB. A larger buffer
+// cannot be RDMA-registered, so reject it here with a clear error instead of
+// letting the cgo call fail opaquely; the caller must split the transfer into
+// parts no larger than this (multipart upload / ranged read).
+const maxRDMABufferSize int64 = 4 << 30 // 4 GiB
+
 type rdmaClientHandle struct {
 	cptr *C.miniocpp_client
 }
@@ -73,6 +80,12 @@ func (c *Client) putObjectRDMA(_ context.Context, bucketName, objectName string,
 	objectC := C.CString(objectName)
 	defer C.free(unsafe.Pointer(objectC))
 
+	if int64(opts.RDMABufferSize) > maxRDMABufferSize {
+		return UploadInfo{}, fmt.Errorf(
+			"RDMA put: buffer size %d exceeds the cuObject registration limit of %d bytes (4 GiB); split into parts <= 4 GiB",
+			opts.RDMABufferSize, maxRDMABufferSize)
+	}
+
 	var etagBuf, checksumBuf [64]C.char
 	n := C.miniocpp_put_object(h.cptr, bucketC, objectC,
 		opts.RDMABuffer, C.size_t(opts.RDMABufferSize),
@@ -102,6 +115,12 @@ func (c *Client) getObjectRDMA(_ context.Context, bucketName, objectName string,
 	defer C.free(unsafe.Pointer(bucketC))
 	objectC := C.CString(objectName)
 	defer C.free(unsafe.Pointer(objectC))
+
+	if int64(opts.RDMABufferSize) > maxRDMABufferSize {
+		return 0, fmt.Errorf(
+			"RDMA get: buffer size %d exceeds the cuObject registration limit of %d bytes (4 GiB); split into parts <= 4 GiB",
+			opts.RDMABufferSize, maxRDMABufferSize)
+	}
 
 	n := C.miniocpp_get_object(h.cptr, bucketC, objectC,
 		opts.RDMABuffer, C.size_t(opts.RDMABufferSize), nil, nil)
