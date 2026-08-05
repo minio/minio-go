@@ -22,20 +22,27 @@ jobs:
 
     steps:
     - name: Checkout minio-go
-      uses: actions/checkout@v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       with:
+        persist-credentials: false
         path: "minio-go"
 
     - name: Checkout minio-cpp
-      uses: actions/checkout@v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       with:
         repository: minio/minio-cpp
+        persist-credentials: false
         path: "minio-cpp"
 
     - name: Checkout vcpkg
-      uses: actions/checkout@v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       with:
         repository: microsoft/vcpkg
+        # Pinned: vcpkg master requires a newer CMake than the arm64
+        # runner image ships (scripts use string(JSON ... STRING_ENCODE)
+        # since microsoft/vcpkg@5397c5c9f), which fails every arm64 run.
+        ref: cd61e1e26a038e82d6550a3ebbe0fbbfe7da78e3 # tag 2026.06.24
+        persist-credentials: false
         path: "vcpkg"
 
     - name: Install system dependencies
@@ -62,7 +69,7 @@ jobs:
         sudo ldconfig
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
       with:
         go-version: "1.25.x"
 

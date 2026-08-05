@@ -26,6 +26,15 @@ import (
 
 var ErrRDMANotConnected = errors.New("RDMA infrastructure not connected")
 
+// maxRDMABufferSize is the largest buffer a single cuObject registration
+// (cuMemObjGetDescriptor, inside libminiocpp) can pin — 4 GiB. libminiocpp
+// itself does not fail on a larger buffer: it skips RDMA and transfers it over
+// one ordinary HTTP request. The guards below reject it instead, so an oversize
+// buffer does not silently become a much slower HTTP transfer on a path the
+// caller explicitly opted into for RDMA. The lower bound also stops a negative
+// size from wrapping to a huge C.size_t.
+const maxRDMABufferSize int64 = 4 << 30 // 4 GiB
+
 type rdmaClientHandle struct {
 	cptr *C.miniocpp_client
 }
@@ -63,6 +72,12 @@ func newRDMAClient(c *Client) (*rdmaClientHandle, error) {
 func (c *Client) putObjectRDMA(_ context.Context, bucketName, objectName string,
 	opts PutObjectOptions,
 ) (UploadInfo, error) {
+	if opts.RDMABufferSize < 0 || int64(opts.RDMABufferSize) > maxRDMABufferSize {
+		return UploadInfo{}, fmt.Errorf(
+			"RDMA put: buffer size %d must be between 0 and the cuObject registration limit of %d bytes",
+			opts.RDMABufferSize, maxRDMABufferSize)
+	}
+
 	h, err := c.rdma()
 	if err != nil {
 		return UploadInfo{}, err
@@ -93,6 +108,12 @@ func (c *Client) putObjectRDMA(_ context.Context, bucketName, objectName string,
 func (c *Client) getObjectRDMA(_ context.Context, bucketName, objectName string,
 	opts GetObjectOptions,
 ) (int64, error) {
+	if opts.RDMABufferSize < 0 || int64(opts.RDMABufferSize) > maxRDMABufferSize {
+		return 0, fmt.Errorf(
+			"RDMA get: buffer size %d must be between 0 and the cuObject registration limit of %d bytes",
+			opts.RDMABufferSize, maxRDMABufferSize)
+	}
+
 	h, err := c.rdma()
 	if err != nil {
 		return 0, err
