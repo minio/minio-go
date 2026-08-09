@@ -929,9 +929,9 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 		// share the winner's fate, and its trace for the same reason:
 		// the round trip was traced before this change.
 		// A retrieval panic resumes on each waiting caller's goroutine
-		// (credsRetrievalPanic); a runtime.Goexit is not propagated —
-		// each caller waits until its own context ends, indefinitely
-		// when it has none.
+		// (credsRetrievalPanic); a runtime.Goexit reaches waiters as a
+		// terminal error from the de-dup group, since the retrieval
+		// goroutine cannot return one itself.
 		retrieveCtx := ctx
 		if express {
 			if c.httpTrace != nil {

@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/http/httptrace"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -476,6 +477,43 @@ func TestCredsRetrievalPanicPropagates(t *testing.T) {
 	exists, err := clnt.BucketExists(context.Background(), "test-bucket")
 	returned = true
 	t.Fatalf("Expected a panic before return, got exists=%v err=%v", exists, err)
+}
+
+// goexitProvider is a credentials.Provider whose retrieval ends in
+// runtime.Goexit, as a t.Fatal in a test-supplied provider would.
+type goexitProvider struct{}
+
+func (goexitProvider) RetrieveWithCredContext(*credentials.CredContext) (credentials.Value, error) {
+	runtime.Goexit()
+	return credentials.Value{}, nil
+}
+
+func (p goexitProvider) Retrieve() (credentials.Value, error) {
+	return p.RetrieveWithCredContext(nil)
+}
+
+func (goexitProvider) IsExpired() bool { return true }
+
+// TestCredsRetrievalGoexitDoesNotHang verifies that a provider ending in
+// runtime.Goexit inside the de-duplicated retrieval returns a terminal error
+// to a caller whose context has no deadline, instead of blocking it forever.
+func TestCredsRetrievalGoexitDoesNotHang(t *testing.T) {
+	clnt := newTestClient(t, credentials.New(goexitProvider{}), nil)
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := clnt.BucketExists(context.Background(), "test-bucket")
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("Expected a terminal error after the provider called runtime.Goexit, got nil")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("BucketExists hangs after the provider called runtime.Goexit")
+	}
 }
 
 // TestNewRequestNilContext pins the nil-context guard's error: the request
