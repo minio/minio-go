@@ -172,16 +172,12 @@ func (g *Group[K, V]) doCall(c *call[V], key K, fn func() (V, error)) {
 			} else {
 				panic(e)
 			}
-		} else if c.err == errGoexit {
-			// This goroutine is already being torn down, so it must not
-			// call runtime.Goexit again. Do callers re-Goexit themselves
-			// once they see c.err; DoChan callers hold a channel and have
-			// nothing else to wake them, so deliver the error to them.
-			for _, ch := range c.chans {
-				ch <- Result[V]{c.val, c.err, c.dups > 0}
-			}
 		} else {
-			// Normal return
+			// Normal return, and runtime.Goexit, which reaches here with
+			// c.err set to errGoexit. This goroutine is already being torn
+			// down and must not call runtime.Goexit again: Do callers
+			// re-Goexit themselves once they see c.err, but DoChan callers
+			// hold a channel and have nothing else to wake them.
 			for _, ch := range c.chans {
 				ch <- Result[V]{c.val, c.err, c.dups > 0}
 			}
