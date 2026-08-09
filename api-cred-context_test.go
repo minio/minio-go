@@ -545,11 +545,11 @@ func (tr *expressTraceProbeTransport) RoundTrip(req *http.Request) (*http.Respon
 	}, nil
 }
 
-// TestExpressSessionTraceStaysOff pins that with client tracing enabled the
-// CreateSession request stays untraced while the S3 operation itself carries
-// the trace: a de-duplicated session retrieval can serve several callers, so
-// per-caller trace hooks must not fire for requests other callers own.
-func TestExpressSessionTraceStaysOff(t *testing.T) {
+// TestExpressSessionTraceAttached pins that with client tracing enabled both
+// the CreateSession request and the S3 operation carry the trace: threading a
+// caller context through credential retrieval must not remove logging that
+// worked before.
+func TestExpressSessionTraceAttached(t *testing.T) {
 	tr := &expressTraceProbeTransport{}
 	clnt, err := New("s3.amazonaws.com", &Options{
 		Creds:     credentials.NewStaticV4("k", "s", ""),
@@ -569,8 +569,8 @@ func TestExpressSessionTraceStaysOff(t *testing.T) {
 	if len(tr.traced) != 2 {
 		t.Fatalf("Expected the CreateSession request and the S3 operation, got %d requests", len(tr.traced))
 	}
-	if tr.traced[0] {
-		t.Fatal("Expected the CreateSession request to carry no client trace")
+	if !tr.traced[0] {
+		t.Fatal("Expected the CreateSession request to carry the client trace")
 	}
 	if !tr.traced[1] {
 		t.Fatal("Expected the S3 operation to carry the client trace")

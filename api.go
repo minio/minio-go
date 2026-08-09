@@ -926,12 +926,18 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 		// (presign, bucket location, express CreateSession). The S3
 		// Express session request keeps the caller context: a full S3
 		// operation's retries must stay cancellable, so its waiters
-		// share the winner's fate. A retrieval panic resumes on each
-		// waiting caller's goroutine (credsRetrievalPanic); a
-		// runtime.Goexit is not propagated — each caller waits until its
-		// own context ends, indefinitely when it has none.
+		// share the winner's fate, and its trace for the same reason:
+		// the round trip was traced before this change.
+		// A retrieval panic resumes on each waiting caller's goroutine
+		// (credsRetrievalPanic); a runtime.Goexit is not propagated —
+		// each caller waits until its own context ends, indefinitely
+		// when it has none.
 		retrieveCtx := ctx
-		if !express {
+		if express {
+			if c.httpTrace != nil {
+				retrieveCtx = httptrace.WithClientTrace(retrieveCtx, c.httpTrace)
+			}
+		} else {
 			retrieveCtx = context.WithoutCancel(ctx)
 		}
 		resCh := c.credsGroup.DoChan(metadata.bucketName, func() (v credentials.Value, rerr error) {
@@ -968,8 +974,8 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 		return nil, err
 	}
 
-	// Attach the trace after credential retrieval so credential
-	// requests stay untraced.
+	// Attach the trace after retrieval: provider credential requests were
+	// never traced. The express session request is traced above.
 	if c.httpTrace != nil {
 		ctx = httptrace.WithClientTrace(ctx, c.httpTrace)
 	}
