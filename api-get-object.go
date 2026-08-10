@@ -819,6 +819,19 @@ func (c *Client) getObject(ctx context.Context, bucketName, objectName string, o
 		return nil, ObjectInfo{}, nil, err
 	}
 
+	body := resp.Body
+	if opts.Checksum {
+		if opts.checkSumReader != nil {
+			opts.checkSumReader.SetReader(resp.Body)
+			body = opts.checkSumReader
+		} else if objectStat.ChecksumMode == ChecksumFullObjectMode.String() && opts.headers["Range"] == "" {
+			if hasherReader := c.newChecksumVerifyingReader(objectStat); hasherReader != nil {
+				hasherReader.SetReader(resp.Body)
+				body = hasherReader
+			}
+		}
+	}
+
 	// do not close body here, caller will close
-	return resp.Body, objectStat, resp.Header, nil
+	return body, objectStat, resp.Header, nil
 }
