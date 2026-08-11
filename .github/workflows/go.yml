@@ -47,7 +47,7 @@ jobs:
           sudo apt install devscripts -y
           mkdir -p /tmp/certs-dir
           cp testcerts/* /tmp/certs-dir
-          # Test against the AIStor :edge image so the latest AIStor APIs
+          # Test against the AIStor :edge-daily image so the latest AIStor APIs
           # (object annotations) and checksum algorithms (xxhash3/xxhash128,
           # sha512, md5) are available to the functional tests.
           docker pull quay.io/minio/aistor/minio:edge-daily

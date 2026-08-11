@@ -387,6 +387,39 @@ func TestCompressionJSON(t *testing.T) {
 	}
 }
 
+// TestRuleMarshalJSONCopyCompleteness fills every Rule field and requires each
+// one to reach the JSON output. MarshalJSON copies Rule into a mirror struct
+// field by field, so a field added to Rule and to the mirror but never assigned
+// is dropped by omitempty with every other test still passing. RuleFilter is
+// skipped for the same reason as in TestRuleWrapperCopyCompleteness.
+func TestRuleMarshalJSONCopyCompleteness(t *testing.T) {
+	skip := func(name string) bool { return name == "XMLName" || name == "RuleFilter" }
+
+	var r Rule
+	rv := reflect.ValueOf(&r).Elem()
+	for i := range rv.NumField() {
+		if skip(rv.Type().Field(i).Name) {
+			continue
+		}
+		fillNonZero(t, rv.Field(i))
+	}
+
+	got, err := json.Marshal(r)
+	if err != nil {
+		t.Fatalf("could not marshal a filled Rule: %v", err)
+	}
+	for i := range rv.NumField() {
+		f := rv.Type().Field(i)
+		if skip(f.Name) {
+			continue
+		}
+		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+		if !bytes.Contains(got, []byte(`"`+name+`":`)) {
+			t.Fatalf("Rule.%s (JSON %q) is missing from MarshalJSON output: %s", f.Name, name, got)
+		}
+	}
+}
+
 func TestLifecycleXMLRoundtrip(t *testing.T) {
 	lc := Configuration{
 		Rules: []Rule{
