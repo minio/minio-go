@@ -848,8 +848,24 @@ func (c *Client) executeMethod(ctx context.Context, method string, metadata requ
 	return res, err
 }
 
+// credsRetrievalPanic carries a panic value out of the de-duplicated
+// credential retrieval goroutine so newRequest can resume it on each
+// caller's goroutine. The value is re-raised verbatim, as if the provider
+// had panicked on the caller's goroutine; the retrieval goroutine's stack
+// is not carried along.
+type credsRetrievalPanic struct{ value any }
+
+func (p credsRetrievalPanic) Error() string {
+	return fmt.Sprintf("credentials retrieval panicked: %v", p.value)
+}
+
 // newRequest - instantiate a new HTTP request for a given method.
 func (c *Client) newRequest(ctx context.Context, method string, metadata requestMetadata) (req *http.Request, err error) {
+	if ctx == nil {
+		// A nil context would be dereferenced below — by the bucket
+		// location lookup, the waiter select, and context.WithoutCancel.
+		return nil, errInvalidArgument("context cannot be nil")
+	}
 	// If no method is supplied default to 'POST'.
 	if method == "" {
 		method = http.MethodPost
@@ -882,21 +898,86 @@ func (c *Client) newRequest(ctx context.Context, method string, metadata request
 		return nil, err
 	}
 
-	if c.httpTrace != nil {
-		ctx = httptrace.WithClientTrace(ctx, c.httpTrace)
+	// Cached, unexpired credentials (or an absent provider — anonymous
+	// access) are served inline; a retrieval that races expiry runs
+	// inline too, with the caller's live context, serialized by the
+	// Credentials mutex. A still-fresh cached S3 Express session is
+	// served inline as well; actual retrievals go through the de-dup
+	// group.
+	express := s3utils.IsS3ExpressBucket(metadata.bucketName) && s3utils.IsAmazonEndpoint(*c.endpointURL)
+	var value credentials.Value
+	var served bool
+	if express {
+		value, served = c.sessionFromCache(metadata.bucketName)
+	} else if c.credsProvider == nil || !c.credsProvider.IsExpired() {
+		value, err = c.credsProvider.GetWithContext(c.credContext(ctx))
+		served = true
 	}
-
-	// make sure to de-dup calls to credential services, this reduces
-	// the overall load to the endpoint generating credential service.
-	value, err, _ := c.credsGroup.Do(metadata.bucketName, func() (credentials.Value, error) {
-		if s3utils.IsS3ExpressBucket(metadata.bucketName) && s3utils.IsAmazonEndpoint(*c.endpointURL) {
-			return c.CreateSession(ctx, metadata.bucketName, SessionReadWrite)
+	if !served {
+		// The provider retrieval is detached (context.WithoutCancel) so
+		// one caller's cancellation cannot fail concurrent waiters; each
+		// waiter stops waiting when its own context ends, though a
+		// caller arriving mid-retrieval blocks in IsExpired on the
+		// Credentials mutex until the retrieval completes. Detachment
+		// strips the caller's deadline along with its cancellation: on
+		// this path the caller context governs only the wait, and reaches
+		// the credential request itself only outside the group — on the
+		// inline not-expired path above and the direct call sites
+		// (presign, bucket location, express CreateSession). The S3
+		// Express session request keeps the caller context: a full S3
+		// operation's retries must stay cancellable, so its waiters
+		// share the winner's fate, and its trace for the same reason:
+		// the round trip was traced before this change.
+		// A retrieval panic resumes on each waiting caller's goroutine
+		// (credsRetrievalPanic); a runtime.Goexit reaches waiters as a
+		// terminal error from the de-dup group, since the retrieval
+		// goroutine cannot return one itself.
+		retrieveCtx := ctx
+		if express {
+			if c.httpTrace != nil {
+				retrieveCtx = httptrace.WithClientTrace(retrieveCtx, c.httpTrace)
+			}
+		} else {
+			retrieveCtx = context.WithoutCancel(ctx)
 		}
-		// Get credentials from the configured credentials provider.
-		return c.credsProvider.GetWithContext(c.CredContext())
-	})
+		resCh := c.credsGroup.DoChan(metadata.bucketName, func() (v credentials.Value, rerr error) {
+			defer func() {
+				if r := recover(); r != nil {
+					rerr = credsRetrievalPanic{value: r}
+				}
+			}()
+			if express {
+				return c.CreateSession(retrieveCtx, metadata.bucketName, SessionReadWrite)
+			}
+			// Get credentials from the configured credentials provider.
+			return c.credsProvider.GetWithContext(c.credContext(retrieveCtx))
+		})
+		var res singleflight.Result[credentials.Value]
+		select {
+		case res = <-resCh:
+		case <-ctx.Done():
+			// A result already delivered when the cancellation fires is
+			// preferred over the caller's context error.
+			select {
+			case res = <-resCh:
+			default:
+				return nil, ctx.Err()
+			}
+		}
+		var cp credsRetrievalPanic
+		if errors.As(res.Err, &cp) {
+			panic(cp.value)
+		}
+		value, err = res.Val, res.Err
+	}
 	if err != nil {
 		return nil, err
+	}
+
+	// Attach the trace after retrieval: provider credential requests were
+	// never traced. The express session request is traced above.
+	if c.httpTrace != nil {
+		ctx = httptrace.WithClientTrace(ctx, c.httpTrace)
 	}
 
 	// Initialize a new HTTP request for the method.
@@ -1170,6 +1251,14 @@ func (c *Client) CredContext() *credentials.CredContext {
 		Client:   httpClient,
 		Endpoint: c.endpointURL.String(),
 	}
+}
+
+// credContext returns the client's CredContext with ctx attached as the
+// caller context for credential retrieval.
+func (c *Client) credContext(ctx context.Context) *credentials.CredContext {
+	cc := c.CredContext()
+	cc.Context = ctx
+	return cc
 }
 
 // GetCreds returns the access creds for the client

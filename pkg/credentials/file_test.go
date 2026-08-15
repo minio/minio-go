@@ -18,9 +18,12 @@
 package credentials
 
 import (
+	"context"
 	"crypto/sha1"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -1029,3 +1032,120 @@ func TestFileMinioClient(t *testing.T) {
 		t.Error("Should be expired if not loaded")
 	}
 }
+
+// TestFileAWSSSOCallerContext verifies that the caller context carried by
+// CredContext cancels or bounds the SSO portal request, and that the
+// provider-level ssoPortalRequestTimeout bound stays enforced alongside it.
+func TestFileAWSSSOCallerContext(t *testing.T) {
+	os.Clearenv()
+
+	testNow := func() time.Time { return time.Date(2020, time.January, 10, 1, 1, 1, 1, time.UTC) }
+
+	newSSOCreds := func(portalURL, cacheDir string) *Credentials {
+		return New(&FileAWSCredentials{
+			Expiry:               Expiry{CurrentTime: testNow},
+			Filename:             "credentials-sso.sample",
+			Profile:              "p1",
+			overrideSSOCacheDir:  cacheDir,
+			overrideSSOPortalURL: portalURL,
+		})
+	}
+	newCacheDir := func(t *testing.T) string {
+		cacheDir := t.TempDir()
+		writeSSOCachedToken(t, cacheDir, "main",
+			`{"startUrl": "https://testacct.awsapps.com/start", "region": "us-test-2", "accessToken": "my-access-token", "expiresAt": "2020-01-11T00:00:00Z"}`)
+		return cacheDir
+	}
+
+	t.Run("caller-cancel", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		ts, requestArrived := newCancelProbeServer(t, cancel)
+
+		creds := newSSOCreds(ts.URL, newCacheDir(t))
+		start := time.Now()
+		err := retrieveWithin(t, "the SSO portal retrieval", func() error {
+			_, err := creds.GetWithContext(&CredContext{Client: ts.Client(), Context: ctx})
+			return err
+		})
+		requireRequestArrived(t, requestArrived, "the SSO portal request")
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("Expected context.Canceled, got %v", err)
+		}
+		// Anything but the caller's cancel (the provider bound, transport
+		// limits) takes ssoPortalRequestTimeout or longer; a prompt return
+		// attributes the cancellation to the caller context.
+		if elapsed := time.Since(start); elapsed >= probeWaitBound {
+			t.Fatalf("Cancellation took %v, bounded by the provider timeout instead of the caller context", elapsed)
+		}
+	})
+
+	t.Run("caller-deadline", func(t *testing.T) {
+		handlerDone := make(chan struct{})
+		ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+			select {
+			case <-r.Context().Done():
+			case <-handlerDone:
+			}
+		}))
+		defer ts.Close()
+		defer close(handlerDone)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
+
+		creds := newSSOCreds(ts.URL, newCacheDir(t))
+		start := time.Now()
+		err := retrieveWithin(t, "the SSO portal retrieval", func() error {
+			_, err := creds.GetWithContext(&CredContext{Client: ts.Client(), Context: ctx})
+			return err
+		})
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("Expected context.DeadlineExceeded, got %v", err)
+		}
+		// The provider's own bound also surfaces DeadlineExceeded; only a
+		// prompt return attributes the expiry to the 50 ms caller
+		// deadline, since the provider bound needs ssoPortalRequestTimeout.
+		if elapsed := time.Since(start); elapsed >= probeWaitBound {
+			t.Fatalf("Deadline expiry took %v, bounded by the provider timeout instead of the caller context", elapsed)
+		}
+	})
+
+	// A deadline is only observable client-side (it does not travel over
+	// HTTP), so the provider-bound check inspects the outgoing request's
+	// context in a RoundTripper instead of an httptest handler.
+	t.Run("provider-bound-retained", func(t *testing.T) {
+		deadlineCh := make(chan time.Time, 1)
+		client := &http.Client{Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			dl, _ := req.Context().Deadline()
+			deadlineCh <- dl
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(`{"roleCredentials": {"accessKeyId": "accessKey", "secretAccessKey": "secret", "sessionToken": "token", "expiration": 1702317362000}}`)),
+			}, nil
+		})}
+
+		_, err := newSSOCreds("https://portal.sso.invalid", newCacheDir(t)).GetWithContext(&CredContext{Client: client, Context: context.Background()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var dl time.Time
+		select {
+		case dl = <-deadlineCh:
+		case <-time.After(probeWaitBound):
+			t.Fatal("timed out waiting for the SSO portal request deadline")
+		}
+		if dl.IsZero() {
+			t.Fatal("Expected the SSO portal request context to carry the provider-level deadline")
+		}
+		if until := time.Until(dl); until > ssoPortalRequestTimeout || until < ssoPortalRequestTimeout/2 {
+			t.Fatalf("Expected a deadline about ssoPortalRequestTimeout from now, got %v", until)
+		}
+	})
+}
+
+// roundTripperFunc adapts a function to http.RoundTripper.
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }

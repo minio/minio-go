@@ -20,11 +20,15 @@
 package credentials
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strconv"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -277,6 +281,9 @@ func TestEcsTask(t *testing.T) {
 	p := &IAM{
 		Endpoint: server.URL,
 	}
+	// Reach the ECS arm regardless of the ambient environment: a web
+	// identity token file takes precedence over the container relative URI.
+	t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", "")
 	t.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "/v2/credentials?id=task_credential_id")
 	creds, err := p.RetrieveWithCredContext(defaultCredContext)
 	os.Unsetenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI")
@@ -304,6 +311,10 @@ func TestEcsTaskFullURI(t *testing.T) {
 	server := initEcsTaskTestServer("2014-12-16T01:51:37Z")
 	defer server.Close()
 	p := &IAM{}
+	// Reach the full-URI arm regardless of the ambient environment: the
+	// web identity token file and the relative URI both take precedence.
+	t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", "")
+	t.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "")
 	t.Setenv("AWS_CONTAINER_CREDENTIALS_FULL_URI",
 		fmt.Sprintf("%s%s", server.URL, "/v2/credentials?id=task_credential_id"))
 	creds, err := p.RetrieveWithCredContext(defaultCredContext)
@@ -604,5 +615,61 @@ func TestIAMCustomExpiryWindowWebIdentity(t *testing.T) {
 	expectedExpiry := time.Date(2014, 12, 16, 1, 46, 37, 0, time.UTC)
 	if !p.expiration.Equal(expectedExpiry) {
 		t.Errorf("Expected expiration %v, got %v", expectedExpiry, p.expiration)
+	}
+}
+
+// TestEcsTaskCallerContextCancel verifies that the caller context carried by
+// CredContext cancels an in-flight ECS task credentials request.
+func TestEcsTaskCallerContextCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	server, requestArrived := newCancelProbeServer(t, cancel)
+
+	// Reach the ECS arm regardless of the ambient environment: a web
+	// identity token file takes precedence over the container relative URI.
+	t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", "")
+	t.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "/v2/credentials?id=task_credential_id")
+
+	p := &IAM{Endpoint: server.URL}
+	err := retrieveWithin(t, "the ECS credentials retrieval", func() error {
+		_, err := p.RetrieveWithCredContext(&CredContext{Client: server.Client(), Context: ctx})
+		return err
+	})
+	requireRequestArrived(t, requestArrived, "the ECS credentials request")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Expected context.Canceled, got %v", err)
+	}
+}
+
+// TestIAMCallerContextCanceled verifies that an already-canceled caller
+// context aborts the EC2/IMDS credentials flow promptly instead of running
+// the metadata requests to completion.
+func TestIAMCallerContextCanceled(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+	}))
+	defer server.Close()
+
+	// Reach the IMDS arm regardless of the ambient environment.
+	t.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "")
+	t.Setenv("AWS_CONTAINER_CREDENTIALS_FULL_URI", "")
+	t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", "")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	p := &IAM{Endpoint: server.URL}
+	_, err := p.RetrieveWithCredContext(&CredContext{Client: server.Client(), Context: ctx})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Expected context.Canceled, got %v", err)
+	}
+	// The token-fetch detail pins that the dead-caller guard produced the
+	// error, not the IMDSv1 fallback failing on the same canceled context.
+	if !strings.Contains(err.Error(), "imds token fetch") {
+		t.Fatalf("Expected the dead-caller guard's error with token-fetch detail, got %v", err)
+	}
+	if n := requests.Load(); n != 0 {
+		t.Fatalf("Expected no metadata requests with a canceled caller context, got %d", n)
 	}
 }

@@ -316,7 +316,10 @@ func (p *FileAWSCredentials) getSSOCredentials(cc *CredContext, iniConfig *ini.F
 	if portalURL == "" {
 		portalURL = ssoPortalBaseURL(ssoRegion)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), ssoPortalRequestTimeout)
+	if cc == nil {
+		cc = defaultCredContext
+	}
+	ctx, cancel := context.WithTimeout(cc.requestContext(), ssoPortalRequestTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, portalURL+"/federation/credentials", nil)
 	if err != nil {
@@ -328,9 +331,6 @@ func (p *FileAWSCredentials) getSSOCredentials(cc *CredContext, iniConfig *ini.F
 	query.Add("role_name", ssoRoleName)
 	req.URL.RawQuery = query.Encode()
 
-	if cc == nil {
-		cc = defaultCredContext
-	}
 	client := cc.Client
 	if client == nil {
 		client = defaultCredContext.Client
