@@ -37,6 +37,14 @@ var ErrRDMANotConnected = errors.New("RDMA infrastructure not connected")
 // also stops a negative size from wrapping to a huge C.size_t.
 const maxRDMABufferSize int64 = 1<<32 - 1 // 4 GiB - 1
 
+// rdmaBufferSizeInRange reports whether a descriptor can name this many bytes.
+// Both entry points gate on it before converting to C.size_t, so it is the one
+// place the bound is expressed -- and the only part of the guard that can be
+// exercised without an RDMA device.
+func rdmaBufferSizeInRange(size int) bool {
+	return size >= 0 && int64(size) <= maxRDMABufferSize
+}
+
 type rdmaClientHandle struct {
 	cptr *C.miniocpp_client
 }
@@ -74,7 +82,7 @@ func newRDMAClient(c *Client) (*rdmaClientHandle, error) {
 func (c *Client) putObjectRDMA(_ context.Context, bucketName, objectName string,
 	opts PutObjectOptions,
 ) (UploadInfo, error) {
-	if opts.RDMABufferSize < 0 || int64(opts.RDMABufferSize) > maxRDMABufferSize {
+	if !rdmaBufferSizeInRange(opts.RDMABufferSize) {
 		return UploadInfo{}, fmt.Errorf(
 			"RDMA put: buffer size %d must be between 0 and the %d bytes an RDMA descriptor can describe",
 			opts.RDMABufferSize, maxRDMABufferSize)
@@ -110,7 +118,7 @@ func (c *Client) putObjectRDMA(_ context.Context, bucketName, objectName string,
 func (c *Client) getObjectRDMA(_ context.Context, bucketName, objectName string,
 	opts GetObjectOptions,
 ) (int64, error) {
-	if opts.RDMABufferSize < 0 || int64(opts.RDMABufferSize) > maxRDMABufferSize {
+	if !rdmaBufferSizeInRange(opts.RDMABufferSize) {
 		return 0, fmt.Errorf(
 			"RDMA get: buffer size %d must be between 0 and the %d bytes an RDMA descriptor can describe",
 			opts.RDMABufferSize, maxRDMABufferSize)

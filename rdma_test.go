@@ -16,62 +16,26 @@ import (
 	"testing"
 )
 
-// The size guards run before c.rdma(), so an out-of-range size must be
-// reported as such even on a host with no RDMA device. That ordering is the
-// point: a negative size would otherwise wrap when converted to C.size_t, and
-// the conversion happens on the far side of the guard.
-func rdmaGuardTestClient(t *testing.T) *Client {
-	t.Helper()
-	c, err := New("play.min.io", &Options{Creds: nil})
-	if err != nil {
-		t.Fatalf("New: %v", err)
-	}
-	return c
-}
-
-func TestPutObjectRDMARejectsOutOfRangeSizes(t *testing.T) {
-	c := rdmaGuardTestClient(t)
-	for _, size := range []int{-1, 1 << 32, 1<<32 + 1} {
-		_, err := c.putObjectRDMA(context.Background(), "bucket", "object",
-			PutObjectOptions{RDMABufferSize: size})
-		if err == nil {
-			t.Fatalf("size %d: expected an error", size)
-		}
-		if !strings.Contains(err.Error(), "RDMA put: buffer size") {
-			t.Fatalf("size %d: guard did not reject it, got %v", size, err)
-		}
-	}
-}
-
-func TestGetObjectRDMARejectsOutOfRangeSizes(t *testing.T) {
-	c := rdmaGuardTestClient(t)
-	for _, size := range []int{-1, 1 << 32, 1<<32 + 1} {
-		_, err := c.getObjectRDMA(context.Background(), "bucket", "object",
-			GetObjectOptions{RDMABufferSize: size})
-		if err == nil {
-			t.Fatalf("size %d: expected an error", size)
-		}
-		if !strings.Contains(err.Error(), "RDMA get: buffer size") {
-			t.Fatalf("size %d: guard did not reject it, got %v", size, err)
-		}
-	}
-}
-
-// 0 and the largest descriptor-addressable size must clear the guard. They
-// fail later for want of a device, which is what proves the guard let them by.
-func TestRDMAGuardsAcceptTheAddressableRange(t *testing.T) {
-	c := rdmaGuardTestClient(t)
-	for _, size := range []int{0, int(maxRDMABufferSize)} {
-		_, putErr := c.putObjectRDMA(context.Background(), "bucket", "object",
-			PutObjectOptions{RDMABufferSize: size})
-		if putErr != nil && strings.Contains(putErr.Error(), "RDMA put: buffer size") {
-			t.Fatalf("size %d: guard rejected an addressable size: %v", size, putErr)
-		}
-
-		_, getErr := c.getObjectRDMA(context.Background(), "bucket", "object",
-			GetObjectOptions{RDMABufferSize: size})
-		if getErr != nil && strings.Contains(getErr.Error(), "RDMA get: buffer size") {
-			t.Fatalf("size %d: guard rejected an addressable size: %v", size, getErr)
+// The accepted range is asserted against the predicate rather than by calling
+// the entry points: on a host that does have a device, a size that clears the
+// guard goes on to the native call, and RDMABuffer is nil here. Handing
+// libminiocpp a nil pointer with a 4 GiB length is not something a unit test
+// should do to find out that the guard let it by.
+func TestRDMABufferSizeInRange(t *testing.T) {
+	for _, tc := range []struct {
+		size int
+		want bool
+	}{
+		{-1, false},
+		{0, true},
+		{1, true},
+		{1<<32 - 2, true},
+		{int(maxRDMABufferSize), true}, // 1<<32 - 1
+		{1 << 32, false},
+		{1<<32 + 1, false},
+	} {
+		if got := rdmaBufferSizeInRange(tc.size); got != tc.want {
+			t.Errorf("rdmaBufferSizeInRange(%d) = %v, want %v", tc.size, got, tc.want)
 		}
 	}
 }
@@ -79,5 +43,36 @@ func TestRDMAGuardsAcceptTheAddressableRange(t *testing.T) {
 func TestMaxRDMABufferSizeIsThe32BitWindow(t *testing.T) {
 	if maxRDMABufferSize != 1<<32-1 {
 		t.Fatalf("maxRDMABufferSize = %d, want %d", maxRDMABufferSize, int64(1<<32-1))
+	}
+}
+
+// A rejected size must be reported by the guard, which runs before c.rdma()
+// and before the conversion to C.size_t -- the conversion is what would wrap a
+// negative size into a huge length. Rejection is therefore safe to drive
+// through the real entry points on any host, device or not.
+func TestRDMAEntryPointsRejectOutOfRangeSizes(t *testing.T) {
+	c, err := New("play.min.io", &Options{Creds: nil})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	for _, size := range []int{-1, 1 << 32, 1<<32 + 1} {
+		_, putErr := c.putObjectRDMA(context.Background(), "bucket", "object",
+			PutObjectOptions{RDMABufferSize: size})
+		if putErr == nil {
+			t.Fatalf("put size %d: expected an error, got nil", size)
+		}
+		if !strings.Contains(putErr.Error(), "RDMA put: buffer size") {
+			t.Fatalf("put size %d: want the guard's error, got %v", size, putErr)
+		}
+
+		_, getErr := c.getObjectRDMA(context.Background(), "bucket", "object",
+			GetObjectOptions{RDMABufferSize: size})
+		if getErr == nil {
+			t.Fatalf("get size %d: expected an error, got nil", size)
+		}
+		if !strings.Contains(getErr.Error(), "RDMA get: buffer size") {
+			t.Fatalf("get size %d: want the guard's error, got %v", size, getErr)
+		}
 	}
 }
