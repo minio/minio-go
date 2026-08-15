@@ -19,10 +19,16 @@ package minio
 import "C"
 
 import (
+	"context"
 	"io"
 	"runtime/cgo"
 	"unsafe"
 )
+
+// maxConsecutiveEmptyReads bounds how long the callback waits on a reader
+// returning (0, nil). bufio uses the same limit for the same reason: tolerate
+// a stall, refuse to spin forever.
+const maxConsecutiveEmptyReads = 100
 
 // rdmaStreamSource is what the C read callback pulls from.
 //
@@ -30,6 +36,10 @@ import (
 // only say "failed", and losing the reason turns an ordinary error on the
 // caller's stream into an opaque upload failure.
 type rdmaStreamSource struct {
+	// ctx is observed per callback. libminiocpp's upload is synchronous with
+	// no cancellation hook, so this is the only place cancellation can be
+	// seen; it stops the upload at the next part boundary, not instantly.
+	ctx    context.Context
 	reader io.Reader
 	err    error
 }
@@ -46,6 +56,10 @@ func minioRDMAReadGo(userdata unsafe.Pointer, buf *C.char, size C.size_t) C.ssiz
 	if size == 0 {
 		return 0
 	}
+	if err := src.ctx.Err(); err != nil {
+		src.err = err
+		return -1
+	}
 
 	// Alias the C buffer rather than copying: Read then writes straight into
 	// the part buffer libminiocpp registered for RDMA.
@@ -57,6 +71,7 @@ func minioRDMAReadGo(userdata unsafe.Pointer, buf *C.char, size C.size_t) C.ssiz
 	// with no error anywhere, so keep pulling until the buffer is full or the
 	// stream genuinely ends.
 	total := 0
+	empty := 0
 	for total < len(dst) {
 		n, err := src.reader.Read(dst[total:])
 		total += n
@@ -67,10 +82,19 @@ func minioRDMAReadGo(userdata unsafe.Pointer, buf *C.char, size C.size_t) C.ssiz
 			src.err = err
 			return -1
 		}
-		if n == 0 {
-			// Reader made no progress and reported no error; treat as EOF
-			// rather than spinning.
-			break
+		if n > 0 {
+			empty = 0
+			continue
+		}
+		// A (0, nil) read is legal and does not mean EOF. Returning here would
+		// hand back a short part, which libminiocpp reads as end-of-object --
+		// the upload then succeeds with the rest of the data missing, which is
+		// the one outcome this loop exists to prevent. Fail instead, once the
+		// reader has clearly stalled rather than merely paused.
+		empty++
+		if empty >= maxConsecutiveEmptyReads {
+			src.err = io.ErrNoProgress
+			return -1
 		}
 	}
 	return C.ssize_t(total)

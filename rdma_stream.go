@@ -45,7 +45,7 @@ import (
 //
 // This is a multipart upload, so the ETag carries the usual `-N` suffix rather
 // than being an MD5 of the object.
-func (c *Client) putObjectRDMAStream(_ context.Context, bucketName, objectName string,
+func (c *Client) putObjectRDMAStream(ctx context.Context, bucketName, objectName string,
 	reader io.Reader, size int64, _ PutObjectOptions,
 ) (UploadInfo, error) {
 	if reader == nil {
@@ -61,7 +61,7 @@ func (c *Client) putObjectRDMAStream(_ context.Context, bucketName, objectName s
 		return UploadInfo{}, err
 	}
 
-	src := &rdmaStreamSource{reader: reader}
+	src := &rdmaStreamSource{ctx: ctx, reader: reader}
 	handle := cgo.NewHandle(src)
 	defer handle.Delete()
 
