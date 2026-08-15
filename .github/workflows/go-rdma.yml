@@ -48,7 +48,7 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get -qy update
-        sudo apt-get -qy install cmake libibverbs-dev librdmacm-dev libnuma-dev
+        sudo apt-get -qy install cmake libibverbs-dev
 
     - name: Build and install libminiocpp.so with RDMA
       shell: bash
@@ -64,8 +64,8 @@ jobs:
           -DMINIO_CPP_ENABLE_RDMA:BOOL=ON
         cmake --build ./build --config Release -j 4
         sudo cmake --install ./build
-        cuobj_arch=$([ "${{ matrix.config.arch }}" = "amd64" ] && echo x86_64 || echo aarch64)
-        sudo cp -P vendor/cuobj/lib/${cuobj_arch}/* /usr/local/lib/
+        s3rdma_arch=$([ "${{ matrix.config.arch }}" = "amd64" ] && echo x86_64 || echo aarch64)
+        sudo cp -P vendor/s3rdma/lib/${s3rdma_arch}/* /usr/local/lib/
         sudo ldconfig
 
     - name: Set up Go
