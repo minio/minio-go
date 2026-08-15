@@ -26,14 +26,24 @@ import (
 
 var ErrRDMANotConnected = errors.New("RDMA infrastructure not connected")
 
-// maxRDMABufferSize is the largest buffer a single cuObject registration
-// (cuMemObjGetDescriptor, inside libminiocpp) can pin — 4 GiB. libminiocpp
-// itself does not fail on a larger buffer: it skips RDMA and transfers it over
-// one ordinary HTTP request. The guards below reject it instead, so an oversize
-// buffer does not silently become a much slower HTTP transfer on a path the
-// caller explicitly opted into for RDMA. The lower bound also stops a negative
-// size from wrapping to a huge C.size_t.
-const maxRDMABufferSize int64 = 4 << 30 // 4 GiB
+// maxRDMABufferSize is the largest transfer a single RDMA descriptor can
+// describe: the x-amz-rdma-token carries the window size in a 32-bit field.
+// libminiocpp itself does not fail on a larger buffer: it skips RDMA and
+// transfers it over one ordinary HTTP request. The guards below reject it
+// instead, so an oversize buffer does not silently become a much slower HTTP
+// transfer on a path the caller explicitly opted into for RDMA. Keep this in
+// step with kRDMAMaxMemoryRegSize in minio-cpp -- a value even one byte larger
+// lets a buffer through here that libminiocpp then declines. The lower bound
+// also stops a negative size from wrapping to a huge C.size_t.
+const maxRDMABufferSize int64 = 1<<32 - 1 // 4 GiB - 1
+
+// rdmaBufferSizeInRange reports whether a descriptor can name this many bytes.
+// Both entry points gate on it before converting to C.size_t, so it is the one
+// place the bound is expressed -- and the only part of the guard that can be
+// exercised without an RDMA device.
+func rdmaBufferSizeInRange(size int) bool {
+	return size >= 0 && int64(size) <= maxRDMABufferSize
+}
 
 type rdmaClientHandle struct {
 	cptr *C.miniocpp_client
@@ -72,9 +82,9 @@ func newRDMAClient(c *Client) (*rdmaClientHandle, error) {
 func (c *Client) putObjectRDMA(_ context.Context, bucketName, objectName string,
 	opts PutObjectOptions,
 ) (UploadInfo, error) {
-	if opts.RDMABufferSize < 0 || int64(opts.RDMABufferSize) > maxRDMABufferSize {
+	if !rdmaBufferSizeInRange(opts.RDMABufferSize) {
 		return UploadInfo{}, fmt.Errorf(
-			"RDMA put: buffer size %d must be between 0 and the cuObject registration limit of %d bytes",
+			"RDMA put: buffer size %d must be between 0 and the %d bytes an RDMA descriptor can describe",
 			opts.RDMABufferSize, maxRDMABufferSize)
 	}
 
@@ -108,9 +118,9 @@ func (c *Client) putObjectRDMA(_ context.Context, bucketName, objectName string,
 func (c *Client) getObjectRDMA(_ context.Context, bucketName, objectName string,
 	opts GetObjectOptions,
 ) (int64, error) {
-	if opts.RDMABufferSize < 0 || int64(opts.RDMABufferSize) > maxRDMABufferSize {
+	if !rdmaBufferSizeInRange(opts.RDMABufferSize) {
 		return 0, fmt.Errorf(
-			"RDMA get: buffer size %d must be between 0 and the cuObject registration limit of %d bytes",
+			"RDMA get: buffer size %d must be between 0 and the %d bytes an RDMA descriptor can describe",
 			opts.RDMABufferSize, maxRDMABufferSize)
 	}
 
@@ -157,5 +167,7 @@ func AlignedBuffer(n int) unsafe.Pointer {
 // FreeAlignedBuffer releases a buffer from AlignedBuffer.
 func FreeAlignedBuffer(p unsafe.Pointer) { C.miniocpp_free_aligned(p) }
 
-// IsRDMAAvailable reports whether cuObj is connected to a cuObjServer.
+// IsRDMAAvailable reports whether this host has a usable RDMA device, so an
+// RDMA transfer is worth attempting. Whether the server serves RDMA for a
+// given object is answered per request, by x-amz-rdma-reply.
 func IsRDMAAvailable() bool { return C.miniocpp_rdma_available() != 0 }
