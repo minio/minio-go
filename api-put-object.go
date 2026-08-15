@@ -330,6 +330,14 @@ func (c *Client) PutObject(ctx context.Context, bucketName, objectName string, r
 	opts PutObjectOptions,
 ) (info UploadInfo, err error) {
 	if opts.RDMABuffer != nil && c.rdmaEnabled {
+		// A reader alongside the buffer means stream it: libminiocpp pins one
+		// part at a time rather than the whole object, so this carries objects
+		// past the 4 GiB an RDMA descriptor can address and does not ask the
+		// caller to pin the object's size. Without a reader the buffer already
+		// holds the object and goes out in a single transfer.
+		if reader != nil {
+			return c.putObjectRDMAStream(ctx, bucketName, objectName, reader, size, opts)
+		}
 		return c.putObjectRDMA(ctx, bucketName, objectName, opts)
 	}
 	if size < 0 && opts.DisableMultipart {

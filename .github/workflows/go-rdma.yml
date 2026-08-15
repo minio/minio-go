@@ -35,7 +35,7 @@ jobs:
         # floating main makes the build race whatever landed there. It already
         # did -- a run started before minio-cpp vendored libs3rdma and failed
         # on the missing directory. Bump this when picking up a minio-cpp fix.
-        ref: 1fc511519a6f9ff55420d25cdf14b1ab3f764690 # RDMA over libs3rdma (#251)
+        ref: v0.6.0 # first release carrying the libs3rdma transport
         persist-credentials: false
         path: "minio-cpp"
 
