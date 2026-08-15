@@ -330,13 +330,6 @@ func (c *Client) PutObject(ctx context.Context, bucketName, objectName string, r
 	opts PutObjectOptions,
 ) (info UploadInfo, err error) {
 	if opts.RDMABuffer != nil && c.rdmaEnabled {
-		// This path returns before opts.validate below, and the RDMA entry
-		// point carries none of the options that decide what the stored
-		// object is. Refuse rather than store something quietly different
-		// from what was asked for.
-		if err := checkRDMAOptions(opts); err != nil {
-			return UploadInfo{}, err
-		}
 		// A reader alongside the buffer means stream it: libminiocpp pins one
 		// part at a time rather than the whole object, so this carries objects
 		// past the 4 GiB an RDMA descriptor can address and does not ask the
