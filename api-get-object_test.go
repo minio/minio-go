@@ -623,3 +623,23 @@ func TestObjectSeekWithSetRange(t *testing.T) {
 		t.Fatalf("expected to read %q, got %q (%d bytes)", "456", string(buf[:rn]), rn)
 	}
 }
+
+// TestRDMAGetObjectStatReportsTransferredSize verifies that Stat on the object
+// returned by the RDMA GET path reports the transferred length. The payload
+// arrives out-of-band, so the object is created closed with its info already
+// set; Stat recomputes Size as totalSize-currOffset for any such object, which
+// reports 0 unless the RDMA path populates totalSize too.
+func TestRDMAGetObjectStatReportsTransferredSize(t *testing.T) {
+	for _, size := range []int64{1, 1 << 20, 64 << 20} {
+		info, err := newRDMAObject("obj", size).Stat()
+		if err != nil {
+			t.Fatalf("Stat on an RDMA-delivered object of %d bytes failed: %v", size, err)
+		}
+		if info.Size != size {
+			t.Fatalf("expected Stat to report %d bytes, got %d", size, info.Size)
+		}
+		if info.Key != "obj" {
+			t.Fatalf("expected key %q, got %q", "obj", info.Key)
+		}
+	}
+}
