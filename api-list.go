@@ -890,10 +890,7 @@ func (c *Client) ListObjectsIter(ctx context.Context, bucketName string, opts Li
 //
 // Pagination is positional, the continuation token encodes a position in the
 // listing and not a key, therefore 'StartAfter' cannot be honored and is
-// rejected as well. Since there is no ordering to rely on, the caller must
-// de-duplicate: common prefixes can repeat when a delimiter is used, and the
-// same key can be returned twice while a pool is being decommissioned or
-// rebalanced.
+// rejected as well.
 //
 //	api := client.New(....)
 //	for object := range api.ListUnsorted(ctx, "mytestbucket", minio.ListObjectsOptions{Prefix: "starthere", Recursive: true}) {
