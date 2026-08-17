@@ -14222,6 +14222,109 @@ func testListObjects() {
 	logSuccess(testName, function, args, startTime)
 }
 
+// Tests unsorted listing of objects.
+func testListUnsorted() {
+	// initialize logging params
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "ListUnsorted(bucketName, opts)"
+	args := map[string]interface{}{
+		"bucketName":   "",
+		"objectPrefix": "",
+		"recursive":    "true",
+	}
+
+	c, err := NewClient(ClientConfig{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client v4 object creation failed", err)
+		return
+	}
+
+	// Generate a new random bucket name.
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	// Make a new bucket.
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	defer cleanupBucket(bucketName, c)
+
+	expected := make(map[string]struct{})
+	for i := 0; i < 10; i++ {
+		objectName := fmt.Sprintf("unsorted/object-%d", i)
+		bufSize := dataFileMap["datafile-1-b"]
+		reader := getDataReader("datafile-1-b")
+		defer reader.Close()
+		_, err = c.PutObject(context.Background(), bucketName, objectName, reader, int64(bufSize),
+			minio.PutObjectOptions{
+				ContentType:  "binary/octet-stream",
+				UserMetadata: map[string]string{"Marker": "unsorted"},
+			})
+		if err != nil {
+			logError(testName, function, args, startTime, "", fmt.Sprintf("PutObject %d call failed", i+1), err)
+			return
+		}
+		expected[objectName] = struct{}{}
+	}
+
+	testList := func(opts minio.ListObjectsOptions, wantMetadata bool) {
+		found := make(map[string]struct{})
+		for objInfo := range c.ListUnsorted(context.Background(), bucketName, opts) {
+			if objInfo.Err != nil {
+				logError(testName, function, args, startTime, "", "ListUnsorted failed unexpectedly", objInfo.Err)
+				return
+			}
+			if _, ok := expected[objInfo.Key]; !ok {
+				logError(testName, function, args, startTime, "", "ListUnsorted returned an unexpected object "+objInfo.Key, errors.New("unexpected object"))
+				return
+			}
+			if wantMetadata && objInfo.UserMetadataStripped["Marker"] != "unsorted" {
+				logError(testName, function, args, startTime, "", "ListUnsorted did not return the user metadata of "+objInfo.Key, errors.New("missing user metadata"))
+				return
+			}
+			found[objInfo.Key] = struct{}{}
+		}
+		if len(found) != len(expected) {
+			logError(testName, function, args, startTime, "", "ListUnsorted returned unexpected number of items", errors.New("missing objects"))
+			return
+		}
+	}
+
+	testList(minio.ListObjectsOptions{Prefix: "unsorted/", Recursive: true}, false)
+	// MaxKeys smaller than the number of objects exercises the positional
+	// continuation token of an unsorted listing.
+	testList(minio.ListObjectsOptions{Prefix: "unsorted/", Recursive: true, MaxKeys: 3}, false)
+	testList(minio.ListObjectsOptions{Prefix: "unsorted/", Recursive: true, WithMetadata: true}, true)
+
+	// Unsorted listing is only supported on ListObjects V2 and has no key
+	// ordering to start after.
+	rejected := []minio.ListObjectsOptions{
+		{Recursive: true, UseV1: true},
+		{Recursive: true, WithVersions: true},
+		{Recursive: true, StartAfter: "unsorted/object-1"},
+	}
+	for _, opts := range rejected {
+		var gotErr error
+		for objInfo := range c.ListUnsorted(context.Background(), bucketName, opts) {
+			if objInfo.Err == nil {
+				logError(testName, function, args, startTime, "", "ListUnsorted returned an object for an unsupported option", errors.New("expected error"))
+				return
+			}
+			gotErr = objInfo.Err
+		}
+		if minio.ToErrorResponse(gotErr).Code != minio.InvalidArgument {
+			logError(testName, function, args, startTime, "", "ListUnsorted did not reject an unsupported option with InvalidArgument", gotErr)
+			return
+		}
+	}
+
+	logSuccess(testName, function, args, startTime)
+}
+
 // testCors is runnable against S3 itself.
 // Just provide the env var MINIO_GO_TEST_BUCKET_CORS with bucket that is public and WILL BE DELETED.
 // Recreate this manually each time. Minio-go SDK does not support calling
@@ -15591,6 +15694,7 @@ func main() {
 		testStorageClassMetadataCopyObject()
 		testPutObjectWithContentLanguage()
 		testListObjects()
+		testListUnsorted()
 		testRemoveObjects()
 		testRemoveObjectsIter()
 		testListObjectVersions()
