@@ -14260,7 +14260,10 @@ func testListUnsorted() {
 		reader := getDataReader("datafile-1-b")
 		defer reader.Close()
 		_, err = c.PutObject(context.Background(), bucketName, objectName, reader, int64(bufSize),
-			minio.PutObjectOptions{ContentType: "binary/octet-stream"})
+			minio.PutObjectOptions{
+				ContentType:  "binary/octet-stream",
+				UserMetadata: map[string]string{"Marker": "unsorted"},
+			})
 		if err != nil {
 			logError(testName, function, args, startTime, "", fmt.Sprintf("PutObject %d call failed", i+1), err)
 			return
@@ -14268,7 +14271,7 @@ func testListUnsorted() {
 		expected[objectName] = struct{}{}
 	}
 
-	testList := func(opts minio.ListObjectsOptions) {
+	testList := func(opts minio.ListObjectsOptions, wantMetadata bool) {
 		found := make(map[string]struct{})
 		for objInfo := range c.ListUnsorted(context.Background(), bucketName, opts) {
 			if objInfo.Err != nil {
@@ -14279,6 +14282,10 @@ func testListUnsorted() {
 				logError(testName, function, args, startTime, "", "ListUnsorted returned an unexpected object "+objInfo.Key, errors.New("unexpected object"))
 				return
 			}
+			if wantMetadata && objInfo.UserMetadataStripped["Marker"] != "unsorted" {
+				logError(testName, function, args, startTime, "", "ListUnsorted did not return the user metadata of "+objInfo.Key, errors.New("missing user metadata"))
+				return
+			}
 			found[objInfo.Key] = struct{}{}
 		}
 		if len(found) != len(expected) {
@@ -14287,11 +14294,11 @@ func testListUnsorted() {
 		}
 	}
 
-	testList(minio.ListObjectsOptions{Prefix: "unsorted/", Recursive: true})
+	testList(minio.ListObjectsOptions{Prefix: "unsorted/", Recursive: true}, false)
 	// MaxKeys smaller than the number of objects exercises the positional
 	// continuation token of an unsorted listing.
-	testList(minio.ListObjectsOptions{Prefix: "unsorted/", Recursive: true, MaxKeys: 3})
-	testList(minio.ListObjectsOptions{Prefix: "unsorted/", Recursive: true, WithMetadata: true})
+	testList(minio.ListObjectsOptions{Prefix: "unsorted/", Recursive: true, MaxKeys: 3}, false)
+	testList(minio.ListObjectsOptions{Prefix: "unsorted/", Recursive: true, WithMetadata: true}, true)
 
 	// Unsorted listing is only supported on ListObjects V2 and has no key
 	// ordering to start after.
@@ -14301,11 +14308,17 @@ func testListUnsorted() {
 		{Recursive: true, StartAfter: "unsorted/object-1"},
 	}
 	for _, opts := range rejected {
+		var gotErr error
 		for objInfo := range c.ListUnsorted(context.Background(), bucketName, opts) {
 			if objInfo.Err == nil {
 				logError(testName, function, args, startTime, "", "ListUnsorted returned an object for an unsupported option", errors.New("expected error"))
 				return
 			}
+			gotErr = objInfo.Err
+		}
+		if minio.ToErrorResponse(gotErr).Code != minio.InvalidArgument {
+			logError(testName, function, args, startTime, "", "ListUnsorted did not reject an unsupported option with InvalidArgument", gotErr)
+			return
 		}
 	}
 

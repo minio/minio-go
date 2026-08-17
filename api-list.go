@@ -761,6 +761,23 @@ type ListObjectsOptions struct {
 	headers http.Header
 }
 
+// checkUnsorted returns an error if the unsorted listing extension cannot be
+// honored for these options against a bucket in the given location. It is only
+// implemented by ListObjects V2, and its continuation token encodes a position
+// rather than a key, so there is nothing for 'StartAfter' to resolve against.
+func (o ListObjectsOptions) checkUnsorted(location string) error {
+	if !o.Unsorted {
+		return nil
+	}
+	if o.UseV1 || o.WithVersions || location == "snowball" {
+		return errInvalidArgument("unsorted listing is only supported by ListObjects V2")
+	}
+	if o.StartAfter != "" {
+		return errInvalidArgument("unsorted listing does not support StartAfter")
+	}
+	return nil
+}
+
 // Set adds a key value pair to the options. The
 // key-value pair will be part of the HTTP GET request
 // headers.
@@ -790,6 +807,12 @@ func (c *Client) ListObjects(ctx context.Context, bucketName string, opts ListOb
 			return
 		}
 
+		location, _ := c.bucketLocCache.Get(bucketName)
+		if err := opts.checkUnsorted(location); err != nil {
+			objectStatCh <- ObjectInfo{Err: err}
+			return
+		}
+
 		var objIter iter.Seq[ObjectInfo]
 		switch {
 		case opts.WithVersions:
@@ -797,7 +820,6 @@ func (c *Client) ListObjects(ctx context.Context, bucketName string, opts ListOb
 		case opts.UseV1:
 			objIter = c.listObjects(ctx, bucketName, opts)
 		default:
-			location, _ := c.bucketLocCache.Get(bucketName)
 			if location == "snowball" {
 				objIter = c.listObjects(ctx, bucketName, opts)
 			} else {
@@ -832,6 +854,13 @@ func (c *Client) ListObjects(ctx context.Context, bucketName string, opts ListOb
 // Canceling the context the iterator will stop, if you wish to discard the yielding make sure
 // to cancel the passed context without that you might leak coroutines
 func (c *Client) ListObjectsIter(ctx context.Context, bucketName string, opts ListObjectsOptions) iter.Seq[ObjectInfo] {
+	location, _ := c.bucketLocCache.Get(bucketName)
+	if err := opts.checkUnsorted(location); err != nil {
+		return func(yield func(ObjectInfo) bool) {
+			yield(ObjectInfo{Err: err})
+		}
+	}
+
 	if opts.WithVersions {
 		return c.listObjectVersions(ctx, bucketName, opts)
 	}
@@ -842,10 +871,8 @@ func (c *Client) ListObjectsIter(ctx context.Context, bucketName string, opts Li
 	}
 
 	// Check whether this is snowball region, if yes ListObjectsV2 doesn't work, fallback to listObjectsV1.
-	if location, ok := c.bucketLocCache.Get(bucketName); ok {
-		if location == "snowball" {
-			return c.listObjects(ctx, bucketName, opts)
-		}
+	if location == "snowball" {
+		return c.listObjects(ctx, bucketName, opts)
 	}
 
 	return c.listObjectsV2(ctx, bucketName, opts)
@@ -858,7 +885,8 @@ func (c *Client) ListObjectsIter(ctx context.Context, bucketName string, opts Li
 //
 // This is a MinIO extension, S3 implementations that do not support it will
 // keep returning a regular lexically sorted listing. Unsorted listing is only
-// available on ListObjects V2, so 'UseV1' and 'WithVersions' are rejected.
+// available on ListObjects V2, so 'UseV1', 'WithVersions' and snowball buckets
+// are rejected instead of silently falling back to a sorted listing.
 //
 // Pagination is positional, the continuation token encodes a position in the
 // listing and not a key, therefore 'StartAfter' cannot be honored and is
@@ -878,18 +906,6 @@ func (c *Client) ListObjectsIter(ctx context.Context, bucketName string, opts Li
 // Canceling the context the iterator will stop, if you wish to discard the yielding make sure
 // to cancel the passed context without that you might leak coroutines
 func (c *Client) ListUnsorted(ctx context.Context, bucketName string, opts ListObjectsOptions) iter.Seq[ObjectInfo] {
-	if opts.UseV1 || opts.WithVersions {
-		return func(yield func(ObjectInfo) bool) {
-			yield(ObjectInfo{Err: errInvalidArgument("unsorted listing is only supported by ListObjects V2")})
-		}
-	}
-
-	if opts.StartAfter != "" {
-		return func(yield func(ObjectInfo) bool) {
-			yield(ObjectInfo{Err: errInvalidArgument("unsorted listing does not support StartAfter")})
-		}
-	}
-
 	opts.Unsorted = true
 	return c.ListObjectsIter(ctx, bucketName, opts)
 }
