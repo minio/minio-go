@@ -20,6 +20,7 @@ package s3utils
 import (
 	"errors"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -383,6 +384,9 @@ func TestIsValidBucketName(t *testing.T) {
 		{"192.168.1.168", errors.New("Bucket name cannot be an ip address"), false},
 		{":bucketname", errors.New("Bucket name contains invalid characters"), false},
 		{"_bucketName", errors.New("Bucket name contains invalid characters"), false},
+		{"/mybucket", errors.New("Bucket name cannot contain path separators"), false},
+		{"mybucket/myobject", errors.New("Bucket name cannot contain path separators"), false},
+		{"..", errors.New("Bucket name cannot be a relative path element"), false},
 		{"my.bucket.com", nil, true},
 		{"my-bucket", nil, true},
 		{"123my-bucket", nil, true},
@@ -428,6 +432,24 @@ func TestIsValidBucketNameStrict(t *testing.T) {
 		{"my-.bucket", errors.New("Bucket name contains invalid characters"), false},
 		{"192.168.1.168", errors.New("Bucket name cannot be an ip address"), false},
 		{"Mybucket", errors.New("Bucket name contains invalid characters"), false},
+		// Request paths that hid the bucket behind a leading "//" reach here
+		// verbatim, so every path-shaped spelling has to be rejected as a path.
+		{"/mybucket", errors.New("Bucket name cannot contain path separators"), false},
+		{"//mybucket", errors.New("Bucket name cannot contain path separators"), false},
+		{"mybucket/myobject", errors.New("Bucket name cannot contain path separators"), false},
+		{"//", errors.New("Bucket name cannot contain path separators"), false},
+		{"/", errors.New("Bucket name cannot contain path separators"), false},
+		{"../", errors.New("Bucket name cannot contain path separators"), false},
+		{"/..", errors.New("Bucket name cannot contain path separators"), false},
+		{"/.", errors.New("Bucket name cannot contain path separators"), false},
+		{"./mybucket", errors.New("Bucket name cannot contain path separators"), false},
+		{"mybucket/", errors.New("Bucket name cannot contain path separators"), false},
+		{`\mybucket`, errors.New("Bucket name cannot contain path separators"), false},
+		{".", errors.New("Bucket name cannot be a relative path element"), false},
+		{"..", errors.New("Bucket name cannot be a relative path element"), false},
+		// A path-shaped name is diagnosed as a path even when it also busts
+		// the length limit - the oversized scanner probe that motivated this.
+		{"//" + strings.Repeat("a", 300), errors.New("Bucket name cannot contain path separators"), false},
 		{"my.bucket.com", nil, true},
 		{"my-bucket", nil, true},
 		{"123my-bucket", nil, true},
