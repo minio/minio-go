@@ -20,11 +20,15 @@
 package credentials
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strconv"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -277,6 +281,9 @@ func TestEcsTask(t *testing.T) {
 	p := &IAM{
 		Endpoint: server.URL,
 	}
+	// Reach the ECS arm regardless of the ambient environment: a web
+	// identity token file takes precedence over the container relative URI.
+	t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", "")
 	t.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "/v2/credentials?id=task_credential_id")
 	creds, err := p.RetrieveWithCredContext(defaultCredContext)
 	os.Unsetenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI")
@@ -304,6 +311,10 @@ func TestEcsTaskFullURI(t *testing.T) {
 	server := initEcsTaskTestServer("2014-12-16T01:51:37Z")
 	defer server.Close()
 	p := &IAM{}
+	// Reach the full-URI arm regardless of the ambient environment: the
+	// web identity token file and the relative URI both take precedence.
+	t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", "")
+	t.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "")
 	t.Setenv("AWS_CONTAINER_CREDENTIALS_FULL_URI",
 		fmt.Sprintf("%s%s", server.URL, "/v2/credentials?id=task_credential_id"))
 	creds, err := p.RetrieveWithCredContext(defaultCredContext)
@@ -417,5 +428,248 @@ func TestIMDSv1Blocked(t *testing.T) {
 	_, err := p.RetrieveWithCredContext(defaultCredContext)
 	if err != nil {
 		t.Errorf("Unexpected IMDSv2 failure %s", err)
+	}
+}
+
+func TestIAMCustomExpiryWindow(t *testing.T) {
+	server := initIMDSv2Server("2014-12-16T01:51:37Z", false)
+	defer server.Close()
+
+	p := &IAM{
+		Endpoint:     server.URL,
+		ExpiryWindow: 5 * time.Minute,
+	}
+	p.CurrentTime = func() time.Time {
+		return time.Date(2014, 12, 15, 21, 0, 0, 0, time.UTC)
+	}
+
+	creds, err := p.RetrieveWithCredContext(defaultCredContext)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if creds.AccessKeyID != "accessKey" {
+		t.Errorf("Expected \"accessKey\", got %s", creds.AccessKeyID)
+	}
+
+	// Expiration (2014-12-16T01:51:37Z) minus the 5 minute window.
+	expectedExpiry := time.Date(2014, 12, 16, 1, 46, 37, 0, time.UTC)
+	if !p.expiration.Equal(expectedExpiry) {
+		t.Errorf("Expected expiration %v, got %v", expectedExpiry, p.expiration)
+	}
+
+	p.CurrentTime = func() time.Time {
+		return time.Date(2014, 12, 16, 1, 46, 0, 0, time.UTC)
+	}
+	if p.IsExpired() {
+		t.Error("Expected creds to not be expired just before the window.")
+	}
+
+	p.CurrentTime = func() time.Time {
+		return time.Date(2014, 12, 16, 1, 47, 0, 0, time.UTC)
+	}
+	if !p.IsExpired() {
+		t.Error("Expected creds to be expired inside the window.")
+	}
+}
+
+func TestIAMZeroExpiryWindowKeepsDefault(t *testing.T) {
+	server := initIMDSv2Server("2014-12-16T01:51:37Z", false)
+	defer server.Close()
+
+	p := &IAM{
+		Endpoint: server.URL,
+	}
+	p.CurrentTime = func() time.Time {
+		return time.Date(2014, 12, 15, 21, 0, 0, 0, time.UTC)
+	}
+
+	if _, err := p.RetrieveWithCredContext(defaultCredContext); err != nil {
+		t.Fatal(err)
+	}
+
+	// The default 80% rule refreshes before the actual expiration.
+	originalExpiration := time.Date(2014, 12, 16, 1, 51, 37, 0, time.UTC)
+	if !p.expiration.Before(originalExpiration) {
+		t.Errorf("Expected expiration before %v with the default window, got %v", originalExpiration, p.expiration)
+	}
+	if p.IsExpired() {
+		t.Error("Expected creds to not be expired right after retrieval.")
+	}
+	if p.ExpiryWindow != 0 {
+		t.Errorf("Expected ExpiryWindow to stay 0 after retrieval, got %v", p.ExpiryWindow)
+	}
+}
+
+func TestIAMExpiryWindowExceedsLifetime(t *testing.T) {
+	server := initIMDSv2Server("2014-12-16T01:51:37Z", false)
+	defer server.Close()
+
+	p := &IAM{
+		Endpoint:     server.URL,
+		ExpiryWindow: 10 * time.Hour,
+	}
+	p.CurrentTime = func() time.Time {
+		return time.Date(2014, 12, 15, 21, 0, 0, 0, time.UTC)
+	}
+
+	if _, err := p.RetrieveWithCredContext(defaultCredContext); err != nil {
+		t.Fatal(err)
+	}
+
+	// A window that exceeds the credential lifetime expires the
+	// credentials immediately, forcing a refresh on every retrieval.
+	if !p.IsExpired() {
+		t.Error("Expected creds to be expired when the window exceeds the credential lifetime.")
+	}
+}
+
+func TestIAMExplicitDefaultExpiryWindow(t *testing.T) {
+	server := initIMDSv2Server("2014-12-16T01:51:37Z", false)
+	defer server.Close()
+
+	p := &IAM{
+		Endpoint:     server.URL,
+		ExpiryWindow: DefaultExpiryWindow,
+	}
+	p.CurrentTime = func() time.Time {
+		return time.Date(2014, 12, 15, 21, 0, 0, 0, time.UTC)
+	}
+
+	if _, err := p.RetrieveWithCredContext(defaultCredContext); err != nil {
+		t.Fatal(err)
+	}
+
+	originalExpiration := time.Date(2014, 12, 16, 1, 51, 37, 0, time.UTC)
+	if !p.expiration.Before(originalExpiration) {
+		t.Errorf("Expected expiration before %v with the default window, got %v", originalExpiration, p.expiration)
+	}
+	if p.IsExpired() {
+		t.Error("Expected creds to not be expired right after retrieval.")
+	}
+}
+
+func TestIAMNegativeExpiryWindowBehavesLikeDefault(t *testing.T) {
+	server := initIMDSv2Server("2014-12-16T01:51:37Z", false)
+	defer server.Close()
+
+	currentTime := func() time.Time {
+		return time.Date(2014, 12, 15, 21, 0, 0, 0, time.UTC)
+	}
+
+	def := &IAM{Endpoint: server.URL}
+	def.CurrentTime = currentTime
+	if _, err := def.RetrieveWithCredContext(defaultCredContext); err != nil {
+		t.Fatal(err)
+	}
+
+	neg := &IAM{
+		Endpoint:     server.URL,
+		ExpiryWindow: -5 * time.Minute,
+	}
+	neg.CurrentTime = currentTime
+	if _, err := neg.RetrieveWithCredContext(defaultCredContext); err != nil {
+		t.Fatal(err)
+	}
+
+	if !neg.expiration.Equal(def.expiration) {
+		t.Errorf("Expected a negative window to produce the default expiration %v, got %v", def.expiration, neg.expiration)
+	}
+}
+
+func TestIAMCustomExpiryWindowWebIdentity(t *testing.T) {
+	server := initStsTestServer("2014-12-16T01:51:37Z")
+	defer server.Close()
+
+	p := &IAM{
+		Endpoint:     server.URL,
+		ExpiryWindow: 5 * time.Minute,
+	}
+	p.CurrentTime = func() time.Time {
+		return time.Date(2014, 12, 15, 21, 0, 0, 0, time.UTC)
+	}
+
+	f, err := os.CreateTemp(t.TempDir(), "minio-go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.Write([]byte("token")); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", f.Name())
+	t.Setenv("AWS_ROLE_ARN", "arn:aws:sts::123456789012:assumed-role/FederatedWebIdentityRole/app1")
+	creds, err := p.RetrieveWithCredContext(defaultCredContext)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if creds.AccessKeyID != "accessKey" {
+		t.Errorf("Expected \"accessKey\", got %s", creds.AccessKeyID)
+	}
+
+	// The window applies to the raw credential expiration
+	// (2014-12-16T01:51:37Z) exactly once, not to the inner provider's
+	// already-reduced expiration.
+	expectedExpiry := time.Date(2014, 12, 16, 1, 46, 37, 0, time.UTC)
+	if !p.expiration.Equal(expectedExpiry) {
+		t.Errorf("Expected expiration %v, got %v", expectedExpiry, p.expiration)
+	}
+}
+
+// TestEcsTaskCallerContextCancel verifies that the caller context carried by
+// CredContext cancels an in-flight ECS task credentials request.
+func TestEcsTaskCallerContextCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	server, requestArrived := newCancelProbeServer(t, cancel)
+
+	// Reach the ECS arm regardless of the ambient environment: a web
+	// identity token file takes precedence over the container relative URI.
+	t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", "")
+	t.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "/v2/credentials?id=task_credential_id")
+
+	p := &IAM{Endpoint: server.URL}
+	err := retrieveWithin(t, "the ECS credentials retrieval", func() error {
+		_, err := p.RetrieveWithCredContext(&CredContext{Client: server.Client(), Context: ctx})
+		return err
+	})
+	requireRequestArrived(t, requestArrived, "the ECS credentials request")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Expected context.Canceled, got %v", err)
+	}
+}
+
+// TestIAMCallerContextCanceled verifies that an already-canceled caller
+// context aborts the EC2/IMDS credentials flow promptly instead of running
+// the metadata requests to completion.
+func TestIAMCallerContextCanceled(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+	}))
+	defer server.Close()
+
+	// Reach the IMDS arm regardless of the ambient environment.
+	t.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "")
+	t.Setenv("AWS_CONTAINER_CREDENTIALS_FULL_URI", "")
+	t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", "")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	p := &IAM{Endpoint: server.URL}
+	_, err := p.RetrieveWithCredContext(&CredContext{Client: server.Client(), Context: ctx})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Expected context.Canceled, got %v", err)
+	}
+	// The token-fetch detail pins that the dead-caller guard produced the
+	// error, not the IMDSv1 fallback failing on the same canceled context.
+	if !strings.Contains(err.Error(), "imds token fetch") {
+		t.Fatalf("Expected the dead-caller guard's error with token-fetch detail, got %v", err)
+	}
+	if n := requests.Load(); n != 0 {
+		t.Fatalf("Expected no metadata requests with a canceled caller context, got %d", n)
 	}
 }

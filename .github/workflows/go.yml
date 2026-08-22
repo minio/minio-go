@@ -21,13 +21,15 @@ jobs:
         os: [ubuntu-latest]
     steps:
       - name: Set up Go ${{ matrix.go-version }} on ${{ matrix.os }}
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ matrix.go-version }}
         id: go
 
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Build on ${{ matrix.os }}
         env:
@@ -45,10 +47,10 @@ jobs:
           sudo apt install devscripts -y
           mkdir -p /tmp/certs-dir
           cp testcerts/* /tmp/certs-dir
-          # Test against the AIStor :edge image so the latest AIStor APIs
+          # Test against the AIStor :edge-daily image so the latest AIStor APIs
           # (object annotations) and checksum algorithms (xxhash3/xxhash128,
           # sha512, md5) are available to the functional tests.
-          docker pull registry.k5.min.dev/aistor/minio:edge
+          docker pull quay.io/minio/aistor/minio:edge-daily
           # Free-tier AIStor license so the server allows writes (without a
           # license the server boots read-only). This is a public FREE-plan
           # license, not a secret.
@@ -62,7 +64,7 @@ jobs:
             -e MINIO_CI_CD=true \
             -e MINIO_KMS_SECRET_KEY="${MINIO_KMS_SECRET_KEY}" \
             -e MINIO_LICENSE="${MINIO_LICENSE}" \
-            registry.k5.min.dev/aistor/minio:edge \
+            quay.io/minio/aistor/minio:edge-daily \
             server --quiet --certs-dir /certs /data/{1...4}
           for _ in $(seq 1 60); do
             if curl -sf --cacert /tmp/certs-dir/public.crt https://localhost:9000/minio/health/ready >/dev/null; then

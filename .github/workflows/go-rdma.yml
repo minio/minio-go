@@ -22,29 +22,43 @@ jobs:
 
     steps:
     - name: Checkout minio-go
-      uses: actions/checkout@v4
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
+        persist-credentials: false
         path: "minio-go"
 
     - name: Checkout minio-cpp
-      uses: actions/checkout@v4
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         repository: minio/minio-cpp
+        # Pinned: this job copies vendor/s3rdma out of the checkout, so a
+        # floating main makes the build race whatever landed there. It already
+        # did -- a run started before minio-cpp vendored libs3rdma and failed
+        # on the missing directory. Bump this when picking up a minio-cpp fix.
+        ref: v0.6.0 # first release carrying the libs3rdma transport
+        persist-credentials: false
         path: "minio-cpp"
 
     - name: Checkout vcpkg
-      uses: actions/checkout@v4
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         repository: microsoft/vcpkg
+        # Pinned: vcpkg master requires a newer CMake than the arm64
+        # runner image ships (scripts use string(JSON ... STRING_ENCODE)
+        # since microsoft/vcpkg@5397c5c9f), which fails every arm64 run.
+        ref: cd61e1e26a038e82d6550a3ebbe0fbbfe7da78e3 # tag 2026.06.24
+        persist-credentials: false
         path: "vcpkg"
 
     - name: Install system dependencies
       run: |
         sudo apt-get -qy update
-        sudo apt-get -qy install cmake libibverbs-dev librdmacm-dev libnuma-dev
+        sudo apt-get -qy install cmake libibverbs-dev
 
     - name: Build and install libminiocpp.so with RDMA
       shell: bash
+      env:
+        MATRIX_ARCH: ${{ matrix.config.arch }}
       run: |
         ./vcpkg/bootstrap-vcpkg.sh
         cd minio-cpp
@@ -57,12 +71,16 @@ jobs:
           -DMINIO_CPP_ENABLE_RDMA:BOOL=ON
         cmake --build ./build --config Release -j 4
         sudo cmake --install ./build
-        cuobj_arch=$([ "${{ matrix.config.arch }}" = "amd64" ] && echo x86_64 || echo aarch64)
-        sudo cp -P vendor/cuobj/lib/${cuobj_arch}/* /usr/local/lib/
+        case "$MATRIX_ARCH" in
+          amd64) s3rdma_arch=x86_64 ;;
+          arm64) s3rdma_arch=aarch64 ;;
+          *) echo "unsupported architecture: $MATRIX_ARCH" >&2; exit 1 ;;
+        esac
+        sudo cp -P "vendor/s3rdma/lib/${s3rdma_arch}"/* /usr/local/lib/
         sudo ldconfig
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
         go-version: "1.25.x"
 
@@ -71,3 +89,10 @@ jobs:
       run: |
         go build -tags=rdma ./...
         go build -tags=rdma -o /tmp/rdma-test ./cmd/rdma-test
+
+    # The buffer-size guards run before any C call, so they are testable on a
+    # runner with no RDMA device. Without this step nothing under -tags=rdma is
+    # ever executed, only compiled.
+    - name: Test minio-go with -tags=rdma
+      working-directory: minio-go
+      run: go test -tags=rdma -run 'RDMA' -v .

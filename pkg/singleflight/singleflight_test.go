@@ -420,3 +420,34 @@ func ExampleGroup() {
 	// Equal results: true
 	// Result: func 1
 }
+
+// TestGoexitDoChan pins that DoChan waiters receive a terminal result when the
+// shared call ends in runtime.Goexit. Do callers re-Goexit themselves, but a
+// DoChan caller holds a channel and has nothing else to wake it.
+func TestGoexitDoChan(t *testing.T) {
+	var g Group[string, any]
+	release := make(chan struct{})
+	fn := func() (any, error) {
+		<-release
+		runtime.Goexit()
+		return nil, nil
+	}
+
+	const n = 3
+	chans := make([]<-chan Result[any], n)
+	for i := range chans {
+		chans[i] = g.DoChan("key", fn)
+	}
+	close(release)
+
+	for i, ch := range chans {
+		select {
+		case res := <-ch:
+			if res.Err == nil {
+				t.Fatalf("waiter %d: expected a terminal error after runtime.Goexit, got nil", i)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("waiter %d: DoChan hangs after runtime.Goexit", i)
+		}
+	}
+}

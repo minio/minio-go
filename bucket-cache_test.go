@@ -346,4 +346,13 @@ func TestProcessBucketLocationResponse(t *testing.T) {
 			}
 		}
 	}
+
+	// Regression test: a nil response must return an error instead of
+	// panicking on a nil-dereference when accessing resp.Body.
+	t.Run("nil response", func(t *testing.T) {
+		_, err := processBucketLocationResponse(nil, "my-bucket")
+		if err == nil {
+			t.Fatal("Expected an error for nil response, but got nil")
+		}
+	})
 }
