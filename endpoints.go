@@ -33,7 +33,7 @@ var awsS3ExpressEndpointMap = map[string]awsS3ExpressEndpoint{
 		[]string{
 			"s3express-use1-az4.us-east-1.amazonaws.com",
 			"s3express-use1-az5.us-east-1.amazonaws.com",
-			"3express-use1-az6.us-east-1.amazonaws.com",
+			"s3express-use1-az6.us-east-1.amazonaws.com",
 		},
 	},
 	"us-east-2": {
