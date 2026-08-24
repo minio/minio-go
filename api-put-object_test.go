@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/minio/minio-go/v7/pkg/encrypt"
 )
@@ -164,5 +165,63 @@ func Test_SSEHeaders(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestCompleteUploadOpts checks that the options sent on
+// CompleteMultipartUpload keep opts.Internal. MinIO reads
+// x-minio-source-mtime and x-minio-source-replication-request from the
+// complete request and from nowhere else, so dropping Internal silently
+// discards a preserved modification time on every multipart upload.
+func TestCompleteUploadOpts(t *testing.T) {
+	mtime := time.Date(2026, 8, 21, 15, 42, 50, 543000000, time.UTC)
+	sse, err := encrypt.NewSSEC(make([]byte, 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	opts := PutObjectOptions{
+		ContentType:          "text/plain",
+		StorageClass:         "REDUCED_REDUNDANCY",
+		UserMetadata:         map[string]string{"Key": "value"},
+		ServerSideEncryption: sse,
+		AutoChecksum:         ChecksumCRC32C,
+	}
+	opts.Internal.SourceMTime = mtime
+	opts.Internal.SourceETag = "0d2e0d0e0f0a0b0c"
+	opts.Internal.ReplicationRequest = true
+
+	got := completeUploadOpts(opts)
+
+	if !got.Internal.SourceMTime.Equal(mtime) {
+		t.Errorf("SourceMTime = %v, want %v", got.Internal.SourceMTime, mtime)
+	}
+	if got.Internal.SourceETag != opts.Internal.SourceETag {
+		t.Errorf("SourceETag = %q, want %q", got.Internal.SourceETag, opts.Internal.SourceETag)
+	}
+	if !got.Internal.ReplicationRequest {
+		t.Error("ReplicationRequest = false, want true")
+	}
+	if got.ServerSideEncryption != sse {
+		t.Error("ServerSideEncryption was dropped")
+	}
+	if got.AutoChecksum != opts.AutoChecksum {
+		t.Errorf("AutoChecksum = %v, want %v", got.AutoChecksum, opts.AutoChecksum)
+	}
+
+	// Options that already applied at NewMultipartUpload must not be repeated.
+	if got.ContentType != "" || got.StorageClass != "" || got.UserMetadata != nil {
+		t.Errorf("upload-wide options leaked into the complete request: %+v", got)
+	}
+
+	header := got.Header()
+	if v := header.Get(minIOBucketSourceMTime); v != mtime.Format(time.RFC3339Nano) {
+		t.Errorf("%s header = %q, want %q", minIOBucketSourceMTime, v, mtime.Format(time.RFC3339Nano))
+	}
+	if v := header.Get(minIOBucketReplicationRequest); v != "true" {
+		t.Errorf("%s header = %q, want %q", minIOBucketReplicationRequest, v, "true")
+	}
+	if v := header.Get(amzStorageClass); v != "" {
+		t.Errorf("%s header = %q, want it absent", amzStorageClass, v)
 	}
 }

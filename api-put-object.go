@@ -531,10 +531,7 @@ func (c *Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketNam
 	// Sort all completed parts.
 	sort.Sort(completedParts(complMultipartUpload.Parts))
 
-	opts = PutObjectOptions{
-		ServerSideEncryption: opts.ServerSideEncryption,
-		AutoChecksum:         opts.AutoChecksum,
-	}
+	opts = completeUploadOpts(opts)
 	applyAutoChecksum(&opts, allParts)
 
 	uploadInfo, err := c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload, opts)

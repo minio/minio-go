@@ -276,10 +276,7 @@ func (c *Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketN
 	// Sort all completed parts.
 	sort.Sort(completedParts(complMultipartUpload.Parts))
 
-	opts = PutObjectOptions{
-		ServerSideEncryption: opts.ServerSideEncryption,
-		AutoChecksum:         opts.AutoChecksum,
-	}
+	opts = completeUploadOpts(opts)
 	if withChecksum {
 		applyAutoChecksum(&opts, allParts)
 	}
@@ -434,10 +431,7 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 	// Sort all completed parts.
 	sort.Sort(completedParts(complMultipartUpload.Parts))
 
-	opts = PutObjectOptions{
-		ServerSideEncryption: opts.ServerSideEncryption,
-		AutoChecksum:         opts.AutoChecksum,
-	}
+	opts = completeUploadOpts(opts)
 	applyAutoChecksum(&opts, allParts)
 	uploadInfo, err := c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload, opts)
 	if err != nil {
@@ -635,10 +629,7 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 	// Sort all completed parts.
 	sort.Sort(completedParts(complMultipartUpload.Parts))
 
-	opts = PutObjectOptions{
-		ServerSideEncryption: opts.ServerSideEncryption,
-		AutoChecksum:         opts.AutoChecksum,
-	}
+	opts = completeUploadOpts(opts)
 	applyAutoChecksum(&opts, allParts)
 
 	uploadInfo, err := c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload, opts)
