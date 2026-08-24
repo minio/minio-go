@@ -39,8 +39,9 @@ func TestGetS3ExpressEndpoint(t *testing.T) {
 		// regular "s3express-<az-id>.<region>.amazonaws.com" pattern.
 		{"us-east-1", "mybucket--use1-az6--x-s3", "s3express-use1-az6.us-east-1.amazonaws.com"},
 		{"us-east-1", "mybucket--use2-az1--x-s3", "s3express-use2-az1.us-east-1.amazonaws.com"},
-		// Region not in the map: still constructed for S3 Express buckets.
-		{"unknown-region", "mybucket--use1-az4--x-s3", "s3express-use1-az4.unknown-region.amazonaws.com"},
+		// Region not in the map: unknown, so no endpoint.
+		{"unknown-region", "mybucket--use1-az4--x-s3", ""},
+		{"unknown-region", "regular-bucket", ""},
 	}
 	for _, tt := range tests {
 		if got := getS3ExpressEndpoint(tt.region, tt.bucketName); got != tt.want {
