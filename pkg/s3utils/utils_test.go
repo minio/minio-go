@@ -58,6 +58,7 @@ func TestGetRegionFromURL(t *testing.T) {
 		{u: "s3express-euc1-az2.eu-central-1.amazonaws.com", expectedRegion: "eu-central-1"},
 		{u: "s3express-usgw1-az3.us-gov-west-1.amazonaws.com", expectedRegion: "us-gov-west-1"},
 		{u: "s3express-usw2-az7.us-west-2.amazonaws.com", expectedRegion: "us-west-2"},
+		{u: "s3express-usw2-lax1-az1.us-west-2.amazonaws.com", expectedRegion: "us-west-2"},
 		{u: "s3express-control.us-west-2.amazonaws.com", expectedRegion: "us-west-2"},
 		// S3 on Outposts.
 		{u: "test-access-point-000000000000.op-00000000000000000.s3-outposts.eu-central-1.amazonaws.com", expectedRegion: "eu-central-1"},
@@ -524,6 +525,7 @@ func TestS3ExpressBucket(t *testing.T) {
 		{"my-express-bucket--usw2-az1--x-s3", true},
 		{"data.analytics--use1-az5--x-s3", true},
 		{"ml-training--apne1-az4--x-s3", true},
+		{"my-bucket--usw2-lax1-az1--x-s3", true},
 		{"my-standard-bucket", false},
 		{"my-express-bucket--usw2-az1", false},
 		{"192.168.0.1--usw2-az1--x-s3", false},
