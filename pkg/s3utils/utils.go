@@ -96,7 +96,7 @@ var amazonS3HostFIPS = regexp.MustCompile(`^s3-fips.(.*?).amazonaws.com$`)
 var amazonS3HostFIPSDualStack = regexp.MustCompile(`^s3-fips.dualstack.(.*?).amazonaws.com$`)
 
 // amazonS3HostExpress - regular expression used to determine if an arg is S3 Express zonal endpoint.
-var amazonS3HostExpress = regexp.MustCompile(`^s3express-[a-z0-9]{3,7}-az[1-6]\.([a-z0-9-]+)\.amazonaws\.com$`)
+var amazonS3HostExpress = regexp.MustCompile(`^s3express-[a-z0-9]{3,7}-az[0-9]+\.([a-z0-9-]+)\.amazonaws\.com$`)
 
 // amazonS3HostExpressControl - regular expression used to determine if an arg is S3 express regional endpoint.
 var amazonS3HostExpressControl = regexp.MustCompile(`^s3express-control\.([a-z0-9-]+)\.amazonaws\.com$`)
@@ -361,7 +361,7 @@ func EncodePath(pathName string) string {
 var (
 	validBucketName          = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9\.\-\_\:]{1,61}[A-Za-z0-9]$`)
 	validBucketNameStrict    = regexp.MustCompile(`^[a-z0-9][a-z0-9\.\-]{1,61}[a-z0-9]$`)
-	validBucketNameS3Express = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]--[a-z0-9]{3,7}-az[1-6]--x-s3$`)
+	validBucketNameS3Express = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]--[a-z0-9]{3,7}-az[0-9]+--x-s3$`)
 	ipAddress                = regexp.MustCompile(`^(\d+\.){3}\d+$`)
 )
 

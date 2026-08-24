@@ -57,6 +57,7 @@ func TestGetRegionFromURL(t *testing.T) {
 		{u: "s3express-apne1-az4.ap-northeast-1.amazonaws.com", expectedRegion: "ap-northeast-1"},
 		{u: "s3express-euc1-az2.eu-central-1.amazonaws.com", expectedRegion: "eu-central-1"},
 		{u: "s3express-usgw1-az3.us-gov-west-1.amazonaws.com", expectedRegion: "us-gov-west-1"},
+		{u: "s3express-usw2-az7.us-west-2.amazonaws.com", expectedRegion: "us-west-2"},
 		{u: "s3express-control.us-west-2.amazonaws.com", expectedRegion: "us-west-2"},
 		// S3 on Outposts.
 		{u: "test-access-point-000000000000.op-00000000000000000.s3-outposts.eu-central-1.amazonaws.com", expectedRegion: "eu-central-1"},
@@ -84,7 +85,6 @@ func TestGetRegionFromURL(t *testing.T) {
 		{u: "s3-fips.dualstack.us-west-1.amazonaws.com:80", expectedRegion: "us-west-1"},
 		// No region found.
 		{u: "192.168.1.1:80", expectedRegion: ""},
-		{u: "s3express-usw2-az7.us-west-2.amazonaws.com", expectedRegion: ""},
 		{u: "invalid-endpoint.com", expectedRegion: ""},
 		{u: "s3.amazonaws.com:80", expectedRegion: ""},
 		{u: "s3-external-1.amazonaws.com:80", expectedRegion: ""},
@@ -530,7 +530,7 @@ func TestS3ExpressBucket(t *testing.T) {
 		{"my..bucket--usw2-az1--x-s3", false},
 		{"my--bucket--usw2-az1--x-s3", false},
 		{".mybucket--usw2-az1--x-s3", false},
-		{"my-bucket--invalid-az7--x-s3", false},
+		{"my-bucket--invalid-azX--x-s3", false},
 	}
 
 	for _, tt := range tests {
