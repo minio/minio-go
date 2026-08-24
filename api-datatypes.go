@@ -122,8 +122,8 @@ func stringsCut(s, sep string) (before, after string, found bool) {
 // Owner name.
 type Owner struct {
 	XMLName     xml.Name `xml:"Owner" json:"owner"`
-	DisplayName string   `xml:"ID" json:"name"`
-	ID          string   `xml:"DisplayName" json:"id"`
+	DisplayName string   `xml:"DisplayName" json:"name"`
+	ID          string   `xml:"ID" json:"id"`
 }
 
 // UploadInfo contains information about the

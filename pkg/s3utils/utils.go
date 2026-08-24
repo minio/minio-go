@@ -365,10 +365,31 @@ var (
 	ipAddress                = regexp.MustCompile(`^(\d+\.){3}\d+$`)
 )
 
+// A bucket name is a single path element, so it can never carry a path
+// separator nor be a relative path element. Callers that hand a raw request
+// path to CheckValidBucketName/CheckValidBucketNameStrict - because the path
+// hid the bucket behind a leading "//" - rely on this: "//bucket", "../",
+// "/.." and friends have to be rejected as path-shaped input rather than pass
+// on a length or character technicality.
+func checkBucketNamePathShaped(bucketName string) error {
+	if strings.ContainsAny(bucketName, `/\`) {
+		return errors.New("Bucket name cannot contain path separators")
+	}
+	if bucketName == "." || bucketName == ".." {
+		return errors.New("Bucket name cannot be a relative path element")
+	}
+	return nil
+}
+
 // Common checker for both stricter and basic validation.
 func checkBucketNameCommon(bucketName string, strict bool) (err error) {
 	if strings.TrimSpace(bucketName) == "" {
 		return errors.New("Bucket name cannot be empty")
+	}
+	// Checked ahead of the length limits so that path-shaped input is
+	// diagnosed as such whatever its length.
+	if err := checkBucketNamePathShaped(bucketName); err != nil {
+		return err
 	}
 	if len(bucketName) < 3 {
 		return errors.New("Bucket name cannot be shorter than 3 characters")
@@ -408,6 +429,10 @@ func IsS3ExpressBucket(bucketName string) bool {
 func CheckValidBucketNameS3Express(bucketName string) (err error) {
 	if strings.TrimSpace(bucketName) == "" {
 		return errors.New("Bucket name cannot be empty for S3 Express")
+	}
+
+	if err := checkBucketNamePathShaped(bucketName); err != nil {
+		return err
 	}
 
 	if len(bucketName) < 3 {

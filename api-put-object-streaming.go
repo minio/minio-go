@@ -357,7 +357,7 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 			break
 		}
 
-		if rerr != nil && rerr != io.ErrUnexpectedEOF && err != io.EOF {
+		if rerr != nil && rerr != io.ErrUnexpectedEOF && rerr != io.EOF {
 			return UploadInfo{}, rerr
 		}
 
@@ -488,10 +488,6 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 		}
 	}()
 
-	// Create checksums
-	// CRC32C is ~50% faster on AMD64 @ 30GB/s
-	crc := opts.AutoChecksum.Hasher()
-
 	// Total data read and written to server. should be equal to 'size' at the end of the call.
 	var totalUploadedSize int64
 
@@ -546,8 +542,9 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 			// Calculate md5sum.
 			customHeader := make(http.Header)
 			if opts.AutoChecksum.IsSet() {
-				// Add Checksum instead.
-				crc.Reset()
+				// Add Checksum instead. Per-goroutine hasher:
+				// hash.Hash is not safe for concurrent use.
+				crc := opts.AutoChecksum.Hasher()
 				crc.Write(buf[:length])
 				cSum := crc.Sum(nil)
 				customHeader.Set(opts.AutoChecksum.Key(), base64.StdEncoding.EncodeToString(cSum))
