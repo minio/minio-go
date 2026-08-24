@@ -35,6 +35,12 @@ func TestGetS3ExpressEndpoint(t *testing.T) {
 		{"us-east-1", "mybucket--use1-az5--x-s3", "s3express-use1-az5.us-east-1.amazonaws.com"},
 		{"eu-west-1", "mybucket--euw1-az3--x-s3", "s3express-euw1-az3.eu-west-1.amazonaws.com"},
 		{"eu-north-1", "mybucket--eun1-az2--x-s3", "s3express-eun1-az2.eu-north-1.amazonaws.com"},
+		// Frankfurt (eu-central-1): regional and zonal endpoints.
+		{"eu-central-1", "", "s3express-control.eu-central-1.amazonaws.com"},
+		{"eu-central-1", "mybucket--euc1-az2--x-s3", "s3express-euc1-az2.eu-central-1.amazonaws.com"},
+		// Local Zone: the full zone ID (usw2-lax1-az1) selects the zonal
+		// endpoint of the parent region.
+		{"us-west-2", "bucket--usw2-lax1-az1--x-s3", "s3express-usw2-lax1-az1.us-west-2.amazonaws.com"},
 		// AZ not in the region's map: the endpoint is constructed from the
 		// regular "s3express-<az-id>.<region>.amazonaws.com" pattern.
 		{"us-east-1", "mybucket--use1-az6--x-s3", "s3express-use1-az6.us-east-1.amazonaws.com"},

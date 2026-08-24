@@ -28,14 +28,15 @@ type awsS3Endpoint struct {
 
 // awsS3ExpressEndpointMap Amazon S3 Express regional (control) endpoints per
 // region. Zonal endpoints are not listed: they follow the regular pattern
-// "s3express-<az-id>.<region>.amazonaws.com" and are derived from the AZ
-// encoded in the S3 Express bucket name.
+// "s3express-<zone-id>.<region>.amazonaws.com" and are derived from the zone
+// ID encoded in the S3 Express (directory) bucket name.
 var awsS3ExpressEndpointMap = map[string]string{
 	"us-east-1":      "s3express-control.us-east-1.amazonaws.com",
 	"us-east-2":      "s3express-control.us-east-2.amazonaws.com",
 	"us-west-2":      "s3express-control.us-west-2.amazonaws.com",
 	"ap-south-1":     "s3express-control.ap-south-1.amazonaws.com",
 	"ap-northeast-1": "s3express-control.ap-northeast-1.amazonaws.com",
+	"eu-central-1":   "s3express-control.eu-central-1.amazonaws.com",
 	"eu-west-1":      "s3express-control.eu-west-1.amazonaws.com",
 	"eu-north-1":     "s3express-control.eu-north-1.amazonaws.com",
 }
@@ -208,14 +209,17 @@ var awsS3EndpointMap = map[string]awsS3Endpoint{
 	},
 }
 
-// s3ExpressBucketAZID extracts the AZ id from an S3 Express bucket name,
-// e.g. "use1-az4" from "mybucket--use1-az4--x-s3".
-var s3ExpressBucketAZID = regexp.MustCompile(`--([a-z0-9]{3,7}-az[1-6])--x-s3$`)
+// s3ExpressBucketAZID extracts the zone ID from an S3 Express (directory)
+// bucket name. Directory buckets live in a single Availability Zone or Local
+// Zone, encoded in the trailing "--<zone-id>--x-s3" suffix, e.g. "use1-az4"
+// from "mybucket--use1-az4--x-s3" or "usw2-lax1-az1" from
+// "bucket--usw2-lax1-az1--x-s3".
+var s3ExpressBucketAZID = regexp.MustCompile(`--([a-z0-9-]+-az[1-6])--x-s3$`)
 
 // getS3ExpressEndpoint returns the S3 Express endpoint for the region.
-// S3 Express buckets live in a single AZ, encoded in the bucket name
-// suffix ("--<az-id>--x-s3"); the zonal endpoint is derived from it via
-// the regular "s3express-<az-id>.<region>.amazonaws.com" pattern.
+// S3 Express buckets live in a single zone, encoded in the bucket name
+// suffix ("--<zone-id>--x-s3"); the zonal endpoint is derived from it via
+// the regular "s3express-<zone-id>.<region>.amazonaws.com" pattern.
 // Non-S3 Express buckets (or no bucket) use the regional endpoint.
 // Unknown regions return "".
 func getS3ExpressEndpoint(region, bucketName string) (endpoint string) {
