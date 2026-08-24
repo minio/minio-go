@@ -298,6 +298,7 @@ type copyObjectResult struct {
 	ChecksumXXHash64  string `xml:"ChecksumXXHASH64,omitempty"`
 	ChecksumXXHash3   string `xml:"ChecksumXXHASH3,omitempty"`
 	ChecksumXXHash128 string `xml:"ChecksumXXHASH128,omitempty"`
+	ChecksumType      string `xml:",omitempty"`
 }
 
 // setChecksums copies the copied part's checksums onto a CompletePart.

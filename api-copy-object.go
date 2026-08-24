@@ -65,12 +65,23 @@ func (c *Client) CopyObject(ctx context.Context, dst CopyDestOptions, src CopySr
 	expTime, ruleID := amzExpirationToExpiryDateRuleID(resp.Header.Get(amzExpiration))
 
 	return UploadInfo{
-		Bucket:           dst.Bucket,
-		Key:              dst.Object,
-		LastModified:     cpObjRes.LastModified,
-		ETag:             trimEtag(cpObjRes.ETag),
-		VersionID:        resp.Header.Get(amzVersionID),
-		Expiration:       expTime,
-		ExpirationRuleID: ruleID,
+		Bucket:            dst.Bucket,
+		Key:               dst.Object,
+		LastModified:      cpObjRes.LastModified,
+		ETag:              trimEtag(cpObjRes.ETag),
+		VersionID:         resp.Header.Get(amzVersionID),
+		Expiration:        expTime,
+		ExpirationRuleID:  ruleID,
+		ChecksumCRC32:     cpObjRes.ChecksumCRC32,
+		ChecksumCRC32C:    cpObjRes.ChecksumCRC32C,
+		ChecksumSHA1:      cpObjRes.ChecksumSHA1,
+		ChecksumSHA256:    cpObjRes.ChecksumSHA256,
+		ChecksumCRC64NVME: cpObjRes.ChecksumCRC64NVME,
+		ChecksumMD5:       cpObjRes.ChecksumMD5,
+		ChecksumSHA512:    cpObjRes.ChecksumSHA512,
+		ChecksumXXHash64:  cpObjRes.ChecksumXXHash64,
+		ChecksumXXHash3:   cpObjRes.ChecksumXXHash3,
+		ChecksumXXHash128: cpObjRes.ChecksumXXHash128,
+		ChecksumMode:      cpObjRes.ChecksumType,
 	}, nil
 }

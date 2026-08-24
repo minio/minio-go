@@ -135,6 +135,90 @@ func TestCopyObjectResultSetChecksums(t *testing.T) {
 	}
 }
 
+func TestCopyObjectResponseChecksums(t *testing.T) {
+	want := copyObjectResult{
+		ChecksumCRC32:     "crc32",
+		ChecksumCRC32C:    "crc32c",
+		ChecksumSHA1:      "sha1",
+		ChecksumSHA256:    "sha256",
+		ChecksumCRC64NVME: "crc64nvme",
+		ChecksumMD5:       "md5",
+		ChecksumSHA512:    "sha512",
+		ChecksumXXHash64:  "xxh64",
+		ChecksumXXHash3:   "xxh3",
+		ChecksumXXHash128: "xxh128",
+		ChecksumType:      "FULL_OBJECT",
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			http.Error(w, "unexpected method", http.StatusMethodNotAllowed)
+			return
+		}
+		if r.Header.Get("x-amz-copy-source") == "" {
+			http.Error(w, "missing x-amz-copy-source", http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/xml")
+		io.WriteString(w, `<?xml version="1.0" encoding="UTF-8"?>`+
+			`<CopyObjectResult>`+
+			`<ETag>&quot;3858f62230ac3c915f300c664312c11f&quot;</ETag>`+
+			`<LastModified>2026-01-01T00:00:00.000Z</LastModified>`+
+			`<ChecksumCRC32>`+want.ChecksumCRC32+`</ChecksumCRC32>`+
+			`<ChecksumCRC32C>`+want.ChecksumCRC32C+`</ChecksumCRC32C>`+
+			`<ChecksumSHA1>`+want.ChecksumSHA1+`</ChecksumSHA1>`+
+			`<ChecksumSHA256>`+want.ChecksumSHA256+`</ChecksumSHA256>`+
+			`<ChecksumCRC64NVME>`+want.ChecksumCRC64NVME+`</ChecksumCRC64NVME>`+
+			`<ChecksumMD5>`+want.ChecksumMD5+`</ChecksumMD5>`+
+			`<ChecksumSHA512>`+want.ChecksumSHA512+`</ChecksumSHA512>`+
+			`<ChecksumXXHASH64>`+want.ChecksumXXHash64+`</ChecksumXXHASH64>`+
+			`<ChecksumXXHASH3>`+want.ChecksumXXHash3+`</ChecksumXXHASH3>`+
+			`<ChecksumXXHASH128>`+want.ChecksumXXHash128+`</ChecksumXXHASH128>`+
+			`<ChecksumType>`+want.ChecksumType+`</ChecksumType>`+
+			`</CopyObjectResult>`)
+	}))
+	defer srv.Close()
+
+	u, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := New(u.Host, &Options{
+		Creds:  credentials.NewStaticV4("ak", "sk", ""),
+		Secure: false,
+		Region: "us-east-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := client.CopyObject(context.Background(),
+		CopyDestOptions{Bucket: "dst-bucket", Object: "dst-object"},
+		CopySrcOptions{Bucket: "src-bucket", Object: "src-object"})
+	if err != nil {
+		t.Fatalf("CopyObject: %v", err)
+	}
+
+	for _, tc := range []struct {
+		name      string
+		got, want string
+	}{
+		{"CRC32", got.ChecksumCRC32, want.ChecksumCRC32},
+		{"CRC32C", got.ChecksumCRC32C, want.ChecksumCRC32C},
+		{"SHA1", got.ChecksumSHA1, want.ChecksumSHA1},
+		{"SHA256", got.ChecksumSHA256, want.ChecksumSHA256},
+		{"CRC64NVME", got.ChecksumCRC64NVME, want.ChecksumCRC64NVME},
+		{"MD5", got.ChecksumMD5, want.ChecksumMD5},
+		{"SHA512", got.ChecksumSHA512, want.ChecksumSHA512},
+		{"XXHash64", got.ChecksumXXHash64, want.ChecksumXXHash64},
+		{"XXHash3", got.ChecksumXXHash3, want.ChecksumXXHash3},
+		{"XXHash128", got.ChecksumXXHash128, want.ChecksumXXHash128},
+		{"ChecksumType", got.ChecksumMode, want.ChecksumType},
+	} {
+		if tc.got != tc.want {
+			t.Errorf("%s = %q, want %q", tc.name, tc.got, tc.want)
+		}
+	}
+}
+
 // TestComposeObjectChecksum5924 validates that ComposeObject sets the requested
 // checksum algorithm on the multipart upload (so server-side copied parts are
 // checksummed) and surfaces the composed object's checksum (AIStor #5924). A
