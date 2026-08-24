@@ -523,11 +523,12 @@ func TestS3ExpressBucket(t *testing.T) {
 		wantErr bool
 	}{
 		{"my-express-bucket--usw2-az1--x-s3", true},
-		{"data.analytics--use1-az5--x-s3", true},
 		{"ml-training--apne1-az4--x-s3", true},
 		{"my-bucket--usw2-lax1-az1--x-s3", true},
 		{"my-standard-bucket", false},
 		{"my-express-bucket--usw2-az1", false},
+		// Periods are not allowed in directory bucket names.
+		{"data.analytics--use1-az5--x-s3", false},
 		{"192.168.0.1--usw2-az1--x-s3", false},
 		{"my..bucket--usw2-az1--x-s3", false},
 		{"my--bucket--usw2-az1--x-s3", false},
