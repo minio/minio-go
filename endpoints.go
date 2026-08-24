@@ -213,8 +213,10 @@ var awsS3EndpointMap = map[string]awsS3Endpoint{
 // bucket name. Directory buckets live in a single Availability Zone or Local
 // Zone, encoded in the trailing "--<zone-id>--x-s3" suffix, e.g. "use1-az4"
 // from "mybucket--use1-az4--x-s3" or "usw2-lax1-az1" from
-// "bucket--usw2-lax1-az1--x-s3".
-var s3ExpressBucketAZID = regexp.MustCompile(`--([a-z0-9-]+-az[1-6])--x-s3$`)
+// "bucket--usw2-lax1-az1--x-s3". The zone ID is the last "-azN" segment
+// before the "--x-s3" suffix, so earlier "--" runs in the base name do not
+// confuse the match.
+var s3ExpressBucketAZID = regexp.MustCompile(`--([a-z0-9]+(?:-[a-z0-9]+)*-az[1-6])--x-s3$`)
 
 // getS3ExpressEndpoint returns the S3 Express endpoint for the region.
 // S3 Express buckets live in a single zone, encoded in the bucket name

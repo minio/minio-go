@@ -41,6 +41,9 @@ func TestGetS3ExpressEndpoint(t *testing.T) {
 		// Local Zone: the full zone ID (usw2-lax1-az1) selects the zonal
 		// endpoint of the parent region.
 		{"us-west-2", "bucket--usw2-lax1-az1--x-s3", "s3express-usw2-lax1-az1.us-west-2.amazonaws.com"},
+		// "--" runs in the base name must not confuse zone ID extraction:
+		// the last "-azN" segment wins.
+		{"us-east-1", "mybucket--foo-az1--use1-az4--x-s3", "s3express-use1-az4.us-east-1.amazonaws.com"},
 		// AZ not in the region's map: the endpoint is constructed from the
 		// regular "s3express-<az-id>.<region>.amazonaws.com" pattern.
 		{"us-east-1", "mybucket--use1-az6--x-s3", "s3express-use1-az6.us-east-1.amazonaws.com"},
