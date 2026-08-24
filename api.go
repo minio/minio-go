@@ -1151,12 +1151,8 @@ func (c *Client) makeTargetURL(bucketName, objectName, bucketLocation string, is
 			// Do not change the host if the endpoint URL is a FIPS S3 endpoint or a S3 PrivateLink interface endpoint
 			if !s3utils.IsAmazonFIPSEndpoint(*c.endpointURL) && !s3utils.IsAmazonPrivateLinkEndpoint(*c.endpointURL) {
 				if s3utils.IsAmazonExpressRegionalEndpoint(*c.endpointURL) {
-					if bucketName == "" {
-						host = getS3ExpressEndpoint(bucketLocation, false)
-					} else {
-						// Fetch new host based on the bucket location.
-						host = getS3ExpressEndpoint(bucketLocation, s3utils.IsS3ExpressBucket(bucketName))
-					}
+					// Fetch new host based on the bucket location.
+					host = getS3ExpressEndpoint(bucketLocation, bucketName)
 				} else {
 					// Fetch new host based on the bucket location.
 					host = getS3Endpoint(bucketLocation, c.s3DualstackEnabled)

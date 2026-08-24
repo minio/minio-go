@@ -17,6 +17,11 @@
 
 package minio
 
+import (
+	"regexp"
+	"strings"
+)
+
 type awsS3Endpoint struct {
 	endpoint          string
 	dualstackEndpoint string
@@ -250,17 +255,33 @@ var awsS3EndpointMap = map[string]awsS3Endpoint{
 	},
 }
 
-// getS3ExpressEndpoint get Amazon S3 Express endpoing based on the region
-// optionally if zonal is set returns first zonal endpoint.
-func getS3ExpressEndpoint(region string, zonal bool) (endpoint string) {
-	s3ExpEndpoint, ok := awsS3ExpressEndpointMap[region]
-	if !ok {
-		return ""
+// s3ExpressBucketAZID extracts the AZ id from an S3 Express bucket name,
+// e.g. "use1-az4" from "mybucket--use1-az4--x-s3".
+var s3ExpressBucketAZID = regexp.MustCompile(`--([a-z0-9]{3,7}-az[1-6])--x-s3$`)
+
+// getS3ExpressEndpoint returns the S3 Express endpoint for the region.
+// S3 Express buckets live in a single AZ, encoded in the bucket name
+// suffix ("--<az-id>--x-s3"); the zonal endpoint is derived from it,
+// preferring the mapped endpoint and falling back to the regular
+// "s3express-<az-id>.<region>.amazonaws.com" pattern. Non-S3 Express
+// buckets (or no bucket) use the regional endpoint.
+func getS3ExpressEndpoint(region, bucketName string) (endpoint string) {
+	m := s3ExpressBucketAZID.FindStringSubmatch(bucketName)
+	if len(m) == 2 {
+		azID := m[1]
+		if s3ExpEndpoint, ok := awsS3ExpressEndpointMap[region]; ok {
+			for _, e := range s3ExpEndpoint.zonalEndpoints {
+				if strings.HasPrefix(e, "s3express-"+azID+".") {
+					return e
+				}
+			}
+		}
+		return "s3express-" + azID + "." + region + ".amazonaws.com"
 	}
-	if zonal {
-		return s3ExpEndpoint.zonalEndpoints[0]
+	if s3ExpEndpoint, ok := awsS3ExpressEndpointMap[region]; ok {
+		return s3ExpEndpoint.regionalEndpoint
 	}
-	return s3ExpEndpoint.regionalEndpoint
+	return ""
 }
 
 // getS3Endpoint get Amazon S3 endpoint based on the bucket location.
