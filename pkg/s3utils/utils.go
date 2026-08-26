@@ -96,11 +96,13 @@ var amazonS3HostFIPS = regexp.MustCompile(`^s3-fips.(.*?).amazonaws.com$`)
 var amazonS3HostFIPSDualStack = regexp.MustCompile(`^s3-fips.dualstack.(.*?).amazonaws.com$`)
 
 // amazonS3HostExpress - regular expression used to determine if an arg is S3 Express zonal endpoint.
-// The zone ID may be an Availability Zone (use1-az4) or a Local Zone (usw2-lax1-az1).
-var amazonS3HostExpress = regexp.MustCompile(`^s3express-[a-z0-9]+(?:-[a-z0-9]+)*-az[0-9]+\.([a-z0-9-]+)\.amazonaws\.com$`)
+// The zone ID may be an Availability Zone (use1-az4) or a Local Zone (usw2-lax1-az1),
+// and the dualstack variant (s3express-<zone-id>.dualstack.<region>.amazonaws.com) is matched as well.
+var amazonS3HostExpress = regexp.MustCompile(`^s3express-[a-z0-9]+(?:-[a-z0-9]+)*-az[0-9]+(?:\.dualstack)?\.([a-z0-9-]+)\.amazonaws\.com$`)
 
 // amazonS3HostExpressControl - regular expression used to determine if an arg is S3 express regional endpoint.
-var amazonS3HostExpressControl = regexp.MustCompile(`^s3express-control\.([a-z0-9-]+)\.amazonaws\.com$`)
+// The dualstack variant (s3express-control-dualstack.<region>.amazonaws.com) is matched as well.
+var amazonS3HostExpressControl = regexp.MustCompile(`^s3express-control(?:-dualstack)?\.([a-z0-9-]+)\.amazonaws\.com$`)
 
 // amazonS3HostDot - regular expression used to determine if an arg is s3 host in . style.
 var amazonS3HostDot = regexp.MustCompile(`^s3.(.*?).amazonaws.com$`)

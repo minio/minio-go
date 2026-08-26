@@ -59,6 +59,10 @@ func TestGetRegionFromURL(t *testing.T) {
 		{u: "s3express-usgw1-az3.us-gov-west-1.amazonaws.com", expectedRegion: "us-gov-west-1"},
 		{u: "s3express-usw2-az7.us-west-2.amazonaws.com", expectedRegion: "us-west-2"},
 		{u: "s3express-usw2-lax1-az1.us-west-2.amazonaws.com", expectedRegion: "us-west-2"},
+		// Dualstack variants.
+		{u: "s3express-control-dualstack.us-east-1.amazonaws.com", expectedRegion: "us-east-1"},
+		{u: "s3express-use1-az4.dualstack.us-east-1.amazonaws.com", expectedRegion: "us-east-1"},
+		{u: "s3express-usw2-lax1-az1.dualstack.us-west-2.amazonaws.com", expectedRegion: "us-west-2"},
 		{u: "s3express-control.us-west-2.amazonaws.com", expectedRegion: "us-west-2"},
 		// S3 on Outposts.
 		{u: "test-access-point-000000000000.op-00000000000000000.s3-outposts.eu-central-1.amazonaws.com", expectedRegion: "eu-central-1"},
@@ -237,6 +241,8 @@ func TestIsAmazonEndpoint(t *testing.T) {
 		{"https://bucket.vpce-1a2b3c4d-5e6f.s3.us-east-1.vpce.amazonaws.com", true},
 		{"https://accesspoint.vpce-1a2b3c4d-5e6f.s3.us-east-1.vpce.amazonaws.com", true},
 		{"https://s3express-usw2-az1.us-west-2.amazonaws.com", true},
+		{"https://s3express-control-dualstack.us-east-1.amazonaws.com", true},
+		{"https://s3express-use1-az4.dualstack.us-east-1.amazonaws.com", true},
 	}
 
 	for i, testCase := range testCases {

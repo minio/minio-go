@@ -223,15 +223,22 @@ var s3ExpressBucketAZID = regexp.MustCompile(`--([a-z0-9]+(?:-[a-z0-9]+)*-az[0-9
 // suffix ("--<zone-id>--x-s3"); the zonal endpoint is derived from it via
 // the regular "s3express-<zone-id>.<region>.amazonaws.com" pattern.
 // Non-S3 Express buckets (or no bucket) use the regional endpoint.
-// Unknown regions return "".
-func getS3ExpressEndpoint(region, bucketName string) (endpoint string) {
+// Unknown regions return "". dualstack selects the dualstack variants
+// (s3express-<zone-id>.dualstack.<region>.amazonaws.com and
+// s3express-control-dualstack.<region>.amazonaws.com).
+func getS3ExpressEndpoint(region, bucketName string, dualstack bool) (endpoint string) {
 	regionalEndpoint, ok := awsS3ExpressEndpointMap[region]
 	if !ok {
 		return ""
 	}
-	m := s3ExpressBucketAZID.FindStringSubmatch(bucketName)
-	if len(m) == 2 {
+	if m := s3ExpressBucketAZID.FindStringSubmatch(bucketName); len(m) == 2 {
+		if dualstack {
+			return "s3express-" + m[1] + ".dualstack." + region + ".amazonaws.com"
+		}
 		return "s3express-" + m[1] + "." + region + ".amazonaws.com"
+	}
+	if dualstack {
+		return "s3express-control-dualstack." + region + ".amazonaws.com"
 	}
 	return regionalEndpoint
 }
