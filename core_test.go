@@ -54,7 +54,8 @@ func TestGetObjectCore(t *testing.T) {
 		&Options{
 			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
 			Secure: mustParseBool(os.Getenv(enableSecurity)),
-		})
+		},
+	)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -251,7 +252,8 @@ func TestGetObjectContentEncoding(t *testing.T) {
 		&Options{
 			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
 			Secure: mustParseBool(os.Getenv(enableSecurity)),
-		})
+		},
+	)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -324,7 +326,8 @@ func TestGetBucketPolicy(t *testing.T) {
 		&Options{
 			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
 			Secure: mustParseBool(os.Getenv(enableSecurity)),
-		})
+		},
+	)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -387,7 +390,8 @@ func TestCoreCopyObject(t *testing.T) {
 		&Options{
 			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
 			Secure: mustParseBool(os.Getenv(enableSecurity)),
-		})
+		},
+	)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -515,7 +519,8 @@ func TestCoreCopyObjectPart(t *testing.T) {
 		&Options{
 			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
 			Secure: mustParseBool(os.Getenv(enableSecurity)),
-		})
+		},
+	)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -668,7 +673,8 @@ func TestCorePutObject(t *testing.T) {
 		&Options{
 			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
 			Secure: mustParseBool(os.Getenv(enableSecurity)),
-		})
+		},
+	)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -761,7 +767,8 @@ func TestCoreGetObjectMetadata(t *testing.T) {
 		&Options{
 			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
 			Secure: mustParseBool(os.Getenv(enableSecurity)),
-		})
+		},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -822,7 +829,8 @@ func TestCoreMultipartUpload(t *testing.T) {
 		&Options{
 			Creds:  credentials.NewStaticV4(os.Getenv(accessKey), os.Getenv(secretKey), ""),
 			Secure: mustParseBool(os.Getenv(enableSecurity)),
-		})
+		},
+	)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -862,7 +870,8 @@ func TestCoreMultipartUpload(t *testing.T) {
 			partID++
 			data := bytes.NewReader(partBuf[:n])
 			dataLen := int64(len(partBuf[:n]))
-			objectPart, err := core.PutObjectPart(context.Background(), bucketName, objectName, uploadID, partID,
+			objectPart, err := core.PutObjectPart(
+				context.Background(), bucketName, objectName, uploadID, partID,
 				data, dataLen,
 				PutObjectPartOptions{
 					Md5Base64:    "",

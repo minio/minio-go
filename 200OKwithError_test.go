@@ -53,7 +53,8 @@ func Test200MultipartUploadWithSpaces(t *testing.T) {
 		&Options{
 			Creds:  credentials.NewStaticV4("foo", "foo12345", ""),
 			Secure: srv.Scheme == "https",
-		})
+		},
+	)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -63,7 +64,8 @@ func Test200MultipartUploadWithSpaces(t *testing.T) {
 		{PartNumber: 2, ETag: "78c577a580bbbba92845789cda1fa932"},
 	}
 
-	foundUploadInfo, err := core.CompleteMultipartUpload(context.Background(),
+	foundUploadInfo, err := core.CompleteMultipartUpload(
+		context.Background(),
 		"bucket",
 		"object",
 		"jY1M2U5NWMtZGY2OC00ZjYyLTljZGYtYmZlOWEzODM3MDMwLjlmZWY5OGNlLWQ1Y2EtNDgwMC04N2Y4LWZkNTNkMDM4ZDdiMXgxNzQ4NjA0NzI0NzE4NjU3MTY3",
@@ -116,7 +118,8 @@ func Test200MultipartUploadWithError(t *testing.T) {
 			Secure:     srv.Scheme == "https",
 			Region:     "us-east-1",
 			MaxRetries: retries,
-		})
+		},
+	)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -126,7 +129,8 @@ func Test200MultipartUploadWithError(t *testing.T) {
 		{PartNumber: 2, ETag: "78c577a580bbbba92845789cda1fa932"},
 	}
 
-	_, err = core.CompleteMultipartUpload(context.Background(),
+	_, err = core.CompleteMultipartUpload(
+		context.Background(),
 		"bucket",
 		"object",
 		"jY1M2U5NWMtZGY2OC00ZjYyLTljZGYtYmZlOWEzODM3MDMwLjlmZWY5OGNlLWQ1Y2EtNDgwMC04N2Y4LWZkNTNkMDM4ZDdiMXgxNzQ4NjA0NzI0NzE4NjU3MTY3",
@@ -177,7 +181,8 @@ func Test200DeleteObjectsWithError(t *testing.T) {
 			Secure:     srv.Scheme == "https",
 			Region:     "us-east-1",
 			MaxRetries: retries,
-		})
+		},
+	)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
