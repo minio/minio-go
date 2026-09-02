@@ -26,18 +26,23 @@ import "math"
 // A zero field means "use the default", so the zero UploadLimits behaves
 // exactly like Amazon S3 — except for MaxSinglePutObjectSize, whose default is
 // deliberately not enforced by PutObject. See that field.
+//
+// New rejects limits it cannot derive a part layout from. No field may be
+// negative; the remaining bounds are noted on each field.
 type UploadLimits struct {
 	// MinPartSize is the smallest size allowed for a part that is not the
-	// last part of a multipart upload. Defaults to 5 MiB.
+	// last part of a multipart upload. Defaults to 5 MiB. May not exceed
+	// MaxPartSize.
 	MinPartSize int64
 
 	// MaxPartSize is the largest size allowed for a single part.
-	// Defaults to 5 GiB.
+	// Defaults to 5 GiB. MaxPartSize * MaxPartsCount must fit in an int64.
 	MaxPartSize int64
 
 	// MaxPartsCount is the maximum number of parts in a single multipart
 	// upload. Together with MaxPartSize this caps the object size the client
-	// is willing to upload. Defaults to 10000.
+	// is willing to upload. Defaults to 10000, and may not exceed 2^53
+	// because the part layout is computed in float64.
 	MaxPartsCount int64
 
 	// MaxSinglePutObjectSize is the largest object the remote accepts in a
