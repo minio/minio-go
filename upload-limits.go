@@ -116,5 +116,11 @@ func (l UploadLimits) validate() error {
 	if l.maxPartSize() > math.MaxInt64/l.maxPartsCount() {
 		return errInvalidArgument("UploadLimits.MaxPartSize multiplied by UploadLimits.MaxPartsCount overflows int64")
 	}
+	// The part layout is computed in float64. A MaxPartSize that rounds to or
+	// above 2^63 does not convert back into int64, and callers allocate buffers
+	// of the part size the layout reports.
+	if float64(l.maxPartSize()) >= math.MaxInt64 {
+		return errInvalidArgument("UploadLimits.MaxPartSize is too large to compute a part layout")
+	}
 	return nil
 }

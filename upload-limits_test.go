@@ -243,7 +243,6 @@ func TestOptimalPartInfoRaisedMinPartSize(t *testing.T) {
 		{"100 parts at 64MiB minimum", UploadLimits{MinPartSize: 64 * 1024 * 1024}, 100 * 64 * 1024 * 1024},
 		// Below maxPartsCount the division rounds down to a zero part size.
 		{"object smaller than the parts count", UploadLimits{}, 100},
-		{"empty object", UploadLimits{}, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			totalParts, partSize, lastPartSize, err := tc.limits.optimalPartInfo(tc.objectSize, 0)
@@ -260,6 +259,48 @@ func TestOptimalPartInfoRaisedMinPartSize(t *testing.T) {
 				t.Errorf("lastPartSize %d exceeds partSize %d", lastPartSize, partSize)
 			}
 		})
+	}
+}
+
+// An empty object has no parts, so the layout must be zero throughout rather
+// than reporting a minimum-sized part and last part for a zero-part upload.
+func TestOptimalPartInfoEmptyObject(t *testing.T) {
+	totalParts, partSize, lastPartSize, err := OptimalPartInfo(0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if totalParts != 0 || partSize != 0 || lastPartSize != 0 {
+		t.Errorf("got (%d parts, %d part size, %d last part size), want all zero",
+			totalParts, partSize, lastPartSize)
+	}
+}
+
+// A MaxPartSize at the int64 ceiling rounds through float64 to a value that
+// converts back negative, which would panic the make() in the multipart paths.
+func TestUploadLimitsRejectsUnrepresentableMaxPartSize(t *testing.T) {
+	l := UploadLimits{MaxPartSize: math.MaxInt64, MaxPartsCount: 1}
+	if err := l.validate(); err == nil {
+		t.Fatal("validate() accepted a MaxPartSize that cannot round-trip through float64")
+	}
+	if _, err := New("play.min.io", &Options{
+		Creds:        credentials.NewStaticV4("id", "secret", ""),
+		UploadLimits: &l,
+	}); err == nil {
+		t.Fatal("New() accepted a MaxPartSize that cannot round-trip through float64")
+	}
+
+	// A part size one ulp below the boundary still round-trips, so the layout
+	// stays positive and make() is safe.
+	ok := UploadLimits{MaxPartSize: math.MaxInt64 - (1 << 11), MaxPartsCount: 1}
+	if err := ok.validate(); err != nil {
+		t.Fatalf("validate() rejected a representable MaxPartSize: %v", err)
+	}
+	_, partSize, _, err := ok.optimalPartInfo(ok.maxObjectSize(), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if partSize <= 0 {
+		t.Fatalf("partSize = %d, want positive (make would panic)", partSize)
 	}
 }
 

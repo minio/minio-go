@@ -103,6 +103,12 @@ func (l UploadLimits) optimalPartInfo(objectSize int64, configuredPartSize uint6
 		return totalPartsCount, partSize, lastPartSize, err
 	}
 
+	// An empty object has no parts; the minimum part size below would otherwise
+	// report a part size and a last part size for a layout with no parts in it.
+	if objectSize == 0 && configuredPartSize == 0 {
+		return 0, 0, 0, nil
+	}
+
 	var partSizeFlt float64
 	if configuredPartSize > 0 {
 		// Compared unsigned and up front, so the int64 conversions below cannot

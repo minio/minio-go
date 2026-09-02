@@ -405,9 +405,10 @@ func TestComposeObjectChecksum5924(t *testing.T) {
 	}
 
 	// An empty source needs no ranges at all, so the split check must not run
-	// against a zero part count. ComposeObject copies it directly.
+	// against a zero part count. ComposeObject copies it directly, without
+	// opening a multipart upload.
 	srcSize = 0
-	gotRanges = nil
+	gotRanges, initCount, completeCount = nil, 0, 0
 	if _, err := client.ComposeObject(context.Background(),
 		CopyDestOptions{Bucket: "dst-bucket", Object: "dst", PartSize: defaultMinPartSize},
 		CopySrcOptions{Bucket: "src-bucket", Object: "src"}); err != nil {
@@ -415,5 +416,9 @@ func TestComposeObjectChecksum5924(t *testing.T) {
 	}
 	if len(gotRanges) != 0 {
 		t.Fatalf("empty source produced copy ranges %q, want none", gotRanges)
+	}
+	if initCount != 0 || completeCount != 0 {
+		t.Fatalf("empty source issued %d initiations and %d completions, want none (direct copy)",
+			initCount, completeCount)
 	}
 }
