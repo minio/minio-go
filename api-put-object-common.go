@@ -87,14 +87,14 @@ func (l UploadLimits) optimalPartInfo(objectSize int64, configuredPartSize uint6
 	maxPartsCount := l.maxPartsCount()
 	maxObjectSize := l.maxObjectSize()
 
-	// When object size is unknown (-1), default to 5TiB to limit memory usage.
-	// This results in ~537MiB part sizes. For larger objects (up to the
-	// maximum object size), callers should set configuredPartSize explicitly
-	// to control memory usage.
+	// When object size is unknown (-1), default to 5TiB (or the maximum object
+	// size, when lower) to limit memory usage. This results in ~537MiB part
+	// sizes. For larger objects (up to the maximum object size), callers should
+	// set configuredPartSize explicitly to control memory usage.
 	var unknownSize bool
 	if objectSize == -1 {
 		unknownSize = true
-		objectSize = maxMultipartPutObjectSize
+		objectSize = min(maxMultipartPutObjectSize, maxObjectSize)
 	}
 
 	// object size is larger than supported maximum.
@@ -134,7 +134,10 @@ func (l UploadLimits) optimalPartInfo(objectSize int64, configuredPartSize uint6
 			objectSize = int64(configuredPartSize) * maxPartsCount
 		}
 	} else {
-		configuredPartSize = minPartSize
+		// Round to a multiple of the internal threshold, but never below a
+		// MinPartSize that was raised above it, or the generated non-final
+		// parts would be rejected by the remote.
+		configuredPartSize = uint64(max(minPartSize, l.minPartSize()))
 		// Use floats for part size for all calculations to avoid
 		// overflows during float64 to int64 conversions.
 		partSizeFlt = float64(objectSize / maxPartsCount)
@@ -153,6 +156,17 @@ func (l UploadLimits) optimalPartInfo(objectSize int64, configuredPartSize uint6
 	// Last part size.
 	lastPartSize = objectSize - int64(totalPartsCount-1)*partSize
 	return totalPartsCount, partSize, lastPartSize, nil
+}
+
+// errIfMoreData reports errEntityTooLarge when reader still holds data after
+// the last part allowed by the upload limits was consumed. Unknown length
+// uploads would otherwise silently complete a truncated object.
+func errIfMoreData(reader io.Reader, uploadedSize int64, bucketName, objectName string) error {
+	var b [1]byte
+	if n, _ := readFull(reader, b[:]); n > 0 {
+		return errEntityTooLarge(uploadedSize+int64(n), uploadedSize, bucketName, objectName)
+	}
+	return nil
 }
 
 // getUploadID - fetch upload id if already present for an object name

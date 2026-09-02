@@ -444,6 +444,10 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 		return UploadInfo{}, errInvalidArgument(fmt.Sprintf("There must be as least one and up to %d source objects.", maxPartsCount))
 	}
 
+	if dst.PartSize > uint64(maxPartSize) {
+		return UploadInfo{}, errInvalidArgument(fmt.Sprintf(
+			"CopyDestOptions.PartSize %d is larger than the maximum part size of %d", dst.PartSize, maxPartSize))
+	}
 	partSize := int64(dst.PartSize)
 	if partSize == 0 {
 		partSize = maxPartSize
@@ -501,7 +505,16 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 		srcObjectSizes[i] = srcCopySize
 
 		// calculate parts needed for current source
-		totalParts += partsRequired(srcCopySize, partSize)
+		reqParts := partsRequired(srcCopySize, partSize)
+		// calculateEvenSplits divides the source into reqParts ranges of
+		// srcCopySize/reqParts bytes, so a part size close to the minimum can
+		// still yield ranges below it, which the remote rejects.
+		if reqParts > 1 && srcCopySize/reqParts < c.limits.minPartSize() {
+			return UploadInfo{}, errInvalidArgument(fmt.Sprintf(
+				"CopySrcOptions %d (%d bytes) cannot be split into parts of at least %d bytes at a part size of %d",
+				i, srcCopySize, c.limits.minPartSize(), partSize))
+		}
+		totalParts += reqParts
 		// Do we need more parts than we are allowed?
 		if totalParts > maxPartsCount {
 			return UploadInfo{}, errInvalidArgument(fmt.Sprintf(

@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -222,17 +223,16 @@ func TestCopyObjectResponseChecksums(t *testing.T) {
 // TestComposeObjectChecksum5924 validates that ComposeObject sets the requested
 // checksum algorithm on the multipart upload (so server-side copied parts are
 // checksummed) and surfaces the composed object's checksum (AIStor #5924). A
-// 6 MiB source with a 5 MiB part size forces the two-part multipart-copy path;
+// 10 MiB source with a 5 MiB part size forces the two-part multipart-copy path;
 // a mock endpoint keeps it deterministic in CI without a live server.
 func TestComposeObjectChecksum5924(t *testing.T) {
-	const (
-		wantCRC32C = "yZRlqg=="
-		srcSize    = 6 * 1024 * 1024
-	)
+	const wantCRC32C = "yZRlqg=="
+	srcSize := 10 * 1024 * 1024
 	var (
 		gotAlgo         string
 		gotMode         string
 		gotCompleteBody string
+		gotRanges       []string
 	)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
@@ -262,6 +262,7 @@ func TestComposeObjectChecksum5924(t *testing.T) {
 				http.Error(w, "missing x-amz-copy-source", http.StatusBadRequest)
 				return
 			}
+			gotRanges = append(gotRanges, r.Header.Get("x-amz-copy-source-range"))
 			w.Header().Set("Content-Type", "application/xml")
 			io.WriteString(w, `<?xml version="1.0" encoding="UTF-8"?>`+
 				`<CopyPartResult>`+
@@ -322,11 +323,17 @@ func TestComposeObjectChecksum5924(t *testing.T) {
 	}
 	// The per-part checksum parsed from CopyPartResult must reach the
 	// CompleteMultipartUpload request body as <ChecksumCRC32C> on every part;
-	// the 6 MiB source at a 5 MiB part size yields exactly two parts, so a
+	// the 10 MiB source at a 5 MiB part size yields exactly two parts, so a
 	// dropped second-part checksum would leave only one occurrence.
 	want := "<ChecksumCRC32C>" + wantCRC32C + "</ChecksumCRC32C>"
 	if got := strings.Count(gotCompleteBody, want); got != 2 {
 		t.Fatalf("CompleteMultipartUpload body has %d %q, want 2; body %q", got, want, gotCompleteBody)
+	}
+	// Every generated copy range but the last must be at least MinPartSize,
+	// otherwise the remote rejects the part.
+	wantRanges := []string{"bytes=0-5242879", "bytes=5242880-10485759"}
+	if !slices.Equal(gotRanges, wantRanges) {
+		t.Fatalf("copy source ranges = %q, want %q", gotRanges, wantRanges)
 	}
 	// A composite (non-full-object) algorithm must not set the mode header.
 	if gotMode != "" {
@@ -345,5 +352,22 @@ func TestComposeObjectChecksum5924(t *testing.T) {
 	}
 	if gotMode != "FULL_OBJECT" {
 		t.Fatalf("full-object init checksum mode = %q, want %q", gotMode, "FULL_OBJECT")
+	}
+
+	// A 6 MiB source at a 5 MiB part size splits evenly into two 3 MiB ranges,
+	// both below MinPartSize, so it must be rejected up front rather than
+	// rejected by the remote mid-copy.
+	srcSize = 6 * 1024 * 1024
+	if _, err := client.ComposeObject(context.Background(),
+		CopyDestOptions{Bucket: "dst-bucket", Object: "dst", PartSize: defaultMinPartSize},
+		CopySrcOptions{Bucket: "src-bucket", Object: "src"}); err == nil {
+		t.Fatal("ComposeObject: expected a rejection for ranges below the minimum part size")
+	}
+
+	// A part size above the maximum is rejected too.
+	if _, err := client.ComposeObject(context.Background(),
+		CopyDestOptions{Bucket: "dst-bucket", Object: "dst", PartSize: uint64(defaultMaxPartSize) + 1},
+		CopySrcOptions{Bucket: "src-bucket", Object: "src"}); err == nil {
+		t.Fatal("ComposeObject: expected a rejection for a part size above the maximum")
 	}
 }

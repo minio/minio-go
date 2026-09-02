@@ -377,6 +377,17 @@ func (c *Client) PutObject(ctx context.Context, bucketName, objectName string, r
 		partSize = minPartSize
 	}
 
+	// A single PUT can only carry up to the endpoint's single PUT limit, so
+	// anything above it has to go out as multipart.
+	if maxSinglePut := c.limits.maxSinglePutObjectSize(); size > maxSinglePut {
+		if opts.DisableMultipart {
+			return UploadInfo{}, errEntityTooLarge(size, maxSinglePut, bucketName, objectName)
+		}
+		if int64(partSize) > maxSinglePut {
+			partSize = uint64(maxSinglePut)
+		}
+	}
+
 	if c.overrideSignerType.IsV2() {
 		if size >= 0 && size < int64(partSize) || opts.DisableMultipart {
 			return c.putObject(ctx, bucketName, objectName, reader, size, opts)
@@ -449,8 +460,10 @@ func (c *Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketNam
 	customHeader := make(http.Header)
 	crc := opts.AutoChecksum.Hasher()
 
+	var lastErr error
 	for partNumber <= totalPartsCount {
 		length, rerr := readFull(reader, buf)
+		lastErr = rerr
 		if rerr == io.EOF && partNumber > 1 {
 			break
 		}
@@ -503,6 +516,14 @@ func (c *Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketNam
 		// We do not have to upload till totalPartsCount.
 		if rerr == io.EOF {
 			break
+		}
+	}
+
+	// A nil read error on the last allowed part means the reader was never
+	// drained; completing here would store a truncated object.
+	if lastErr == nil {
+		if err = errIfMoreData(reader, totalUploadedSize, bucketName, objectName); err != nil {
+			return UploadInfo{}, err
 		}
 	}
 

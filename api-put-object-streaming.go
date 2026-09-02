@@ -504,6 +504,7 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 
 	// Part number always starts with '1'.
 	var partNumber int
+	var lastErr error
 	for partNumber = 1; partNumber <= totalPartsCount; partNumber++ {
 		// Proceed to upload the part.
 		var buf []byte
@@ -520,6 +521,7 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 		}
 
 		length, rerr := readFull(reader, buf)
+		lastErr = rerr
 		if rerr == io.EOF && partNumber > 1 {
 			// Done
 			break
@@ -596,6 +598,14 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 	case err = <-errCh:
 		return UploadInfo{}, err
 	default:
+	}
+
+	// A nil read error on the last allowed part means the reader was never
+	// drained; completing here would store a truncated object.
+	if lastErr == nil {
+		if err = errIfMoreData(reader, totalUploadedSize, bucketName, objectName); err != nil {
+			return UploadInfo{}, err
+		}
 	}
 
 	// Complete multipart upload.

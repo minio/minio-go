@@ -17,6 +17,8 @@
 
 package minio
 
+import "math"
+
 // UploadLimits overrides the upload limits the client enforces before sending
 // a request. The defaults are the limits Amazon S3 imposes; only raise them
 // when the remote endpoint is known to accept the larger values.
@@ -95,6 +97,9 @@ func (l UploadLimits) validate() error {
 	}
 	if l.minPartSize() > l.maxPartSize() {
 		return errInvalidArgument("UploadLimits.MinPartSize cannot be larger than UploadLimits.MaxPartSize")
+	}
+	if l.maxPartSize() > math.MaxInt64/l.maxPartsCount() {
+		return errInvalidArgument("UploadLimits.MaxPartSize multiplied by UploadLimits.MaxPartsCount overflows int64")
 	}
 	return nil
 }

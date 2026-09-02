@@ -108,8 +108,10 @@ func (c *Client) putObjectMultipartNoStream(ctx context.Context, bucketName, obj
 	// CRC32C is ~50% faster on AMD64 @ 30GB/s
 	customHeader := make(http.Header)
 	crc := opts.AutoChecksum.Hasher()
+	var lastErr error
 	for partNumber <= totalPartsCount {
 		length, rErr := readFull(reader, buf)
+		lastErr = rErr
 		if rErr == io.EOF && partNumber > 1 {
 			break
 		}
@@ -172,6 +174,14 @@ func (c *Client) putObjectMultipartNoStream(ctx context.Context, bucketName, obj
 		// We do not have to upload till totalPartsCount.
 		if rErr == io.EOF {
 			break
+		}
+	}
+
+	// A nil read error on the last allowed part means the reader was never
+	// drained; completing here would store a truncated object.
+	if lastErr == nil {
+		if err = errIfMoreData(reader, totalUploadedSize, bucketName, objectName); err != nil {
+			return UploadInfo{}, err
 		}
 	}
 
