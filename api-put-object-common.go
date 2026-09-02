@@ -180,6 +180,13 @@ func (l UploadLimits) optimalPartInfo(objectSize int64, configuredPartSize uint6
 // errIfMoreData reports errUploadTooLarge when reader still holds data after
 // the last part allowed by the upload limits was consumed. Unknown length
 // uploads would otherwise silently complete a truncated object.
+//
+// This deliberately fails an upload whose bytes were all transferred: the probe
+// runs after the final part, so a reader that reports anything other than a
+// clean io.EOF — a closed file, a reset connection, a wrapper with its own
+// sentinel — aborts the multipart upload instead of completing it. Silently
+// storing a possibly truncated object is the worse outcome, but callers should
+// expect this error to arrive late and to look like a transport fault.
 func errIfMoreData(reader io.Reader, uploadedSize, totalPartsCount int64, bucketName, objectName string) error {
 	var b [1]byte
 	n, err := readFull(reader, b[:])

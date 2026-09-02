@@ -27,6 +27,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -111,6 +112,10 @@ func TestUploadLimitsValidate(t *testing.T) {
 		// maxObjectSize() would wrap negative.
 		{"max object size overflows", UploadLimits{MaxPartSize: math.MaxInt64 / 2, MaxPartsCount: 3}, true},
 		{"max object size at the int64 ceiling", UploadLimits{MaxPartSize: math.MaxInt64 / 10000, MaxPartsCount: 10000}, false},
+		// totalPartsCount would not survive the float64 round trip.
+		{"parts count at the int64 ceiling", UploadLimits{MinPartSize: 1, MaxPartSize: 1, MaxPartsCount: math.MaxInt64}, true},
+		{"parts count above the float64 exact range", UploadLimits{MinPartSize: 1, MaxPartSize: 1, MaxPartsCount: 1<<53 + 1}, true},
+		{"parts count at the float64 exact range", UploadLimits{MinPartSize: 1, MaxPartSize: 1, MaxPartsCount: 1 << 53}, false},
 	}
 
 	for _, tc := range testCases {
@@ -302,6 +307,20 @@ func TestUploadLimitsRejectsUnrepresentableMaxPartSize(t *testing.T) {
 	if partSize <= 0 {
 		t.Fatalf("partSize = %d, want positive (make would panic)", partSize)
 	}
+
+	// The same for the parts count: an accepted MaxPartsCount must still yield a
+	// layout whose part count is a usable int.
+	parts := UploadLimits{MinPartSize: 1, MaxPartSize: 1, MaxPartsCount: 1 << 53}
+	if err := parts.validate(); err != nil {
+		t.Fatalf("validate() rejected a representable MaxPartsCount: %v", err)
+	}
+	totalParts, _, _, err := parts.optimalPartInfo(parts.maxObjectSize(), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if int64(totalParts) != parts.MaxPartsCount {
+		t.Fatalf("totalPartsCount = %d, want %d", totalParts, parts.MaxPartsCount)
+	}
 }
 
 // The automatic layout must never need more than maxPartsCount parts. Rounding
@@ -435,37 +454,20 @@ func TestPartTooLargeMessage(t *testing.T) {
 	}
 }
 
-// A PartSize above MaxSinglePutObjectSize must not turn into an oversized
-// single PUT; it goes multipart, or errors when multipart is disabled.
-func TestPutObjectPartSizeAboveSinglePutLimit(t *testing.T) {
-	var singlePuts, partPuts int
+// The 5GiB default must not gate PutObject: remotes such as MinIO/AIStor accept
+// single PUTs far above Amazon's, and PutObjectsSnowball sets DisableMultipart
+// itself. An explicitly configured limit is enforced.
+func TestPutObjectSinglePutLimitOnlyWhenConfigured(t *testing.T) {
+	// Atomic: the aborted 6GiB request below leaves its handler running while
+	// the test resets the counter.
+	var singlePuts atomic.Int64
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		q := r.URL.Query()
-		switch {
-		case r.Method == http.MethodPost && q.Has("uploads"):
-			w.Header().Set("Content-Type", "application/xml")
-			io.WriteString(w, `<?xml version="1.0" encoding="UTF-8"?>`+
-				`<InitiateMultipartUploadResult><Bucket>bucket</Bucket><Key>object</Key>`+
-				`<UploadId>upload-id</UploadId></InitiateMultipartUploadResult>`)
-		case r.Method == http.MethodPut && q.Get("uploadId") != "":
-			partPuts++
-			io.Copy(io.Discard, r.Body)
-			w.Header().Set("ETag", `"3858f62230ac3c915f300c664312c11f"`)
-			w.WriteHeader(http.StatusOK)
-		case r.Method == http.MethodPost && q.Get("uploadId") != "":
-			io.Copy(io.Discard, r.Body)
-			w.Header().Set("Content-Type", "application/xml")
-			io.WriteString(w, `<?xml version="1.0" encoding="UTF-8"?>`+
-				`<CompleteMultipartUploadResult><Bucket>bucket</Bucket><Key>object</Key>`+
-				`<ETag>&quot;3858f62230ac3c915f300c664312c11f-1&quot;</ETag></CompleteMultipartUploadResult>`)
-		case r.Method == http.MethodPut:
-			singlePuts++
-			io.Copy(io.Discard, r.Body)
-			w.Header().Set("ETag", `"3858f62230ac3c915f300c664312c11f"`)
-			w.WriteHeader(http.StatusOK)
-		default:
-			w.WriteHeader(http.StatusOK)
+		if r.Method == http.MethodPut {
+			singlePuts.Add(1)
 		}
+		io.Copy(io.Discard, r.Body)
+		w.Header().Set("ETag", `"3858f62230ac3c915f300c664312c11f"`)
+		w.WriteHeader(http.StatusOK)
 	}))
 	defer srv.Close()
 
@@ -473,34 +475,59 @@ func TestPutObjectPartSizeAboveSinglePutLimit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	limits := UploadLimits{MinPartSize: 1024, MaxSinglePutObjectSize: 4096}
 	client, err := New(u.Host, &Options{
-		Creds:        credentials.NewStaticV4("ak", "sk", ""),
-		Secure:       false,
-		Region:       "us-east-1",
-		UploadLimits: &limits,
+		Creds:  credentials.NewStaticV4("ak", "sk", ""),
+		Secure: false,
+		Region: "us-east-1",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	data := bytes.Repeat([]byte("a"), 8192)
-	if _, err := client.PutObject(context.Background(), "bucket", "object",
-		bytes.NewReader(data), int64(len(data)), PutObjectOptions{PartSize: uint64(len(data))}); err != nil {
-		t.Fatalf("PutObject: %v", err)
+	// The snowball shape at the real default: 6GiB with DisableMultipart. The
+	// size gate runs before the request, so a canceled context separates the
+	// two outcomes without putting 6GiB on the wire — EntityTooLarge means the
+	// default was enforced, a context error means routing let it through.
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = client.PutObject(canceled, "bucket", "snowball.tar",
+		bytes.NewReader(nil), int64(6)<<30, PutObjectOptions{DisableMultipart: true})
+	if code := ToErrorResponse(err).Code; code == EntityTooLarge {
+		t.Fatalf("PutObject refused a 6GiB single PUT client-side: %v", err)
 	}
-	if singlePuts != 0 {
-		t.Errorf("%d single PUTs above the %d byte limit, want 0", singlePuts, limits.MaxSinglePutObjectSize)
-	}
-	if partPuts != 1 {
-		t.Errorf("part uploads = %d, want 1", partPuts)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("PutObject error = %v, want the canceled context to surface", err)
 	}
 
-	_, err = client.PutObject(context.Background(), "bucket", "object",
-		bytes.NewReader(data), int64(len(data)),
-		PutObjectOptions{PartSize: uint64(len(data)), DisableMultipart: true})
+	// A normal-sized object on default limits still goes out as one PUT.
+	singlePuts.Store(0)
+	data := bytes.Repeat([]byte("a"), 8192)
+	if _, err := client.PutObject(context.Background(), "bucket", "object",
+		bytes.NewReader(data), int64(len(data)), PutObjectOptions{DisableMultipart: true}); err != nil {
+		t.Fatalf("PutObject: %v", err)
+	}
+	if got := singlePuts.Load(); got != 1 {
+		t.Fatalf("single PUTs = %d, want 1 (upload was refused client-side)", got)
+	}
+
+	// Setting the limit explicitly opts in to enforcement.
+	small, err := New(u.Host, &Options{
+		Creds:        credentials.NewStaticV4("ak", "sk", ""),
+		Secure:       false,
+		Region:       "us-east-1",
+		UploadLimits: &UploadLimits{MaxSinglePutObjectSize: 4096},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	singlePuts.Store(0)
+	_, err = small.PutObject(context.Background(), "bucket", "object",
+		bytes.NewReader(data), int64(len(data)), PutObjectOptions{DisableMultipart: true})
 	if code := ToErrorResponse(err).Code; code != EntityTooLarge {
-		t.Fatalf("PutObject error code = %q, want %q (err %v)", code, EntityTooLarge, err)
+		t.Fatalf("configured limit: error code = %q, want %q (err %v)", code, EntityTooLarge, err)
+	}
+	if got := singlePuts.Load(); got != 0 {
+		t.Fatalf("configured limit: %d PUTs issued, want 0", got)
 	}
 }
 
@@ -543,7 +570,8 @@ func TestCorePutObjectIgnoresSinglePutLimit(t *testing.T) {
 		t.Fatalf("Core.PutObject issued %d PUTs, want 1", puts)
 	}
 
-	// The same oversized single PUT is refused through Client.PutObject.
+	// The limit was set explicitly, so Client.PutObject does refuse the same
+	// oversized single PUT; only the raw Core call bypasses it.
 	client, err := New(u.Host, opts)
 	if err != nil {
 		t.Fatal(err)
@@ -552,6 +580,9 @@ func TestCorePutObjectIgnoresSinglePutLimit(t *testing.T) {
 		bytes.NewReader(data), int64(len(data)), PutObjectOptions{DisableMultipart: true})
 	if code := ToErrorResponse(err).Code; code != EntityTooLarge {
 		t.Fatalf("Client.PutObject error code = %q, want %q (err %v)", code, EntityTooLarge, err)
+	}
+	if puts != 1 {
+		t.Fatalf("PUTs issued = %d, want 1 (only the Core call)", puts)
 	}
 }
 

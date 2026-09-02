@@ -377,9 +377,11 @@ func (c *Client) PutObject(ctx context.Context, bucketName, objectName string, r
 		partSize = minPartSize
 	}
 
-	// A single PUT can only carry up to the endpoint's single PUT limit, so
-	// anything above it has to go out as multipart.
-	if maxSinglePut := c.limits.maxSinglePutObjectSize(); size > maxSinglePut {
+	// Only an explicitly configured single PUT limit is enforced here. The 5GiB
+	// default is Amazon's; MinIO/AIStor and others accept far larger single
+	// PUTs, and PutObjectsSnowball sets DisableMultipart itself, so applying the
+	// default would refuse uploads that work today.
+	if maxSinglePut := c.limits.MaxSinglePutObjectSize; maxSinglePut > 0 && size > maxSinglePut {
 		if opts.DisableMultipart {
 			return UploadInfo{}, errEntityTooLarge(size, maxSinglePut, bucketName, objectName)
 		}

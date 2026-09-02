@@ -24,7 +24,8 @@ import "math"
 // when the remote endpoint is known to accept the larger values.
 //
 // A zero field means "use the default", so the zero UploadLimits behaves
-// exactly like Amazon S3.
+// exactly like Amazon S3 — except for MaxSinglePutObjectSize, whose default is
+// deliberately not enforced by PutObject. See that field.
 type UploadLimits struct {
 	// MinPartSize is the smallest size allowed for a part that is not the
 	// last part of a multipart upload. Defaults to 5 MiB.
@@ -42,9 +43,16 @@ type UploadLimits struct {
 	// MaxSinglePutObjectSize is the largest object the remote accepts in a
 	// single PUT. Defaults to 5 GiB.
 	//
-	// Client.PutObject enforces this by switching to a multipart upload, or by
-	// returning EntityTooLarge when PutObjectOptions.DisableMultipart is set.
-	// Core.PutObject sends the PUT as given and does not check it.
+	// Unlike the other fields, the 5 GiB default is not enforced by PutObject:
+	// MinIO and AIStor accept single PUTs far above Amazon's limit, so gating on
+	// the default would refuse uploads that work today. Setting it explicitly
+	// does enforce it — PutObject then rejects a larger object outright when
+	// PutObjectOptions.DisableMultipart is set, and otherwise sends it as a
+	// multipart upload.
+	//
+	// The resolved value, default included, always bounds the single PUT that
+	// PutObject falls back to when a multipart upload fails with AccessDenied.
+	// Core.PutObject never checks it.
 	MaxSinglePutObjectSize int64
 }
 
@@ -121,6 +129,12 @@ func (l UploadLimits) validate() error {
 	// of the part size the layout reports.
 	if float64(l.maxPartSize()) >= math.MaxInt64 {
 		return errInvalidArgument("UploadLimits.MaxPartSize is too large to compute a part layout")
+	}
+	// The parts count is bounded by MaxPartsCount and returned as an int, so
+	// the same rounding has to survive the trip back. Beyond 2^53 float64 no
+	// longer holds every integer, and at the int64 ceiling it does not convert.
+	if l.maxPartsCount() > 1<<53 {
+		return errInvalidArgument("UploadLimits.MaxPartsCount is too large to compute a part layout")
 	}
 	return nil
 }
