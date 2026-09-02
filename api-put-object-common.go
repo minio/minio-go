@@ -19,10 +19,12 @@ package minio
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"math"
 	"os"
 
+	"github.com/dustin/go-humanize"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
@@ -60,7 +62,7 @@ func isReadAt(reader io.Reader) (ok bool) {
 }
 
 // OptimalPartInfo - calculate the optimal part info for a given
-// object size.
+// object size, using Amazon S3's upload limits.
 //
 // NOTE: Assumption here is that for any object to be uploaded to any S3 compatible
 // object storage it will have the following parameters as constants.
@@ -68,10 +70,27 @@ func isReadAt(reader io.Reader) (ok bool) {
 //	maxPartsCount - 10000
 //	minPartSize - 16MiB
 //	maxObjectSize - ~48.83TiB (maxPartSize * maxPartsCount)
+//
+// A Client created with Options.UploadLimits uses its own limits instead of
+// these, so its part layout may differ from what this function returns.
 func OptimalPartInfo(objectSize int64, configuredPartSize uint64) (totalPartsCount int, partSize, lastPartSize int64, err error) {
+	return UploadLimits{}.optimalPartInfo(objectSize, configuredPartSize)
+}
+
+func (c *Client) optimalPartInfo(objectSize int64, configuredPartSize uint64) (totalPartsCount int, partSize, lastPartSize int64, err error) {
+	return c.limits.optimalPartInfo(objectSize, configuredPartSize)
+}
+
+// optimalPartInfo - calculate the optimal part info for a given object size
+// within these limits.
+func (l UploadLimits) optimalPartInfo(objectSize int64, configuredPartSize uint64) (totalPartsCount int, partSize, lastPartSize int64, err error) {
+	maxPartsCount := l.maxPartsCount()
+	maxObjectSize := l.maxObjectSize()
+
 	// When object size is unknown (-1), default to 5TiB to limit memory usage.
-	// This results in ~537MiB part sizes. For larger objects (up to ~48.83TiB),
-	// callers should set configuredPartSize explicitly to control memory usage.
+	// This results in ~537MiB part sizes. For larger objects (up to the
+	// maximum object size), callers should set configuredPartSize explicitly
+	// to control memory usage.
 	var unknownSize bool
 	if objectSize == -1 {
 		unknownSize = true
@@ -93,25 +112,25 @@ func OptimalPartInfo(objectSize int64, configuredPartSize uint64) (totalPartsCou
 
 		if !unknownSize {
 			if objectSize > (int64(configuredPartSize) * maxPartsCount) {
-				err = errInvalidArgument("Part size * max_parts(10000) is lesser than input objectSize.")
+				err = errInvalidArgument(fmt.Sprintf("Part size * max_parts(%d) is lesser than input objectSize.", maxPartsCount))
 				return totalPartsCount, partSize, lastPartSize, err
 			}
 		}
 
-		if configuredPartSize < absMinPartSize {
-			err = errInvalidArgument("Input part size is smaller than allowed minimum of 5MiB.")
+		if int64(configuredPartSize) < l.minPartSize() {
+			err = errInvalidArgument(fmt.Sprintf("Input part size is smaller than allowed minimum of %s.", humanize.IBytes(uint64(l.minPartSize()))))
 			return totalPartsCount, partSize, lastPartSize, err
 		}
 
-		if configuredPartSize > maxPartSize {
-			err = errInvalidArgument("Input part size is bigger than allowed maximum of 5GiB.")
+		if int64(configuredPartSize) > l.maxPartSize() {
+			err = errInvalidArgument(fmt.Sprintf("Input part size is bigger than allowed maximum of %s.", humanize.IBytes(uint64(l.maxPartSize()))))
 			return totalPartsCount, partSize, lastPartSize, err
 		}
 
 		partSizeFlt = float64(configuredPartSize)
 		if unknownSize {
 			// If input has unknown size and part size is configured
-			// keep it to maximum allowed as per 10000 parts.
+			// keep it to maximum allowed as per the max parts count.
 			objectSize = int64(configuredPartSize) * maxPartsCount
 		}
 	} else {
@@ -120,6 +139,11 @@ func OptimalPartInfo(objectSize int64, configuredPartSize uint64) (totalPartsCou
 		// overflows during float64 to int64 conversions.
 		partSizeFlt = float64(objectSize / maxPartsCount)
 		partSizeFlt = math.Ceil(partSizeFlt/float64(configuredPartSize)) * float64(configuredPartSize)
+		// Rounding up to a minPartSize multiple can overshoot a MaxPartSize
+		// that was lowered below, or is not a multiple of, minPartSize.
+		if maxPS := float64(l.maxPartSize()); partSizeFlt > maxPS {
+			partSizeFlt = maxPS
+		}
 	}
 
 	// Total parts count.

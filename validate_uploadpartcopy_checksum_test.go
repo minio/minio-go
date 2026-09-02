@@ -306,7 +306,7 @@ func TestComposeObjectChecksum5924(t *testing.T) {
 	}
 
 	info, err := client.ComposeObject(context.Background(),
-		CopyDestOptions{Bucket: "dst-bucket", Object: "dst", ChecksumType: ChecksumCRC32C, PartSize: absMinPartSize},
+		CopyDestOptions{Bucket: "dst-bucket", Object: "dst", ChecksumType: ChecksumCRC32C, PartSize: defaultMinPartSize},
 		CopySrcOptions{Bucket: "src-bucket", Object: "src"})
 	if err != nil {
 		t.Fatalf("ComposeObject: %v", err)
@@ -336,7 +336,7 @@ func TestComposeObjectChecksum5924(t *testing.T) {
 	// A full-object checksum type additionally sets the mode header on the MPU
 	// init (the dst.ChecksumType.FullObjectRequested() branch).
 	if _, err := client.ComposeObject(context.Background(),
-		CopyDestOptions{Bucket: "dst-bucket", Object: "dst", ChecksumType: ChecksumFullObjectCRC32C, PartSize: absMinPartSize},
+		CopyDestOptions{Bucket: "dst-bucket", Object: "dst", ChecksumType: ChecksumFullObjectCRC32C, PartSize: defaultMinPartSize},
 		CopySrcOptions{Bucket: "src-bucket", Object: "src"}); err != nil {
 		t.Fatalf("ComposeObject (full object): %v", err)
 	}

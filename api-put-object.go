@@ -322,6 +322,9 @@ func (a completedParts) Less(i, j int) bool { return a[i].PartNumber < a[j].Part
 //     For larger objects (up to ~48.83TiB), set PutObjectOptions.PartSize
 //     to control memory usage and enable uploads beyond 5TiB.
 //
+//     The ~48.83TiB ceiling is the product of the client's max part size and
+//     max parts count, both of which follow Options.UploadLimits.
+//
 //     WARNING: Passing down '-1' will use memory and these cannot
 //     be reused for best outcomes for PutObject(), pass the size always.
 //
@@ -350,7 +353,7 @@ func (c *Client) PutObject(ctx context.Context, bucketName, objectName string, r
 	}
 
 	// Check for largest object size allowed.
-	if size > int64(maxObjectSize) {
+	if maxObjectSize := c.limits.maxObjectSize(); size > maxObjectSize {
 		return UploadInfo{}, errEntityTooLarge(size, maxObjectSize, bucketName, objectName)
 	}
 
@@ -415,7 +418,7 @@ func (c *Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketNam
 	var complMultipartUpload completeMultipartUpload
 
 	// Calculate the optimal parts info for a given size.
-	totalPartsCount, partSize, _, err := OptimalPartInfo(-1, opts.PartSize)
+	totalPartsCount, partSize, _, err := c.optimalPartInfo(-1, opts.PartSize)
 	if err != nil {
 		return UploadInfo{}, err
 	}

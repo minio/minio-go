@@ -32,7 +32,7 @@ const (
 
 	// oldPartSize is the legacy part size calculation for backward compatibility testing
 	// It was: maxMultipartPutObjectSize / (maxPartsCount - 1)
-	oldPartSize = maxMultipartPutObjectSize / (maxPartsCount - 1)
+	oldPartSize = maxMultipartPutObjectSize / (defaultMaxPartsCount - 1)
 )
 
 func TestPartsRequired(t *testing.T) {
@@ -43,13 +43,13 @@ func TestPartsRequired(t *testing.T) {
 	}{
 		{0, 0, 0},
 		{1, 0, 1},
-		{gb5, 0, 1},               // 5 GiB / 5 GiB = 1 part
-		{gb5p1, 0, 2},             // 5 GiB + 1 byte needs 2 parts
-		{2 * gb5, 0, 2},           // 10 GiB / 5 GiB = 2 parts
-		{gb10p1, 0, 3},            // 10 GiB + 1 byte needs 3 parts
-		{gb10p2, 0, 3},            // 10 GiB + 2 bytes needs 3 parts
-		{gb10p1 + gb10p2, 0, 5},   // 20 GiB + 3 bytes needs 5 parts
-		{maxPartSize * 10, 0, 10}, // exactly 10 parts
+		{gb5, 0, 1},                      // 5 GiB / 5 GiB = 1 part
+		{gb5p1, 0, 2},                    // 5 GiB + 1 byte needs 2 parts
+		{2 * gb5, 0, 2},                  // 10 GiB / 5 GiB = 2 parts
+		{gb10p1, 0, 3},                   // 10 GiB + 1 byte needs 3 parts
+		{gb10p2, 0, 3},                   // 10 GiB + 2 bytes needs 3 parts
+		{gb10p1 + gb10p2, 0, 5},          // 20 GiB + 3 bytes needs 5 parts
+		{defaultMaxPartSize * 10, 0, 10}, // exactly 10 parts
 		// Custom part sizes
 		{gb5, gb1, 5},      // 5 GiB / 1 GiB = 5 parts
 		{gb5p1, gb1, 6},    // 5 GiB + 1 byte / 1 GiB = 6 parts

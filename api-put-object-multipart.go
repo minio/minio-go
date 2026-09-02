@@ -45,8 +45,8 @@ func (c *Client) putObjectMultipart(ctx context.Context, bucketName, objectName 
 		// Verify if multipart functionality is not available, if not
 		// fall back to single PutObject operation.
 		if errResp.Code == AccessDenied && strings.Contains(errResp.Message, "Access Denied") {
-			// Verify if size of reader is greater than '5GiB'.
-			if size > maxSinglePutObjectSize {
+			// Verify if size of reader is greater than the single PUT limit.
+			if maxSinglePutObjectSize := c.limits.maxSinglePutObjectSize(); size > maxSinglePutObjectSize {
 				return UploadInfo{}, errEntityTooLarge(size, maxSinglePutObjectSize, bucketName, objectName)
 			}
 			// Fall back to uploading as single PutObject operation.
@@ -73,7 +73,7 @@ func (c *Client) putObjectMultipartNoStream(ctx context.Context, bucketName, obj
 	var complMultipartUpload completeMultipartUpload
 
 	// Calculate the optimal parts info for a given size.
-	totalPartsCount, partSize, _, err := OptimalPartInfo(-1, opts.PartSize)
+	totalPartsCount, partSize, _, err := c.optimalPartInfo(-1, opts.PartSize)
 	if err != nil {
 		return UploadInfo{}, err
 	}
@@ -291,7 +291,7 @@ func (c *Client) uploadPart(ctx context.Context, p uploadPartParams) (ObjectPart
 	if err := s3utils.CheckValidObjectName(p.objectName); err != nil {
 		return ObjectPart{}, err
 	}
-	if p.size > maxPartSize {
+	if maxPartSize := c.limits.maxPartSize(); p.size > maxPartSize {
 		return ObjectPart{}, errEntityTooLarge(p.size, maxPartSize, p.bucketName, p.objectName)
 	}
 	if p.size <= -1 {
