@@ -262,6 +262,20 @@ func errPartTooLarge(partSize, maxPartSize int64, bucketName, objectName string)
 	}
 }
 
+// errUploadTooLarge - An unknown length reader outlasted the parts the upload
+// was laid out for. The object's real size is not known, so only the number of
+// bytes that fit is reported; it is not an allowed maximum.
+func errUploadTooLarge(uploadedSize, totalPartsCount int64, bucketName, objectName string) error {
+	msg := fmt.Sprintf("Input stream exceeds the ‘%d’ parts this upload allows; ‘%d’ bytes were uploaded before the limit was reached. Set PutObjectOptions.PartSize to upload a larger object.", totalPartsCount, uploadedSize)
+	return ErrorResponse{
+		StatusCode: http.StatusBadRequest,
+		Code:       EntityTooLarge,
+		Message:    msg,
+		BucketName: bucketName,
+		Key:        objectName,
+	}
+}
+
 // errEntityTooSmall - Input size is smaller than supported minimum.
 func errEntityTooSmall(totalSize int64, bucketName, objectName string) error {
 	msg := fmt.Sprintf("Your proposed upload size ‘%d’ is below the minimum allowed object size ‘0B’ for single PUT operation.", totalSize)

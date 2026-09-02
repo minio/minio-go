@@ -603,7 +603,7 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 	// A nil read error on the last allowed part means the reader was never
 	// drained; completing here would store a truncated object.
 	if lastErr == nil {
-		if err = errIfMoreData(reader, totalUploadedSize, bucketName, objectName); err != nil {
+		if err = errIfMoreData(reader, totalUploadedSize, int64(totalPartsCount), bucketName, objectName); err != nil {
 			return UploadInfo{}, err
 		}
 	}

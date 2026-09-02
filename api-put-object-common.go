@@ -140,10 +140,16 @@ func (l UploadLimits) optimalPartInfo(objectSize int64, configuredPartSize uint6
 		// MinPartSize that was raised above it, or the generated non-final
 		// parts would be rejected by the remote.
 		configuredPartSize = uint64(max(minPartSize, l.minPartSize()))
+		// Round the exact ceiling of objectSize/maxPartsCount, not the truncated
+		// quotient: a truncated quotient that already sits on a
+		// configuredPartSize multiple stays put and needs maxPartsCount+1 parts.
+		smallestPartSize := objectSize / maxPartsCount
+		if objectSize%maxPartsCount != 0 {
+			smallestPartSize++
+		}
 		// Use floats for part size for all calculations to avoid
 		// overflows during float64 to int64 conversions.
-		partSizeFlt = float64(objectSize / maxPartsCount)
-		partSizeFlt = math.Ceil(partSizeFlt/float64(configuredPartSize)) * float64(configuredPartSize)
+		partSizeFlt = math.Ceil(float64(smallestPartSize)/float64(configuredPartSize)) * float64(configuredPartSize)
 		// An object smaller than maxPartsCount rounds down to a zero part size,
 		// and a non-final part must never fall below MinPartSize either.
 		if minPS := float64(l.minPartSize()); partSizeFlt < minPS {
@@ -165,14 +171,14 @@ func (l UploadLimits) optimalPartInfo(objectSize int64, configuredPartSize uint6
 	return totalPartsCount, partSize, lastPartSize, nil
 }
 
-// errIfMoreData reports errEntityTooLarge when reader still holds data after
+// errIfMoreData reports errUploadTooLarge when reader still holds data after
 // the last part allowed by the upload limits was consumed. Unknown length
 // uploads would otherwise silently complete a truncated object.
-func errIfMoreData(reader io.Reader, uploadedSize int64, bucketName, objectName string) error {
+func errIfMoreData(reader io.Reader, uploadedSize, totalPartsCount int64, bucketName, objectName string) error {
 	var b [1]byte
 	n, err := readFull(reader, b[:])
 	if n > 0 {
-		return errEntityTooLarge(uploadedSize+int64(n), uploadedSize, bucketName, objectName)
+		return errUploadTooLarge(uploadedSize, totalPartsCount, bucketName, objectName)
 	}
 	// Only a clean EOF proves the reader was drained; anything else has to
 	// surface rather than complete a possibly truncated object.

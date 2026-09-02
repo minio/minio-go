@@ -645,6 +645,10 @@ func partsRequired(size int64, partSize int64) int64 {
 // generates for size fall below minPartSize. It emits the rem larger ranges
 // first, so the undersized ones are always at the tail.
 func undersizedSplits(size, reqParts, minPartSize int64) int64 {
+	if reqParts <= 0 {
+		// An empty source generates no ranges at all.
+		return 0
+	}
 	quot, rem := size/reqParts, size%reqParts
 	if quot+1 < minPartSize {
 		return reqParts

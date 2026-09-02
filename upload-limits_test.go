@@ -263,6 +263,37 @@ func TestOptimalPartInfoRaisedMinPartSize(t *testing.T) {
 	}
 }
 
+// The automatic layout must never need more than maxPartsCount parts. Rounding
+// a truncated objectSize/maxPartsCount leaves the part size one byte short
+// whenever that quotient already sits on a rounding-unit multiple.
+func TestOptimalPartInfoPartsCountCeiling(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		limits     UploadLimits
+		objectSize int64
+	}{
+		{"one byte over the 16MiB unit", UploadLimits{}, int64(defaultMaxPartsCount)*minPartSize + 1},
+		{"half a unit over", UploadLimits{}, int64(defaultMaxPartsCount)*minPartSize + minPartSize/2},
+		{"one under the next unit", UploadLimits{}, int64(defaultMaxPartsCount)*minPartSize*2 - 1},
+		{"raised minimum", UploadLimits{MinPartSize: 64 * 1024 * 1024}, int64(defaultMaxPartsCount)*64*1024*1024 + 1},
+		{"lowered parts count", UploadLimits{MaxPartsCount: 20}, 20*minPartSize + 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			totalParts, partSize, lastPartSize, err := tc.limits.optimalPartInfo(tc.objectSize, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if int64(totalParts) > tc.limits.maxPartsCount() {
+				t.Errorf("totalPartsCount = %d, exceeds MaxPartsCount %d (partSize %d)",
+					totalParts, tc.limits.maxPartsCount(), partSize)
+			}
+			if got := int64(totalParts-1)*partSize + lastPartSize; got != tc.objectSize {
+				t.Errorf("layout covers %d bytes, want %d", got, tc.objectSize)
+			}
+		})
+	}
+}
+
 // The resolved limits must be readable off a built client without a round trip.
 func TestClientUploadLimitsAccessor(t *testing.T) {
 	// The shape AIStor configures for replication: the two size ceilings raised
@@ -560,8 +591,21 @@ func TestPutObjectUnknownLengthTruncation(t *testing.T) {
 					t.Fatalf("PutObject error = %v, want %v", err, tc.readErr)
 				}
 			default:
-				if code := ToErrorResponse(err).Code; code != EntityTooLarge {
-					t.Fatalf("PutObject error code = %q, want %q (err %v)", code, EntityTooLarge, err)
+				resp := ToErrorResponse(err)
+				if resp.Code != EntityTooLarge {
+					t.Fatalf("PutObject error code = %q, want %q (err %v)", resp.Code, EntityTooLarge, err)
+				}
+				// The part budget ran out; this is neither a single PUT nor an
+				// object-size ceiling, and the bytes that fit are not a maximum.
+				if strings.Contains(resp.Message, "single PUT") {
+					t.Errorf("truncation error mentions a single PUT: %q", resp.Message)
+				}
+				if strings.Contains(resp.Message, "maximum allowed object size") {
+					t.Errorf("truncation error reports an object-size maximum: %q", resp.Message)
+				}
+				// Two 1KiB parts were laid out and uploaded before the reader ran on.
+				if !strings.Contains(resp.Message, "‘2’ parts") || !strings.Contains(resp.Message, "‘2048’ bytes") {
+					t.Errorf("truncation error does not report the part budget and bytes uploaded: %q", resp.Message)
 				}
 			}
 			if completes != 0 {
