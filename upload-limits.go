@@ -41,7 +41,22 @@ type UploadLimits struct {
 
 	// MaxSinglePutObjectSize is the largest object the remote accepts in a
 	// single PUT. Defaults to 5 GiB.
+	//
+	// Client.PutObject enforces this by switching to a multipart upload, or by
+	// returning EntityTooLarge when PutObjectOptions.DisableMultipart is set.
+	// Core.PutObject sends the PUT as given and does not check it.
 	MaxSinglePutObjectSize int64
+}
+
+// UploadLimits returns the upload limits this client enforces, with any
+// zero field resolved to its Amazon S3 default.
+func (c *Client) UploadLimits() UploadLimits {
+	return UploadLimits{
+		MinPartSize:            c.limits.minPartSize(),
+		MaxPartSize:            c.limits.maxPartSize(),
+		MaxPartsCount:          c.limits.maxPartsCount(),
+		MaxSinglePutObjectSize: c.limits.maxSinglePutObjectSize(),
+	}
 }
 
 // Accessors resolve zero fields to their defaults, so a Client that was not

@@ -370,4 +370,19 @@ func TestComposeObjectChecksum5924(t *testing.T) {
 		CopySrcOptions{Bucket: "src-bucket", Object: "src"}); err == nil {
 		t.Fatal("ComposeObject: expected a rejection for a part size above the maximum")
 	}
+
+	// 2*MinPartSize-1 at a MinPartSize part size splits into a full range plus
+	// a one-byte-short tail. That tail is the final range of the final source,
+	// which S3 exempts from the minimum, so it must be accepted.
+	srcSize = 2*defaultMinPartSize - 1
+	gotRanges = nil
+	if _, err := client.ComposeObject(context.Background(),
+		CopyDestOptions{Bucket: "dst-bucket", Object: "dst", PartSize: defaultMinPartSize},
+		CopySrcOptions{Bucket: "src-bucket", Object: "src"}); err != nil {
+		t.Fatalf("ComposeObject (short final range): %v", err)
+	}
+	wantRanges = []string{"bytes=0-5242879", "bytes=5242880-10485758"}
+	if !slices.Equal(gotRanges, wantRanges) {
+		t.Fatalf("copy source ranges = %q, want %q", gotRanges, wantRanges)
+	}
 }

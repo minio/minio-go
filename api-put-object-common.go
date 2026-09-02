@@ -105,6 +105,13 @@ func (l UploadLimits) optimalPartInfo(objectSize int64, configuredPartSize uint6
 
 	var partSizeFlt float64
 	if configuredPartSize > 0 {
+		// Compared unsigned and up front, so the int64 conversions below cannot
+		// wrap a caller-supplied part size into a negative that slips past them.
+		if configuredPartSize > uint64(l.maxPartSize()) {
+			err = errInvalidArgument(fmt.Sprintf("Input part size is bigger than allowed maximum of %s.", humanize.IBytes(uint64(l.maxPartSize()))))
+			return totalPartsCount, partSize, lastPartSize, err
+		}
+
 		if int64(configuredPartSize) > objectSize {
 			err = errEntityTooLarge(int64(configuredPartSize), objectSize, "", "")
 			return totalPartsCount, partSize, lastPartSize, err
@@ -119,11 +126,6 @@ func (l UploadLimits) optimalPartInfo(objectSize int64, configuredPartSize uint6
 
 		if int64(configuredPartSize) < l.minPartSize() {
 			err = errInvalidArgument(fmt.Sprintf("Input part size is smaller than allowed minimum of %s.", humanize.IBytes(uint64(l.minPartSize()))))
-			return totalPartsCount, partSize, lastPartSize, err
-		}
-
-		if int64(configuredPartSize) > l.maxPartSize() {
-			err = errInvalidArgument(fmt.Sprintf("Input part size is bigger than allowed maximum of %s.", humanize.IBytes(uint64(l.maxPartSize()))))
 			return totalPartsCount, partSize, lastPartSize, err
 		}
 
@@ -142,6 +144,11 @@ func (l UploadLimits) optimalPartInfo(objectSize int64, configuredPartSize uint6
 		// overflows during float64 to int64 conversions.
 		partSizeFlt = float64(objectSize / maxPartsCount)
 		partSizeFlt = math.Ceil(partSizeFlt/float64(configuredPartSize)) * float64(configuredPartSize)
+		// An object smaller than maxPartsCount rounds down to a zero part size,
+		// and a non-final part must never fall below MinPartSize either.
+		if minPS := float64(l.minPartSize()); partSizeFlt < minPS {
+			partSizeFlt = minPS
+		}
 		// Rounding up to a minPartSize multiple can overshoot a MaxPartSize
 		// that was lowered below, or is not a multiple of, minPartSize.
 		if maxPS := float64(l.maxPartSize()); partSizeFlt > maxPS {
@@ -163,8 +170,14 @@ func (l UploadLimits) optimalPartInfo(objectSize int64, configuredPartSize uint6
 // uploads would otherwise silently complete a truncated object.
 func errIfMoreData(reader io.Reader, uploadedSize int64, bucketName, objectName string) error {
 	var b [1]byte
-	if n, _ := readFull(reader, b[:]); n > 0 {
+	n, err := readFull(reader, b[:])
+	if n > 0 {
 		return errEntityTooLarge(uploadedSize+int64(n), uploadedSize, bucketName, objectName)
+	}
+	// Only a clean EOF proves the reader was drained; anything else has to
+	// surface rather than complete a possibly truncated object.
+	if err != nil && err != io.EOF {
+		return err
 	}
 	return nil
 }

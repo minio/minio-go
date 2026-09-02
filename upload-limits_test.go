@@ -20,11 +20,13 @@ package minio
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -228,16 +230,136 @@ func TestOptimalPartInfoUnknownSizeLoweredLimits(t *testing.T) {
 	}
 }
 
-// A MinPartSize above the internal 16MiB threshold must be the floor for the
-// automatically chosen part size, otherwise the remote rejects non-final parts.
+// The automatically chosen part size must never fall below MinPartSize, or the
+// remote rejects every non-final part.
 func TestOptimalPartInfoRaisedMinPartSize(t *testing.T) {
-	l := UploadLimits{MinPartSize: 64 * 1024 * 1024}
-	_, partSize, _, err := l.optimalPartInfo(100*l.MinPartSize, 0)
+	for _, tc := range []struct {
+		name       string
+		limits     UploadLimits
+		objectSize int64
+	}{
+		// 1GiB/10000 rounds to 16MiB on the internal threshold alone.
+		{"1GiB at 64MiB minimum", UploadLimits{MinPartSize: 64 * 1024 * 1024}, 1024 * 1024 * 1024},
+		{"100 parts at 64MiB minimum", UploadLimits{MinPartSize: 64 * 1024 * 1024}, 100 * 64 * 1024 * 1024},
+		// Below maxPartsCount the division rounds down to a zero part size.
+		{"object smaller than the parts count", UploadLimits{}, 100},
+		{"empty object", UploadLimits{}, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			totalParts, partSize, lastPartSize, err := tc.limits.optimalPartInfo(tc.objectSize, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if partSize < tc.limits.minPartSize() {
+				t.Errorf("partSize %d is below MinPartSize %d", partSize, tc.limits.minPartSize())
+			}
+			if totalParts < 0 || int64(totalParts) > tc.limits.maxPartsCount() {
+				t.Errorf("totalPartsCount = %d, want within [0, %d]", totalParts, tc.limits.maxPartsCount())
+			}
+			if lastPartSize > partSize {
+				t.Errorf("lastPartSize %d exceeds partSize %d", lastPartSize, partSize)
+			}
+		})
+	}
+}
+
+// The resolved limits must be readable off a built client without a round trip.
+func TestClientUploadLimitsAccessor(t *testing.T) {
+	// The shape AIStor configures for replication: the two size ceilings raised
+	// to 5TiB, MinPartSize and MaxPartsCount left at the S3 defaults.
+	const fiveTiB = int64(5) * 1024 * 1024 * 1024 * 1024
+	limits := UploadLimits{MaxPartSize: fiveTiB, MaxSinglePutObjectSize: fiveTiB}
+	c, err := New("play.min.io", &Options{
+		Creds:        credentials.NewStaticV4("id", "secret", ""),
+		UploadLimits: &limits,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if partSize < l.minPartSize() {
-		t.Errorf("partSize %d is below MinPartSize %d", partSize, l.minPartSize())
+	want := UploadLimits{
+		MinPartSize:            defaultMinPartSize,
+		MaxPartSize:            fiveTiB,
+		MaxPartsCount:          defaultMaxPartsCount,
+		MaxSinglePutObjectSize: fiveTiB,
+	}
+	if got := c.UploadLimits(); got != want {
+		t.Errorf("UploadLimits() = %+v, want %+v", got, want)
+	}
+
+	// Core embeds *Client, so it reports the same limits.
+	core, err := NewCore("play.min.io", &Options{
+		Creds:        credentials.NewStaticV4("id", "secret", ""),
+		UploadLimits: &limits,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := core.UploadLimits(); got != want {
+		t.Errorf("Core.UploadLimits() = %+v, want %+v", got, want)
+	}
+
+	// Unset limits and a client not built by New both read back as S3.
+	def := UploadLimits{
+		MinPartSize:            defaultMinPartSize,
+		MaxPartSize:            defaultMaxPartSize,
+		MaxPartsCount:          defaultMaxPartsCount,
+		MaxSinglePutObjectSize: defaultMaxSinglePutObjectSize,
+	}
+	plain, err := New("play.min.io", &Options{Creds: credentials.NewStaticV4("id", "secret", "")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := plain.UploadLimits(); got != def {
+		t.Errorf("UploadLimits() = %+v, want %+v", got, def)
+	}
+	if got := (&Client{}).UploadLimits(); got != def {
+		t.Errorf("zero-value Client UploadLimits() = %+v, want %+v", got, def)
+	}
+}
+
+// A part size above MaxInt64 must not wrap negative and slip past the ceiling
+// checks that are written in terms of int64.
+func TestUploadLimitsUnsignedPartSizeGuards(t *testing.T) {
+	const huge = uint64(math.MaxInt64) + 1
+
+	if _, _, _, err := OptimalPartInfo(1024*1024*1024, huge); err == nil {
+		t.Error("optimalPartInfo accepted a part size above MaxInt64")
+	} else if msg := ToErrorResponse(err).Message; !strings.Contains(msg, "bigger than allowed maximum") {
+		t.Errorf("optimalPartInfo error = %q, want it to report the maximum", msg)
+	}
+
+	c, err := New("play.min.io", &Options{
+		Creds:           credentials.NewStaticV4("id", "secret", ""),
+		TrailingHeaders: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := (AppendObjectOptions{ChunkSize: huge}).validate(c); err == nil {
+		t.Error("AppendObjectOptions.validate accepted a chunk size above MaxInt64")
+	}
+}
+
+// An oversized part must not be reported as a single PUT problem.
+func TestPartTooLargeMessage(t *testing.T) {
+	c, err := New("play.min.io", &Options{Creds: credentials.NewStaticV4("id", "secret", "")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	maxPartSize := c.UploadLimits().MaxPartSize
+	_, err = c.uploadPart(context.Background(), uploadPartParams{
+		bucketName: "bucket", objectName: "object", uploadID: "upload-id",
+		reader: bytes.NewReader(nil), partNumber: 1, size: maxPartSize + 1,
+	})
+	resp := ToErrorResponse(err)
+	if resp.Code != EntityTooLarge {
+		t.Fatalf("error code = %q, want %q (err %v)", resp.Code, EntityTooLarge, err)
+	}
+	if strings.Contains(resp.Message, "single PUT") {
+		t.Errorf("part size error mentions a single PUT: %q", resp.Message)
+	}
+	if !strings.Contains(resp.Message, "part size") {
+		t.Errorf("part size error does not mention the part size: %q", resp.Message)
 	}
 }
 
@@ -310,6 +432,57 @@ func TestPutObjectPartSizeAboveSinglePutLimit(t *testing.T) {
 	}
 }
 
+// MaxSinglePutObjectSize is a Client.PutObject routing decision. Core.PutObject
+// is the raw S3 call and sends the PUT as given, as its doc comment states.
+func TestCorePutObjectIgnoresSinglePutLimit(t *testing.T) {
+	var puts int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut {
+			puts++
+		}
+		io.Copy(io.Discard, r.Body)
+		w.Header().Set("ETag", `"3858f62230ac3c915f300c664312c11f"`)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	u, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	limits := UploadLimits{MinPartSize: 1024, MaxSinglePutObjectSize: 4096}
+	opts := &Options{
+		Creds:        credentials.NewStaticV4("ak", "sk", ""),
+		Secure:       false,
+		Region:       "us-east-1",
+		UploadLimits: &limits,
+	}
+	core, err := NewCore(u.Host, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	data := bytes.Repeat([]byte("a"), 8192)
+	if _, err := core.PutObject(context.Background(), "bucket", "object",
+		bytes.NewReader(data), int64(len(data)), "", "", PutObjectOptions{}); err != nil {
+		t.Fatalf("Core.PutObject: %v", err)
+	}
+	if puts != 1 {
+		t.Fatalf("Core.PutObject issued %d PUTs, want 1", puts)
+	}
+
+	// The same oversized single PUT is refused through Client.PutObject.
+	client, err := New(u.Host, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = client.PutObject(context.Background(), "bucket", "object",
+		bytes.NewReader(data), int64(len(data)), PutObjectOptions{DisableMultipart: true})
+	if code := ToErrorResponse(err).Code; code != EntityTooLarge {
+		t.Fatalf("Client.PutObject error code = %q, want %q (err %v)", code, EntityTooLarge, err)
+	}
+}
+
 // An unknown length stream that outlasts the part budget must fail instead of
 // completing a truncated object.
 func TestPutObjectUnknownLengthTruncation(t *testing.T) {
@@ -345,14 +518,20 @@ func TestPutObjectUnknownLengthTruncation(t *testing.T) {
 	// A budget of two 1KiB parts against a 4KiB stream.
 	limits := UploadLimits{MinPartSize: 1024, MaxPartSize: 1024, MaxPartsCount: 2}
 
+	errBroken := errors.New("reader broke")
+
 	for _, tc := range []struct {
-		name  string
-		creds *credentials.Credentials
-		opts  PutObjectOptions
+		name string
+		// readErr, when set, makes the reader deliver exactly the part budget
+		// and then fail instead of reaching EOF.
+		readErr error
+		creds   *credentials.Credentials
+		opts    PutObjectOptions
 	}{
-		{"stream no length", credentials.NewStaticV4("ak", "sk", ""), PutObjectOptions{}},
-		{"stream parallel", credentials.NewStaticV4("ak", "sk", ""), PutObjectOptions{ConcurrentStreamParts: true, NumThreads: 2}},
-		{"multipart no stream", credentials.NewStaticV2("ak", "sk", ""), PutObjectOptions{}},
+		{"stream no length", nil, credentials.NewStaticV4("ak", "sk", ""), PutObjectOptions{}},
+		{"stream parallel", nil, credentials.NewStaticV4("ak", "sk", ""), PutObjectOptions{ConcurrentStreamParts: true, NumThreads: 2}},
+		{"multipart no stream", nil, credentials.NewStaticV2("ak", "sk", ""), PutObjectOptions{}},
+		{"failing trailing read", errBroken, credentials.NewStaticV4("ak", "sk", ""), PutObjectOptions{}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			completes = 0
@@ -366,14 +545,43 @@ func TestPutObjectUnknownLengthTruncation(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			reader := bytes.NewReader(bytes.Repeat([]byte("a"), 4096))
+
+			var reader io.Reader = bytes.NewReader(bytes.Repeat([]byte("a"), 4096))
+			if tc.readErr != nil {
+				reader = &failAtEOFReader{
+					Reader: bytes.NewReader(bytes.Repeat([]byte("a"), 2048)),
+					err:    tc.readErr,
+				}
+			}
 			_, err = client.PutObject(context.Background(), "bucket", "object", reader, -1, tc.opts)
-			if code := ToErrorResponse(err).Code; code != EntityTooLarge {
-				t.Fatalf("PutObject error code = %q, want %q (err %v)", code, EntityTooLarge, err)
+			switch {
+			case tc.readErr != nil:
+				if !errors.Is(err, tc.readErr) {
+					t.Fatalf("PutObject error = %v, want %v", err, tc.readErr)
+				}
+			default:
+				if code := ToErrorResponse(err).Code; code != EntityTooLarge {
+					t.Fatalf("PutObject error code = %q, want %q (err %v)", code, EntityTooLarge, err)
+				}
 			}
 			if completes != 0 {
 				t.Fatalf("completed %d truncated uploads, want 0", completes)
 			}
 		})
 	}
+}
+
+// failAtEOFReader substitutes err for the io.EOF of the wrapped reader, so the
+// trailing zero-byte read reports a failure rather than a drained stream.
+type failAtEOFReader struct {
+	io.Reader
+	err error
+}
+
+func (r *failAtEOFReader) Read(p []byte) (int, error) {
+	n, err := r.Reader.Read(p)
+	if err == io.EOF {
+		err = r.err
+	}
+	return n, err
 }

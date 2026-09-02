@@ -506,13 +506,13 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 
 		// calculate parts needed for current source
 		reqParts := partsRequired(srcCopySize, partSize)
-		// calculateEvenSplits divides the source into reqParts ranges of
-		// srcCopySize/reqParts bytes, so a part size close to the minimum can
-		// still yield ranges below it, which the remote rejects.
-		if reqParts > 1 && srcCopySize/reqParts < c.limits.minPartSize() {
+		// A part size close to the minimum can make calculateEvenSplits emit
+		// ranges below it, which the remote rejects. Only the very last range
+		// of the last source is allowed to be undersized.
+		if under := undersizedSplits(srcCopySize, reqParts, c.limits.minPartSize()); under > 1 || (under == 1 && i < len(srcs)-1) {
 			return UploadInfo{}, errInvalidArgument(fmt.Sprintf(
-				"CopySrcOptions %d (%d bytes) cannot be split into parts of at least %d bytes at a part size of %d",
-				i, srcCopySize, c.limits.minPartSize(), partSize))
+				"CopySrcOptions %d (%d bytes) splits into %d ranges below the minimum part size of %d at a part size of %d",
+				i, srcCopySize, under, c.limits.minPartSize(), partSize))
 		}
 		totalParts += reqParts
 		// Do we need more parts than we are allowed?
@@ -639,6 +639,20 @@ func partsRequired(size int64, partSize int64) int64 {
 		r++
 	}
 	return r
+}
+
+// undersizedSplits reports how many of the reqParts ranges calculateEvenSplits
+// generates for size fall below minPartSize. It emits the rem larger ranges
+// first, so the undersized ones are always at the tail.
+func undersizedSplits(size, reqParts, minPartSize int64) int64 {
+	quot, rem := size/reqParts, size%reqParts
+	if quot+1 < minPartSize {
+		return reqParts
+	}
+	if quot < minPartSize {
+		return reqParts - rem
+	}
+	return 0
 }
 
 // calculateEvenSplits - computes splits for a source and returns

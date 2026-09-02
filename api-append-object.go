@@ -88,7 +88,7 @@ func (opts *AppendObjectOptions) setChecksumParams(info ObjectInfo) {
 }
 
 func (opts AppendObjectOptions) validate(c *Client) (err error) {
-	if int64(opts.ChunkSize) > c.limits.maxPartSize() {
+	if opts.ChunkSize > uint64(c.limits.maxPartSize()) {
 		return errInvalidArgument("Append chunkSize cannot be larger than max part size allowed")
 	}
 	switch {

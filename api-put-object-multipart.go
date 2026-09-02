@@ -302,7 +302,7 @@ func (c *Client) uploadPart(ctx context.Context, p uploadPartParams) (ObjectPart
 		return ObjectPart{}, err
 	}
 	if maxPartSize := c.limits.maxPartSize(); p.size > maxPartSize {
-		return ObjectPart{}, errEntityTooLarge(p.size, maxPartSize, p.bucketName, p.objectName)
+		return ObjectPart{}, errPartTooLarge(p.size, maxPartSize, p.bucketName, p.objectName)
 	}
 	if p.size <= -1 {
 		return ObjectPart{}, errEntityTooSmall(p.size, p.bucketName, p.objectName)
