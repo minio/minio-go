@@ -31,11 +31,13 @@ jobs:
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         repository: minio/minio-cpp
-        # Pinned: this job copies vendor/s3rdma out of the checkout, so a
-        # floating main makes the build race whatever landed there. It already
-        # did -- a run started before minio-cpp vendored libs3rdma and failed
-        # on the missing directory. Bump this when picking up a minio-cpp fix.
-        ref: v1.0.0 # first release carrying miniocpp_client_new_tls, as libminio
+        # Pinned to a commit, like vcpkg and the actions above: this job copies
+        # vendor/s3rdma out of the checkout and installs what it builds, so a
+        # floating ref makes the build race whatever landed there. It already
+        # did -- a run started before minio-cpp vendored libs3rdma and failed on
+        # the missing directory. A tag would still leave that open, since a tag
+        # can be moved after review. Bump this when picking up a minio-cpp fix.
+        ref: 78e1db407d97bf5fc643858d9f4f482bff069696 # tag v1.0.0, first release carrying miniocpp_client_new_tls as libminio
         persist-credentials: false
         path: "minio-cpp"
 
