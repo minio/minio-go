@@ -12,7 +12,7 @@ package minio
 
 // #cgo CFLAGS: -DMINIO_CPP_RDMA
 // #cgo CXXFLAGS: --std=c++17 -DMINIO_CPP_RDMA
-// #cgo LDFLAGS: -lminiocpp
+// #cgo LDFLAGS: -lminio
 // #include <stdlib.h>
 // #include <miniocpp/c_api.h>
 import "C"
