@@ -24,8 +24,14 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
         check-latest: true
+    # setup-go pins GOTOOLCHAIN=local, so `go install` can only use the matrix
+    # leg's toolchain -- and govulncheck's own module moves ahead of it. x/vuln
+    # v1.8.0 declares go 1.26.0, which failed the 1.25.x leg outright ("requires
+    # go >= 1.26.0"). Building the tool with GOTOOLCHAIN=auto lets it fetch what
+    # it needs, while the scan below still runs against the matrix leg. Scoped to
+    # this step so nothing else escapes the pinned toolchain.
     - name: Get govulncheck
-      run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      run: GOTOOLCHAIN=auto go install golang.org/x/vuln/cmd/govulncheck@latest
       shell: bash
     - name: Run govulncheck
       run: govulncheck ./...

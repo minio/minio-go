@@ -31,11 +31,13 @@ jobs:
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         repository: minio/minio-cpp
-        # Pinned: this job copies vendor/s3rdma out of the checkout, so a
-        # floating main makes the build race whatever landed there. It already
-        # did -- a run started before minio-cpp vendored libs3rdma and failed
-        # on the missing directory. Bump this when picking up a minio-cpp fix.
-        ref: v0.7.0 # first release carrying the libs3rdma transport
+        # Pinned to a commit, like vcpkg and the actions above: this job copies
+        # vendor/s3rdma out of the checkout and installs what it builds, so a
+        # floating ref makes the build race whatever landed there. It already
+        # did -- a run started before minio-cpp vendored libs3rdma and failed on
+        # the missing directory. A tag would still leave that open, since a tag
+        # can be moved after review. Bump this when picking up a minio-cpp fix.
+        ref: 78e1db407d97bf5fc643858d9f4f482bff069696 # tag v1.0.0, first release carrying miniocpp_client_new_tls as libminio
         persist-credentials: false
         path: "minio-cpp"
 
@@ -52,7 +54,14 @@ jobs:
 
     - name: Install system dependencies
       run: |
-        sudo apt-get -qy update
+        # The runner image ships third-party apt lists -- chrome, microsoft --
+        # that nothing here installs from, and whose indexes intermittently fail
+        # their hash check and take the job down with them. Drop those lists and
+        # retry once; the install below is the real gate, and still fails loudly
+        # if the index is genuinely unusable.
+        sudo rm -f /etc/apt/sources.list.d/google-chrome.list \
+                   /etc/apt/sources.list.d/microsoft-prod.list
+        sudo apt-get -qy update || sudo apt-get -qy update || true
         sudo apt-get -qy install cmake libibverbs-dev
 
     - name: Build and install libminiocpp.so with RDMA
