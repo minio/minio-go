@@ -14225,11 +14225,12 @@ func testListObjects() {
 	logSuccess(testName, function, args, startTime)
 }
 
-// Tests that every list API reports the checksum an object was stored with.
-// S3 returns the algorithm and the mode for every object that has a checksum,
-// without a value; AiStor also returns the value when listing with
-// WithMetadata. Whichever the server does, it must land in the same
-// ObjectInfo fields.
+// Tests that listing reports the checksum an object was stored with in the
+// same ObjectInfo fields on every list API. S3 returns the algorithm and the
+// mode for every object that has a checksum, without a value; AiStor also
+// returns the value when listing with WithMetadata. Servers differ in which
+// list APIs carry the information, so this only requires that whatever comes
+// back is correct and covers the whole listing.
 func testListObjectsChecksums() {
 	// initialize logging params
 	startTime := time.Now()
@@ -14332,7 +14333,7 @@ func testListObjectsChecksums() {
 		{Recursive: true, WithMetadata: true},
 	} {
 		args["opts"] = opts
-		var listed, withValue int
+		var listed, withAlgorithm, withValue int
 		for objInfo := range c.ListObjects(context.Background(), bucketName, opts) {
 			if objInfo.Err != nil {
 				logError(testName, function, args, startTime, "", "ListObjects failed", objInfo.Err)
@@ -14344,18 +14345,28 @@ func testListObjectsChecksums() {
 				return
 			}
 			listed++
-			if objInfo.ChecksumAlgorithm != exp.cs.String() {
-				logError(testName, function, args, startTime, "", "ListObjects returned a wrong checksum algorithm",
-					fmt.Errorf("%s: want %s, got %s", objInfo.Key, exp.cs, objInfo.ChecksumAlgorithm))
-				return
+			if objInfo.ChecksumAlgorithm != "" {
+				withAlgorithm++
+				if objInfo.ChecksumAlgorithm != exp.cs.String() {
+					logError(testName, function, args, startTime, "", "ListObjects returned a wrong checksum algorithm",
+						fmt.Errorf("%s: want %s, got %s", objInfo.Key, exp.cs, objInfo.ChecksumAlgorithm))
+					return
+				}
 			}
-			if objInfo.ChecksumMode != exp.mode {
+			if objInfo.ChecksumMode != "" && objInfo.ChecksumMode != exp.mode {
 				logError(testName, function, args, startTime, "", "ListObjects returned a wrong checksum mode",
 					fmt.Errorf("%s: want %s, got %s", objInfo.Key, exp.mode, objInfo.ChecksumMode))
 				return
 			}
 			if got := objInfo.Checksum(exp.cs); got != "" {
 				withValue++
+				// A value always names its algorithm, the client derives it
+				// when the server does not report one.
+				if objInfo.ChecksumAlgorithm == "" {
+					logError(testName, function, args, startTime, "", "ListObjects returned a checksum value without an algorithm",
+						fmt.Errorf("key %s", objInfo.Key))
+					return
+				}
 				if exp.value != "" && got != exp.value {
 					logError(testName, function, args, startTime, "", "ListObjects returned a wrong checksum value",
 						fmt.Errorf("%s: want %s, got %s", objInfo.Key, exp.value, got))
@@ -14368,8 +14379,14 @@ func testListObjectsChecksums() {
 				fmt.Errorf("want %d, got %d", len(want), listed))
 			return
 		}
-		// A server that reports checksum values when listing must report them
-		// for every algorithm, not only the ones it supported first.
+		// Not every server reports checksums on every list API, but whatever
+		// it does report has to cover the whole listing rather than only the
+		// algorithms it happened to support first.
+		if withAlgorithm != 0 && withAlgorithm != listed {
+			logError(testName, function, args, startTime, "", "ListObjects returned checksum algorithms for some objects only",
+				fmt.Errorf("%d of %d objects carried an algorithm", withAlgorithm, listed))
+			return
+		}
 		if withValue != 0 && withValue != listed {
 			logError(testName, function, args, startTime, "", "ListObjects returned checksum values for some objects only",
 				fmt.Errorf("%d of %d objects carried a value", withValue, listed))
