@@ -157,7 +157,7 @@ func (c *Client) listObjectsV2(ctx context.Context, bucketName string, opts List
 
 			// Get list of objects a maximum of 1000 per request.
 			result, err := c.listObjectsV2Query(ctx, bucketName, opts.Prefix, continuationToken,
-				fetchOwner, opts.WithMetadata, opts.Unsorted, delimiter, opts.StartAfter, opts.MaxKeys, opts.headers)
+				fetchOwner, opts.WithMetadata, opts.Unsorted, delimiter, opts.StartAfter, opts.MaxKeys, opts.requestHeaders())
 			if err != nil {
 				yield(ObjectInfo{Err: err})
 				return
@@ -305,6 +305,7 @@ func (c *Client) listObjectsV2Query(ctx context.Context, bucketName, objectPrefi
 		}
 		listBucketResult.Contents[i].LastModified = listBucketResult.Contents[i].LastModified.Truncate(time.Millisecond)
 		listBucketResult.Contents[i].UserMetadataStripped = stripUserMetadata(obj.UserMetadata)
+		listBucketResult.Contents[i].setChecksumAlgorithm()
 	}
 
 	for i, obj := range listBucketResult.CommonPrefixes {
@@ -350,7 +351,7 @@ func (c *Client) listObjects(ctx context.Context, bucketName string, opts ListOb
 			}
 
 			// Get list of objects a maximum of 1000 per request.
-			result, err := c.listObjectsQuery(ctx, bucketName, opts.Prefix, marker, delimiter, opts.MaxKeys, opts.headers)
+			result, err := c.listObjectsQuery(ctx, bucketName, opts.Prefix, marker, delimiter, opts.MaxKeys, opts.requestHeaders())
 			if err != nil {
 				yield(ObjectInfo{Err: err})
 				return
@@ -441,6 +442,7 @@ func (c *Client) listObjectVersions(ctx context.Context, bucketName string, opts
 					UserMetadata:         version.UserMetadata,
 					UserMetadataStripped: version.UserMetadataStripped,
 					Internal:             version.Internal,
+					Restore:              version.Restore,
 					NumVersions:          numVersions,
 					ChecksumAlgorithm:    version.ChecksumAlgorithm,
 					ChecksumMode:         version.ChecksumType,
@@ -455,6 +457,7 @@ func (c *Client) listObjectVersions(ctx context.Context, bucketName string, opts
 					ChecksumXXHash3:      version.ChecksumXXHash3,
 					ChecksumXXHash128:    version.ChecksumXXHash128,
 				}
+				info.setChecksumAlgorithm()
 				if !yield(info) {
 					return false
 				}
@@ -592,7 +595,7 @@ func (c *Client) listObjectVersionsQuery(ctx context.Context, bucketName string,
 		bucketName:       bucketName,
 		queryValues:      urlValues,
 		contentSHA256Hex: emptySHA256Hex,
-		customHeader:     opts.headers,
+		customHeader:     opts.requestHeaders(),
 	})
 	defer closeResponse(resp)
 	if err != nil {
@@ -706,6 +709,7 @@ func (c *Client) listObjectsQuery(ctx context.Context, bucketName, objectPrefix,
 			return listBucketResult, err
 		}
 		listBucketResult.Contents[i].LastModified = listBucketResult.Contents[i].LastModified.Truncate(time.Millisecond)
+		listBucketResult.Contents[i].setChecksumAlgorithm()
 	}
 
 	for i, obj := range listBucketResult.CommonPrefixes {
@@ -733,6 +737,10 @@ type ListObjectsOptions struct {
 	WithVersions bool
 	// Include objects metadata in the listing
 	WithMetadata bool
+	// Include the restore state of archived objects in the listing, as
+	// ObjectInfo.Restore. Ignored by servers that do not implement the
+	// x-amz-optional-object-attributes header.
+	WithRestoreStatus bool
 	// Unsorted allows the server to return the objects in any order, only
 	// honored by ListObjects V2 and incompatible with StartAfter. This is
 	// a MinIO extension, other S3 providers ignore it and keep returning a
@@ -776,6 +784,20 @@ func (o ListObjectsOptions) checkUnsorted(location string) error {
 		return errInvalidArgument("unsorted listing does not support StartAfter")
 	}
 	return nil
+}
+
+// requestHeaders returns the headers to send with a listing request, the
+// caller supplied ones plus the optional attributes the options ask for.
+func (o ListObjectsOptions) requestHeaders() http.Header {
+	if !o.WithRestoreStatus {
+		return o.headers
+	}
+	headers := o.headers.Clone()
+	if headers == nil {
+		headers = make(http.Header, 1)
+	}
+	headers.Set(amzOptionalObjectAttributes, restoreStatusAttribute)
+	return headers
 }
 
 // Set adds a key value pair to the options. The
