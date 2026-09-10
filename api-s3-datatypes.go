@@ -113,6 +113,10 @@ type Version struct {
 		M int // Parity blocks
 	} `xml:"Internal"`
 
+	// Restore state of an archived version, only returned when the listing
+	// asked for it with ListObjectsOptions.WithRestoreStatus.
+	Restore *RestoreInfo `xml:"RestoreStatus"`
+
 	// Checksum values. Only returned by AiStor servers.
 	ChecksumCRC32     string `xml:",omitempty"`
 	ChecksumCRC32C    string `xml:",omitempty"`

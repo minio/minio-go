@@ -100,6 +100,11 @@ const (
 	amzReplicationStatus = "X-Amz-Replication-Status"
 	amzDeleteMarker      = "X-Amz-Delete-Marker"
 
+	// Listing header asking for optional per object fields.
+	// "RestoreStatus" is its only value.
+	amzOptionalObjectAttributes = "X-Amz-Optional-Object-Attributes"
+	restoreStatusAttribute      = "RestoreStatus"
+
 	// Object legal hold header
 	amzLegalHoldHeader = "X-Amz-Object-Lock-Legal-Hold"
 
