@@ -1,4 +1,4 @@
-# MinIO Go Client API Reference [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io)
+# MinIO Go Client API Reference
 
 ## Initialize MinIO Client object.
 
