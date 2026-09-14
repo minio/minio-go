@@ -32,8 +32,11 @@ jobs:
           persist-credentials: false
 
       - name: Build on ${{ matrix.os }}
+        # Explicit because runs-on is a matrix expression: nothing can infer the
+        # shell from it, and -SkipCertificateCheck below is pwsh-only.
+        shell: pwsh
         env:
-          MINT_MODE: core
+          MINT_MODE: full
           SERVER_ENDPOINT: localhost:9000
           ACCESS_KEY: minioadmin
           SECRET_KEY: minioadmin
