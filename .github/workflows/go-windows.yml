@@ -38,13 +38,25 @@ jobs:
           ACCESS_KEY: minioadmin
           SECRET_KEY: minioadmin
           ENABLE_HTTPS: 1
-          MINIO_KMS_MASTER_KEY: my-minio-key:6368616e676520746869732070617373776f726420746f206120736563726574
+          MINIO_KMS_SECRET_KEY: my-minio-key:OSMM+vkKUTCvQs9YL/CVMIMt43HFhkUpqJxTmGl6rYw=
           MINIO_CI_CD: true
           MINT_NO_FULL_OBJECT: true
+          # Free-tier AIStor license so the server allows writes (without a
+          # license the server boots read-only). This is a public FREE-plan
+          # license, not a secret.
+          MINIO_LICENSE: eyJhbGciOiJFUzM4NCIsInR5cCI6IkpXVCJ9.eyJhaWQiOjAsImNhcCI6MCwiaWF0IjoxLjc4MDAzMTY0NTUyMzA5ODM1OGU5LCJpc3MiOiJzdWJuZXRAbWluLmlvIiwibGlkIjoiYjNhYTliNGQtOTUxYy00MjIzLTgyMmEtZGY2NjE5MDNjOWFkIiwibm9kZXMiOjEsIm9yZyI6IiIsInBsYW4iOiJGUkVFIiwicHJvZHVjdCI6IkFJU3RvciIsInN1YiI6ImRldkBtaW5pby5pbyIsInRyaWFsIjpmYWxzZX0.Aq0kaFgd5SMHYEK7fIYzPsU4xlS119sj-BSyftCDpmtHIbW6KNFXGA9nbKPc17ZXKgcQgUoaPncsq30EOy7PyH-lp3LPpy3rPoD7ptJHI2v0jqpvlnP0cVGK0Yuw3vib
         run: |
           New-Item -ItemType Directory -Path "$env:temp/certs-dir"
           Copy-Item -Path testcerts\* -Destination "$env:temp/certs-dir"
-          Invoke-WebRequest -Uri https://dl.minio.io/server/minio/release/windows-amd64/minio.exe -OutFile $HOME/minio.exe
-          Start-Process -NoNewWindow -FilePath "$HOME/minio.exe" -ArgumentList "-S", "$env:temp/certs-dir", "server", "$env:temp/fs{1...4}"
+          Invoke-WebRequest -Uri https://dl.min.io/aistor/minio/release/windows-amd64/minio.exe -OutFile $HOME/minio.exe
+          Start-Process -NoNewWindow -FilePath "$HOME/minio.exe" -ArgumentList "server", "--quiet", "--certs-dir", "$env:temp/certs-dir", "$env:temp/fs{1...4}"
           $env:SSL_CERT_FILE = "$env:temp/certs-dir/public.crt"
+          foreach ($i in 1..60) {
+            try {
+              Invoke-WebRequest -SkipCertificateCheck -UseBasicParsing -Uri https://localhost:9000/minio/health/ready | Out-Null
+              break
+            } catch {
+              Start-Sleep -Seconds 1
+            }
+          }
           go run functional_tests.go
