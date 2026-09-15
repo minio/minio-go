@@ -41,9 +41,8 @@ func (c *Client) CopyObject(ctx context.Context, dst CopyDestOptions, src CopySr
 		bucketName:   dst.Bucket,
 		objectName:   dst.Object,
 		customHeader: header,
-		// S3 can answer a failed CopyObject with 200 OK and an embedded <Error>
-		// body, so this request must parse the body for an error instead of
-		// trusting the status code.
+		// S3 can return a failed copy as 200 OK with an embedded <Error> body.
+		// https://repost.aws/knowledge-center/s3-resolve-200-internalerror
 		expect200OKWithError: true,
 	})
 	if err != nil {
