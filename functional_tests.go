@@ -74,8 +74,9 @@ const (
 	appVersion         = "0.1.0"
 	skipCERTValidation = "SKIP_CERT_VALIDATION"
 
-	// TODO: remove when server supports the 2026 checksum types.
-	ignore2026Checksums = true
+	// TODO: remove when server supports the 2026 checksum types on latest release.
+	// Linux is fetched from edge, so supports new types.
+	ignore2026Checksums = runtime.GOOS != "linux"
 )
 
 func ignore2026ChecksumError(cs minio.ChecksumType, err error) bool {
@@ -14296,6 +14297,10 @@ func testListObjectsChecksums() {
 		_, err = c.PutObject(context.Background(), bucketName, objectName, bytes.NewReader(b), int64(len(b)),
 			minio.PutObjectOptions{DisableMultipart: true, Checksum: cs})
 		if err != nil {
+			if ignore2026ChecksumError(cs, err) {
+				logIgnored(testName, function, args, startTime, "server does not support "+cs.String())
+				continue
+			}
 			logError(testName, function, args, startTime, "", "PutObject failed", err)
 			return
 		}
