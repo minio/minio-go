@@ -206,3 +206,48 @@ func Test200DeleteObjectsWithError(t *testing.T) {
 		t.Fatalf("RemoveObjects() request was not retried enough times, expected: %d, found: %d", maxRetries, retries)
 	}
 }
+
+func Test200CopyObjectWithError(t *testing.T) {
+	const maxRetries = 3
+	retries := maxRetries
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		retries--
+		w.Write([]byte(`<Error><Code>InternalError</Code><Message>We encountered an internal error. Please try again.</Message><Key>object</Key><BucketName>bucket</BucketName><Resource>/bucket/object</Resource><RequestId>18413E84F6C30613</RequestId><HostId>49371f38c0d7ec74eae2befc695360a3dfece04732914e58a4281759cd2eba4f</HostId></Error>`))
+	}))
+
+	srv, err := url.Parse(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Instantiate new minio client object.
+	client, err := New(
+		srv.Host,
+		&Options{
+			Creds:      credentials.NewStaticV4("foo", "foo12345", ""),
+			Secure:     srv.Scheme == "https",
+			Region:     "us-east-1",
+			MaxRetries: retries,
+		})
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+
+	dst := CopyDestOptions{Bucket: "bucket", Object: "object"}
+	src := CopySrcOptions{Bucket: "bucket", Object: "source"}
+
+	_, err = client.CopyObject(context.Background(), dst, src)
+	if err == nil {
+		t.Fatal("CopyObject() returned <nil>, which is unexpected")
+	}
+
+	expectedErrorMsg := "We encountered an internal error. Please try again."
+	if err.Error() != expectedErrorMsg {
+		t.Fatalf("Unexpected returned error, expected: `%v`, found: `%v`", expectedErrorMsg, err.Error())
+	}
+
+	if retries != 0 {
+		t.Fatalf("CopyObject request was not retried enough times, expected: %d, found: %d", maxRetries, retries)
+	}
+}
