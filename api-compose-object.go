@@ -609,7 +609,9 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 
 	objParts, err := c.uploadPartsCopy(ctx, dst, uploadID, parts)
 	if err != nil {
-		c.abortMultipartUpload(ctx, dst.Bucket, dst.Object, uploadID)
+		abortCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Minute)
+		c.abortMultipartUpload(abortCtx, dst.Bucket, dst.Object, uploadID)
+		cancel()
 		return UploadInfo{}, err
 	}
 
