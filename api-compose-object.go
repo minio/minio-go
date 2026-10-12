@@ -23,8 +23,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -86,6 +88,10 @@ type CopyDestOptions struct {
 	// If not specified, defaults to the client's max part size (5 GiB unless
 	// overridden via Options.UploadLimits).
 	PartSize uint64
+	// NumThreads sets the number of concurrent upload-part-copy requests.
+	// Defaults to 1, and values above 100 are capped at 100. Ignored when
+	// the compose collapses to a single server-side copy.
+	NumThreads uint
 
 	// AnnotationDirective controls whether the source object's annotations are
 	// copied to the destination. Valid values are CopyAnnotationsDirective
@@ -582,8 +588,7 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 	}
 
 	// 3. Perform copy part uploads
-	objParts := []CompletePart{}
-	partIndex := 1
+	var parts []copyPart
 	for i, src := range srcs {
 		h := make(http.Header)
 		src.Marshal(h)
@@ -596,24 +601,16 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 		startIdx, endIdx := calculateEvenSplits(srcObjectSizes[i], src, partSize)
 		for j, start := range startIdx {
 			end := endIdx[j]
-
-			// Add (or reset) source range header for
-			// upload part copy request.
-			h.Set("x-amz-copy-source-range",
-				fmt.Sprintf("bytes=%d-%d", start, end))
-
-			// make upload-part-copy request
-			complPart, err := c.uploadPartCopy(ctx, dst.Bucket,
-				dst.Object, uploadID, partIndex, h)
-			if err != nil {
-				return UploadInfo{}, err
-			}
-			if dst.Progress != nil {
-				io.CopyN(io.Discard, dst.Progress, end-start+1)
-			}
-			objParts = append(objParts, complPart)
-			partIndex++
+			ph := h.Clone()
+			ph.Set("x-amz-copy-source-range", fmt.Sprintf("bytes=%d-%d", start, end))
+			parts = append(parts, copyPart{number: len(parts) + 1, header: ph, size: end - start + 1})
 		}
+	}
+
+	objParts, err := c.uploadPartsCopy(ctx, dst, uploadID, parts)
+	if err != nil {
+		c.abortMultipartUpload(ctx, dst.Bucket, dst.Object, uploadID)
+		return UploadInfo{}, err
 	}
 
 	// 4. Make final complete-multipart request.
@@ -625,6 +622,82 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 
 	uploadInfo.Size = totalSize
 	return uploadInfo, nil
+}
+
+type copyPart struct {
+	number int
+	header http.Header
+	size   int64
+}
+
+func (opts CopyDestOptions) getNumThreads() int {
+	return int(min(max(opts.NumThreads, 1), 100))
+}
+
+// uploadPartsCopy runs the upload-part-copy requests on dst.NumThreads
+// workers, cancels the remaining parts on the first failure and returns
+// the completed parts in ascending part number order.
+func (c *Client) uploadPartsCopy(ctx context.Context, dst CopyDestOptions, uploadID string, parts []copyPart) ([]CompletePart, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	type partResult struct {
+		part CompletePart
+		size int64
+		err  error
+	}
+	jobs := make(chan copyPart)
+	results := make(chan partResult)
+
+	go func() {
+		defer close(jobs)
+		for _, p := range parts {
+			select {
+			case jobs <- p:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	var wg sync.WaitGroup
+	for range min(dst.getNumThreads(), len(parts)) {
+		wg.Go(func() {
+			for p := range jobs {
+				part, err := c.uploadPartCopy(ctx, dst.Bucket, dst.Object, uploadID, p.number, p.header)
+				results <- partResult{part: part, size: p.size, err: err}
+			}
+		})
+	}
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	objParts := make([]CompletePart, 0, len(parts))
+	var err error
+	for res := range results {
+		if err != nil {
+			continue
+		}
+		if res.err != nil {
+			err = res.err
+			cancel()
+			continue
+		}
+		objParts = append(objParts, res.part)
+		if dst.Progress != nil {
+			io.CopyN(io.Discard, dst.Progress, res.size)
+		}
+	}
+	if err == nil {
+		err = ctx.Err()
+	}
+	if err != nil {
+		return nil, err
+	}
+	sort.Sort(completedParts(objParts))
+	return objParts, nil
 }
 
 // partsRequired calculates the number of parts needed for a given size
