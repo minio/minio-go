@@ -62,8 +62,9 @@ type GetObjectOptions struct {
 
 	// ParallelWorkers, when greater than 1, reads the object with up to
 	// this many concurrent range GETs, holding at most ParallelWorkers
-	// chunks in memory. Whether it is faster depends on the server and
-	// network. Reads with a Range, PartNumber, Checksum or RDMABuffer,
+	// chunks in memory. It mostly helps when a single stream runs well
+	// below the link speed; when one stream already saturates the link it
+	// is slower. Reads with a Range, PartNumber, Checksum or RDMABuffer,
 	// and reads that start at a non-zero offset, use a single stream.
 	ParallelWorkers int
 	// ParallelChunkSize is the size of each range GET. Defaults to and

@@ -510,7 +510,7 @@ Returns a stream of the object data. Most of the common errors occur when readin
 | :-------------------------- | :------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `opts.ServerSideEncryption` | _encrypt.ServerSide_       | Interface provided by `encrypt` package to specify server-side-encryption. (For more information see https://godoc.org/github.com/minio/minio-go/v7\) |
 | `opts.Internal`             | _minio.AdvancedGetOptions_ | This option is intended for internal use by MinIO server. This option should not be set unless the application is aware of intended use.              |
-| `opts.ParallelWorkers`      | _int_                      | Opt-in. When greater than 1, reads the object with up to this many concurrent range GETs. Whether it is faster depends on the server and network.     |
+| `opts.ParallelWorkers`      | _int_                      | Opt-in. When greater than 1, reads the object with up to this many concurrent range GETs. It mostly helps when a single stream runs well below the link speed; when one stream already saturates the link it is slower. |
 | `opts.ParallelChunkSize`    | _int64_                    | Size of each range GET when `ParallelWorkers` is set. Defaults to and may not be less than 16 MiB.                                                    |
 
 **Return Value**
