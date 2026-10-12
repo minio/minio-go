@@ -68,8 +68,8 @@ type GetObjectOptions struct {
 	// and reads that start at a non-zero offset, use a single stream.
 	ParallelWorkers int
 	// ParallelChunkSize is the target size of each range GET. Defaults to
-	// and may not be less than 16 MiB; it grows when the object would need
-	// more than 10000 chunks, and the last range may be shorter.
+	// 16 MiB, which is also the minimum; it grows when the object would
+	// need more than 10000 chunks, and the last range may be shorter.
 	ParallelChunkSize int64
 
 	// To be not used by external applications
