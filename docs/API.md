@@ -2439,7 +2439,7 @@ Cancels in progress replication resync (MinIO AiStor Only API)
 | `bucketName` | _string_          | Name of the bucket                                 |
 | `tgtArn`     | _string_          | Target Amazon Resource Name                        |
 
-**Return Values** |Param |Type |Description | |:---|:--|:---| |`id`|_string_| Recieved upon successful cancellation of replication resync| |`err`| _error_| Standard Error|
+**Return Values** |Param |Type |Description | |:---|:--|:---| |`id`|_string_| Received upon successful cancellation of replication resync| |`err`| _error_| Standard Error|
 
 **Example**
 
