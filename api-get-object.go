@@ -106,7 +106,11 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 					} else if req.Offset > 0 {
 						opts.SetRange(req.Offset, 0)
 					}
-					httpReader, objectInfo, _, err = c.getObject(gctx, bucketName, objectName, opts)
+					if !req.isReadAt && req.Offset == 0 && !snowball && opts.parallelGetEnabled() {
+						httpReader, objectInfo, err = c.getObjectParallel(gctx, bucketName, objectName, opts)
+					} else {
+						httpReader, objectInfo, _, err = c.getObject(gctx, bucketName, objectName, opts)
+					}
 					if err != nil {
 						resCh <- getResponse{Error: err}
 						// An unsatisfiable range is recoverable: the caller
@@ -247,7 +251,11 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 							opts.headers["Range"] = originalRangeHeader
 						}
 					}
-					httpReader, objectInfo, _, err = c.getObject(gctx, bucketName, objectName, opts)
+					if !req.isReadAt && req.Offset == 0 && !snowball && opts.parallelGetEnabled() {
+						httpReader, objectInfo, err = c.getObjectParallel(gctx, bucketName, objectName, opts)
+					} else {
+						httpReader, objectInfo, _, err = c.getObject(gctx, bucketName, objectName, opts)
+					}
 					if err != nil {
 						resCh <- getResponse{
 							Error: err,
