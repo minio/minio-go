@@ -667,3 +667,45 @@ func TestToObjectInfoHeaders(t *testing.T) {
 		t.Errorf("Headers meta value = %q, Metadata meta value = %q, want equal", got, want)
 	}
 }
+
+// TestToObjectInfoChecksumAlgorithm checks that ChecksumAlgorithm is filled in
+// from the returned checksum value. AWS never sends x-amz-checksum-algorithm
+// on HEAD/GET, so without this the field would only ever be set by listings.
+func TestToObjectInfoChecksumAlgorithm(t *testing.T) {
+	tests := []struct {
+		name   string
+		header http.Header
+		want   string
+	}{
+		{
+			name:   "derived from value",
+			header: http.Header{"X-Amz-Checksum-Crc32c": []string{"nrgpug=="}},
+			want:   "CRC32C",
+		},
+		{
+			name: "server reported wins",
+			header: http.Header{
+				"X-Amz-Checksum-Algorithm": []string{"CRC32C"},
+				"X-Amz-Checksum-Crc32":     []string{"DUoRhQ=="},
+			},
+			want: "CRC32C",
+		},
+		{
+			name:   "no checksum",
+			header: http.Header{},
+			want:   "",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			test.header.Set("Last-Modified", "Mon, 19 Aug 2024 12:00:00 GMT")
+			objInfo, err := ToObjectInfo("test-bucket", "test-object", test.header)
+			if err != nil {
+				t.Fatalf("ToObjectInfo() error = %v", err)
+			}
+			if objInfo.ChecksumAlgorithm != test.want {
+				t.Errorf("ChecksumAlgorithm = %q, want %q", objInfo.ChecksumAlgorithm, test.want)
+			}
+		})
+	}
+}

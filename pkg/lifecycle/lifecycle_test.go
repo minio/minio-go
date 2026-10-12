@@ -297,6 +297,24 @@ func TestLifecycleJSONRoundtrip(t *testing.T) {
 				ID:     "rule-10",
 				Status: "Enabled",
 			},
+			{
+				Compression: &Compression{
+					Days:           ExpirationDays(30),
+					SkipCompressed: true,
+				},
+				NoncurrentVersionCompression: &NoncurrentVersionCompression{
+					NoncurrentDays:   ExpirationDays(45),
+					IncludeEncrypted: true,
+				},
+				ID:     "rule-11",
+				Status: "Enabled",
+			},
+			{
+				Compression:                  &Compression{},
+				NoncurrentVersionCompression: &NoncurrentVersionCompression{},
+				ID:                           "rule-12",
+				Status:                       "Enabled",
+			},
 		},
 	}
 
@@ -330,6 +348,74 @@ func TestLifecycleJSONRoundtrip(t *testing.T) {
 		}
 		if !lc.Rules[i].AllVersionsExpiration.equals(got.Rules[i].AllVersionsExpiration) {
 			t.Fatalf("expected %#v got %#v", lc.Rules[i].AllVersionsExpiration, got.Rules[i].AllVersionsExpiration)
+		}
+		if !lc.Rules[i].Compression.equals(got.Rules[i].Compression) {
+			t.Fatalf("expected %#v got %#v", lc.Rules[i].Compression, got.Rules[i].Compression)
+		}
+		if !lc.Rules[i].NoncurrentVersionCompression.equals(got.Rules[i].NoncurrentVersionCompression) {
+			t.Fatalf("expected %#v got %#v", lc.Rules[i].NoncurrentVersionCompression, got.Rules[i].NoncurrentVersionCompression)
+		}
+	}
+}
+
+// TestCompressionJSON pins the wire shape of the AIStor compression elements,
+// including that an all-default element survives as an empty object rather
+// than being dropped — its presence alone enables the action.
+func TestCompressionJSON(t *testing.T) {
+	expected := []byte(`{"Rules":[{"ID":"compress","Status":"Enabled","Compression":{"Days":30,"HighCompression":true,"SkipCompressed":true},"NoncurrentVersionCompression":{}}]}`)
+	lc := Configuration{
+		Rules: []Rule{
+			{
+				ID:     "compress",
+				Status: "Enabled",
+				Compression: &Compression{
+					Days:            ExpirationDays(30),
+					HighCompression: true,
+					SkipCompressed:  true,
+				},
+				NoncurrentVersionCompression: &NoncurrentVersionCompression{},
+			},
+		},
+	}
+
+	got, err := json.Marshal(lc)
+	if err != nil {
+		t.Fatalf("Failed to marshal due to %v", err)
+	}
+	if !bytes.Equal(expected, got) {
+		t.Fatalf("Expected %s but got %s", expected, got)
+	}
+}
+
+// TestRuleMarshalJSONCopyCompleteness fills every Rule field and requires each
+// one to reach the JSON output. MarshalJSON copies Rule into a mirror struct
+// field by field, so a field added to Rule and to the mirror but never assigned
+// is dropped by omitempty with every other test still passing. RuleFilter is
+// skipped for the same reason as in TestRuleWrapperCopyCompleteness.
+func TestRuleMarshalJSONCopyCompleteness(t *testing.T) {
+	skip := func(name string) bool { return name == "XMLName" || name == "RuleFilter" }
+
+	var r Rule
+	rv := reflect.ValueOf(&r).Elem()
+	for i := range rv.NumField() {
+		if skip(rv.Type().Field(i).Name) {
+			continue
+		}
+		fillNonZero(t, rv.Field(i))
+	}
+
+	got, err := json.Marshal(r)
+	if err != nil {
+		t.Fatalf("could not marshal a filled Rule: %v", err)
+	}
+	for i := range rv.NumField() {
+		f := rv.Type().Field(i)
+		if skip(f.Name) {
+			continue
+		}
+		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+		if !bytes.Contains(got, []byte(`"`+name+`":`)) {
+			t.Fatalf("Rule.%s (JSON %q) is missing from MarshalJSON output: %s", f.Name, name, got)
 		}
 	}
 }
@@ -404,6 +490,36 @@ func TestLifecycleXMLRoundtrip(t *testing.T) {
 					},
 				},
 			},
+			{
+				ID:          "immediate-compression",
+				Status:      "Enabled",
+				Compression: &Compression{},
+			},
+			{
+				ID:     "compression",
+				Status: "Enabled",
+				Compression: &Compression{
+					Days:             ExpirationDays(30),
+					HighCompression:  true,
+					SkipCompressed:   true,
+					IncludeEncrypted: true,
+				},
+			},
+			{
+				ID:                           "immediate-noncurrent-compression",
+				Status:                       "Enabled",
+				NoncurrentVersionCompression: &NoncurrentVersionCompression{},
+			},
+			{
+				ID:     "noncurrent-compression",
+				Status: "Enabled",
+				NoncurrentVersionCompression: &NoncurrentVersionCompression{
+					NoncurrentDays:   ExpirationDays(45),
+					HighCompression:  true,
+					SkipCompressed:   true,
+					IncludeEncrypted: true,
+				},
+			},
 		},
 	}
 
@@ -438,7 +554,31 @@ func TestLifecycleXMLRoundtrip(t *testing.T) {
 		if !lc.Rules[i].AllVersionsExpiration.equals(got.Rules[i].AllVersionsExpiration) {
 			t.Fatalf("%d: expected %#v got %#v", i+1, lc.Rules[i].AllVersionsExpiration, got.Rules[i].AllVersionsExpiration)
 		}
+
+		if !lc.Rules[i].Compression.equals(got.Rules[i].Compression) {
+			t.Fatalf("%d: expected %#v got %#v", i+1, lc.Rules[i].Compression, got.Rules[i].Compression)
+		}
+
+		if !lc.Rules[i].NoncurrentVersionCompression.equals(got.Rules[i].NoncurrentVersionCompression) {
+			t.Fatalf("%d: expected %#v got %#v", i+1, lc.Rules[i].NoncurrentVersionCompression, got.Rules[i].NoncurrentVersionCompression)
+		}
 	}
+}
+
+func (c *Compression) equals(d *Compression) bool {
+	if c == nil || d == nil {
+		return c == d
+	}
+	return c.Days == d.Days && c.HighCompression == d.HighCompression &&
+		c.SkipCompressed == d.SkipCompressed && c.IncludeEncrypted == d.IncludeEncrypted
+}
+
+func (n *NoncurrentVersionCompression) equals(m *NoncurrentVersionCompression) bool {
+	if n == nil || m == nil {
+		return n == m
+	}
+	return n.NoncurrentDays == m.NoncurrentDays && n.HighCompression == m.HighCompression &&
+		n.SkipCompressed == m.SkipCompressed && n.IncludeEncrypted == m.IncludeEncrypted
 }
 
 func (n NoncurrentVersionTransition) equals(m NoncurrentVersionTransition) bool {
@@ -690,6 +830,9 @@ func fillNonZero(t *testing.T, v reflect.Value) {
 		v.SetBool(true)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		v.SetInt(1)
+	case reflect.Pointer:
+		v.Set(reflect.New(v.Type().Elem()))
+		fillNonZero(t, v.Elem())
 	case reflect.Struct:
 		switch v.Type() {
 		case reflect.TypeOf(time.Time{}):

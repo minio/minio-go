@@ -51,15 +51,7 @@ func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, o
 		if err != nil {
 			return nil, err
 		}
-		return &Object{
-			mutex:    &sync.Mutex{},
-			isClosed: true,
-			objectInfo: ObjectInfo{
-				Key:  objectName,
-				Size: n,
-			},
-			objectInfoSet: true,
-		}, nil
+		return newRDMAObject(objectName, n), nil
 	}
 
 	gctx, cancel := context.WithCancel(ctx)
@@ -501,6 +493,25 @@ func (o *Object) Read(b []byte) (n int, err error) {
 	return response.Size, err
 }
 
+// newRDMAObject returns the Object handed back by the RDMA GET path, whose
+// payload of n bytes has already been delivered out-of-band into the caller's
+// registered buffer. The object is closed on arrival: there is nothing left to
+// read from it, only its info to report. totalSize must carry n as well as
+// objectInfo.Size, because Stat recomputes Size as totalSize-currOffset for
+// any object whose info is already set.
+func newRDMAObject(objectName string, n int64) *Object {
+	return &Object{
+		mutex:    &sync.Mutex{},
+		isClosed: true,
+		objectInfo: ObjectInfo{
+			Key:  objectName,
+			Size: n,
+		},
+		objectInfoSet: true,
+		totalSize:     n,
+	}
+}
+
 // Stat returns the ObjectInfo structure describing Object.
 // When requesting a partial object or reading has started,
 // the size returned will reflect the remaining size.
@@ -819,6 +830,19 @@ func (c *Client) getObject(ctx context.Context, bucketName, objectName string, o
 		return nil, ObjectInfo{}, nil, err
 	}
 
+	body := resp.Body
+	if opts.Checksum {
+		if opts.checkSumReader != nil {
+			opts.checkSumReader.SetReader(resp.Body)
+			body = opts.checkSumReader
+		} else if objectStat.ChecksumMode == ChecksumFullObjectMode.String() && opts.headers["Range"] == "" {
+			if hasherReader := c.newChecksumVerifyingReader(objectStat); hasherReader != nil {
+				hasherReader.SetReader(resp.Body)
+				body = hasherReader
+			}
+		}
+	}
+
 	// do not close body here, caller will close
-	return resp.Body, objectStat, resp.Header, nil
+	return body, objectStat, resp.Header, nil
 }

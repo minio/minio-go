@@ -83,7 +83,8 @@ type CopyDestOptions struct {
 	// Progress of the entire copy operation will be sent here.
 	Progress io.Reader
 	// PartSize specifies the part size for multipart copy operations.
-	// If not specified, defaults to maxPartSize (5 GiB).
+	// If not specified, defaults to the client's max part size (5 GiB unless
+	// overridden via Options.UploadLimits).
 	PartSize uint64
 
 	// AnnotationDirective controls whether the source object's annotations are
@@ -435,8 +436,21 @@ func (c *Client) uploadPartCopy(ctx context.Context, bucket, object, uploadID st
 // operations. Optionally takes progress reader hook for applications to
 // look at current progress.
 func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ...CopySrcOptions) (UploadInfo, error) {
-	if len(srcs) < 1 || len(srcs) > maxPartsCount {
-		return UploadInfo{}, errInvalidArgument("There must be as least one and up to 10000 source objects.")
+	maxPartsCount := c.limits.maxPartsCount()
+	maxPartSize := c.limits.maxPartSize()
+	maxObjectSize := c.limits.maxObjectSize()
+
+	if len(srcs) < 1 || int64(len(srcs)) > maxPartsCount {
+		return UploadInfo{}, errInvalidArgument(fmt.Sprintf("There must be as least one and up to %d source objects.", maxPartsCount))
+	}
+
+	if dst.PartSize > uint64(maxPartSize) {
+		return UploadInfo{}, errInvalidArgument(fmt.Sprintf(
+			"CopyDestOptions.PartSize %d is larger than the maximum part size of %d", dst.PartSize, maxPartSize))
+	}
+	partSize := int64(dst.PartSize)
+	if partSize == 0 {
+		partSize = maxPartSize
 	}
 
 	for _, src := range srcs {
@@ -475,8 +489,8 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 			srcCopySize = src.End - src.Start + 1
 		}
 
-		// Only the last source may be less than `absMinPartSize`
-		if srcCopySize < absMinPartSize && i < len(srcs)-1 {
+		// Only the last source may be less than the minimum part size
+		if srcCopySize < c.limits.minPartSize() && i < len(srcs)-1 {
 			return UploadInfo{}, errInvalidArgument(
 				fmt.Sprintf("CopySrcOptions %d is too small (%d) and it is not the last part", i, srcCopySize))
 		}
@@ -484,14 +498,23 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 		// Is data to copy too large?
 		totalSize += srcCopySize
 		if totalSize > maxObjectSize {
-			return UploadInfo{}, errInvalidArgument(fmt.Sprintf("Cannot compose an object of size %d (> 5GiB * 10000)", totalSize))
+			return UploadInfo{}, errInvalidArgument(fmt.Sprintf("Cannot compose an object of size %d (> %d * %d)", totalSize, maxPartSize, maxPartsCount))
 		}
 
 		// record source size
 		srcObjectSizes[i] = srcCopySize
 
 		// calculate parts needed for current source
-		totalParts += partsRequired(srcCopySize, int64(dst.PartSize))
+		reqParts := partsRequired(srcCopySize, partSize)
+		// A part size close to the minimum can make calculateEvenSplits emit
+		// ranges below it, which the remote rejects. Only the very last range
+		// of the last source is allowed to be undersized.
+		if under := undersizedSplits(srcCopySize, reqParts, c.limits.minPartSize()); under > 1 || (under == 1 && i < len(srcs)-1) {
+			return UploadInfo{}, errInvalidArgument(fmt.Sprintf(
+				"CopySrcOptions %d (%d bytes) splits into %d ranges below the minimum part size of %d at a part size of %d",
+				i, srcCopySize, under, c.limits.minPartSize(), partSize))
+		}
+		totalParts += reqParts
 		// Do we need more parts than we are allowed?
 		if totalParts > maxPartsCount {
 			return UploadInfo{}, errInvalidArgument(fmt.Sprintf(
@@ -570,7 +593,7 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 
 		// calculate start/end indices of parts after
 		// splitting.
-		startIdx, endIdx := calculateEvenSplits(srcObjectSizes[i], src, int64(dst.PartSize))
+		startIdx, endIdx := calculateEvenSplits(srcObjectSizes[i], src, partSize)
 		for j, start := range startIdx {
 			end := endIdx[j]
 
@@ -605,10 +628,11 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 }
 
 // partsRequired calculates the number of parts needed for a given size
-// using the specified part size. If partSize is 0, defaults to maxPartSize (5 GiB).
+// using the specified part size. If partSize is 0, defaults to the default
+// max part size (5 GiB); callers with a Client resolve it against its limits.
 func partsRequired(size int64, partSize int64) int64 {
 	if partSize == 0 {
-		partSize = maxPartSize
+		partSize = defaultMaxPartSize
 	}
 	r := size / partSize
 	if size%partSize > 0 {
@@ -617,10 +641,28 @@ func partsRequired(size int64, partSize int64) int64 {
 	return r
 }
 
+// undersizedSplits reports how many of the reqParts ranges calculateEvenSplits
+// generates for size fall below minPartSize. It emits the rem larger ranges
+// first, so the undersized ones are always at the tail.
+func undersizedSplits(size, reqParts, minPartSize int64) int64 {
+	if reqParts <= 0 {
+		// An empty source generates no ranges at all.
+		return 0
+	}
+	quot, rem := size/reqParts, size%reqParts
+	if quot+1 < minPartSize {
+		return reqParts
+	}
+	if quot < minPartSize {
+		return reqParts - rem
+	}
+	return 0
+}
+
 // calculateEvenSplits - computes splits for a source and returns
 // start and end index slices. Splits happen evenly to be sure that no
 // part is less than 5MiB, as that could fail the multipart request if
-// it is not the last part. If partSize is 0, defaults to maxPartSize (5 GiB).
+// it is not the last part. If partSize is 0, partsRequired's default applies.
 func calculateEvenSplits(size int64, src CopySrcOptions, partSize int64) (startIndex, endIndex []int64) {
 	if size == 0 {
 		return startIndex, endIndex

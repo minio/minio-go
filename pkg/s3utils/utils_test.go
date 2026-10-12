@@ -20,6 +20,7 @@ package s3utils
 import (
 	"errors"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -56,6 +57,12 @@ func TestGetRegionFromURL(t *testing.T) {
 		{u: "s3express-apne1-az4.ap-northeast-1.amazonaws.com", expectedRegion: "ap-northeast-1"},
 		{u: "s3express-euc1-az2.eu-central-1.amazonaws.com", expectedRegion: "eu-central-1"},
 		{u: "s3express-usgw1-az3.us-gov-west-1.amazonaws.com", expectedRegion: "us-gov-west-1"},
+		{u: "s3express-usw2-az7.us-west-2.amazonaws.com", expectedRegion: "us-west-2"},
+		{u: "s3express-usw2-lax1-az1.us-west-2.amazonaws.com", expectedRegion: "us-west-2"},
+		// Dualstack variants.
+		{u: "s3express-control-dualstack.us-east-1.amazonaws.com", expectedRegion: "us-east-1"},
+		{u: "s3express-use1-az4.dualstack.us-east-1.amazonaws.com", expectedRegion: "us-east-1"},
+		{u: "s3express-usw2-lax1-az1.dualstack.us-west-2.amazonaws.com", expectedRegion: "us-west-2"},
 		{u: "s3express-control.us-west-2.amazonaws.com", expectedRegion: "us-west-2"},
 		// S3 on Outposts.
 		{u: "test-access-point-000000000000.op-00000000000000000.s3-outposts.eu-central-1.amazonaws.com", expectedRegion: "eu-central-1"},
@@ -83,7 +90,6 @@ func TestGetRegionFromURL(t *testing.T) {
 		{u: "s3-fips.dualstack.us-west-1.amazonaws.com:80", expectedRegion: "us-west-1"},
 		// No region found.
 		{u: "192.168.1.1:80", expectedRegion: ""},
-		{u: "s3express-usw2-az7.us-west-2.amazonaws.com", expectedRegion: ""},
 		{u: "invalid-endpoint.com", expectedRegion: ""},
 		{u: "s3.amazonaws.com:80", expectedRegion: ""},
 		{u: "s3-external-1.amazonaws.com:80", expectedRegion: ""},
@@ -235,6 +241,8 @@ func TestIsAmazonEndpoint(t *testing.T) {
 		{"https://bucket.vpce-1a2b3c4d-5e6f.s3.us-east-1.vpce.amazonaws.com", true},
 		{"https://accesspoint.vpce-1a2b3c4d-5e6f.s3.us-east-1.vpce.amazonaws.com", true},
 		{"https://s3express-usw2-az1.us-west-2.amazonaws.com", true},
+		{"https://s3express-control-dualstack.us-east-1.amazonaws.com", true},
+		{"https://s3express-use1-az4.dualstack.us-east-1.amazonaws.com", true},
 	}
 
 	for i, testCase := range testCases {
@@ -383,6 +391,9 @@ func TestIsValidBucketName(t *testing.T) {
 		{"192.168.1.168", errors.New("Bucket name cannot be an ip address"), false},
 		{":bucketname", errors.New("Bucket name contains invalid characters"), false},
 		{"_bucketName", errors.New("Bucket name contains invalid characters"), false},
+		{"/mybucket", errors.New("Bucket name cannot contain path separators"), false},
+		{"mybucket/myobject", errors.New("Bucket name cannot contain path separators"), false},
+		{"..", errors.New("Bucket name cannot be a relative path element"), false},
 		{"my.bucket.com", nil, true},
 		{"my-bucket", nil, true},
 		{"123my-bucket", nil, true},
@@ -428,6 +439,24 @@ func TestIsValidBucketNameStrict(t *testing.T) {
 		{"my-.bucket", errors.New("Bucket name contains invalid characters"), false},
 		{"192.168.1.168", errors.New("Bucket name cannot be an ip address"), false},
 		{"Mybucket", errors.New("Bucket name contains invalid characters"), false},
+		// Request paths that hid the bucket behind a leading "//" reach here
+		// verbatim, so every path-shaped spelling has to be rejected as a path.
+		{"/mybucket", errors.New("Bucket name cannot contain path separators"), false},
+		{"//mybucket", errors.New("Bucket name cannot contain path separators"), false},
+		{"mybucket/myobject", errors.New("Bucket name cannot contain path separators"), false},
+		{"//", errors.New("Bucket name cannot contain path separators"), false},
+		{"/", errors.New("Bucket name cannot contain path separators"), false},
+		{"../", errors.New("Bucket name cannot contain path separators"), false},
+		{"/..", errors.New("Bucket name cannot contain path separators"), false},
+		{"/.", errors.New("Bucket name cannot contain path separators"), false},
+		{"./mybucket", errors.New("Bucket name cannot contain path separators"), false},
+		{"mybucket/", errors.New("Bucket name cannot contain path separators"), false},
+		{`\mybucket`, errors.New("Bucket name cannot contain path separators"), false},
+		{".", errors.New("Bucket name cannot be a relative path element"), false},
+		{"..", errors.New("Bucket name cannot be a relative path element"), false},
+		// A path-shaped name is diagnosed as a path even when it also busts
+		// the length limit - the oversized scanner probe that motivated this.
+		{"//" + strings.Repeat("a", 300), errors.New("Bucket name cannot contain path separators"), false},
 		{"my.bucket.com", nil, true},
 		{"my-bucket", nil, true},
 		{"123my-bucket", nil, true},
@@ -500,15 +529,17 @@ func TestS3ExpressBucket(t *testing.T) {
 		wantErr bool
 	}{
 		{"my-express-bucket--usw2-az1--x-s3", true},
-		{"data.analytics--use1-az5--x-s3", true},
 		{"ml-training--apne1-az4--x-s3", true},
+		{"my-bucket--usw2-lax1-az1--x-s3", true},
 		{"my-standard-bucket", false},
 		{"my-express-bucket--usw2-az1", false},
+		// Periods are not allowed in directory bucket names.
+		{"data.analytics--use1-az5--x-s3", false},
 		{"192.168.0.1--usw2-az1--x-s3", false},
 		{"my..bucket--usw2-az1--x-s3", false},
 		{"my--bucket--usw2-az1--x-s3", false},
 		{".mybucket--usw2-az1--x-s3", false},
-		{"my-bucket--invalid-az7--x-s3", false},
+		{"my-bucket--invalid-azX--x-s3", false},
 	}
 
 	for _, tt := range tests {
