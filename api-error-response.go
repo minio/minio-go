@@ -216,6 +216,7 @@ func httpRespToErrorResponse(resp *http.Response, bucketName, objectName string)
 	if errResp.HostID == "" {
 		errResp.HostID = resp.Header.Get("x-amz-id-2")
 	}
+	errResp.Region = strings.TrimSpace(errResp.Region)
 	if errResp.Region == "" {
 		errResp.Region = resp.Header.Get("x-amz-bucket-region")
 	}

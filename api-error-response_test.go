@@ -194,6 +194,33 @@ func TestHttpRespToErrorResponse(t *testing.T) {
 	}
 }
 
+// A whitespace-only <Region> in the error XML body must not be treated as a
+// present value: it should fall back to the x-amz-bucket-region header, the
+// same way a genuinely empty <Region> already does. Otherwise the whitespace
+// gets cached and used verbatim as the SigV4 signing region, corrupting the
+// Authorization header on every subsequent request to that bucket.
+func TestHttpRespToErrorResponseWhitespaceRegion(t *testing.T) {
+	body := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<Error>
+   <Code>AuthorizationHeaderMalformed</Code>
+   <Message>The authorization header is malformed; the region is wrong</Message>
+   <Region>   </Region>
+</Error>`)
+	resp := &http.Response{
+		StatusCode: http.StatusBadRequest,
+		Status:     http.StatusText(http.StatusBadRequest),
+		Body:       io.NopCloser(bytes.NewReader(body)),
+		Header:     make(http.Header),
+	}
+	resp.Header.Set("x-amz-bucket-region", "us-east-1")
+
+	err := httpRespToErrorResponse(resp, "minio-bucket", "")
+	errResp := ToErrorResponse(err)
+	if errResp.Region != "us-east-1" {
+		t.Errorf("expected Region to fall back to the x-amz-bucket-region header ('us-east-1') when the XML body's <Region> is whitespace-only, got %q", errResp.Region)
+	}
+}
+
 // Test validates 'ErrEntityTooLarge' error response.
 func TestErrEntityTooLarge(t *testing.T) {
 	msg := fmt.Sprintf("Your proposed upload size ‘%d’ exceeds the maximum allowed object size ‘%d’ for single PUT operation.", 1000000, 99999)
