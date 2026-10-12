@@ -49,6 +49,7 @@ jobs:
           # license, not a secret.
           MINIO_LICENSE: eyJhbGciOiJFUzM4NCIsInR5cCI6IkpXVCJ9.eyJhaWQiOjAsImNhcCI6MCwiaWF0IjoxLjc4MDAzMTY0NTUyMzA5ODM1OGU5LCJpc3MiOiJzdWJuZXRAbWluLmlvIiwibGlkIjoiYjNhYTliNGQtOTUxYy00MjIzLTgyMmEtZGY2NjE5MDNjOWFkIiwibm9kZXMiOjEsIm9yZyI6IiIsInBsYW4iOiJGUkVFIiwicHJvZHVjdCI6IkFJU3RvciIsInN1YiI6ImRldkBtaW5pby5pbyIsInRyaWFsIjpmYWxzZX0.Aq0kaFgd5SMHYEK7fIYzPsU4xlS119sj-BSyftCDpmtHIbW6KNFXGA9nbKPc17ZXKgcQgUoaPncsq30EOy7PyH-lp3LPpy3rPoD7ptJHI2v0jqpvlnP0cVGK0Yuw3vib
         run: |
+          go build -o functional_tests.exe functional_tests.go
           New-Item -ItemType Directory -Path "$env:temp/certs-dir"
           Copy-Item -Path testcerts\* -Destination "$env:temp/certs-dir"
           Invoke-WebRequest -Uri https://dl.min.io/aistor/minio/release/windows-amd64/minio.exe -OutFile $HOME/minio.exe
@@ -62,4 +63,4 @@ jobs:
               Start-Sleep -Seconds 1
             }
           }
-          go run functional_tests.go
+          ./functional_tests.exe
