@@ -786,6 +786,15 @@ Create an object by concatenating a list of source objects using server-side cop
 | `dst`  | _minio.CopyDestOptions_   | Struct with info about the object to be created.                            |
 | `srcs` | _...minio.CopySrcOptions_ | Slice of struct with info about source objects to be concatenated in order. |
 
+**minio.CopyDestOptions**
+
+These fields apply only when the compose needs a multipart copy; a single whole-object copy ignores them.
+
+| Field             | Type     | Description                                                                                                  |
+| :---------------- | :------- | :----------------------------------------------------------------------------------------------------------- |
+| `dst.PartSize`    | _uint64_ | Target part size in bytes. Each source is split evenly, so actual part sizes may differ. Defaults to 5 GiB. |
+| `dst.NumThreads`  | _uint_   | Number of concurrent upload-part-copy requests. Defaults to 1; values above 100 are capped at 100.          |
+
 **minio.UploadInfo**
 
 | Field            | Type     | Description                              |

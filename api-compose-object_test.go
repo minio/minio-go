@@ -17,10 +17,18 @@
 package minio
 
 import (
+	"context"
+	"encoding/xml"
+	"errors"
 	"net/http"
+	"net/http/httptest"
 	"reflect"
+	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 const (
@@ -182,5 +190,127 @@ func TestDestOptions(t *testing.T) {
 		if !strings.HasSuffix(k, "test") && strings.HasPrefix(k, "x-amz-meta-") {
 			t.Errorf("Test an amz/standard/storageClass Header was expected but got an x amz meta data")
 		}
+	}
+}
+
+type composeTestServer struct {
+	srcSize  int64
+	failPart int
+
+	mu        sync.Mutex
+	copied    int
+	completed []int
+	aborted   bool
+
+	inflight, maxInflight atomic.Int32
+}
+
+func (s *composeTestServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	switch {
+	case r.Method == http.MethodHead:
+		w.Header().Set("Content-Length", strconv.FormatInt(s.srcSize, 10))
+		w.Header().Set("ETag", `"src"`)
+		w.Header().Set("Last-Modified", "Wed, 21 Oct 2015 07:28:00 GMT")
+	case r.Method == http.MethodPost && q.Has("uploads"):
+		w.Write([]byte(`<InitiateMultipartUploadResult><UploadId>upload-1</UploadId></InitiateMultipartUploadResult>`))
+	case r.Method == http.MethodPut && q.Has("partNumber"):
+		n := s.inflight.Add(1)
+		defer s.inflight.Add(-1)
+		for {
+			m := s.maxInflight.Load()
+			if n <= m || s.maxInflight.CompareAndSwap(m, n) {
+				break
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+		s.mu.Lock()
+		s.copied++
+		s.mu.Unlock()
+		if q.Get("partNumber") == strconv.Itoa(s.failPart) {
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte(`<Error><Code>AccessDenied</Code><Message>denied</Message></Error>`))
+			return
+		}
+		w.Write([]byte(`<CopyPartResult><ETag>"part-` + q.Get("partNumber") + `"</ETag></CopyPartResult>`))
+	case r.Method == http.MethodPost && q.Has("uploadId"):
+		var body completeMultipartUpload
+		if err := xml.NewDecoder(r.Body).Decode(&body); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		s.mu.Lock()
+		for _, p := range body.Parts {
+			s.completed = append(s.completed, p.PartNumber)
+		}
+		s.mu.Unlock()
+		w.Write([]byte(`<CompleteMultipartUploadResult><Bucket>bucket</Bucket><Key>dst</Key><ETag>"dst"</ETag></CompleteMultipartUploadResult>`))
+	case r.Method == http.MethodDelete && q.Has("uploadId"):
+		s.mu.Lock()
+		s.aborted = true
+		s.mu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		w.WriteHeader(http.StatusNotImplemented)
+	}
+}
+
+func composeTestObject(t *testing.T, s *composeTestServer, numThreads uint) error {
+	t.Helper()
+	srv := httptest.NewServer(s)
+	defer srv.Close()
+
+	clnt, err := New(srv.Listener.Addr().String(), &Options{Region: "us-east-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	dst := CopyDestOptions{Bucket: "bucket", Object: "dst", PartSize: defaultMinPartSize, NumThreads: numThreads}
+	_, err = clnt.ComposeObject(context.Background(), dst, CopySrcOptions{Bucket: "bucket", Object: "src"})
+	return err
+}
+
+func TestComposeObjectParallel(t *testing.T) {
+	const numParts = 16
+	for _, tc := range []struct {
+		numThreads  uint
+		maxInflight int32
+	}{
+		{0, 1},
+		{1, 1},
+		{4, 4},
+	} {
+		s := &composeTestServer{srcSize: numParts * defaultMinPartSize}
+		if err := composeTestObject(t, s, tc.numThreads); err != nil {
+			t.Fatalf("NumThreads %d: %v", tc.numThreads, err)
+		}
+		if got := s.maxInflight.Load(); got != tc.maxInflight {
+			t.Errorf("NumThreads %d: expected %d concurrent part copies, got %d", tc.numThreads, tc.maxInflight, got)
+		}
+		want := make([]int, numParts)
+		for i := range want {
+			want[i] = i + 1
+		}
+		if !reflect.DeepEqual(s.completed, want) {
+			t.Errorf("NumThreads %d: expected parts %v, got %v", tc.numThreads, want, s.completed)
+		}
+	}
+}
+
+func TestComposeObjectParallelPartFailure(t *testing.T) {
+	const numParts = 16
+	s := &composeTestServer{srcSize: numParts * defaultMinPartSize, failPart: 3}
+	err := composeTestObject(t, s, 4)
+	var errResp ErrorResponse
+	if !errors.As(err, &errResp) || errResp.Code != "AccessDenied" {
+		t.Fatalf("expected AccessDenied, got %v", err)
+	}
+	if !s.aborted {
+		t.Error("expected the multipart upload to be aborted")
+	}
+	if s.completed != nil {
+		t.Errorf("expected no complete-multipart request, got parts %v", s.completed)
+	}
+	if s.copied >= numParts {
+		t.Errorf("expected remaining parts to be canceled, but all %d were copied", s.copied)
 	}
 }
