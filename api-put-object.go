@@ -444,7 +444,7 @@ func (c *Client) putObjectMultipartStreamNoLength(ctx context.Context, bucketNam
 
 	defer func() {
 		if err != nil {
-			c.abortMultipartUpload(ctx, bucketName, objectName, uploadID)
+			c.abortFailedUpload(ctx, bucketName, objectName, uploadID)
 		}
 	}()
 
