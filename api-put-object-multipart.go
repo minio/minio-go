@@ -91,7 +91,7 @@ func (c *Client) putObjectMultipartNoStream(ctx context.Context, bucketName, obj
 
 	defer func() {
 		if err != nil {
-			c.abortMultipartUpload(ctx, bucketName, objectName, uploadID)
+			c.abortFailedUpload(ctx, bucketName, objectName, uploadID)
 		}
 	}()
 
