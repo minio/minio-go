@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io"
 	"maps"
-	"strings"
 )
 
 func (o GetObjectOptions) parallelGetEnabled() bool {
@@ -48,23 +47,22 @@ func (r parallelGetReader) Close() error {
 }
 
 // getObjectParallel reads the object with concurrent range GETs pinned to
-// its ETag, falling back to a single GET when it fits in one chunk.
+// its ETag, falling back to a single GET when it fits in one chunk or has
+// no ETag.
 func (c *Client) getObjectParallel(ctx context.Context, bucketName, objectName string, opts GetObjectOptions) (io.ReadCloser, ObjectInfo, error) {
 	objectInfo, err := c.StatObject(ctx, bucketName, objectName, opts)
 	if err != nil {
 		return nil, ObjectInfo{}, err
 	}
 	chunkSize := parallelGetChunkSize(opts.ParallelChunkSize, objectInfo.Size)
-	if objectInfo.Size <= chunkSize {
+	if objectInfo.Size <= chunkSize || objectInfo.ETag == "" {
 		body, objectInfo, _, err := c.getObject(ctx, bucketName, objectName, opts)
 		return body, objectInfo, err
 	}
 
 	// The caller keeps reusing opts.headers for later requests.
 	opts.headers = maps.Clone(opts.headers)
-	if objectInfo.ETag != "" {
-		opts.SetMatchETag(objectInfo.ETag)
-	}
+	opts.SetMatchETag(objectInfo.ETag)
 
 	ctx, cancel := context.WithCancel(ctx)
 	pr, pw := io.Pipe()
@@ -96,7 +94,7 @@ func (c *Client) parallelGet(ctx context.Context, bucketName, objectName string,
 				return
 			}
 			go func() {
-				data, err := c.getObjectChunk(ctx, bucketName, objectName, opts, start, min(start+chunkSize, size)-1)
+				data, err := c.getObjectChunk(ctx, bucketName, objectName, opts, start, min(start+chunkSize, size)-1, size)
 				res <- chunk{data: data, err: err}
 			}()
 		}
@@ -119,7 +117,7 @@ func (c *Client) parallelGet(ctx context.Context, bucketName, objectName string,
 	return ctx.Err()
 }
 
-func (c *Client) getObjectChunk(ctx context.Context, bucketName, objectName string, opts GetObjectOptions, start, end int64) ([]byte, error) {
+func (c *Client) getObjectChunk(ctx context.Context, bucketName, objectName string, opts GetObjectOptions, start, end, size int64) ([]byte, error) {
 	opts.headers = maps.Clone(opts.headers)
 	if err := opts.SetRange(start, end); err != nil {
 		return nil, err
@@ -130,7 +128,7 @@ func (c *Client) getObjectChunk(ctx context.Context, bucketName, objectName stri
 	}
 	defer body.Close()
 
-	if cr := header.Get("Content-Range"); !strings.HasPrefix(cr, fmt.Sprintf("bytes %d-%d/", start, end)) {
+	if cr := header.Get("Content-Range"); cr != fmt.Sprintf("bytes %d-%d/%d", start, end, size) {
 		return nil, fmt.Errorf("unexpected Content-Range %q for range %d-%d", cr, start, end)
 	}
 	data := make([]byte, end-start+1)
