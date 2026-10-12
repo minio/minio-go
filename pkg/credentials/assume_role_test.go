@@ -20,8 +20,53 @@ package credentials
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
 	"testing"
 )
+
+func TestSTSAssumeRoleDurationSeconds(t *testing.T) {
+	testCases := []struct {
+		requested int
+		want      string
+		wantSent  bool
+	}{
+		{requested: 0, wantSent: false},
+		{requested: -1, want: "-1", wantSent: true},
+		{requested: 900, want: "900", wantSent: true},
+		{requested: 1200, want: "1200", wantSent: true},
+		{requested: 3600, want: "3600", wantSent: true},
+		{requested: 7200, want: "7200", wantSent: true},
+	}
+	for _, tc := range testCases {
+		t.Run(strconv.Itoa(tc.requested), func(t *testing.T) {
+			var got string
+			var sent bool
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if err := r.ParseForm(); err != nil {
+					t.Errorf("parse form: %v", err)
+				}
+				sent = r.PostForm.Has("DurationSeconds")
+				got = r.PostForm.Get("DurationSeconds")
+				w.WriteHeader(http.StatusBadRequest)
+			}))
+			defer server.Close()
+
+			_, _ = getAssumeRoleCredentials(context.Background(), server.Client(), server.URL, STSAssumeRoleOptions{
+				AccessKey:       "access",
+				SecretKey:       "secret",
+				DurationSeconds: tc.requested,
+			})
+			if sent != tc.wantSent {
+				t.Fatalf("DurationSeconds sent = %v, want %v", sent, tc.wantSent)
+			}
+			if got != tc.want {
+				t.Fatalf("DurationSeconds = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
 
 // TestSTSAssumeRoleCallerContextCancel verifies that the caller context
 // carried by CredContext cancels an in-flight AssumeRole request.
