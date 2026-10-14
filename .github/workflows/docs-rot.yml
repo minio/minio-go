@@ -21,9 +21,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: docrot-check (warn)
-        uses: auroraxo/docrot-check@124f779e9e311e5f1e8094201ce37a0ad6684736
+        uses: auroraxo/docrot-check@0ce7c641bc11bfa03feb653631f44cfa9c2c3d06
         with:
           root: .
           fail-on-broken: "false"
