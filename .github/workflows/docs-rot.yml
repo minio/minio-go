@@ -25,7 +25,7 @@ jobs:
           persist-credentials: false
 
       - name: docrot-check (warn)
-        uses: auroraxo/docrot-check@0ce7c641bc11bfa03feb653631f44cfa9c2c3d06
+        uses: auroraxo/docrot-check@2d2802e36434e97270ac6c0bf6484eb70c51ad12
         with:
           root: .
           fail-on-broken: "false"
