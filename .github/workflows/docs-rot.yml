@@ -1,0 +1,31 @@
+name: docs-rot
+
+# Weekly documentation image-rot scan: hot-linked badges/screenshots that now
+# return HTTP >= 400, and in-repo image paths with no file in the tree.
+# Warn-only report first — flip fail-on-broken to "true" after a clean week.
+# See https://github.com/auroraxo/docrot-check/blob/main/docs/adoption.md
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  schedule:
+    - cron: "17 6 * * 1"   # weekly: link rot appears without any commit
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: docrot-check (warn)
+        uses: auroraxo/docrot-check@124f779e9e311e5f1e8094201ce37a0ad6684736
+        with:
+          root: .
+          fail-on-broken: "false"
+          report-path: docrot-report.json
+          upload-report: "true"
