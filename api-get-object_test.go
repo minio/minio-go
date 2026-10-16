@@ -202,6 +202,96 @@ func eofRangeTestServer(t *testing.T, payload []byte, headSize int, getCount *in
 	}))
 }
 
+func TestObjectReadAndSeekAfterStat(t *testing.T) {
+	payload := []byte("0123456789")
+	var gets int32
+	srv := eofRangeTestServer(t, payload, len(payload), &gets)
+	defer srv.Close()
+	clnt, err := New(srv.Listener.Addr().String(), &Options{Region: "us-east-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tt := range []struct {
+		name       string
+		read       int
+		seek       bool
+		offset     int64
+		whence     int
+		wantOffset int
+	}{
+		{name: "read remainder", read: 5, wantOffset: 5},
+		{name: "seek start", read: 5, seek: true, offset: 8, whence: io.SeekStart, wantOffset: 8},
+		{name: "seek current", read: 5, seek: true, offset: 1, whence: io.SeekCurrent, wantOffset: 6},
+		{name: "seek current backwards", read: 7, seek: true, offset: -2, whence: io.SeekCurrent, wantOffset: 5},
+		{name: "seek end", read: 5, seek: true, offset: -2, whence: io.SeekEnd, wantOffset: 8},
+		{name: "seek to EOF", read: 5, seek: true, whence: io.SeekEnd, wantOffset: 10},
+		{name: "reread after EOF", read: 10, seek: true, whence: io.SeekStart},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			obj, err := clnt.GetObject(t.Context(), "bucketName", "objectName", GetObjectOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer obj.Close()
+			if _, err := io.ReadFull(obj, make([]byte, tt.read)); err != nil {
+				t.Fatal(err)
+			}
+			info, err := obj.Stat()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want := int64(len(payload) - tt.read); info.Size != want {
+				t.Fatalf("Stat size: got %d, want %d", info.Size, want)
+			}
+			if tt.seek {
+				n, err := obj.Seek(tt.offset, tt.whence)
+				if err != nil || n != int64(tt.wantOffset) {
+					t.Fatalf("Seek: got (%d, %v), want (%d, nil)", n, err, tt.wantOffset)
+				}
+			}
+			data, err := io.ReadAll(obj)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want := payload[tt.wantOffset:]; !bytes.Equal(data, want) {
+				t.Fatalf("ReadAll after Stat: got %q, want %q", data, want)
+			}
+		})
+	}
+}
+
+func TestObjectReadAfterStatWithRange(t *testing.T) {
+	payload := []byte("0123456789")
+	var gets int32
+	srv := eofRangeTestServer(t, payload, len(payload), &gets)
+	defer srv.Close()
+	clnt, err := New(srv.Listener.Addr().String(), &Options{Region: "us-east-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := GetObjectOptions{}
+	if err := opts.SetRange(2, 8); err != nil {
+		t.Fatal(err)
+	}
+	obj, err := clnt.GetObject(t.Context(), "bucketName", "objectName", opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer obj.Close()
+	if _, err := io.ReadFull(obj, make([]byte, 4)); err != nil {
+		t.Fatal(err)
+	}
+	info, err := obj.Stat()
+	if err != nil || info.Size != 3 {
+		t.Fatalf("Stat: got size %d, error %v; want size 3, nil", info.Size, err)
+	}
+	data, err := io.ReadAll(obj)
+	if err != nil || string(data) != "678" {
+		t.Fatalf("ReadAll after Stat: got (%q, %v), want (%q, nil)", data, err, "678")
+	}
+}
+
 func TestGetObjectReadAtEOFReturnsEOF(t *testing.T) {
 	payload := []byte("0123456789")
 	var gets int32
@@ -490,6 +580,7 @@ func TestObjectSeekCurrentNegativeOffset(t *testing.T) {
 		objectInfoSet: true,
 		isStarted:     true,
 		currOffset:    5,
+		totalSize:     10,
 	}
 
 	n, err := o.Seek(-2, io.SeekCurrent)
