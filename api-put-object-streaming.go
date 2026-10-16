@@ -109,6 +109,16 @@ func (c *Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketN
 		return UploadInfo{}, err
 	}
 
+	// Each part is sent with its full size as Content-Length, so make sure
+	// the reader holds size bytes before starting the upload.
+	var lastByte [1]byte
+	if n, rerr := reader.ReadAt(lastByte[:], size-1); n != len(lastByte) {
+		if rerr == nil || rerr == io.EOF || rerr == io.ErrUnexpectedEOF {
+			rerr = errUnexpectedEOF(0, size, bucketName, objectName)
+		}
+		return UploadInfo{}, rerr
+	}
+
 	// Initiate a new multipart upload.
 	uploadID, err := c.newUploadID(ctx, bucketName, objectName, opts)
 	if err != nil {
