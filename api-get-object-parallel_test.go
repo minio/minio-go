@@ -167,6 +167,30 @@ func TestGetObjectParallelSmallObject(t *testing.T) {
 	}
 }
 
+func TestGetObjectParallelAfterStat(t *testing.T) {
+	s := newParallelGetServer(t, 2*minPartSize+1)
+	obj := s.getObject(t, GetObjectOptions{ParallelWorkers: 3})
+	data := make([]byte, (len(s.data)+1)/2)
+	if _, err := io.ReadFull(obj, data); err != nil {
+		t.Fatal(err)
+	}
+	info, err := obj.Stat()
+	if err != nil || info.Size != int64(len(s.data)-len(data)) {
+		t.Fatalf("Stat: got size %d, error %v; want size %d, nil", info.Size, err, len(s.data)-len(data))
+	}
+	rest, err := io.ReadAll(obj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data = append(data, rest...)
+	if !bytes.Equal(data, s.data) {
+		t.Fatalf("got %d bytes after Stat, want %d", len(data), len(s.data))
+	}
+	if n := s.rangeGets(); n != 3 {
+		t.Fatalf("expected 3 range GETs, got %d", n)
+	}
+}
+
 func TestGetObjectParallelCallerRange(t *testing.T) {
 	s := newParallelGetServer(t, 2*minPartSize+1)
 	opts := GetObjectOptions{ParallelWorkers: 4}
