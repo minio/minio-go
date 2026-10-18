@@ -596,7 +596,6 @@ func (c *Client) removeObjects(ctx context.Context, bucketName string, objectsCh
 					case InvalidArgument, NoSuchVersion:
 						continue
 					}
-					resultCh <- removeResult
 				}
 
 				resultCh <- removeResult
