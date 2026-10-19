@@ -43,11 +43,65 @@ import (
 //
 // - ServerSideEncryption
 // The server-side encryption algorithm used when storing this object in Minio
+//
+// SetMatchETag, SetMatchETagExcept, SetModified and SetUnmodified make the
+// request conditional, so the attributes describe the version the caller
+// already knows about rather than whatever is current by the time it is
+// served. A condition the object no longer meets is answered by the server:
+// 412 is returned as an ErrorResponse with the PreconditionFailed code, and
+// 304 as one carrying StatusCode 304.
 type ObjectAttributesOptions struct {
 	MaxParts             int
 	VersionID            string
 	PartNumberMarker     int
 	ServerSideEncryption encrypt.ServerSide
+
+	headers map[string]string
+}
+
+// Set adds a key value pair to the options. The key-value pair will be part of
+// the HTTP GET request headers.
+func (o *ObjectAttributesOptions) Set(key, value string) {
+	if o.headers == nil {
+		o.headers = make(map[string]string)
+	}
+	o.headers[http.CanonicalHeaderKey(key)] = value
+}
+
+// SetMatchETag - set match etag.
+func (o *ObjectAttributesOptions) SetMatchETag(etag string) error {
+	if etag == "" {
+		return errInvalidArgument("ETag cannot be empty.")
+	}
+	o.Set("If-Match", "\""+etag+"\"")
+	return nil
+}
+
+// SetMatchETagExcept - set match etag except.
+func (o *ObjectAttributesOptions) SetMatchETagExcept(etag string) error {
+	if etag == "" {
+		return errInvalidArgument("ETag cannot be empty.")
+	}
+	o.Set("If-None-Match", "\""+etag+"\"")
+	return nil
+}
+
+// SetUnmodified - set unmodified time since.
+func (o *ObjectAttributesOptions) SetUnmodified(modTime time.Time) error {
+	if modTime.IsZero() {
+		return errInvalidArgument("Unmodified since cannot be empty.")
+	}
+	o.Set("If-Unmodified-Since", modTime.UTC().Format(http.TimeFormat))
+	return nil
+}
+
+// SetModified - set modified time since.
+func (o *ObjectAttributesOptions) SetModified(modTime time.Time) error {
+	if modTime.IsZero() {
+		return errInvalidArgument("Modified since cannot be empty.")
+	}
+	o.Set("If-Modified-Since", modTime.UTC().Format(http.TimeFormat))
+	return nil
 }
 
 // ObjectAttributes is the response object returned by the GetObjectAttributes API
@@ -234,6 +288,11 @@ func (c *Client) GetObjectAttributes(ctx context.Context, bucketName, objectName
 	}
 
 	headers := make(http.Header)
+	// Caller supplied headers first, so the ones this call depends on below
+	// cannot be displaced by them.
+	for k, v := range opts.headers {
+		headers.Set(k, v)
+	}
 	headers.Set(amzObjectAttributes, GetObjectAttributesTags)
 
 	if opts.PartNumberMarker > 0 {
