@@ -643,3 +643,58 @@ func TestRDMAGetObjectStatReportsTransferredSize(t *testing.T) {
 		}
 	}
 }
+
+// TestGetObjectReadAtNegativeOffset verifies that invalid offsets are rejected
+// without a GET request, regardless of whether object metadata is cached.
+func TestGetObjectReadAtNegativeOffset(t *testing.T) {
+	for _, state := range []string{"fresh", "after ReadAt", "after Stat", "after Read"} {
+		t.Run(state, func(t *testing.T) {
+			payload := []byte("0123456789")
+			var gets int32
+			srv := eofRangeTestServer(t, payload, len(payload), &gets)
+			defer srv.Close()
+			clnt, err := New(srv.Listener.Addr().String(), &Options{Region: "us-east-1"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			obj, err := clnt.GetObject(t.Context(), "bucketName", "objectName", GetObjectOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer obj.Close()
+			wantRemaining := payload
+			switch state {
+			case "after ReadAt":
+				_, err = obj.ReadAt(make([]byte, 2), 3)
+			case "after Stat":
+				_, err = obj.Stat()
+			case "after Read":
+				_, err = io.ReadFull(obj, make([]byte, 2))
+				wantRemaining = payload[2:]
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			before := atomic.LoadInt32(&gets)
+			buf := []byte{0xff}
+			n, err := obj.ReadAt(buf, -1)
+			if n != 0 || err != io.EOF {
+				t.Errorf("ReadAt(-1) = (%d, %v), want (0, EOF)", n, err)
+			}
+			if got := atomic.LoadInt32(&gets); got != before {
+				t.Errorf("negative offset issued %d GET requests, want 0", got-before)
+			}
+			if buf[0] != 0xff {
+				t.Errorf("negative offset modified buffer: %q", buf)
+			}
+			n, err = obj.ReadAt(buf, 4)
+			if n != 1 || err != nil || buf[0] != payload[4] {
+				t.Fatalf("valid ReadAt after negative offset = (%d, %v, %q), want (1, nil, %q)", n, err, buf, payload[4:5])
+			}
+			remaining, err := io.ReadAll(obj)
+			if err != nil || !bytes.Equal(remaining, wantRemaining) {
+				t.Fatalf("sequential read = (%q, %v), want (%q, nil)", remaining, err, wantRemaining)
+			}
+		})
+	}
+}
