@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -349,7 +350,7 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 			partSize = lastPartSize
 		}
 
-		length, rerr := readFull(reader, buf)
+		length, rerr := readFull(reader, buf[:partSize])
 		if rerr == io.EOF && partNumber > 1 {
 			break
 		}
@@ -362,6 +363,14 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 		// otherwise the part is sent with a body shorter than its Content-Length.
 		if size > 0 && int64(length) < partSize {
 			return UploadInfo{}, errUnexpectedEOF(totalUploadedSize+int64(length), size, bucketName, objectName)
+		}
+
+		// The reader holds more than the declared size. Fail here, before the
+		// last part is sent.
+		if size > 0 && partNumber == totalPartsCount {
+			if err = errIfLonger(reader, size, bucketName, objectName); err != nil {
+				return UploadInfo{}, err
+			}
 		}
 
 		// Calculate md5sum.
@@ -450,7 +459,9 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 
 // putObjectMultipartStreamParallel uploads opts.NumThreads parts in parallel.
 // This is expected to take opts.PartSize * opts.NumThreads * (GOGC / 100) bytes of buffer.
-// A negative size means the length of reader is unknown.
+// A negative size means the length of reader is unknown. With a known size, a
+// reader that holds fewer or more bytes fails with errUnexpectedEOF before the
+// part that would be wrong is sent.
 func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketName, objectName string,
 	reader io.Reader, size int64, opts PutObjectOptions,
 ) (info UploadInfo, err error) {
@@ -532,7 +543,13 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 			return UploadInfo{}, fmt.Errorf("read buffer < %d than expected partSize: %d", len(buf), partSize)
 		}
 
-		length, rerr := readFull(reader, buf)
+		// With a known size, read no more than what is left of it.
+		want := partSize
+		if size >= 0 {
+			want = min(partSize, size-totalUploadedSize)
+		}
+
+		length, rerr := readFull(reader, buf[:want])
 		lastErr = rerr
 		if rerr == io.EOF && partNumber > 1 && (size < 0 || totalUploadedSize >= size) {
 			// Done
@@ -547,10 +564,20 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 
 		// The reader ended before this part's expected size. Fail here,
 		// before the short part is sent.
-		if size >= 0 && int64(length) < min(partSize, size-totalUploadedSize) {
+		if size >= 0 && int64(length) < want {
 			cancel()
 			wg.Wait()
 			return UploadInfo{}, errUnexpectedEOF(totalUploadedSize+int64(length), size, bucketName, objectName)
+		}
+
+		// The reader holds more than the declared size. Fail here, before the
+		// last part is sent.
+		if size >= 0 && partNumber == totalPartsCount {
+			if err = errIfLonger(reader, size, bucketName, objectName); err != nil {
+				cancel()
+				wg.Wait()
+				return UploadInfo{}, err
+			}
 		}
 
 		wg.Add(1)
@@ -620,9 +647,10 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 	default:
 	}
 
-	// A nil read error on the last allowed part means the reader was never
-	// drained; completing here would store a truncated object.
-	if lastErr == nil {
+	// With an unknown size, a nil read error on the last allowed part means
+	// the reader was never drained; completing here would store a truncated
+	// object.
+	if size < 0 && lastErr == nil {
 		if err = errIfMoreData(reader, totalUploadedSize, int64(totalPartsCount), bucketName, objectName); err != nil {
 			return UploadInfo{}, err
 		}
@@ -730,6 +758,12 @@ func (c *Client) putObject(ctx context.Context, bucketName, objectName string, r
 				return UploadInfo{}, err
 			}
 
+			if size > 0 {
+				if err := errIfLonger(reader, size, bucketName, objectName); err != nil {
+					return UploadInfo{}, err
+				}
+			}
+
 			hash.Write(buf[:length])
 			reader = bytes.NewReader(buf[:length])
 		}
@@ -738,13 +772,27 @@ func (c *Client) putObject(ctx context.Context, bucketName, objectName string, r
 		hash.Close()
 	}
 
+	// A reader that cannot be rewound is sent as is. Make it report data past
+	// the declared size, instead of net/http's content length mismatch.
+	if _, ok := reader.(io.Seeker); !ok && size > 0 {
+		reader = &sizeLimitReader{reader: reader, size: size, left: size, bucketName: bucketName, objectName: objectName}
+	}
+
 	// Update progress reader appropriately to the latest offset as we
 	// read from the source.
 	progressReader := newHook(reader, opts.Progress)
 
 	// This function does not calculate sha256 and md5sum for payload.
 	// Execute put object.
-	return c.putObjectDo(ctx, bucketName, objectName, progressReader, md5Base64, "", size, opts)
+	info, err = c.putObjectDo(ctx, bucketName, objectName, progressReader, md5Base64, "", size, opts)
+
+	// net/http wraps the error from reading the request body. Hand back the
+	// original one.
+	var errResp ErrorResponse
+	if errors.As(err, &errResp) && errResp.Code == UnexpectedEOF {
+		err = errResp
+	}
+	return info, err
 }
 
 // putObjectDo - executes the put object http operation.
