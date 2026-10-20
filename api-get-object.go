@@ -591,6 +591,11 @@ func (o *Object) ReadAt(b []byte, offset int64) (n int, err error) {
 		return 0, o.prevErr
 	}
 
+	// Reject negative offsets even when object metadata has not been fetched.
+	if offset < 0 {
+		return 0, io.EOF
+	}
+
 	// Save and restore currOffset so ReadAt doesn't affect sequential Read operations.
 	// Per io.ReaderAt: "ReadAt should not affect nor be affected by the underlying seek offset."
 	savedOffset := o.currOffset
@@ -603,9 +608,8 @@ func (o *Object) ReadAt(b []byte, offset int64) (n int, err error) {
 
 	// Can only compare offsets to size when size has been set.
 	if o.objectInfoSet {
-		// If offset is negative than we return io.EOF.
 		// If offset is greater than or equal to object size we return io.EOF.
-		if (o.totalSize > -1 && offset >= o.totalSize) || offset < 0 {
+		if o.totalSize > -1 && offset >= o.totalSize {
 			return 0, io.EOF
 		}
 	}
