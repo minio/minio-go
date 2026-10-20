@@ -256,6 +256,7 @@ func TestPutObjectMultipartStreamShortRead(t *testing.T) {
 		{"exact", size, true, 3},
 		{"short in middle part", 7 << 20, false, 1},
 		{"short in last part", 11 << 20, false, 2},
+		{"one byte short", size - 1, false, 2},
 		{"ends on part boundary", 10 << 20, false, 2},
 		{"empty reader", 0, false, 0},
 	} {
