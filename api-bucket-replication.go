@@ -99,7 +99,9 @@ func (c *Client) putBucketReplication(ctx context.Context, bucketName string, cf
 	return nil
 }
 
-// Remove replication from a bucket.
+// removeBucketReplication deletes the bucket replication configuration.
+// It accepts both HTTP 200 OK and the HTTP 204 No Content response specified
+// by S3, and returns an error for other responses.
 func (c *Client) removeBucketReplication(ctx context.Context, bucketName string) error {
 	// Get resources properly escaped and lined up before
 	// using them in http request.
@@ -116,7 +118,7 @@ func (c *Client) removeBucketReplication(ctx context.Context, bucketName string)
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return httpRespToErrorResponse(resp, bucketName, "")
 	}
 	return nil
