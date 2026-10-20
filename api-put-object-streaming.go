@@ -467,8 +467,13 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// Calculate the optimal parts info for a given size.
-	totalPartsCount, partSize, _, err := c.optimalPartInfo(-1, opts.PartSize)
+	// Calculate the optimal parts info for a given size. optimalPartInfo only
+	// treats exactly -1 as an unknown size.
+	layoutSize := size
+	if layoutSize < 0 {
+		layoutSize = -1
+	}
+	totalPartsCount, partSize, _, err := c.optimalPartInfo(layoutSize, opts.PartSize)
 	if err != nil {
 		return UploadInfo{}, err
 	}

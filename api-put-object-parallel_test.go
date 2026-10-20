@@ -126,3 +126,44 @@ func TestPutObjectMultipartStreamParallelShortRead(t *testing.T) {
 		})
 	}
 }
+
+// A reader that ends exactly where the upload limits stop the part layout is
+// one byte short of a declared size the layout cannot hold. Every part is
+// full, so only a layout computed from the declared size catches it.
+func TestPutObjectMultipartStreamParallelSizeBeyondLayout(t *testing.T) {
+	const partSize = 5 << 20
+
+	var requests, completes atomic.Int32
+	clnt := newTestStatClient(t, func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		switch {
+		case r.URL.Query().Has("uploads"):
+			w.Write([]byte(`<InitiateMultipartUploadResult><UploadId>id</UploadId></InitiateMultipartUploadResult>`))
+		case r.Method == http.MethodPut:
+			io.Copy(io.Discard, r.Body)
+			w.Header().Set("ETag", `"etag"`)
+		case r.Method == http.MethodPost:
+			completes.Add(1)
+			w.Write([]byte(`<CompleteMultipartUploadResult><Bucket>bucket</Bucket></CompleteMultipartUploadResult>`))
+		default:
+			w.WriteHeader(http.StatusNoContent)
+		}
+	})
+	clnt.limits = UploadLimits{MaxPartsCount: 3}
+
+	r := bytes.NewReader(make([]byte, 3*partSize))
+	_, err := clnt.PutObject(t.Context(), "bucket", "object", r, 3*partSize+1, PutObjectOptions{
+		PartSize:              partSize,
+		ConcurrentStreamParts: true,
+		NumThreads:            3,
+	})
+	if code := ToErrorResponse(err).Code; code != InvalidArgument {
+		t.Errorf("error code = %q, want %q (err: %v)", code, InvalidArgument, err)
+	}
+	if n := completes.Load(); n != 0 {
+		t.Errorf("complete requests = %d, want 0", n)
+	}
+	if n := requests.Load(); n != 0 {
+		t.Errorf("requests = %d, want 0: the layout must be rejected before the upload starts", n)
+	}
+}
