@@ -17,10 +17,13 @@
 package minio
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
+	"io"
 	"net/http"
 	"reflect"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -223,5 +226,57 @@ func TestCompleteUploadOpts(t *testing.T) {
 	}
 	if v := header.Get(amzStorageClass); v != "" {
 		t.Errorf("%s header = %q, want it absent", amzStorageClass, v)
+	}
+}
+
+func TestPutObjectMultipartStreamShortRead(t *testing.T) {
+	var puts atomic.Int32
+	clnt := newTestStatClient(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Query().Has("uploads"):
+			w.Write([]byte(`<InitiateMultipartUploadResult><UploadId>id</UploadId></InitiateMultipartUploadResult>`))
+		case r.Method == http.MethodPut:
+			puts.Add(1)
+			io.Copy(io.Discard, r.Body)
+			w.Header().Set("ETag", `"etag"`)
+		case r.Method == http.MethodPost:
+			w.Write([]byte(`<CompleteMultipartUploadResult><Bucket>bucket</Bucket></CompleteMultipartUploadResult>`))
+		default:
+			w.WriteHeader(http.StatusNoContent)
+		}
+	})
+
+	const size = 12 << 20 // 5, 5 and 2 MiB parts
+	for _, tc := range []struct {
+		name  string
+		avail int
+		ok    bool
+		puts  int32 // full parts sent
+	}{
+		{"exact", size, true, 3},
+		{"short in middle part", 7 << 20, false, 1},
+		{"short in last part", 11 << 20, false, 2},
+		{"one byte short", size - 1, false, 2},
+		{"ends on part boundary", 10 << 20, false, 2},
+		{"empty reader", 0, false, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Hide ReadAt so PutObject streams the parts sequentially.
+			r := struct{ io.Reader }{bytes.NewReader(make([]byte, tc.avail))}
+			puts.Store(0)
+			_, err := clnt.PutObject(t.Context(), "bucket", "object", r, size, PutObjectOptions{PartSize: 5 << 20})
+			if n := puts.Load(); n != tc.puts {
+				t.Fatalf("PUT requests = %d, want %d", n, tc.puts)
+			}
+			if tc.ok {
+				if err != nil {
+					t.Fatal(err)
+				}
+				return
+			}
+			if code := ToErrorResponse(err).Code; code != UnexpectedEOF {
+				t.Fatalf("error code = %q, want %q (err: %v)", code, UnexpectedEOF, err)
+			}
+		})
 	}
 }
