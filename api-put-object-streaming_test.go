@@ -19,6 +19,7 @@ package minio
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net/http"
 	"sync/atomic"
@@ -76,6 +77,53 @@ func TestPutObjectMultipartStreamFromReadAtShortRead(t *testing.T) {
 			}
 			if code := ToErrorResponse(err).Code; code != UnexpectedEOF {
 				t.Fatalf("error code = %q, want %q (err: %v)", code, UnexpectedEOF, err)
+			}
+			if n := requests.Load(); n != 0 {
+				t.Fatalf("%d requests sent, want 0", n)
+			}
+		})
+	}
+}
+
+// fixedReaderAt returns the same result for every ReadAt call.
+type fixedReaderAt struct {
+	io.Reader
+	n   int
+	err error
+}
+
+func (r fixedReaderAt) ReadAt([]byte, int64) (int, error) { return r.n, r.err }
+
+func TestPutObjectMultipartStreamFromReadAtProbeResult(t *testing.T) {
+	var requests atomic.Int32
+	clnt := newTestStatClient(t, func(http.ResponseWriter, *http.Request) {
+		requests.Add(1)
+	})
+
+	errRead := errors.New("read failed")
+	for _, tc := range []struct {
+		name string
+		err  error // returned by ReadAt together with no data
+		want string
+	}{
+		{"no error", nil, UnexpectedEOF},
+		{"io.EOF", io.EOF, UnexpectedEOF},
+		{"io.ErrUnexpectedEOF", io.ErrUnexpectedEOF, UnexpectedEOF},
+		{"other error", errRead, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			requests.Store(0)
+			r := fixedReaderAt{err: tc.err}
+			_, err := clnt.PutObject(t.Context(), "bucket", "object", r, 12<<20, PutObjectOptions{PartSize: 5 << 20})
+			if err == nil {
+				t.Fatal("PutObject succeeded, want an error")
+			}
+			if tc.want == "" {
+				if err != errRead {
+					t.Fatalf("error = %v, want %v", err, errRead)
+				}
+			} else if code := ToErrorResponse(err).Code; code != tc.want {
+				t.Fatalf("error code = %q, want %q (err: %v)", code, tc.want, err)
 			}
 			if n := requests.Load(); n != 0 {
 				t.Fatalf("%d requests sent, want 0", n)
