@@ -30,7 +30,69 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
+
+func TestGetObjectReadAtEOFPreservesRead(t *testing.T) {
+	for _, workers := range []int{1, 3} {
+		for _, prefix := range []int{0, 2} {
+			for _, readAtSize := range []int{2, 4} {
+				t.Run(fmt.Sprintf("workers=%d/prefix=%d/readAtSize=%d", workers, prefix, readAtSize), func(t *testing.T) {
+					size := 32
+					if workers > 1 {
+						size = 2*minPartSize + 8
+					}
+					payload := bytes.Repeat([]byte("0123456789abcdef"), (size+15)/16)[:size]
+					srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						w.Header().Set("ETag", `"readat-object"`)
+						w.Header().Set("Last-Modified", "Wed, 21 Oct 2015 07:28:00 GMT")
+						http.ServeContent(w, r, "object", time.Time{}, bytes.NewReader(payload))
+					}))
+					t.Cleanup(srv.Close)
+					clnt, err := New(strings.TrimPrefix(srv.URL, "http://"), &Options{Region: "us-east-1"})
+					if err != nil {
+						t.Fatal(err)
+					}
+					obj, err := clnt.GetObject(context.Background(), "bucket", "object", GetObjectOptions{ParallelWorkers: workers})
+					if err != nil {
+						t.Fatal(err)
+					}
+					t.Cleanup(func() { obj.Close() })
+					if prefix == 0 {
+						if _, err := obj.Stat(); err != nil {
+							t.Fatal(err)
+						}
+					} else if _, err := io.ReadFull(obj, make([]byte, prefix)); err != nil {
+						t.Fatal(err)
+					}
+					n, err := obj.ReadAt(make([]byte, readAtSize), int64(size-2))
+					if n != 2 || err != io.EOF {
+						t.Fatalf("ReadAt returned (%d, %v), want (2, EOF)", n, err)
+					}
+					buf := make([]byte, 4)
+					n, err = obj.Read(buf)
+					if n != len(buf) || err != nil || !bytes.Equal(buf, payload[prefix:prefix+len(buf)]) {
+						t.Fatalf("Read after ReadAt returned (%d, %v, %q), want (%d, nil, %q)", n, err, buf, len(buf), payload[prefix:prefix+len(buf)])
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestGetObjectReadAtPreservesExistingReadEOF(t *testing.T) {
+	s := newParallelGetServer(t, 32)
+	obj := s.getObject(t, GetObjectOptions{})
+	if _, err := io.ReadAll(obj); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := obj.ReadAt(make([]byte, 2), 0); n != 2 || err != nil {
+		t.Fatalf("ReadAt returned (%d, %v), want (2, nil)", n, err)
+	}
+	if n, err := obj.Read(make([]byte, 2)); n != 0 || err != io.EOF {
+		t.Fatalf("Read returned (%d, %v), want (0, EOF)", n, err)
+	}
+}
 
 func TestGetObjectReturnSuccess(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

@@ -358,6 +358,12 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 			return UploadInfo{}, rerr
 		}
 
+		// The reader ended before this part's expected size. Fail here:
+		// otherwise the part is sent with a body shorter than its Content-Length.
+		if size > 0 && int64(length) < partSize {
+			return UploadInfo{}, errUnexpectedEOF(totalUploadedSize+int64(length), size, bucketName, objectName)
+		}
+
 		// Calculate md5sum.
 		if opts.SendContentMd5 {
 			md5Hash.Reset()

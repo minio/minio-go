@@ -652,7 +652,6 @@ func (o *Object) ReadAt(b []byte, offset int64) (n int, err error) {
 		// for EOF.
 		oerr := o.setOffset(bytesRead)
 		if oerr != nil {
-			o.prevErr = oerr
 			return response.Size, oerr
 		}
 	}
