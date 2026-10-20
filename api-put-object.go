@@ -402,7 +402,7 @@ func (c *Client) PutObject(ctx context.Context, bucketName, objectName string, r
 			return UploadInfo{}, errors.New("no length provided and multipart disabled")
 		}
 		if opts.ConcurrentStreamParts && opts.NumThreads > 1 {
-			return c.putObjectMultipartStreamParallel(ctx, bucketName, objectName, reader, opts)
+			return c.putObjectMultipartStreamParallel(ctx, bucketName, objectName, reader, size, opts)
 		}
 		return c.putObjectMultipartStreamNoLength(ctx, bucketName, objectName, reader, opts)
 	}
