@@ -51,11 +51,14 @@ func encodeSelectMessage(headers map[string]string, payload []byte) []byte {
 
 // exclusiveBody fails the test if Read or Close runs while another Read or
 // Close is in progress. Decompressing bodies (for example the zstd reader in
-// gzhttp) are not safe for concurrent use and panic when this happens.
+// gzhttp) are not safe for concurrent use and panic when this happens. It
+// also counts Close calls and exposes the unread remainder, so a test can
+// check that the body was drained and closed exactly once.
 type exclusiveBody struct {
-	r          io.Reader
+	r          *bytes.Reader
 	inUse      atomic.Int32
 	concurrent atomic.Bool
+	closes     atomic.Int32
 }
 
 func (b *exclusiveBody) enter() {
@@ -76,6 +79,7 @@ func (b *exclusiveBody) Read(p []byte) (int, error) {
 func (b *exclusiveBody) Close() error {
 	b.enter()
 	defer b.exit()
+	b.closes.Add(1)
 	return nil
 }
 
@@ -113,6 +117,14 @@ func TestSelectResultsCloseDoesNotReadConcurrently(t *testing.T) {
 
 		if body.concurrent.Load() {
 			t.Fatalf("run %d: response body was read or closed concurrently", i)
+		}
+		// Close must leave the body drained and closed, as closeResponse
+		// does, so the connection can be reused.
+		if n := body.closes.Load(); n != 1 {
+			t.Fatalf("run %d: response body closed %d times, want 1", i, n)
+		}
+		if n := body.r.Len(); n != 0 {
+			t.Fatalf("run %d: %d bytes of the response body were left unread", i, n)
 		}
 	}
 }
