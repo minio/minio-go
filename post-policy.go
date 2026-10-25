@@ -18,7 +18,9 @@
 package minio
 
 import (
+	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -421,7 +423,7 @@ func (p PostPolicy) marshalJSON() []byte {
 	var conditionsStr string
 	conditions := []string{}
 	for _, po := range p.conditions {
-		conditions = append(conditions, fmt.Sprintf("[\"%s\",\"%s\",\"%s\"]", po.matchType, po.condition, po.value))
+		conditions = append(conditions, fmt.Sprintf("[%s,%s,%s]", jsonQuote(po.matchType), jsonQuote(po.condition), jsonQuote(po.value)))
 	}
 	if p.contentLengthRange.min != 0 || p.contentLengthRange.max != 0 {
 		conditions = append(conditions, fmt.Sprintf("[\"content-length-range\", %d, %d]",
@@ -435,6 +437,16 @@ func (p PostPolicy) marshalJSON() []byte {
 	retStr += conditionsStr
 	retStr += "}"
 	return []byte(retStr)
+}
+
+// jsonQuote - returns s as a JSON string literal, escaping quotes,
+// backslashes and control characters but not HTML characters.
+func jsonQuote(s string) string {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(s) // encoding a string cannot fail
+	return strings.TrimSuffix(buf.String(), "\n")
 }
 
 // base64 - Produces base64 of PostPolicy's Marshaled json.
