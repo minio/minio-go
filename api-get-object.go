@@ -449,7 +449,8 @@ func (o *Object) Read(b []byte) (n int, err error) {
 	// If the current offset is at or beyond the known object size, there is
 	// nothing more to read. Return io.EOF directly instead of issuing a range
 	// request from EOF (which the server rejects as an unsatisfiable range).
-	if o.objectInfoSet && o.objectInfo.Size > -1 && o.currOffset >= o.objectInfo.Size {
+	// Stat updates objectInfo.Size to the remaining size, so use totalSize.
+	if o.objectInfoSet && o.totalSize > -1 && o.currOffset >= o.totalSize {
 		o.prevErr = io.EOF
 		return 0, io.EOF
 	}
@@ -591,6 +592,11 @@ func (o *Object) ReadAt(b []byte, offset int64) (n int, err error) {
 		return 0, o.prevErr
 	}
 
+	// Reject negative offsets even when object metadata has not been fetched.
+	if offset < 0 {
+		return 0, io.EOF
+	}
+
 	// Save and restore currOffset so ReadAt doesn't affect sequential Read operations.
 	// Per io.ReaderAt: "ReadAt should not affect nor be affected by the underlying seek offset."
 	savedOffset := o.currOffset
@@ -603,9 +609,8 @@ func (o *Object) ReadAt(b []byte, offset int64) (n int, err error) {
 
 	// Can only compare offsets to size when size has been set.
 	if o.objectInfoSet {
-		// If offset is negative than we return io.EOF.
 		// If offset is greater than or equal to object size we return io.EOF.
-		if (o.totalSize > -1 && offset >= o.totalSize) || offset < 0 {
+		if o.totalSize > -1 && offset >= o.totalSize {
 			return 0, io.EOF
 		}
 	}
@@ -651,7 +656,6 @@ func (o *Object) ReadAt(b []byte, offset int64) (n int, err error) {
 		// for EOF.
 		oerr := o.setOffset(bytesRead)
 		if oerr != nil {
-			o.prevErr = oerr
 			return response.Size, oerr
 		}
 	}
@@ -732,7 +736,7 @@ func (o *Object) Seek(offset int64, whence int) (n int64, err error) {
 	// Seeking past the end of the object is rejected with io.EOF, preserving
 	// long-standing behavior. Seeking to exactly the end is legal and the
 	// subsequent Read reports io.EOF.
-	if o.objectInfo.Size > -1 && newOffset > o.objectInfo.Size {
+	if o.totalSize > -1 && newOffset > o.totalSize {
 		return 0, io.EOF
 	}
 	// Reset the saved error since we successfully seeked, let the Read

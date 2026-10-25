@@ -30,7 +30,69 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
+
+func TestGetObjectReadAtEOFPreservesRead(t *testing.T) {
+	for _, workers := range []int{1, 3} {
+		for _, prefix := range []int{0, 2} {
+			for _, readAtSize := range []int{2, 4} {
+				t.Run(fmt.Sprintf("workers=%d/prefix=%d/readAtSize=%d", workers, prefix, readAtSize), func(t *testing.T) {
+					size := 32
+					if workers > 1 {
+						size = 2*minPartSize + 8
+					}
+					payload := bytes.Repeat([]byte("0123456789abcdef"), (size+15)/16)[:size]
+					srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						w.Header().Set("ETag", `"readat-object"`)
+						w.Header().Set("Last-Modified", "Wed, 21 Oct 2015 07:28:00 GMT")
+						http.ServeContent(w, r, "object", time.Time{}, bytes.NewReader(payload))
+					}))
+					t.Cleanup(srv.Close)
+					clnt, err := New(strings.TrimPrefix(srv.URL, "http://"), &Options{Region: "us-east-1"})
+					if err != nil {
+						t.Fatal(err)
+					}
+					obj, err := clnt.GetObject(context.Background(), "bucket", "object", GetObjectOptions{ParallelWorkers: workers})
+					if err != nil {
+						t.Fatal(err)
+					}
+					t.Cleanup(func() { obj.Close() })
+					if prefix == 0 {
+						if _, err := obj.Stat(); err != nil {
+							t.Fatal(err)
+						}
+					} else if _, err := io.ReadFull(obj, make([]byte, prefix)); err != nil {
+						t.Fatal(err)
+					}
+					n, err := obj.ReadAt(make([]byte, readAtSize), int64(size-2))
+					if n != 2 || err != io.EOF {
+						t.Fatalf("ReadAt returned (%d, %v), want (2, EOF)", n, err)
+					}
+					buf := make([]byte, 4)
+					n, err = obj.Read(buf)
+					if n != len(buf) || err != nil || !bytes.Equal(buf, payload[prefix:prefix+len(buf)]) {
+						t.Fatalf("Read after ReadAt returned (%d, %v, %q), want (%d, nil, %q)", n, err, buf, len(buf), payload[prefix:prefix+len(buf)])
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestGetObjectReadAtPreservesExistingReadEOF(t *testing.T) {
+	s := newParallelGetServer(t, 32)
+	obj := s.getObject(t, GetObjectOptions{})
+	if _, err := io.ReadAll(obj); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := obj.ReadAt(make([]byte, 2), 0); n != 2 || err != nil {
+		t.Fatalf("ReadAt returned (%d, %v), want (2, nil)", n, err)
+	}
+	if n, err := obj.Read(make([]byte, 2)); n != 0 || err != io.EOF {
+		t.Fatalf("Read returned (%d, %v), want (0, EOF)", n, err)
+	}
+}
 
 func TestGetObjectReturnSuccess(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -200,6 +262,96 @@ func eofRangeTestServer(t *testing.T, payload []byte, headSize int, getCount *in
 		w.WriteHeader(http.StatusPartialContent)
 		w.Write(payload[start : end+1])
 	}))
+}
+
+func TestObjectReadAndSeekAfterStat(t *testing.T) {
+	payload := []byte("0123456789")
+	var gets int32
+	srv := eofRangeTestServer(t, payload, len(payload), &gets)
+	defer srv.Close()
+	clnt, err := New(srv.Listener.Addr().String(), &Options{Region: "us-east-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tt := range []struct {
+		name       string
+		read       int
+		seek       bool
+		offset     int64
+		whence     int
+		wantOffset int
+	}{
+		{name: "read remainder", read: 5, wantOffset: 5},
+		{name: "seek start", read: 5, seek: true, offset: 8, whence: io.SeekStart, wantOffset: 8},
+		{name: "seek current", read: 5, seek: true, offset: 1, whence: io.SeekCurrent, wantOffset: 6},
+		{name: "seek current backwards", read: 7, seek: true, offset: -2, whence: io.SeekCurrent, wantOffset: 5},
+		{name: "seek end", read: 5, seek: true, offset: -2, whence: io.SeekEnd, wantOffset: 8},
+		{name: "seek to EOF", read: 5, seek: true, whence: io.SeekEnd, wantOffset: 10},
+		{name: "reread after EOF", read: 10, seek: true, whence: io.SeekStart},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			obj, err := clnt.GetObject(t.Context(), "bucketName", "objectName", GetObjectOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer obj.Close()
+			if _, err := io.ReadFull(obj, make([]byte, tt.read)); err != nil {
+				t.Fatal(err)
+			}
+			info, err := obj.Stat()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want := int64(len(payload) - tt.read); info.Size != want {
+				t.Fatalf("Stat size: got %d, want %d", info.Size, want)
+			}
+			if tt.seek {
+				n, err := obj.Seek(tt.offset, tt.whence)
+				if err != nil || n != int64(tt.wantOffset) {
+					t.Fatalf("Seek: got (%d, %v), want (%d, nil)", n, err, tt.wantOffset)
+				}
+			}
+			data, err := io.ReadAll(obj)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want := payload[tt.wantOffset:]; !bytes.Equal(data, want) {
+				t.Fatalf("ReadAll after Stat: got %q, want %q", data, want)
+			}
+		})
+	}
+}
+
+func TestObjectReadAfterStatWithRange(t *testing.T) {
+	payload := []byte("0123456789")
+	var gets int32
+	srv := eofRangeTestServer(t, payload, len(payload), &gets)
+	defer srv.Close()
+	clnt, err := New(srv.Listener.Addr().String(), &Options{Region: "us-east-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := GetObjectOptions{}
+	if err := opts.SetRange(2, 8); err != nil {
+		t.Fatal(err)
+	}
+	obj, err := clnt.GetObject(t.Context(), "bucketName", "objectName", opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer obj.Close()
+	if _, err := io.ReadFull(obj, make([]byte, 4)); err != nil {
+		t.Fatal(err)
+	}
+	info, err := obj.Stat()
+	if err != nil || info.Size != 3 {
+		t.Fatalf("Stat: got size %d, error %v; want size 3, nil", info.Size, err)
+	}
+	data, err := io.ReadAll(obj)
+	if err != nil || string(data) != "678" {
+		t.Fatalf("ReadAll after Stat: got (%q, %v), want (%q, nil)", data, err, "678")
+	}
 }
 
 func TestGetObjectReadAtEOFReturnsEOF(t *testing.T) {
@@ -490,6 +642,7 @@ func TestObjectSeekCurrentNegativeOffset(t *testing.T) {
 		objectInfoSet: true,
 		isStarted:     true,
 		currOffset:    5,
+		totalSize:     10,
 	}
 
 	n, err := o.Seek(-2, io.SeekCurrent)
@@ -641,5 +794,60 @@ func TestRDMAGetObjectStatReportsTransferredSize(t *testing.T) {
 		if info.Key != "obj" {
 			t.Fatalf("expected key %q, got %q", "obj", info.Key)
 		}
+	}
+}
+
+// TestGetObjectReadAtNegativeOffset verifies that invalid offsets are rejected
+// without a GET request, regardless of whether object metadata is cached.
+func TestGetObjectReadAtNegativeOffset(t *testing.T) {
+	for _, state := range []string{"fresh", "after ReadAt", "after Stat", "after Read"} {
+		t.Run(state, func(t *testing.T) {
+			payload := []byte("0123456789")
+			var gets int32
+			srv := eofRangeTestServer(t, payload, len(payload), &gets)
+			defer srv.Close()
+			clnt, err := New(srv.Listener.Addr().String(), &Options{Region: "us-east-1"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			obj, err := clnt.GetObject(t.Context(), "bucketName", "objectName", GetObjectOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer obj.Close()
+			wantRemaining := payload
+			switch state {
+			case "after ReadAt":
+				_, err = obj.ReadAt(make([]byte, 2), 3)
+			case "after Stat":
+				_, err = obj.Stat()
+			case "after Read":
+				_, err = io.ReadFull(obj, make([]byte, 2))
+				wantRemaining = payload[2:]
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			before := atomic.LoadInt32(&gets)
+			buf := []byte{0xff}
+			n, err := obj.ReadAt(buf, -1)
+			if n != 0 || err != io.EOF {
+				t.Errorf("ReadAt(-1) = (%d, %v), want (0, EOF)", n, err)
+			}
+			if got := atomic.LoadInt32(&gets); got != before {
+				t.Errorf("negative offset issued %d GET requests, want 0", got-before)
+			}
+			if buf[0] != 0xff {
+				t.Errorf("negative offset modified buffer: %q", buf)
+			}
+			n, err = obj.ReadAt(buf, 4)
+			if n != 1 || err != nil || buf[0] != payload[4] {
+				t.Fatalf("valid ReadAt after negative offset = (%d, %v, %q), want (1, nil, %q)", n, err, buf, payload[4:5])
+			}
+			remaining, err := io.ReadAll(obj)
+			if err != nil || !bytes.Equal(remaining, wantRemaining) {
+				t.Fatalf("sequential read = (%q, %v), want (%q, nil)", remaining, err, wantRemaining)
+			}
+		})
 	}
 }

@@ -45,7 +45,7 @@ func (c *Client) putObjectMultipartStream(ctx context.Context, bucketName, objec
 	reader io.Reader, size int64, opts PutObjectOptions,
 ) (info UploadInfo, err error) {
 	if opts.ConcurrentStreamParts && opts.NumThreads > 1 {
-		info, err = c.putObjectMultipartStreamParallel(ctx, bucketName, objectName, reader, opts)
+		info, err = c.putObjectMultipartStreamParallel(ctx, bucketName, objectName, reader, size, opts)
 	} else if !isObject(reader) && isReadAt(reader) && !opts.SendContentMd5 {
 		// Verify if the reader implements ReadAt and it is not a *minio.Object then we will use parallel uploader.
 		info, err = c.putObjectMultipartStreamFromReadAt(ctx, bucketName, objectName, reader.(io.ReaderAt), size, opts)
@@ -358,6 +358,12 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 			return UploadInfo{}, rerr
 		}
 
+		// The reader ended before this part's expected size. Fail here:
+		// otherwise the part is sent with a body shorter than its Content-Length.
+		if size > 0 && int64(length) < partSize {
+			return UploadInfo{}, errUnexpectedEOF(totalUploadedSize+int64(length), size, bucketName, objectName)
+		}
+
 		// Calculate md5sum.
 		if opts.SendContentMd5 {
 			md5Hash.Reset()
@@ -444,8 +450,9 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 
 // putObjectMultipartStreamParallel uploads opts.NumThreads parts in parallel.
 // This is expected to take opts.PartSize * opts.NumThreads * (GOGC / 100) bytes of buffer.
+// A negative size means the length of reader is unknown.
 func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketName, objectName string,
-	reader io.Reader, opts PutObjectOptions,
+	reader io.Reader, size int64, opts PutObjectOptions,
 ) (info UploadInfo, err error) {
 	// Input validation.
 	if err = s3utils.CheckValidBucketName(bucketName); err != nil {
@@ -460,8 +467,13 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// Calculate the optimal parts info for a given size.
-	totalPartsCount, partSize, _, err := c.optimalPartInfo(-1, opts.PartSize)
+	// Calculate the optimal parts info for a given size. optimalPartInfo only
+	// treats exactly -1 as an unknown size.
+	layoutSize := size
+	if layoutSize < 0 {
+		layoutSize = -1
+	}
+	totalPartsCount, partSize, _, err := c.optimalPartInfo(layoutSize, opts.PartSize)
 	if err != nil {
 		return UploadInfo{}, err
 	}
@@ -522,7 +534,7 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 
 		length, rerr := readFull(reader, buf)
 		lastErr = rerr
-		if rerr == io.EOF && partNumber > 1 {
+		if rerr == io.EOF && partNumber > 1 && (size < 0 || totalUploadedSize >= size) {
 			// Done
 			break
 		}
@@ -531,6 +543,14 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 			cancel()
 			wg.Wait()
 			return UploadInfo{}, rerr
+		}
+
+		// The reader ended before this part's expected size. Fail here,
+		// before the short part is sent.
+		if size >= 0 && int64(length) < min(partSize, size-totalUploadedSize) {
+			cancel()
+			wg.Wait()
+			return UploadInfo{}, errUnexpectedEOF(totalUploadedSize+int64(length), size, bucketName, objectName)
 		}
 
 		wg.Add(1)
