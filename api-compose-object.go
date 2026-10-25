@@ -535,15 +535,21 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 		return c.CopyObject(ctx, dst, srcs[0])
 	}
 
-	// Now, handle multipart-copy cases.
-
-	// 1. Ensure that the object has not been changed while
-	//    we are copying data.
+	// The part ranges below are computed from the ETags observed above. A caller
+	// that pins a different ETag would let the server accept the condition for
+	// another version of the source while the ranges still describe the statted
+	// one, so reject the mismatch instead of composing a mix of versions.
 	for i, src := range srcs {
-		src.MatchETag = srcObjectInfos[i].ETag
+		if src.MatchETag != "" && trimEtag(src.MatchETag) != trimEtag(srcObjectInfos[i].ETag) {
+			return UploadInfo{}, errInvalidArgument(fmt.Sprintf(
+				"CopySrcOptions %d: MatchETag %q does not match the ETag %q observed while sizing the parts",
+				i, src.MatchETag, srcObjectInfos[i].ETag))
+		}
 	}
 
-	// 2. Initiate a new multipart upload.
+	// Now, handle multipart-copy cases.
+
+	// 1. Initiate a new multipart upload.
 
 	// Set user-metadata on the destination object. If no
 	// user-metadata is specified, and there is only one source,
@@ -587,9 +593,16 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 		return UploadInfo{}, err
 	}
 
-	// 3. Perform copy part uploads
+	// 2. Perform copy part uploads
 	var parts []copyPart
 	for i, src := range srcs {
+		// Ensure that the object has not been changed while we are copying
+		// data. The ETag comes from the StatObject above; a source that
+		// changed since then makes the server reject the part with 412
+		// instead of composing a mix of two versions.
+		if src.MatchETag == "" {
+			src.MatchETag = srcObjectInfos[i].ETag
+		}
 		h := make(http.Header)
 		src.Marshal(h)
 		if dst.Encryption != nil && dst.Encryption.Type() == encrypt.SSEC {
