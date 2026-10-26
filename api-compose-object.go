@@ -232,10 +232,10 @@ func (opts CopySrcOptions) Marshal(header http.Header) {
 	}
 
 	if !opts.MatchModifiedSince.IsZero() {
-		header.Set("x-amz-copy-source-if-modified-since", opts.MatchModifiedSince.Format(http.TimeFormat))
+		header.Set("x-amz-copy-source-if-modified-since", opts.MatchModifiedSince.UTC().Format(http.TimeFormat))
 	}
 	if !opts.MatchUnmodifiedSince.IsZero() {
-		header.Set("x-amz-copy-source-if-unmodified-since", opts.MatchUnmodifiedSince.Format(http.TimeFormat))
+		header.Set("x-amz-copy-source-if-unmodified-since", opts.MatchUnmodifiedSince.UTC().Format(http.TimeFormat))
 	}
 
 	if opts.Encryption != nil {

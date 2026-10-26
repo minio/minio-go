@@ -161,7 +161,7 @@ func (o *GetObjectOptions) SetUnmodified(modTime time.Time) error {
 	if modTime.IsZero() {
 		return errInvalidArgument("Modified since cannot be empty.")
 	}
-	o.Set("If-Unmodified-Since", modTime.Format(http.TimeFormat))
+	o.Set("If-Unmodified-Since", modTime.UTC().Format(http.TimeFormat))
 	return nil
 }
 
@@ -170,7 +170,7 @@ func (o *GetObjectOptions) SetModified(modTime time.Time) error {
 	if modTime.IsZero() {
 		return errInvalidArgument("Modified since cannot be empty.")
 	}
-	o.Set("If-Modified-Since", modTime.Format(http.TimeFormat))
+	o.Set("If-Modified-Since", modTime.UTC().Format(http.TimeFormat))
 	return nil
 }
 

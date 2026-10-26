@@ -20,6 +20,7 @@ package minio
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
 func TestSetHeader(t *testing.T) {
@@ -97,5 +98,27 @@ func TestCustomQueryParameters(t *testing.T) {
 		} else if v[0] != paramValue {
 			t.Errorf("Test %d: Expected query value %s for key %s, got %s", i+1, paramValue, paramKey, v[0])
 		}
+	}
+}
+
+func TestSetModifiedUsesUTC(t *testing.T) {
+	// 12:00 at UTC+05:30 is 06:30 GMT.
+	modTime := time.Date(2026, 10, 26, 12, 0, 0, 0, time.FixedZone("IST", 5*60*60+30*60))
+	want := "Mon, 26 Oct 2026 06:30:00 GMT"
+
+	opts := GetObjectOptions{}
+	if err := opts.SetModified(modTime); err != nil {
+		t.Fatal(err)
+	}
+	if got := opts.Header().Get("If-Modified-Since"); got != want {
+		t.Errorf("If-Modified-Since = %q, want %q", got, want)
+	}
+
+	opts = GetObjectOptions{}
+	if err := opts.SetUnmodified(modTime); err != nil {
+		t.Fatal(err)
+	}
+	if got := opts.Header().Get("If-Unmodified-Since"); got != want {
+		t.Errorf("If-Unmodified-Since = %q, want %q", got, want)
 	}
 }
