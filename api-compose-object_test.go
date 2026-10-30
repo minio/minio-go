@@ -314,3 +314,96 @@ func TestComposeObjectParallelPartFailure(t *testing.T) {
 		t.Errorf("expected remaining parts to be canceled, but all %d were copied", s.copied)
 	}
 }
+
+func TestComposeObjectSourceStatContext(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		blockAt  int32
+		deadline bool
+	}{
+		{name: "canceled before stat"},
+		{name: "expired before stat", deadline: true},
+		{name: "cancel first stat", blockAt: 1},
+		{name: "cancel second stat", blockAt: 2},
+		{name: "deadline during stat", blockAt: 2, deadline: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			started := make(chan struct{})
+			canceled := make(chan struct{})
+			release := make(chan struct{})
+			var requests atomic.Int32
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				n := requests.Add(1)
+				if r.Method != http.MethodHead {
+					t.Errorf("unexpected request: %s %s", r.Method, r.URL)
+					w.WriteHeader(http.StatusForbidden)
+					return
+				}
+				if n == tc.blockAt {
+					close(started)
+					select {
+					case <-r.Context().Done():
+						close(canceled)
+						return
+					case <-release:
+					}
+				}
+				w.Header().Set("Content-Length", strconv.FormatInt(defaultMinPartSize, 10))
+				w.Header().Set("ETag", `"src"`)
+				w.Header().Set("Last-Modified", "Wed, 21 Oct 2015 07:28:00 GMT")
+			}))
+			defer srv.Close()
+
+			clnt, err := New(srv.Listener.Addr().String(), &Options{Region: "us-east-1", MaxRetries: 1})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var ctx context.Context
+			var cancel context.CancelFunc
+			if tc.deadline {
+				timeout := 2 * time.Second
+				if tc.blockAt == 0 {
+					timeout = -time.Second
+				}
+				ctx, cancel = context.WithTimeout(t.Context(), timeout)
+			} else {
+				ctx, cancel = context.WithCancel(t.Context())
+			}
+			if tc.blockAt == 0 {
+				cancel()
+			}
+
+			result := make(chan error, 1)
+			finished := make(chan struct{})
+			go func() {
+				defer close(finished)
+				_, err := clnt.ComposeObject(ctx, CopyDestOptions{Bucket: "bucket", Object: "dst"},
+					CopySrcOptions{Bucket: "bucket", Object: "src-1"},
+					CopySrcOptions{Bucket: "bucket", Object: "src-2"},
+					CopySrcOptions{Bucket: "bucket", Object: "src-3"})
+				result <- err
+			}()
+			defer func() {
+				cancel()
+				close(release)
+				recvSignal(t, finished, "ComposeObject cleanup")
+			}()
+
+			if tc.blockAt != 0 {
+				recvSignal(t, started, "source HEAD request")
+				if !tc.deadline {
+					cancel()
+				}
+			}
+			if err := recvErr(t, result, "ComposeObject cancellation"); !errors.Is(err, ctx.Err()) {
+				t.Fatalf("expected %v, got %v", ctx.Err(), err)
+			}
+			if tc.blockAt != 0 {
+				recvSignal(t, canceled, "source HEAD cancellation")
+			}
+			if got := requests.Load(); got != tc.blockAt {
+				t.Errorf("got %d requests, want %d source HEAD requests", got, tc.blockAt)
+			}
+		})
+	}
+}
