@@ -28,6 +28,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -325,7 +326,6 @@ func TestComposeObjectSourceStatContext(t *testing.T) {
 		{name: "expired before stat", deadline: true},
 		{name: "cancel first stat", blockAt: 1},
 		{name: "cancel second stat", blockAt: 2},
-		{name: "deadline during stat", blockAt: 2, deadline: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			started := make(chan struct{})
@@ -361,11 +361,7 @@ func TestComposeObjectSourceStatContext(t *testing.T) {
 			var ctx context.Context
 			var cancel context.CancelFunc
 			if tc.deadline {
-				timeout := 2 * time.Second
-				if tc.blockAt == 0 {
-					timeout = -time.Second
-				}
-				ctx, cancel = context.WithTimeout(t.Context(), timeout)
+				ctx, cancel = context.WithTimeout(t.Context(), -time.Second)
 			} else {
 				ctx, cancel = context.WithCancel(t.Context())
 			}
@@ -391,9 +387,7 @@ func TestComposeObjectSourceStatContext(t *testing.T) {
 
 			if tc.blockAt != 0 {
 				recvSignal(t, started, "source HEAD request")
-				if !tc.deadline {
-					cancel()
-				}
+				cancel()
 			}
 			if err := recvErr(t, result, "ComposeObject cancellation"); !errors.Is(err, ctx.Err()) {
 				t.Fatalf("expected %v, got %v", ctx.Err(), err)
@@ -406,4 +400,68 @@ func TestComposeObjectSourceStatContext(t *testing.T) {
 			}
 		})
 	}
+}
+
+type composeRoundTripper func(*http.Request) (*http.Response, error)
+
+func (f composeRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+	return f(r)
+}
+
+func TestComposeObjectSourceStatDeadline(t *testing.T) {
+	// Keep deadline expiry independent of scheduling and loopback network latency.
+	// The cancellation cases above exercise the real HTTP transport.
+	synctest.Test(t, func(t *testing.T) {
+		started := make(chan struct{})
+		canceled := make(chan struct{})
+		var requests int
+		transport := composeRoundTripper(func(r *http.Request) (*http.Response, error) {
+			requests++
+			if r.Method != http.MethodHead {
+				return nil, errors.New("unexpected non-HEAD request")
+			}
+			if requests == 2 {
+				close(started)
+				select {
+				case <-r.Context().Done():
+					close(canceled)
+					return nil, r.Context().Err()
+				case <-time.After(testWaitTimeout):
+					return nil, errors.New("source HEAD did not expire")
+				}
+			}
+			w := httptest.NewRecorder()
+			w.Header().Set("Content-Length", strconv.FormatInt(defaultMinPartSize, 10))
+			w.Header().Set("ETag", `"src"`)
+			w.Header().Set("Last-Modified", "Wed, 21 Oct 2015 07:28:00 GMT")
+			return w.Result(), nil
+		})
+		clnt, err := New("localhost", &Options{Region: "us-east-1", MaxRetries: 1, Transport: transport})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+		defer cancel()
+		result := make(chan error, 1)
+		go func() {
+			_, err := clnt.ComposeObject(ctx, CopyDestOptions{Bucket: "bucket", Object: "dst"},
+				CopySrcOptions{Bucket: "bucket", Object: "src-1"},
+				CopySrcOptions{Bucket: "bucket", Object: "src-2"},
+				CopySrcOptions{Bucket: "bucket", Object: "src-3"})
+			result <- err
+		}()
+		recvSignal(t, started, "source HEAD request")
+		synctest.Wait()
+		if err := ctx.Err(); err != nil {
+			t.Fatalf("context expired before the second HEAD blocked: %v", err)
+		}
+		time.Sleep(2 * time.Second)
+		if err := recvErr(t, result, "ComposeObject deadline"); !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("expected DeadlineExceeded, got %v", err)
+		}
+		recvSignal(t, canceled, "source HEAD deadline")
+		if requests != 2 {
+			t.Errorf("got %d requests, want 2 source HEAD requests", requests)
+		}
+	})
 }
