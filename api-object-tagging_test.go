@@ -64,6 +64,7 @@ func TestObjectTaggingConditionalHeaders(t *testing.T) {
 		{name: "no condition"},
 		{name: "unquoted etag", matchETag: "abc", wantIfMatch: `"abc"`},
 		{name: "quoted etag", matchETag: `"abc"`, wantIfMatch: `"abc"`},
+		{name: "weak etag", matchETag: `W/"abc"`, wantIfMatch: `W/"abc"`},
 		{name: "no tags", matchETagExcept: "*", wantIfNoneMatch: "*"},
 		{name: "both", matchETag: "abc", matchETagExcept: "*", wantIfMatch: `"abc"`, wantIfNoneMatch: "*"},
 	}
