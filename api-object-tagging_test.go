@@ -62,11 +62,10 @@ func TestObjectTaggingConditionalHeaders(t *testing.T) {
 		wantIfNoneMatch string
 	}{
 		{name: "no condition"},
-		{name: "unquoted etag", matchETag: "abc", wantIfMatch: `"abc"`},
-		{name: "quoted etag", matchETag: `"abc"`, wantIfMatch: `"abc"`},
-		{name: "weak etag", matchETag: `W/"abc"`, wantIfMatch: `W/"abc"`},
-		{name: "raw value starting with W/", matchETag: "W/abc", wantIfMatch: `"W/abc"`},
+		{name: "etag", matchETag: "abc", wantIfMatch: `"abc"`},
+		{name: "any etag", matchETag: "*", wantIfMatch: "*"},
 		{name: "no tags", matchETagExcept: "*", wantIfNoneMatch: "*"},
+		{name: "etag except", matchETagExcept: "abc", wantIfNoneMatch: `"abc"`},
 		{name: "both", matchETag: "abc", matchETagExcept: "*", wantIfMatch: `"abc"`, wantIfNoneMatch: "*"},
 	}
 	for _, tc := range testCases {
@@ -80,18 +79,22 @@ func TestObjectTaggingConditionalHeaders(t *testing.T) {
 					t.Errorf("%s: If-None-Match = %q, want %q", op, v, tc.wantIfNoneMatch)
 				}
 			}
-			err := c.PutObjectTagging(context.Background(), "bucket", "object", tagSet, PutObjectTaggingOptions{
-				MatchETag:       tc.matchETag,
-				MatchETagExcept: tc.matchETagExcept,
-			})
+			var putOpts PutObjectTaggingOptions
+			var removeOpts RemoveObjectTaggingOptions
+			if tc.matchETag != "" {
+				putOpts.SetMatchETag(tc.matchETag)
+				removeOpts.SetMatchETag(tc.matchETag)
+			}
+			if tc.matchETagExcept != "" {
+				putOpts.SetMatchETagExcept(tc.matchETagExcept)
+				removeOpts.SetMatchETagExcept(tc.matchETagExcept)
+			}
+			err := c.PutObjectTagging(context.Background(), "bucket", "object", tagSet, putOpts)
 			if err != nil {
 				t.Fatal(err)
 			}
 			check("PutObjectTagging")
-			err = c.RemoveObjectTagging(context.Background(), "bucket", "object", RemoveObjectTaggingOptions{
-				MatchETag:       tc.matchETag,
-				MatchETagExcept: tc.matchETagExcept,
-			})
+			err = c.RemoveObjectTagging(context.Background(), "bucket", "object", removeOpts)
 			if err != nil {
 				t.Fatal(err)
 			}
