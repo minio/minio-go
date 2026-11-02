@@ -20,13 +20,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/minio/minio-go/v7/pkg/encrypt"
 )
 
@@ -229,8 +232,11 @@ func TestCompleteUploadOpts(t *testing.T) {
 	}
 }
 
+// errReadFailed is the error a reader returns in place of io.EOF.
+var errReadFailed = errors.New("read failed")
+
 func TestPutObjectMultipartStreamShortRead(t *testing.T) {
-	var puts atomic.Int32
+	var puts, completes, aborts atomic.Int32
 	clnt := newTestStatClient(t, func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Query().Has("uploads"):
@@ -240,7 +246,11 @@ func TestPutObjectMultipartStreamShortRead(t *testing.T) {
 			io.Copy(io.Discard, r.Body)
 			w.Header().Set("ETag", `"etag"`)
 		case r.Method == http.MethodPost:
+			completes.Add(1)
 			w.Write([]byte(`<CompleteMultipartUploadResult><Bucket>bucket</Bucket></CompleteMultipartUploadResult>`))
+		case r.Method == http.MethodDelete:
+			aborts.Add(1)
+			w.WriteHeader(http.StatusNoContent)
 		default:
 			w.WriteHeader(http.StatusNoContent)
 		}
@@ -248,23 +258,40 @@ func TestPutObjectMultipartStreamShortRead(t *testing.T) {
 
 	const size = 12 << 20 // 5, 5 and 2 MiB parts
 	for _, tc := range []struct {
-		name  string
-		avail int
-		ok    bool
-		puts  int32 // full parts sent
+		name    string
+		size    int64 // declared size, size when zero
+		avail   int
+		readErr error // returned in place of io.EOF
+		ok      bool
+		puts    int32 // full parts sent
 	}{
-		{"exact", size, true, 3},
-		{"short in middle part", 7 << 20, false, 1},
-		{"short in last part", 11 << 20, false, 2},
-		{"one byte short", size - 1, false, 2},
-		{"ends on part boundary", 10 << 20, false, 2},
-		{"empty reader", 0, false, 0},
+		{"exact", 0, size, nil, true, 3},
+		{"short in middle part", 0, 7 << 20, nil, false, 1},
+		{"short in last part", 0, 11 << 20, nil, false, 2},
+		{"one byte short", 0, size - 1, nil, false, 2},
+		{"ends on part boundary", 0, 10 << 20, nil, false, 2},
+		{"empty reader", 0, 0, nil, false, 0},
+		{"one byte longer", 0, size + 1, nil, false, 2},
+		{"5 MiB longer", 0, size + 5<<20, nil, false, 2},
+		{"longer on part boundary", 10 << 20, 10<<20 + 1, nil, false, 1},
+		{"read error at the end", 0, size, errReadFailed, false, 2},
+		{"read error at the end on part boundary", 10 << 20, 10 << 20, errReadFailed, false, 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			declared := tc.size
+			if declared == 0 {
+				declared = size
+			}
 			// Hide ReadAt so PutObject streams the parts sequentially.
-			r := struct{ io.Reader }{bytes.NewReader(make([]byte, tc.avail))}
+			var r io.Reader = bytes.NewReader(make([]byte, tc.avail))
+			if tc.readErr != nil {
+				r = &failAtEOFReader{Reader: r, err: tc.readErr}
+			}
+			r = struct{ io.Reader }{r}
 			puts.Store(0)
-			_, err := clnt.PutObject(t.Context(), "bucket", "object", r, size, PutObjectOptions{PartSize: 5 << 20})
+			completes.Store(0)
+			aborts.Store(0)
+			_, err := clnt.PutObject(t.Context(), "bucket", "object", r, declared, PutObjectOptions{PartSize: 5 << 20})
 			if n := puts.Load(); n != tc.puts {
 				t.Fatalf("PUT requests = %d, want %d", n, tc.puts)
 			}
@@ -274,8 +301,85 @@ func TestPutObjectMultipartStreamShortRead(t *testing.T) {
 				}
 				return
 			}
-			if code := ToErrorResponse(err).Code; code != UnexpectedEOF {
+			if tc.readErr != nil {
+				if !errors.Is(err, tc.readErr) {
+					t.Fatalf("error = %v, want %v", err, tc.readErr)
+				}
+			} else if code := ToErrorResponse(err).Code; code != UnexpectedEOF {
 				t.Fatalf("error code = %q, want %q (err: %v)", code, UnexpectedEOF, err)
+			}
+			if n := completes.Load(); n != 0 {
+				t.Errorf("complete requests = %d, want 0", n)
+			}
+			if n := aborts.Load(); n != 1 {
+				t.Errorf("abort requests = %d, want 1", n)
+			}
+		})
+	}
+}
+
+// A reader that holds more than the declared size must fail with
+// errUnexpectedEOF, not with net/http's content length mismatch, and the
+// server must never receive a complete body.
+func TestPutObjectSingleLongerReader(t *testing.T) {
+	// Below the multipart threshold, so PutObject sends a single PUT.
+	const size = 1 << 20
+	for _, tc := range []struct {
+		name    string
+		opts    PutObjectOptions
+		readErr error // when set, the reader holds size bytes and then returns it in place of io.EOF
+		started int32 // requests the server sees
+	}{
+		{"plain reader", PutObjectOptions{}, nil, 1},
+		{"plain reader with Content-MD5", PutObjectOptions{SendContentMd5: true}, nil, 0},
+		{"read error at the end", PutObjectOptions{}, errReadFailed, 1},
+		{"read error at the end with Content-MD5", PutObjectOptions{SendContentMd5: true}, errReadFailed, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var started, complete atomic.Int32
+			// TLS, so the body is sent without the streaming signature: there, a
+			// failed read also drops the closing chunk, and the handler would see a
+			// cut body even when every object byte was handed out.
+			srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				started.Add(1)
+				if _, err := io.Copy(io.Discard, r.Body); err == nil {
+					complete.Add(1)
+				}
+				w.Header().Set("ETag", `"etag"`)
+			}))
+			clnt, err := New(srv.Listener.Addr().String(), &Options{
+				Creds:     credentials.NewStaticV4("foo", "foo12345", ""),
+				Region:    "us-east-1",
+				Secure:    true,
+				Transport: srv.Client().Transport,
+			})
+			if err != nil {
+				srv.Close()
+				t.Fatal(err)
+			}
+
+			// Hide ReadAt and Seek so PutObject sends the reader as is.
+			var src io.Reader = bytes.NewReader(make([]byte, size+1))
+			if tc.readErr != nil {
+				src = &failAtEOFReader{Reader: bytes.NewReader(make([]byte, size)), err: tc.readErr}
+			}
+			r := struct{ io.Reader }{src}
+			_, err = clnt.PutObject(t.Context(), "bucket", "object", r, size, tc.opts)
+
+			// Close waits for the handlers still reading the aborted body.
+			srv.Close()
+			if tc.readErr != nil {
+				if !errors.Is(err, tc.readErr) {
+					t.Fatalf("error = %v, want %v", err, tc.readErr)
+				}
+			} else if code := ToErrorResponse(err).Code; code != UnexpectedEOF {
+				t.Fatalf("error code = %q, want %q (err: %v)", code, UnexpectedEOF, err)
+			}
+			if n := complete.Load(); n != 0 {
+				t.Errorf("requests with a complete body = %d, want 0", n)
+			}
+			if n := started.Load(); n > tc.started {
+				t.Errorf("requests = %d, want at most %d", n, tc.started)
 			}
 		})
 	}

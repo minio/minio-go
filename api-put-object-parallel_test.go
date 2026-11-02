@@ -19,6 +19,7 @@ package minio
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net/http"
 	"strconv"
@@ -59,24 +60,32 @@ func TestPutObjectMultipartStreamParallelShortRead(t *testing.T) {
 	})
 
 	for _, tc := range []struct {
-		name  string
-		size  int64 // declared size, -1 for unknown
-		avail int   // bytes the reader holds
-		parts int32 // parts in the completed object, 0 when the upload must fail
+		name    string
+		size    int64 // declared size, -1 for unknown
+		avail   int   // bytes the reader holds
+		readErr error // returned in place of io.EOF
+		parts   int32 // parts in the completed object, 0 when the upload must fail
 	}{
-		{"exact", 12 << 20, 12 << 20, 3},
-		{"exact on part boundary", 10 << 20, 10 << 20, 2},
-		{"short in middle part", 12 << 20, 7 << 20, 0},
-		{"short in last part", 12 << 20, 11 << 20, 0},
-		{"one byte short", 12 << 20, 12<<20 - 1, 0},
-		{"ends on part boundary", 12 << 20, 10 << 20, 0},
-		{"empty reader", 12 << 20, 0, 0},
-		{"unknown size", -1, 7 << 20, 2},
+		{"exact", 12 << 20, 12 << 20, nil, 3},
+		{"exact on part boundary", 10 << 20, 10 << 20, nil, 2},
+		{"short in middle part", 12 << 20, 7 << 20, nil, 0},
+		{"short in last part", 12 << 20, 11 << 20, nil, 0},
+		{"one byte short", 12 << 20, 12<<20 - 1, nil, 0},
+		{"ends on part boundary", 12 << 20, 10 << 20, nil, 0},
+		{"empty reader", 12 << 20, 0, nil, 0},
+		{"one byte longer", 12 << 20, 12<<20 + 1, nil, 0},
+		{"longer past the last part", 12 << 20, 17 << 20, nil, 0},
+		{"longer on part boundary", 10 << 20, 10<<20 + 1, nil, 0},
+		{"read error at the end", 12 << 20, 12 << 20, errReadFailed, 0},
+		{"unknown size", -1, 7 << 20, nil, 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			// ConcurrentStreamParts sends any reader, with or without ReadAt, to
 			// the parallel uploader.
-			r := bytes.NewReader(make([]byte, tc.avail))
+			var r io.Reader = bytes.NewReader(make([]byte, tc.avail))
+			if tc.readErr != nil {
+				r = &failAtEOFReader{Reader: r, err: tc.readErr}
+			}
 			puts.Store(0)
 			mu.Lock()
 			maxPart = 0
@@ -106,15 +115,20 @@ func TestPutObjectMultipartStreamParallelShortRead(t *testing.T) {
 				}
 				return
 			}
-			if code := ToErrorResponse(err).Code; code != UnexpectedEOF {
+			if tc.readErr != nil {
+				if !errors.Is(err, tc.readErr) {
+					t.Fatalf("error = %v, want %v", err, tc.readErr)
+				}
+			} else if code := ToErrorResponse(err).Code; code != UnexpectedEOF {
 				t.Fatalf("error code = %q, want %q (err: %v)", code, UnexpectedEOF, err)
 			}
 			// In-flight parts may be canceled, but a part the reader could not
-			// fill must never be sent.
+			// fill must never be sent, nor the last part of a reader that holds
+			// more than the declared size or fails after it.
 			mu.Lock()
 			got := maxPart
 			mu.Unlock()
-			if full := tc.avail / partSize; got > full {
+			if full := min(tc.avail/partSize, int((tc.size-1)/partSize)); got > full {
 				t.Errorf("highest part sent = %d, want at most %d", got, full)
 			}
 			if n := completed.Load(); n != 0 {

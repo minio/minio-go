@@ -201,6 +201,54 @@ func errIfMoreData(reader io.Reader, uploadedSize, totalPartsCount int64, bucket
 	return nil
 }
 
+// errIfLonger reports errUnexpectedEOF when reader still holds data after the
+// size bytes the caller declared were read from it. A read error other than
+// io.EOF is returned as is, so a reader that fails at its end does not
+// complete the upload.
+func errIfLonger(reader io.Reader, size int64, bucketName, objectName string) error {
+	var b [1]byte
+	n, err := readFull(reader, b[:])
+	if n > 0 {
+		return errUnexpectedEOF(size+1, size, bucketName, objectName)
+	}
+	if err != nil && err != io.EOF {
+		return err
+	}
+	return nil
+}
+
+// sizeLimitReader hands out the first size bytes of reader and fails with
+// errUnexpectedEOF when reader holds more, so the request body reports it
+// instead of net/http's length check. The check runs as the last declared byte
+// is read, and fails that read: the bytes that would complete the body are
+// never handed out.
+type sizeLimitReader struct {
+	reader     io.Reader
+	size       int64
+	left       int64
+	err        error
+	bucketName string
+	objectName string
+}
+
+// Read implements the io.Reader interface.
+func (r *sizeLimitReader) Read(p []byte) (int, error) {
+	if r.err != nil {
+		return 0, r.err
+	}
+	if r.left <= 0 {
+		return 0, io.EOF
+	}
+	n, err := r.reader.Read(p[:min(int64(len(p)), r.left)])
+	r.left -= int64(n)
+	if err == nil && r.left == 0 {
+		if r.err = errIfLonger(r.reader, r.size, r.bucketName, r.objectName); r.err != nil {
+			return 0, r.err
+		}
+	}
+	return n, err
+}
+
 // getUploadID - fetch upload id if already present for an object name
 // or initiate a new request to fetch a new upload id.
 func (c *Client) newUploadID(ctx context.Context, bucketName, objectName string, opts PutObjectOptions) (uploadID string, err error) {
