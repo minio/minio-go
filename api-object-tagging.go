@@ -228,7 +228,7 @@ func setTaggingConditions(headers http.Header, matchETag, matchETagExcept string
 // quoteETag quotes an ETag for a conditional header, as SetMatchETag does;
 // "*", a quoted ETag and a weak ETag (W/"...") are sent as they are.
 func quoteETag(etag string) string {
-	if etag == "*" || strings.HasPrefix(etag, "\"") || strings.HasPrefix(etag, "W/") {
+	if etag == "*" || strings.HasPrefix(etag, "\"") || strings.HasPrefix(etag, `W/"`) {
 		return etag
 	}
 	return "\"" + etag + "\""
