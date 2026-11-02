@@ -23,6 +23,7 @@ import (
 	"encoding/xml"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 	"github.com/minio/minio-go/v7/pkg/tags"
@@ -32,7 +33,13 @@ import (
 // to update tag(s) of a specific object version
 type PutObjectTaggingOptions struct {
 	VersionID string
-	Internal  AdvancedObjectTaggingOptions
+	// MatchETag sends If-Match: the tags are written only when the
+	// object's tag-set ETag matches it.
+	MatchETag string
+	// MatchETagExcept sends If-None-Match: "*" writes only when the
+	// object has no tags.
+	MatchETagExcept string
+	Internal        AdvancedObjectTaggingOptions
 }
 
 // AdvancedObjectTaggingOptions for internal use by MinIO server - not intended for client use.
@@ -69,6 +76,7 @@ func (c *Client) PutObjectTagging(ctx context.Context, bucketName, objectName st
 	if opts.Internal.ReplicationProxyRequest != "" {
 		headers.Set(minIOBucketReplicationProxyRequest, opts.Internal.ReplicationProxyRequest)
 	}
+	setTaggingConditions(headers, opts.MatchETag, opts.MatchETagExcept)
 	reqBytes, err := xml.Marshal(otags)
 	if err != nil {
 		return err
@@ -153,7 +161,12 @@ func (c *Client) GetObjectTagging(ctx context.Context, bucketName, objectName st
 // RemoveObjectTaggingOptions holds the version id of the object to remove
 type RemoveObjectTaggingOptions struct {
 	VersionID string
-	Internal  AdvancedObjectTaggingOptions
+	// MatchETag sends If-Match: the tags are removed only when the
+	// object's tag-set ETag matches it.
+	MatchETag string
+	// MatchETagExcept sends If-None-Match.
+	MatchETagExcept string
+	Internal        AdvancedObjectTaggingOptions
 }
 
 // RemoveObjectTagging removes object tag(s) with options to target a specific object version
@@ -179,6 +192,7 @@ func (c *Client) RemoveObjectTagging(ctx context.Context, bucketName, objectName
 	if opts.Internal.ReplicationProxyRequest != "" {
 		headers.Set(minIOBucketReplicationProxyRequest, opts.Internal.ReplicationProxyRequest)
 	}
+	setTaggingConditions(headers, opts.MatchETag, opts.MatchETagExcept)
 	// Execute DELETE on object to remove object tag(s)
 	resp, err := c.executeMethod(ctx, http.MethodDelete, requestMetadata{
 		bucketName:   bucketName,
@@ -199,4 +213,23 @@ func (c *Client) RemoveObjectTagging(ctx context.Context, bucketName, objectName
 		}
 	}
 	return err
+}
+
+// setTaggingConditions sets If-Match and If-None-Match on a tagging write.
+func setTaggingConditions(headers http.Header, matchETag, matchETagExcept string) {
+	if matchETag != "" {
+		headers.Set("If-Match", quoteETag(matchETag))
+	}
+	if matchETagExcept != "" {
+		headers.Set("If-None-Match", quoteETag(matchETagExcept))
+	}
+}
+
+// quoteETag quotes an ETag for a conditional header, as SetMatchETag does;
+// "*" and an ETag that is already quoted are sent as they are.
+func quoteETag(etag string) string {
+	if etag == "*" || strings.HasPrefix(etag, "\"") {
+		return etag
+	}
+	return "\"" + etag + "\""
 }
