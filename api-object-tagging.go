@@ -33,6 +33,45 @@ import (
 type PutObjectTaggingOptions struct {
 	VersionID string
 	Internal  AdvancedObjectTaggingOptions
+
+	customHeaders http.Header
+}
+
+// SetMatchETag writes the tags only when the object's tag-set ETag matches etag.
+func (opts *PutObjectTaggingOptions) SetMatchETag(etag string) {
+	if opts.customHeaders == nil {
+		opts.customHeaders = http.Header{}
+	}
+	if etag == "*" {
+		opts.customHeaders.Set("If-Match", "*")
+	} else {
+		opts.customHeaders.Set("If-Match", "\""+etag+"\"")
+	}
+}
+
+// SetMatchETagExcept writes the tags only when the object's tag-set ETag does
+// not match etag; "*" writes only when the object has no tags.
+func (opts *PutObjectTaggingOptions) SetMatchETagExcept(etag string) {
+	if opts.customHeaders == nil {
+		opts.customHeaders = http.Header{}
+	}
+	if etag == "*" {
+		opts.customHeaders.Set("If-None-Match", "*")
+	} else {
+		opts.customHeaders.Set("If-None-Match", "\""+etag+"\"")
+	}
+}
+
+// Header returns the request headers of a tagging write.
+func (opts PutObjectTaggingOptions) Header() http.Header {
+	header := make(http.Header)
+	if opts.Internal.ReplicationProxyRequest != "" {
+		header.Set(minIOBucketReplicationProxyRequest, opts.Internal.ReplicationProxyRequest)
+	}
+	for k, v := range opts.customHeaders {
+		header[k] = v
+	}
+	return header
 }
 
 // AdvancedObjectTaggingOptions for internal use by MinIO server - not intended for client use.
@@ -65,10 +104,6 @@ func (c *Client) PutObjectTagging(ctx context.Context, bucketName, objectName st
 	if opts.VersionID != "" {
 		urlValues.Set("versionId", opts.VersionID)
 	}
-	headers := make(http.Header, 0)
-	if opts.Internal.ReplicationProxyRequest != "" {
-		headers.Set(minIOBucketReplicationProxyRequest, opts.Internal.ReplicationProxyRequest)
-	}
 	reqBytes, err := xml.Marshal(otags)
 	if err != nil {
 		return err
@@ -81,7 +116,7 @@ func (c *Client) PutObjectTagging(ctx context.Context, bucketName, objectName st
 		contentBody:      bytes.NewReader(reqBytes),
 		contentLength:    int64(len(reqBytes)),
 		contentMD5Base64: sumMD5Base64(reqBytes),
-		customHeader:     headers,
+		customHeader:     opts.Header(),
 	}
 
 	// Execute PUT to set a object tagging.
@@ -154,6 +189,45 @@ func (c *Client) GetObjectTagging(ctx context.Context, bucketName, objectName st
 type RemoveObjectTaggingOptions struct {
 	VersionID string
 	Internal  AdvancedObjectTaggingOptions
+
+	customHeaders http.Header
+}
+
+// SetMatchETag removes the tags only when the object's tag-set ETag matches etag.
+func (opts *RemoveObjectTaggingOptions) SetMatchETag(etag string) {
+	if opts.customHeaders == nil {
+		opts.customHeaders = http.Header{}
+	}
+	if etag == "*" {
+		opts.customHeaders.Set("If-Match", "*")
+	} else {
+		opts.customHeaders.Set("If-Match", "\""+etag+"\"")
+	}
+}
+
+// SetMatchETagExcept removes the tags only when the object's tag-set ETag does
+// not match etag.
+func (opts *RemoveObjectTaggingOptions) SetMatchETagExcept(etag string) {
+	if opts.customHeaders == nil {
+		opts.customHeaders = http.Header{}
+	}
+	if etag == "*" {
+		opts.customHeaders.Set("If-None-Match", "*")
+	} else {
+		opts.customHeaders.Set("If-None-Match", "\""+etag+"\"")
+	}
+}
+
+// Header returns the request headers of a tagging removal.
+func (opts RemoveObjectTaggingOptions) Header() http.Header {
+	header := make(http.Header)
+	if opts.Internal.ReplicationProxyRequest != "" {
+		header.Set(minIOBucketReplicationProxyRequest, opts.Internal.ReplicationProxyRequest)
+	}
+	for k, v := range opts.customHeaders {
+		header[k] = v
+	}
+	return header
 }
 
 // RemoveObjectTagging removes object tag(s) with options to target a specific object version
@@ -175,16 +249,12 @@ func (c *Client) RemoveObjectTagging(ctx context.Context, bucketName, objectName
 	if opts.VersionID != "" {
 		urlValues.Set("versionId", opts.VersionID)
 	}
-	headers := make(http.Header, 0)
-	if opts.Internal.ReplicationProxyRequest != "" {
-		headers.Set(minIOBucketReplicationProxyRequest, opts.Internal.ReplicationProxyRequest)
-	}
 	// Execute DELETE on object to remove object tag(s)
 	resp, err := c.executeMethod(ctx, http.MethodDelete, requestMetadata{
 		bucketName:   bucketName,
 		objectName:   objectName,
 		queryValues:  urlValues,
-		customHeader: headers,
+		customHeader: opts.Header(),
 	})
 
 	defer closeResponse(resp)
