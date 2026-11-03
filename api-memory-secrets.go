@@ -76,7 +76,8 @@ func secretInfoFromHeader(h http.Header) (CortexSecretInfo, error) {
 }
 
 // PutCortexSecret stores value, at most 1 MiB, under name in cortex,
-// replacing any value stored there.
+// replacing any value stored there. Each put adds a version, so the request
+// is sent once.
 func (c *Client) PutCortexSecret(ctx context.Context, cortex, name string, value []byte) (CortexSecretInfo, error) {
 	if err := checkCortexName(cortex); err != nil {
 		return CortexSecretInfo{}, err
@@ -95,12 +96,11 @@ func (c *Client) PutCortexSecret(ctx context.Context, cortex, name string, value
 		path:        []string{cortex, "secrets", name},
 		body:        value,
 		contentType: "application/octet-stream",
-		retry:       true,
 	})
 	if err != nil {
 		return CortexSecretInfo{}, err
 	}
-	defer closeResponse(resp)
+	defer closeMemoryResponse(resp)
 	return secretInfoFromHeader(resp.Header)
 }
 
@@ -121,7 +121,7 @@ func (c *Client) GetCortexSecret(ctx context.Context, cortex, name string) ([]by
 	if err != nil {
 		return nil, CortexSecretInfo{}, err
 	}
-	defer closeResponse(resp)
+	defer closeMemoryResponse(resp)
 
 	info, err := secretInfoFromHeader(resp.Header)
 	if err != nil {
@@ -152,15 +152,23 @@ func (c *Client) StatCortexSecret(ctx context.Context, cortex, name string) (Cor
 		retry:  true,
 	})
 	if err != nil {
-		// A HEAD response carries no body, so its error has no code.
+		// A HEAD response carries no body, so its error has no code, and a
+		// 404 may mean a missing cortex as well as a missing secret. Ask for
+		// the cortex before naming the secret as missing.
 		if errResp := ToErrorResponse(err); errResp.Code == "" && errResp.StatusCode == http.StatusNotFound {
+			if _, cerr := c.GetCortex(ctx, cortex); cerr != nil {
+				if ToErrorResponse(cerr).Code == NoSuchCortex {
+					return CortexSecretInfo{}, cerr
+				}
+				return CortexSecretInfo{}, err
+			}
 			errResp.Code = NoSuchSecret
 			errResp.Message = "The specified secret does not exist."
 			return CortexSecretInfo{}, errResp
 		}
 		return CortexSecretInfo{}, err
 	}
-	defer closeResponse(resp)
+	defer closeMemoryResponse(resp)
 	return secretInfoFromHeader(resp.Header)
 }
 
@@ -180,7 +188,7 @@ func (c *Client) RemoveCortexSecret(ctx context.Context, cortex, name string) er
 	if err != nil {
 		return err
 	}
-	closeResponse(resp)
+	closeMemoryResponse(resp)
 	return nil
 }
 
@@ -194,6 +202,7 @@ func (c *Client) ListCortexSecrets(ctx context.Context, cortex string, opts List
 			return
 		}
 		marker := ""
+		seen := map[string]bool{}
 		for {
 			query := url.Values{}
 			if opts.Prefix != "" {
@@ -218,12 +227,13 @@ func (c *Client) ListCortexSecrets(ctx context.Context, cortex string, opts List
 			if !page.IsTruncated {
 				return
 			}
-			// A truncated page that does not advance the marker would list
-			// the same page forever.
-			if page.NextMarker == "" || page.NextMarker == marker {
+			// A truncated page must lead to a marker not seen before, or the
+			// listing would repeat pages forever.
+			if page.NextMarker == "" || seen[page.NextMarker] {
 				yield("", fmt.Errorf("secret listing of %s did not advance past marker %q", cortex, marker))
 				return
 			}
+			seen[page.NextMarker] = true
 			marker = page.NextMarker
 		}
 	}
@@ -245,7 +255,7 @@ func (c *Client) listCortexSecretsPage(ctx context.Context, cortex string, query
 	if err != nil {
 		return listCortexSecretsPage{}, err
 	}
-	defer closeResponse(resp)
+	defer closeMemoryResponse(resp)
 
 	var page listCortexSecretsPage
 	if err := decodeMemoryJSON(resp.Body, &page); err != nil {

@@ -104,7 +104,7 @@ func (c *Client) CreateCortex(ctx context.Context, name string, opts CreateCorte
 	if err != nil {
 		return Cortex{}, err
 	}
-	defer closeResponse(resp)
+	defer closeMemoryResponse(resp)
 
 	var cortex Cortex
 	if err := decodeMemoryJSON(resp.Body, &cortex); err != nil {
@@ -126,7 +126,7 @@ func (c *Client) GetCortex(ctx context.Context, name string) (Cortex, error) {
 	if err != nil {
 		return Cortex{}, err
 	}
-	defer closeResponse(resp)
+	defer closeMemoryResponse(resp)
 
 	var cortex Cortex
 	if err := decodeMemoryJSON(resp.Body, &cortex); err != nil {
@@ -153,6 +153,6 @@ func (c *Client) RemoveCortex(ctx context.Context, name string, opts RemoveCorte
 	if err != nil {
 		return err
 	}
-	closeResponse(resp)
+	closeMemoryResponse(resp)
 	return nil
 }

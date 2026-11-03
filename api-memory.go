@@ -86,11 +86,10 @@ type memoryRequest struct {
 	contentType string
 
 	// retry is set only for a request whose repetition cannot change its
-	// outcome: a read, or a write that stores the same value again. A
-	// create, an update or a delete is sent once, because a retry after a
-	// lost response would answer AlreadyExists, a failed precondition or
-	// NoSuch... for a request that succeeded, and an agent create would lose
-	// the key it minted.
+	// outcome: a read. A write is sent once, because a retry after a lost
+	// response would answer AlreadyExists, a failed precondition or
+	// NoSuch... for a request that succeeded, a secret put would add a
+	// version, and an agent create would lose the key it minted.
 	retry bool
 }
 
@@ -105,6 +104,9 @@ func memoryPath(segments ...string) string {
 // request of the client, and returns the response of a successful one. The
 // caller closes its body.
 func (c *Client) executeMemoryMethod(ctx context.Context, mr memoryRequest) (*http.Response, error) {
+	if ctx == nil {
+		return nil, errInvalidArgument("context cannot be nil")
+	}
 	if c.IsOffline() {
 		return nil, errors.New(c.endpointURL.String() + " is offline.")
 	}
@@ -123,8 +125,11 @@ func (c *Client) executeMemoryMethod(ctx context.Context, mr memoryRequest) (*ht
 		reqRetry = c.maxRetries
 	}
 
+	// A retryable failure on the last attempt ends the loop at once, so the
+	// call does not wait out a backoff it will not use and then report the
+	// context's expiry in place of that failure.
 	var err error
-	for range c.newRetryTimer(ctx, reqRetry, DefaultRetryUnit, DefaultRetryCap, MaxJitter) {
+	for attempt := range c.newRetryTimer(ctx, reqRetry, DefaultRetryUnit, DefaultRetryCap, MaxJitter) {
 		metadata := requestMetadata{
 			rawPath:          memoryPath(mr.path...),
 			queryValues:      mr.query,
@@ -137,28 +142,34 @@ func (c *Client) executeMemoryMethod(ctx context.Context, mr memoryRequest) (*ht
 		var req *http.Request
 		req, err = c.newRequest(ctx, mr.method, metadata)
 		if err != nil {
-			if isS3CodeRetryable(ToErrorResponse(err).Code) {
+			if !isS3CodeRetryable(ToErrorResponse(err).Code) {
+				return nil, err
+			}
+			if attempt < reqRetry-1 {
 				continue
 			}
-			return nil, err
+			break
 		}
 
 		var res *http.Response
 		res, err = c.do(req)
 		if err != nil {
-			if isRequestErrorRetryable(ctx, err) {
+			if !isRequestErrorRetryable(ctx, err) {
+				return nil, err
+			}
+			if attempt < reqRetry-1 {
 				continue
 			}
-			return nil, err
+			break
 		}
 		if successStatus.Contains(res.StatusCode) || res.StatusCode == http.StatusCreated {
 			return res, nil
 		}
 
 		errResp := memoryErrorResponse(res)
-		closeResponse(res)
+		closeMemoryResponse(res)
 		err = errResp
-		if isS3CodeRetryable(errResp.Code) || isHTTPStatusRetryable(errResp.StatusCode) {
+		if (isS3CodeRetryable(errResp.Code) || isHTTPStatusRetryable(errResp.StatusCode)) && attempt < reqRetry-1 {
 			continue
 		}
 		break
@@ -196,6 +207,16 @@ func memoryErrorResponse(res *http.Response) ErrorResponse {
 }
 
 // decodeMemoryJSON decodes a JSON document from a Memory API response.
+// closeMemoryResponse closes resp. Unlike closeResponse it drains at most
+// maxMemoryErrorBytes of what is left unread, so a response abandoned past a
+// size limit does not keep the call reading an unbounded body.
+func closeMemoryResponse(resp *http.Response) {
+	if resp != nil && resp.Body != nil {
+		_, _ = io.CopyN(io.Discard, resp.Body, maxMemoryErrorBytes)
+		resp.Body.Close()
+	}
+}
+
 func decodeMemoryJSON(r io.Reader, v any) error {
 	body, err := io.ReadAll(io.LimitReader(r, maxMemoryDocumentBytes+1))
 	if err != nil {
