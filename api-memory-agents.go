@@ -116,11 +116,16 @@ func (c *Client) CreateCortexAgent(ctx context.Context, cortex, agentID string, 
 	if err != nil {
 		return CreateCortexAgentResult{}, err
 	}
-	defer closeResponse(resp)
+	defer closeMemoryResponse(resp)
 
 	var result CreateCortexAgentResult
 	if err := decodeMemoryJSON(resp.Body, &result); err != nil {
 		return CreateCortexAgentResult{}, err
+	}
+	// The secret key is returned by this call alone; a response without one
+	// is a failure the caller must see, not an agent it cannot sign as.
+	if result.Credentials.SecretKey == "" {
+		return CreateCortexAgentResult{}, fmt.Errorf("creating agent %s returned no secret key", agentID)
 	}
 	return result, nil
 }
@@ -141,7 +146,7 @@ func (c *Client) GetCortexAgent(ctx context.Context, cortex, agentID string) ([]
 	if err != nil {
 		return nil, CortexAgentInfo{}, err
 	}
-	defer closeResponse(resp)
+	defer closeMemoryResponse(resp)
 
 	record, err := readAgentRecord(resp.Body)
 	if err != nil {
@@ -175,7 +180,7 @@ func (c *Client) UpdateCortexAgent(ctx context.Context, cortex, agentID string, 
 	if err != nil {
 		return nil, CortexAgentInfo{}, err
 	}
-	defer closeResponse(resp)
+	defer closeMemoryResponse(resp)
 
 	record, err := readAgentRecord(resp.Body)
 	if err != nil {
@@ -202,6 +207,6 @@ func (c *Client) RemoveCortexAgent(ctx context.Context, cortex, agentID string) 
 	if err != nil {
 		return err
 	}
-	closeResponse(resp)
+	closeMemoryResponse(resp)
 	return nil
 }

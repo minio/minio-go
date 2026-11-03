@@ -144,7 +144,7 @@ func (c *Client) SearchCortex(ctx context.Context, cortex string, req CortexSear
 	if err != nil {
 		return CortexSearchResult{}, err
 	}
-	defer closeResponse(resp)
+	defer closeMemoryResponse(resp)
 
 	limit := opts.MaxResponseBytes
 	if limit <= 0 {

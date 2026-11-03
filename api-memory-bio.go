@@ -134,7 +134,7 @@ func (c *Client) GetObjectBio(ctx context.Context, cortex, key string, opts Obje
 	if err != nil {
 		return ObjectBio{}, err
 	}
-	defer closeResponse(resp)
+	defer closeMemoryResponse(resp)
 	return readObjectBio(resp.Body)
 }
 

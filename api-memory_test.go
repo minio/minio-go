@@ -30,6 +30,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
@@ -173,9 +174,67 @@ func TestMemoryRetriesOnlyRepeatableRequests(t *testing.T) {
 	}
 }
 
+func TestPutCortexSecretIsSentOnce(t *testing.T) {
+	var calls atomic.Int32
+	c := newMemoryTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		writeMemoryError(w, http.StatusServiceUnavailable, "SlowDown", "slow down")
+	})
+
+	_, err := c.PutCortexSecret(context.Background(), "memories", "a", []byte("v"))
+	if ToErrorResponse(err).Code != "SlowDown" {
+		t.Fatalf("got %v", err)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("secret put sent %d times, want 1, since each put adds a version", calls.Load())
+	}
+}
+
+func TestGetCortexSecretDoesNotDrainAnOversizedBody(t *testing.T) {
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
+	c := newMemoryTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(make([]byte, 2*maxSecretValueBytes))
+		w.(http.Flusher).Flush()
+		// Hold the body open: a client draining it to EOF would wait here.
+		select {
+		case <-r.Context().Done():
+		case <-release:
+		}
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, _, err := c.GetCortexSecret(ctx, "memories", "big")
+	if err == nil || ctx.Err() != nil {
+		t.Fatalf("an oversized secret fails at once, got %v (context: %v)", err, ctx.Err())
+	}
+}
+
+func TestMemoryNilContext(t *testing.T) {
+	c := newMemoryTestClient(t, func(http.ResponseWriter, *http.Request) {
+		t.Error("no request is sent without a context")
+	})
+	//nolint:staticcheck // a nil context is what is tested
+	if _, err := c.GetCortex(nil, "memories"); ToErrorResponse(err).Code != InvalidArgument {
+		t.Fatalf("got %v", err)
+	}
+}
+
 func TestCortexSecrets(t *testing.T) {
 	store := map[string][]byte{}
 	c := newMemoryTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/_mem/v1/cortexes/memories":
+			_, _ = w.Write([]byte(`{"name":"memories"}`))
+			return
+		case "/_mem/v1/cortexes/gone":
+			writeMemoryError(w, http.StatusNotFound, NoSuchCortex, "no such cortex")
+			return
+		case "/_mem/v1/cortexes/gone/secrets/a":
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
 		name, ok := strings.CutPrefix(r.URL.Path, "/_mem/v1/cortexes/memories/secrets/")
 		if !ok {
 			t.Errorf("unexpected path %q", r.URL.Path)
@@ -227,6 +286,9 @@ func TestCortexSecrets(t *testing.T) {
 	if _, err := c.StatCortexSecret(ctx, "memories", "a b"); ToErrorResponse(err).Code != NoSuchSecret {
 		t.Fatalf("a HEAD 404 is NoSuchSecret, got %v", err)
 	}
+	if _, err := c.StatCortexSecret(ctx, "gone", "a"); ToErrorResponse(err).Code != NoSuchCortex {
+		t.Fatalf("a HEAD 404 in a missing cortex is NoSuchCortex, got %v", err)
+	}
 	if _, err := c.PutCortexSecret(ctx, "memories", "../x", nil); err == nil {
 		t.Fatal("a name leaving the route is refused")
 	}
@@ -270,6 +332,39 @@ func TestListCortexSecretsRefusesAStuckMarker(t *testing.T) {
 	}
 	if last == nil {
 		t.Fatal("a truncated page without a marker ends the listing with an error")
+	}
+}
+
+func TestListCortexSecretsRefusesAMarkerCycle(t *testing.T) {
+	pages := map[string]listCortexSecretsPage{
+		"":  {Secrets: []string{"a"}, NextMarker: "a", IsTruncated: true},
+		"a": {Secrets: []string{"b"}, NextMarker: "b", IsTruncated: true},
+		"b": {Secrets: []string{"c"}, NextMarker: "a", IsTruncated: true},
+	}
+	var calls atomic.Int32
+	c := newMemoryTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if calls.Add(1) > 10 {
+			t.Error("the listing does not end")
+		}
+		_ = json.NewEncoder(w).Encode(pages[r.URL.Query().Get("marker")])
+	})
+
+	var last error
+	for _, err := range c.ListCortexSecrets(context.Background(), "memories", ListCortexSecretsOptions{}) {
+		last = err
+	}
+	if last == nil || calls.Load() != 3 {
+		t.Fatalf("a marker seen before ends the listing with an error, got %v after %d pages", last, calls.Load())
+	}
+}
+
+func TestCreateCortexAgentWithoutASecretKey(t *testing.T) {
+	c := newMemoryTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"credentials":{"accessKey":"AK"}}`))
+	})
+
+	if _, err := c.CreateCortexAgent(context.Background(), "memories", "alpha", []byte(`{"id":"alpha"}`)); err == nil {
+		t.Fatal("a create response without a secret key is an error")
 	}
 }
 
