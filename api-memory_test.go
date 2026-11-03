@@ -20,6 +20,7 @@ package minio
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -27,6 +28,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sort"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -100,6 +103,90 @@ func TestCreateCortexSignsTheRequest(t *testing.T) {
 	if ct := gotReq.Header.Get("Content-Type"); ct != "application/json" {
 		t.Fatalf("Content-Type %q", ct)
 	}
+	if got, want := authField(auth, "Signature"), expectedSigV4(t, gotReq, "SECRETEXAMPLE"); got != want {
+		t.Fatalf("Signature %q, want %q derived from the received request", got, want)
+	}
+}
+
+// authField returns the value of field in a SigV4 Authorization header.
+func authField(auth, field string) string {
+	_, params, _ := strings.Cut(auth, " ")
+	for _, p := range strings.Split(params, ",") {
+		if v, ok := strings.CutPrefix(strings.TrimSpace(p), field+"="); ok {
+			return v
+		}
+	}
+	return ""
+}
+
+// expectedSigV4 derives the SigV4 signature of a received request from its
+// method, raw path, query, signed headers and X-Amz-Date, independently of
+// the client's signer, so a change in how the signer canonicalizes the
+// request fails the test.
+func expectedSigV4(t *testing.T, r *http.Request, secret string) string {
+	t.Helper()
+	auth := r.Header.Get("Authorization")
+	signed := authField(auth, "SignedHeaders")
+	scope := strings.SplitN(authField(auth, "Credential"), "/", 2)
+	if signed == "" || len(scope) != 2 {
+		t.Fatalf("malformed Authorization %q", auth)
+	}
+	amzDate := r.Header.Get("X-Amz-Date")
+
+	var headers strings.Builder
+	for _, name := range strings.Split(signed, ";") {
+		var values []string
+		switch name {
+		case "host":
+			values = []string{r.Host}
+		case "content-length":
+			values = []string{strconv.FormatInt(r.ContentLength, 10)}
+		default:
+			values = r.Header.Values(name)
+		}
+		for i, v := range values {
+			values[i] = strings.Join(strings.Fields(v), " ")
+		}
+		headers.WriteString(name + ":" + strings.Join(values, ",") + "\n")
+	}
+
+	query := r.URL.Query()
+	keys := make([]string, 0, len(query))
+	for k := range query {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var pairs []string
+	for _, k := range keys {
+		vs := append([]string(nil), query[k]...)
+		sort.Strings(vs)
+		for _, v := range vs {
+			pairs = append(pairs, url.QueryEscape(k)+"="+strings.ReplaceAll(url.QueryEscape(v), "+", "%20"))
+		}
+	}
+
+	canonical := strings.Join([]string{
+		r.Method,
+		r.URL.EscapedPath(),
+		strings.Join(pairs, "&"),
+		headers.String(),
+		signed,
+		r.Header.Get("X-Amz-Content-Sha256"),
+	}, "\n")
+	canonicalSum := sha256.Sum256([]byte(canonical))
+	stringToSign := "AWS4-HMAC-SHA256\n" + amzDate + "\n" + scope[1] + "\n" + hex.EncodeToString(canonicalSum[:])
+
+	mac := func(key []byte, data string) []byte {
+		h := hmac.New(sha256.New, key)
+		h.Write([]byte(data))
+		return h.Sum(nil)
+	}
+	parts := strings.Split(scope[1], "/") // date/region/service/aws4_request
+	key := []byte("AWS4" + secret)
+	for _, p := range parts {
+		key = mac(key, p)
+	}
+	return hex.EncodeToString(mac(key, stringToSign))
 }
 
 func TestMemoryRequestsStayPathStyle(t *testing.T) {
@@ -358,13 +445,75 @@ func TestListCortexSecretsRefusesAMarkerCycle(t *testing.T) {
 	}
 }
 
-func TestCreateCortexAgentWithoutASecretKey(t *testing.T) {
+func TestCreateCortexAgentWithoutAKeyPair(t *testing.T) {
+	for _, body := range []string{
+		`{"credentials":{"accessKey":"AK"}}`,
+		`{"credentials":{"secretKey":"SK"}}`,
+		`null`,
+	} {
+		c := newMemoryTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(body))
+		})
+		if _, err := c.CreateCortexAgent(context.Background(), "memories", "alpha", []byte(`{"id":"alpha"}`)); err == nil {
+			t.Fatalf("a create response %s without a full key pair is an error", body)
+		}
+	}
+}
+
+func TestListCortexSecretsRefusesANullPage(t *testing.T) {
 	c := newMemoryTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"credentials":{"accessKey":"AK"}}`))
+		_, _ = w.Write([]byte("null\n"))
 	})
 
-	if _, err := c.CreateCortexAgent(context.Background(), "memories", "alpha", []byte(`{"id":"alpha"}`)); err == nil {
-		t.Fatal("a create response without a secret key is an error")
+	var last error
+	for _, err := range c.ListCortexSecrets(context.Background(), "memories", ListCortexSecretsOptions{}) {
+		last = err
+	}
+	if last == nil {
+		t.Fatal("a null listing page is an error, not an empty listing")
+	}
+
+	// A null secrets field in a page object is still an empty page.
+	c = newMemoryTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"secrets":null,"isTruncated":false}`))
+	})
+	for _, err := range c.ListCortexSecrets(context.Background(), "memories", ListCortexSecretsOptions{}) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestMemoryReadWithoutRetriesIsSentOnce(t *testing.T) {
+	var calls atomic.Int32
+	c := newMemoryTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		_, _ = w.Write([]byte(`{"name":"memories"}`))
+	})
+	c.maxRetries = 0
+
+	cortex, err := c.GetCortex(context.Background(), "memories")
+	if err != nil || cortex.Name != "memories" || calls.Load() != 1 {
+		t.Fatalf("got %+v %v after %d calls", cortex, err, calls.Load())
+	}
+}
+
+func TestGetObjectBioDoesNotWaitOnAnOpenBody(t *testing.T) {
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
+	c := newMemoryTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, `{"type":"end","error":"disk"}`+"\n")
+		w.(http.Flusher).Flush()
+		// Hold the body open: a client draining it would wait here.
+		select {
+		case <-r.Context().Done():
+		case <-release:
+		}
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := c.GetObjectBio(ctx, "memories", "notes/a.json", ObjectBioOptions{})
+	if err == nil || ctx.Err() != nil {
+		t.Fatalf("an end frame reporting a failure returns at once, got %v (context: %v)", err, ctx.Err())
 	}
 }
 
@@ -404,11 +553,11 @@ func TestCortexAgentLifecycle(t *testing.T) {
 	if created.Credentials.SecretKey != "SK" || created.Telemetry.Namespace != "agent_alpha" || !bytes.Contains(created.Agent, []byte("alpha")) {
 		t.Fatalf("unexpected result %+v", created)
 	}
-	_, info, err := c.GetCortexAgent(ctx, "memories", "alpha")
-	if err != nil || info.ETag != "e1" || info.LastModified.IsZero() {
-		t.Fatalf("got %+v %v", info, err)
+	record, info, err := c.GetCortexAgent(ctx, "memories", "alpha")
+	if err != nil || info.ETag != "e1" || info.LastModified.IsZero() || !bytes.Contains(record, []byte(`"id":"alpha"`)) {
+		t.Fatalf("got %s %+v %v", record, info, err)
 	}
-	record, info, err := c.UpdateCortexAgent(ctx, "memories", "alpha", []byte(`{"v":2}`), UpdateCortexAgentOptions{IfMatch: info.ETag})
+	record, info, err = c.UpdateCortexAgent(ctx, "memories", "alpha", []byte(`{"v":2}`), UpdateCortexAgentOptions{IfMatch: info.ETag})
 	if err != nil || info.ETag != "e2" || !bytes.Contains(record, []byte(`"v":2`)) {
 		t.Fatalf("got %s %+v %v", record, info, err)
 	}
@@ -485,6 +634,12 @@ func TestGetObjectBio(t *testing.T) {
 	}
 	if _, err := readObjectBio(strings.NewReader(`{"type":"end","error":"disk"}` + "\n")); err == nil {
 		t.Fatal("an end frame reporting a failure is an error")
+	}
+	if _, err := readObjectBio(strings.NewReader(`{"type":"version","version":null}` + "\n" + `{"type":"end","totalVersions":1}` + "\n")); err == nil {
+		t.Fatal("a version frame without a version is an error")
+	}
+	if _, err := readObjectBio(strings.NewReader(`{"type":"end","totalVersions":5,"truncated":true}` + "\n")); err == nil {
+		t.Fatal("a truncated end frame without a nextAfter cursor is an error")
 	}
 }
 

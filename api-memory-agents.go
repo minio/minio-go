@@ -124,8 +124,8 @@ func (c *Client) CreateCortexAgent(ctx context.Context, cortex, agentID string, 
 	}
 	// The secret key is returned by this call alone; a response without one
 	// is a failure the caller must see, not an agent it cannot sign as.
-	if result.Credentials.SecretKey == "" {
-		return CreateCortexAgentResult{}, fmt.Errorf("creating agent %s returned no secret key", agentID)
+	if result.Credentials.AccessKey == "" || result.Credentials.SecretKey == "" {
+		return CreateCortexAgentResult{}, fmt.Errorf("creating agent %s returned no access key or secret key", agentID)
 	}
 	return result, nil
 }

@@ -124,6 +124,11 @@ func (c *Client) executeMemoryMethod(ctx context.Context, mr memoryRequest) (*ht
 	if mr.retry {
 		reqRetry = c.maxRetries
 	}
+	// A non-positive MaxRetry would yield no attempt and a nil response
+	// with a nil error.
+	if reqRetry < 1 {
+		reqRetry = 1
+	}
 
 	// A retryable failure on the last attempt ends the loop at once, so the
 	// call does not wait out a backoff it will not use and then report the
@@ -206,17 +211,19 @@ func memoryErrorResponse(res *http.Response) ErrorResponse {
 	return errResp
 }
 
-// decodeMemoryJSON decodes a JSON document from a Memory API response.
-// closeMemoryResponse closes resp. Unlike closeResponse it drains at most
-// maxMemoryErrorBytes of what is left unread, so a response abandoned past a
-// size limit does not keep the call reading an unbounded body.
+// closeMemoryResponse closes resp. Unlike closeResponse it does not drain
+// what is left unread: a response abandoned on an early return could keep
+// the call waiting on a server that holds the body open. A body already read
+// to its end still returns its connection for reuse.
 func closeMemoryResponse(resp *http.Response) {
 	if resp != nil && resp.Body != nil {
-		_, _ = io.CopyN(io.Discard, resp.Body, maxMemoryErrorBytes)
 		resp.Body.Close()
 	}
 }
 
+// decodeMemoryJSON decodes a JSON document from a Memory API response. A
+// successful response is a JSON object, so a null document is refused rather
+// than decoded into a zero value that reads as an empty answer.
 func decodeMemoryJSON(r io.Reader, v any) error {
 	body, err := io.ReadAll(io.LimitReader(r, maxMemoryDocumentBytes+1))
 	if err != nil {
@@ -224,6 +231,9 @@ func decodeMemoryJSON(r io.Reader, v any) error {
 	}
 	if len(body) > maxMemoryDocumentBytes {
 		return fmt.Errorf("memory API response is larger than %d bytes", maxMemoryDocumentBytes)
+	}
+	if bytes.Equal(bytes.TrimSpace(body), []byte("null")) {
+		return errors.New("memory API response is a null document")
 	}
 	return json.Unmarshal(body, v)
 }

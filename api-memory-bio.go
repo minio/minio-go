@@ -156,8 +156,10 @@ func readObjectBio(r io.Reader) (ObjectBio, error) {
 		case "begin":
 			bio.Key = f.Key
 		case "version":
+			// Skipping it would leave a history short of what the end
+			// frame reports, with no error.
 			if f.Version == nil {
-				continue
+				return ObjectBio{}, errors.New("bio: version frame has no version")
 			}
 			v := f.Version
 			bio.Entries = append(bio.Entries, ObjectBioEntry{
@@ -176,6 +178,11 @@ func readObjectBio(r io.Reader) (ObjectBio, error) {
 		case "end":
 			if f.Error != "" {
 				return ObjectBio{}, fmt.Errorf("bio: %s", f.Error)
+			}
+			// An empty cursor passed back as After would fetch the first
+			// page again.
+			if f.Truncated && f.NextAfter == "" {
+				return ObjectBio{}, errors.New("bio stream is truncated without a nextAfter cursor; the history is incomplete")
 			}
 			bio.TotalVersions = f.TotalVersions
 			bio.Truncated = f.Truncated
