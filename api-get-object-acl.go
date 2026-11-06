@@ -135,17 +135,23 @@ func getAmzGrantACL(aCPolicy *accessControlPolicy) map[string][]string {
 	res := map[string][]string{}
 
 	for _, g := range grants {
+		// A grantee is identified either by canonical user ID or, for
+		// predefined groups such as AllUsers, by URI.
+		grantee := "id=" + g.Grantee.ID
+		if g.Grantee.URI != "" {
+			grantee = "uri=" + g.Grantee.URI
+		}
 		switch g.Permission {
 		case "READ":
-			res["X-Amz-Grant-Read"] = append(res["X-Amz-Grant-Read"], "id="+g.Grantee.ID)
+			res["X-Amz-Grant-Read"] = append(res["X-Amz-Grant-Read"], grantee)
 		case "WRITE":
-			res["X-Amz-Grant-Write"] = append(res["X-Amz-Grant-Write"], "id="+g.Grantee.ID)
+			res["X-Amz-Grant-Write"] = append(res["X-Amz-Grant-Write"], grantee)
 		case "READ_ACP":
-			res["X-Amz-Grant-Read-Acp"] = append(res["X-Amz-Grant-Read-Acp"], "id="+g.Grantee.ID)
+			res["X-Amz-Grant-Read-Acp"] = append(res["X-Amz-Grant-Read-Acp"], grantee)
 		case "WRITE_ACP":
-			res["X-Amz-Grant-Write-Acp"] = append(res["X-Amz-Grant-Write-Acp"], "id="+g.Grantee.ID)
+			res["X-Amz-Grant-Write-Acp"] = append(res["X-Amz-Grant-Write-Acp"], grantee)
 		case "FULL_CONTROL":
-			res["X-Amz-Grant-Full-Control"] = append(res["X-Amz-Grant-Full-Control"], "id="+g.Grantee.ID)
+			res["X-Amz-Grant-Full-Control"] = append(res["X-Amz-Grant-Full-Control"], grantee)
 		}
 	}
 	return res
