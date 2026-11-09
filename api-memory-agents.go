@@ -18,8 +18,10 @@
 package minio
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -72,6 +74,8 @@ type UpdateCortexAgentOptions struct {
 	IfMatch string
 }
 
+// agentInfoFromHeader reads the version of an agent record from the response
+// headers that answered for it.
 func agentInfoFromHeader(h http.Header) CortexAgentInfo {
 	info := CortexAgentInfo{
 		ETag:      trimEtag(h.Get("ETag")),
@@ -96,6 +100,8 @@ func checkAgentID(agentID string) error {
 	return nil
 }
 
+// readAgentRecord reads the agent record a successful GET or update answers
+// with, and refuses a body that is not a JSON object.
 func readAgentRecord(r io.Reader) ([]byte, error) {
 	record, err := io.ReadAll(io.LimitReader(r, maxMemoryDocumentBytes+1))
 	if err != nil {
@@ -103,6 +109,9 @@ func readAgentRecord(r io.Reader) ([]byte, error) {
 	}
 	if len(record) > maxMemoryDocumentBytes {
 		return nil, fmt.Errorf("agent record is larger than %d bytes", maxMemoryDocumentBytes)
+	}
+	if trimmed := bytes.TrimSpace(record); len(trimmed) == 0 || trimmed[0] != '{' || !json.Valid(trimmed) {
+		return nil, errors.New("agent record is not a JSON object")
 	}
 	return record, nil
 }
@@ -140,6 +149,11 @@ func (c *Client) CreateCortexAgent(ctx context.Context, cortex, agentID string, 
 	var result CreateCortexAgentResult
 	if err := decodeMemoryJSON(resp.Body, &result); err != nil {
 		return CreateCortexAgentResult{}, err
+	}
+	// Only both keys or neither is an answer: a lone key cannot be used, and
+	// the secret cannot be fetched again.
+	if (result.Credentials.AccessKey == "") != (result.Credentials.SecretKey == "") {
+		return CreateCortexAgentResult{}, fmt.Errorf("creating agent %s returned incomplete credentials", agentID)
 	}
 	return result, nil
 }

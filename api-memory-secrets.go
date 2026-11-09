@@ -54,6 +54,8 @@ type ListCortexSecretsOptions struct {
 	MaxKeys int
 }
 
+// secretInfoFromHeader reads the version and timestamps of a secret from the
+// response headers that answered for it.
 func secretInfoFromHeader(h http.Header) (CortexSecretInfo, error) {
 	var info CortexSecretInfo
 	var err error
@@ -248,6 +250,7 @@ type listCortexSecretsPage struct {
 	IsTruncated bool     `json:"isTruncated"`
 }
 
+// listCortexSecretsPage fetches one page of the secret names in cortex.
 func (c *Client) listCortexSecretsPage(ctx context.Context, cortex string, query url.Values) (listCortexSecretsPage, error) {
 	resp, err := c.executeMemoryMethod(ctx, memoryRequest{
 		method: http.MethodGet,

@@ -176,6 +176,8 @@ func defaultSearchResponseLimit(maxTotalBytes int64) int64 {
 	return 2*maxTotalBytes + defaultMaxSearchResponseBytes
 }
 
+// readCortexSearch reads a streamed search answer, one JSON frame per line,
+// and refuses a stream that ends before its summary.
 func readCortexSearch(r io.Reader) (CortexSearchResult, error) {
 	var res CortexSearchResult
 	var cur *CortexSearchObject

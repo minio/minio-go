@@ -462,6 +462,31 @@ func TestCreateCortexAgentWithoutMounts(t *testing.T) {
 	if _, err := c.CreateCortexAgent(context.Background(), "memories", "alpha", []byte(`{"id":"alpha"}`)); err == nil {
 		t.Fatal("a null create response is an error")
 	}
+
+	for _, creds := range []string{`{"accessKey":"AK","secretKey":""}`, `{"accessKey":"","secretKey":"SK"}`} {
+		c = newMemoryTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(`{"agent":{"id":"alpha"},"credentials":` + creds + `}`))
+		})
+		if _, err := c.CreateCortexAgent(context.Background(), "memories", "alpha", []byte(`{"id":"alpha"}`)); err == nil {
+			t.Fatalf("a create answering %s is an error", creds)
+		}
+	}
+}
+
+func TestCortexAgentRecordIsAJSONObject(t *testing.T) {
+	for _, body := range []string{"", "null", "[]", `"x"`, "{", "not json"} {
+		c := newMemoryTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("ETag", `"e1"`)
+			_, _ = io.WriteString(w, body)
+		})
+		ctx := context.Background()
+		if _, _, err := c.GetCortexAgent(ctx, "memories", "alpha"); err == nil {
+			t.Fatalf("get answering %q is an error", body)
+		}
+		if _, _, err := c.UpdateCortexAgent(ctx, "memories", "alpha", []byte(`{}`), UpdateCortexAgentOptions{IfMatch: "e1"}); err == nil {
+			t.Fatalf("update answering %q is an error", body)
+		}
+	}
 }
 
 func TestCortexAgentIDRefusesASlash(t *testing.T) {
@@ -704,6 +729,12 @@ func TestSearchCortex(t *testing.T) {
 
 	if _, err := readCortexSearch(strings.NewReader(`{"type":"begin","name":"a"}` + "\n")); err == nil {
 		t.Fatal("a stream without its summary is incomplete")
+	}
+	if _, err := readCortexSearch(strings.NewReader(`{"type":"begin","name":"a"}
+{"type":"match","name":"a","line":3,"text":"hello"}
+{"type":"end","name":"a"}
+`)); err == nil {
+		t.Fatal("a completed object without a summary is incomplete")
 	}
 	if _, err := c.SearchCortex(context.Background(), "memories", CortexSearchRequest{Prefix: "/", Patterns: []string{"x"}}, CortexSearchOptions{}); err == nil {
 		t.Fatal("a search of the whole cortex is refused")

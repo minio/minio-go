@@ -97,6 +97,7 @@ type memoryRequest struct {
 	hidePayloadHash bool
 }
 
+// memoryPath joins segments under the Memory API prefix.
 func memoryPath(segments ...string) string {
 	if len(segments) == 0 {
 		return memoryAPIPrefix
@@ -274,6 +275,7 @@ func decodeMemoryJSON(r io.Reader, v any) error {
 	return json.Unmarshal(body, v)
 }
 
+// checkCortexName refuses a cortex name that is not a valid bucket name.
 func checkCortexName(cortex string) error {
 	return s3utils.CheckValidBucketName(cortex)
 }
