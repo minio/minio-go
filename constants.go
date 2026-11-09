@@ -56,6 +56,10 @@ const unsignedPayloadTrailer = "STREAMING-UNSIGNED-PAYLOAD-TRAILER"
 // Total number of parallel workers used for multipart operation.
 const totalWorkers = 4
 
+// maxNumThreads caps a caller-provided worker count: each worker holds a
+// PartSize buffer, so an unbounded value is an unbounded allocation.
+const maxNumThreads = 100
+
 // Signature related constants.
 const (
 	signV4Algorithm   = "AWS4-HMAC-SHA256"

@@ -189,6 +189,9 @@ func (c *Client) appendObjectDo(ctx context.Context, bucketName, objectName stri
 func (c *Client) AppendObject(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64,
 	opts AppendObjectOptions,
 ) (info UploadInfo, err error) {
+	if reader == nil {
+		return UploadInfo{}, errInvalidArgument("reader cannot be nil")
+	}
 	if objectSize < 0 && opts.ChunkSize == 0 {
 		return UploadInfo{}, errors.New("object size must be provided when no chunk size is provided")
 	}

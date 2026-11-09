@@ -631,7 +631,7 @@ type copyPart struct {
 }
 
 func (opts CopyDestOptions) getNumThreads() int {
-	return int(min(max(opts.NumThreads, 1), 100))
+	return int(min(max(opts.NumThreads, 1), maxNumThreads))
 }
 
 // uploadPartsCopy runs the upload-part-copy requests on dst.NumThreads

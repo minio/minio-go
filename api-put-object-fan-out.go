@@ -75,6 +75,9 @@ func (c *Client) PutObjectFanOut(ctx context.Context, bucket string, fanOutData 
 	if len(fanOutReq.Entries) == 0 {
 		return nil, errInvalidArgument("fan out requests cannot be empty")
 	}
+	if fanOutData == nil {
+		return nil, errInvalidArgument("fanOutData cannot be nil")
+	}
 
 	policy := NewPostPolicy()
 	policy.SetBucket(bucket)

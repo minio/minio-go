@@ -153,7 +153,7 @@ func (opts *PutObjectOptions) SetMatchETagExcept(etag string) {
 // put object operation
 func (opts PutObjectOptions) getNumThreads() (numThreads int) {
 	if opts.NumThreads > 0 {
-		numThreads = int(opts.NumThreads)
+		numThreads = int(min(opts.NumThreads, maxNumThreads))
 	} else {
 		numThreads = totalWorkers
 	}
@@ -342,6 +342,9 @@ func (c *Client) PutObject(ctx context.Context, bucketName, objectName string, r
 			return c.putObjectRDMAStream(ctx, bucketName, objectName, reader, size, opts)
 		}
 		return c.putObjectRDMA(ctx, bucketName, objectName, opts)
+	}
+	if reader == nil && size != 0 {
+		return UploadInfo{}, errInvalidArgument("reader cannot be nil")
 	}
 	if size < 0 && opts.DisableMultipart {
 		return UploadInfo{}, errors.New("object size must be provided with disable multipart upload")

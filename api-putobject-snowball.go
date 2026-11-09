@@ -177,6 +177,13 @@ objectLoop:
 				closeObj = obj.Close
 			}
 
+			if obj.Content == nil {
+				if opts.SkipErrs {
+					continue
+				}
+				return errInvalidArgument("object content cannot be nil")
+			}
+
 			// Trim accidental slash prefix.
 			obj.Key = strings.TrimPrefix(obj.Key, "/")
 			header := tar.Header{

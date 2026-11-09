@@ -71,6 +71,9 @@ func (c Core) CopyObjectPart(ctx context.Context, srcBucket, srcObject, destBuck
 
 // PutObject - Upload object. Uploads using single PUT call.
 func (c Core) PutObject(ctx context.Context, bucket, object string, data io.Reader, size int64, md5Base64, sha256Hex string, opts PutObjectOptions) (UploadInfo, error) {
+	if data == nil && size != 0 {
+		return UploadInfo{}, errInvalidArgument("data cannot be nil")
+	}
 	hookReader := newHook(data, opts.Progress)
 	return c.putObjectDo(ctx, bucket, object, hookReader, md5Base64, sha256Hex, size, opts)
 }
@@ -98,6 +101,9 @@ type PutObjectPartOptions struct {
 func (c Core) PutObjectPart(ctx context.Context, bucket, object, uploadID string, partID int,
 	data io.Reader, size int64, opts PutObjectPartOptions,
 ) (ObjectPart, error) {
+	if data == nil && size != 0 {
+		return ObjectPart{}, errInvalidArgument("data cannot be nil")
+	}
 	p := uploadPartParams{
 		bucketName:   bucket,
 		objectName:   object,

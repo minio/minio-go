@@ -501,7 +501,7 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 	partsInfo := make(map[int]ObjectPart)
 
 	// Create a buffer.
-	nBuffers := int64(opts.NumThreads)
+	nBuffers := int64(opts.getNumThreads())
 	bufs := make(chan []byte, nBuffers)
 	all := make([]byte, nBuffers*partSize)
 	for i := int64(0); i < nBuffers; i++ {
@@ -510,7 +510,7 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	errCh := make(chan error, opts.NumThreads)
+	errCh := make(chan error, opts.getNumThreads())
 
 	reader = newHook(reader, opts.Progress)
 
