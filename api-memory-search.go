@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strings"
@@ -58,7 +59,9 @@ type CortexSearchRequest struct {
 
 // CortexSearchOptions configures a SearchCortex request.
 type CortexSearchOptions struct {
-	// MaxResponseBytes bounds the response read. Zero is 16 MiB.
+	// MaxResponseBytes bounds the response read. Zero is 16 MiB, or, when
+	// the request sets MaxTotalBytes, twice that plus 16 MiB, which leaves
+	// room for the JSON around each match.
 	MaxResponseBytes int64
 }
 
@@ -148,9 +151,29 @@ func (c *Client) SearchCortex(ctx context.Context, cortex string, req CortexSear
 
 	limit := opts.MaxResponseBytes
 	if limit <= 0 {
-		limit = defaultMaxSearchResponseBytes
+		limit = defaultSearchResponseLimit(req.MaxTotalBytes)
 	}
-	return readCortexSearch(io.LimitReader(resp.Body, limit))
+	lr := &io.LimitedReader{R: resp.Body, N: limit}
+	res, err := readCortexSearch(lr)
+	if err != nil && lr.N <= 0 {
+		return CortexSearchResult{}, fmt.Errorf("search response is larger than the client's limit of %d bytes, set by CortexSearchOptions.MaxResponseBytes: %w", limit, err)
+	}
+	return res, err
+}
+
+// defaultSearchResponseLimit bounds the response to a search whose match text
+// the server bounds by maxTotalBytes. The JSON around each match and the
+// context lines add to that text, and the server checks its bound only before
+// each object, so a response may exceed it: the bound is doubled, with the
+// default bound added for headroom.
+func defaultSearchResponseLimit(maxTotalBytes int64) int64 {
+	if maxTotalBytes <= 0 {
+		return defaultMaxSearchResponseBytes
+	}
+	if maxTotalBytes > (math.MaxInt64-defaultMaxSearchResponseBytes)/2 {
+		return math.MaxInt64
+	}
+	return 2*maxTotalBytes + defaultMaxSearchResponseBytes
 }
 
 func readCortexSearch(r io.Reader) (CortexSearchResult, error) {

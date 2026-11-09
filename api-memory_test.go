@@ -25,6 +25,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -445,18 +446,123 @@ func TestListCortexSecretsRefusesAMarkerCycle(t *testing.T) {
 	}
 }
 
-func TestCreateCortexAgentWithoutAKeyPair(t *testing.T) {
-	for _, body := range []string{
-		`{"credentials":{"accessKey":"AK"}}`,
-		`{"credentials":{"secretKey":"SK"}}`,
-		`null`,
-	} {
-		c := newMemoryTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
-			_, _ = w.Write([]byte(body))
-		})
-		if _, err := c.CreateCortexAgent(context.Background(), "memories", "alpha", []byte(`{"id":"alpha"}`)); err == nil {
-			t.Fatalf("a create response %s without a full key pair is an error", body)
+func TestCreateCortexAgentWithoutMounts(t *testing.T) {
+	// The server stores an agent without mounts and mints it no credential.
+	c := newMemoryTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"agent":{"id":"alpha"},"credentials":{"accessKey":"","secretKey":""}}`))
+	})
+	res, err := c.CreateCortexAgent(context.Background(), "memories", "alpha", []byte(`{"id":"alpha"}`))
+	if err != nil || res.Credentials != (CortexAgentCredentials{}) || !bytes.Contains(res.Agent, []byte("alpha")) {
+		t.Fatalf("an agent without mounts is created with empty credentials, got %+v %v", res, err)
+	}
+
+	c = newMemoryTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`null`))
+	})
+	if _, err := c.CreateCortexAgent(context.Background(), "memories", "alpha", []byte(`{"id":"alpha"}`)); err == nil {
+		t.Fatal("a null create response is an error")
+	}
+}
+
+func TestCortexAgentIDRefusesASlash(t *testing.T) {
+	c := newMemoryTestClient(t, func(http.ResponseWriter, *http.Request) {
+		t.Error("no request is sent for an agent ID naming a memory")
+	})
+	ctx := context.Background()
+	const id = "alpha/ws"
+	if _, err := c.CreateCortexAgent(ctx, "memories", id, []byte(`{}`)); ToErrorResponse(err).Code != InvalidArgument {
+		t.Fatalf("create: got %v", err)
+	}
+	if _, _, err := c.GetCortexAgent(ctx, "memories", id); ToErrorResponse(err).Code != InvalidArgument {
+		t.Fatalf("get: got %v", err)
+	}
+	if _, _, err := c.UpdateCortexAgent(ctx, "memories", id, []byte(`{}`), UpdateCortexAgentOptions{IfMatch: "e1"}); ToErrorResponse(err).Code != InvalidArgument {
+		t.Fatalf("update: got %v", err)
+	}
+	if err := c.RemoveCortexAgent(ctx, "memories", id); ToErrorResponse(err).Code != InvalidArgument {
+		t.Fatalf("remove: got %v", err)
+	}
+}
+
+func TestMemoryRetriesWithTheServersRegion(t *testing.T) {
+	var regions []string
+	c := newMemoryTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		scope := strings.Split(authField(r.Header.Get("Authorization"), "Credential"), "/")
+		regions = append(regions, scope[2])
+		if scope[2] != "eu-west-1" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"Code": AuthorizationHeaderMalformed, "Message": "wrong region", "Region": "eu-west-1",
+			})
+			return
 		}
+		_, _ = w.Write([]byte(`{"agent":{"id":"alpha"},"credentials":{"accessKey":"AK","secretKey":"SK"}}`))
+	})
+
+	// A write is sent once, yet it is resent signed for the server's region.
+	if _, err := c.CreateCortexAgent(context.Background(), "memories", "alpha", []byte(`{"id":"alpha"}`)); err != nil {
+		t.Fatal(err)
+	}
+	if len(regions) != 2 || regions[0] != "us-east-1" || regions[1] != "eu-west-1" {
+		t.Fatalf("signed for %v, want us-east-1 then eu-west-1", regions)
+	}
+}
+
+func TestMemoryRegionRetryIsSentOnce(t *testing.T) {
+	var calls atomic.Int32
+	c := newMemoryTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"Code": AuthorizationHeaderMalformed, "Region": "region-" + strconv.Itoa(int(calls.Load())),
+		})
+	})
+	if _, err := c.CreateCortexAgent(context.Background(), "memories", "alpha", []byte(`{}`)); ToErrorResponse(err).Code != AuthorizationHeaderMalformed {
+		t.Fatalf("got %v", err)
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("sent %d times, want 2", calls.Load())
+	}
+}
+
+func TestPutCortexSecretHidesThePayloadHashOverTLS(t *testing.T) {
+	var gotSHA string
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotSHA = r.Header.Get("X-Amz-Content-Sha256")
+		w.Header().Set(secretVersionHeader, "1")
+	}))
+	t.Cleanup(srv.Close)
+	u, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := New(u.Host, &Options{
+		Creds:     credentials.NewStaticV4("AKIDEXAMPLE", "SECRETEXAMPLE", ""),
+		Secure:    true,
+		Transport: srv.Client().Transport,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := c.PutCortexSecret(context.Background(), "memories", "pw", []byte("hunter2")); err != nil {
+		t.Fatal(err)
+	}
+	if gotSHA != unsignedPayload {
+		t.Fatalf("a secret put over TLS sends payload hash %q, want %q", gotSHA, unsignedPayload)
+	}
+
+	// Without TLS the hash is what protects the body, so it is sent.
+	c = newMemoryTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		gotSHA = r.Header.Get("X-Amz-Content-Sha256")
+	})
+	if _, err := c.PutCortexSecret(context.Background(), "memories", "pw", []byte("hunter2")); err != nil {
+		t.Fatal(err)
+	}
+	if sum := sha256.Sum256([]byte("hunter2")); gotSHA != hex.EncodeToString(sum[:]) {
+		t.Fatalf("a secret put without TLS sends payload hash %q", gotSHA)
 	}
 }
 
@@ -601,6 +707,23 @@ func TestSearchCortex(t *testing.T) {
 	}
 	if _, err := c.SearchCortex(context.Background(), "memories", CortexSearchRequest{Prefix: "/", Patterns: []string{"x"}}, CortexSearchOptions{}); err == nil {
 		t.Fatal("a search of the whole cortex is refused")
+	}
+
+	_, err = c.SearchCortex(context.Background(), "memories", CortexSearchRequest{Prefix: "notes/", Patterns: []string{"hello"}}, CortexSearchOptions{MaxResponseBytes: 64})
+	if err == nil || !strings.Contains(err.Error(), "MaxResponseBytes") {
+		t.Fatalf("a response cut by the client's limit says so, got %v", err)
+	}
+}
+
+func TestDefaultSearchResponseLimit(t *testing.T) {
+	for _, tc := range []struct{ maxTotal, want int64 }{
+		{0, defaultMaxSearchResponseBytes},
+		{32 << 20, 64<<20 + defaultMaxSearchResponseBytes},
+		{math.MaxInt64, math.MaxInt64},
+	} {
+		if got := defaultSearchResponseLimit(tc.maxTotal); got != tc.want {
+			t.Fatalf("limit for MaxTotalBytes %d is %d, want %d", tc.maxTotal, got, tc.want)
+		}
 	}
 }
 

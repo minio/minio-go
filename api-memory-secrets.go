@@ -96,6 +96,9 @@ func (c *Client) PutCortexSecret(ctx context.Context, cortex, name string, value
 		path:        []string{cortex, "secrets", name},
 		body:        value,
 		contentType: "application/octet-stream",
+		// The hash of a weak secret, such as a password, is enough to
+		// recover it, and the server traces request headers.
+		hidePayloadHash: true,
 	})
 	if err != nil {
 		return CortexSecretInfo{}, err

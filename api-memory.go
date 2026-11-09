@@ -91,6 +91,10 @@ type memoryRequest struct {
 	// NoSuch... for a request that succeeded, a secret put would add a
 	// version, and an agent create would lose the key it minted.
 	retry bool
+
+	// hidePayloadHash keeps the hash of the body out of the request headers
+	// over TLS, for a body the server keeps out of its traces: a secret.
+	hidePayloadHash bool
 }
 
 func memoryPath(segments ...string) string {
@@ -118,7 +122,21 @@ func (c *Client) executeMemoryMethod(ctx context.Context, mr memoryRequest) (*ht
 	if mr.contentType != "" {
 		header.Set("Content-Type", mr.contentType)
 	}
-	sum := sha256.Sum256(mr.body)
+	// The server traces request headers, so the hash of a body it keeps out
+	// of its traces is not sent over TLS, which protects the body on its own:
+	// the request is signed with UNSIGNED-PAYLOAD.
+	var contentSHA256Hex string
+	if !mr.hidePayloadHash || !c.secure {
+		sum := sha256.Sum256(mr.body)
+		contentSHA256Hex = hex.EncodeToString(sum[:])
+	}
+	metadata := requestMetadata{
+		rawPath:          memoryPath(mr.path...),
+		queryValues:      mr.query,
+		customHeader:     header,
+		contentLength:    int64(len(mr.body)),
+		contentSHA256Hex: contentSHA256Hex,
+	}
 
 	reqRetry := 1
 	if mr.retry {
@@ -134,56 +152,74 @@ func (c *Client) executeMemoryMethod(ctx context.Context, mr memoryRequest) (*ht
 	// call does not wait out a backoff it will not use and then report the
 	// context's expiry in place of that failure.
 	var err error
+	regionRetried := false
 	for attempt := range c.newRetryTimer(ctx, reqRetry, DefaultRetryUnit, DefaultRetryCap, MaxJitter) {
-		metadata := requestMetadata{
-			rawPath:          memoryPath(mr.path...),
-			queryValues:      mr.query,
-			customHeader:     header,
-			contentBody:      bytes.NewReader(mr.body),
-			contentLength:    int64(len(mr.body)),
-			contentSHA256Hex: hex.EncodeToString(sum[:]),
-		}
-
-		var req *http.Request
-		req, err = c.newRequest(ctx, mr.method, metadata)
-		if err != nil {
-			if !isS3CodeRetryable(ToErrorResponse(err).Code) {
-				return nil, err
-			}
-			if attempt < reqRetry-1 {
-				continue
-			}
-			break
-		}
-
 		var res *http.Response
-		res, err = c.do(req)
-		if err != nil {
-			if !isRequestErrorRetryable(ctx, err) {
-				return nil, err
-			}
-			if attempt < reqRetry-1 {
-				continue
-			}
-			break
+		var retryable bool
+		res, retryable, err = c.sendMemoryRequest(ctx, mr, metadata)
+		// A server in another region refuses the signature before it acts,
+		// so the request, even a write, is sent once more signed for the
+		// region the server names.
+		if region := c.memoryRedirectRegion(err, metadata.bucketLocation); region != "" && !regionRetried {
+			regionRetried = true
+			metadata.bucketLocation = region
+			res, retryable, err = c.sendMemoryRequest(ctx, mr, metadata)
 		}
-		if successStatus.Contains(res.StatusCode) || res.StatusCode == http.StatusCreated {
+		if err == nil {
 			return res, nil
 		}
-
-		errResp := memoryErrorResponse(res)
-		closeMemoryResponse(res)
-		err = errResp
-		if (isS3CodeRetryable(errResp.Code) || isHTTPStatusRetryable(errResp.StatusCode)) && attempt < reqRetry-1 {
-			continue
+		if !retryable {
+			return nil, err
 		}
-		break
+		if attempt == reqRetry-1 {
+			break
+		}
 	}
 
 	if e := ctx.Err(); e != nil {
 		return nil, e
 	}
 	return nil, err
+}
+
+// sendMemoryRequest sends mr once and returns the response of a successful
+// request, or the failure and whether a later attempt may succeed.
+func (c *Client) sendMemoryRequest(ctx context.Context, mr memoryRequest, metadata requestMetadata) (*http.Response, bool, error) {
+	metadata.contentBody = bytes.NewReader(mr.body)
+	req, err := c.newRequest(ctx, mr.method, metadata)
+	if err != nil {
+		return nil, isS3CodeRetryable(ToErrorResponse(err).Code), err
+	}
+	res, err := c.do(req)
+	if err != nil {
+		return nil, isRequestErrorRetryable(ctx, err), err
+	}
+	if successStatus.Contains(res.StatusCode) || res.StatusCode == http.StatusCreated {
+		return res, false, nil
+	}
+	errResp := memoryErrorResponse(res)
+	closeMemoryResponse(res)
+	return nil, isS3CodeRetryable(errResp.Code) || isHTTPStatusRetryable(errResp.StatusCode), errResp
+}
+
+// memoryRedirectRegion returns the region named by a server that refused a
+// request signed for another region, when the client sets no region of its
+// own and the request was not already signed for that region.
+func (c *Client) memoryRedirectRegion(err error, signedFor string) string {
+	if c.region != "" {
+		return ""
+	}
+	var errResp ErrorResponse
+	if !errors.As(err, &errResp) {
+		return ""
+	}
+	switch errResp.Code {
+	case AuthorizationHeaderMalformed, InvalidRegion, AccessDenied:
+		if errResp.Region != "" && errResp.Region != signedFor {
+			return errResp.Region
+		}
+	}
+	return ""
 }
 
 // memoryErrorResponse decodes a Memory API error. It never quotes the request,

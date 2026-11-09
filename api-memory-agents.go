@@ -24,6 +24,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -33,7 +34,8 @@ import (
 // owns, so these calls take and return it as raw bytes.
 
 // CortexAgentCredentials is the key pair the server mints for an agent. The
-// secret key is returned only by the create that minted it.
+// secret key is returned only by the create that minted it. An agent record
+// that declares no mounts gets no key pair, and both fields are empty.
 type CortexAgentCredentials struct {
 	AccessKey string `json:"accessKey"`
 	SecretKey string `json:"secretKey"`
@@ -81,6 +83,19 @@ func agentInfoFromHeader(h http.Header) CortexAgentInfo {
 	return info
 }
 
+// checkAgentID refuses an agent ID the server would not route to an agent
+// record: it reads a name with a '/' as a memory stored under an agent, so a
+// create would write that memory and a remove would delete it.
+func checkAgentID(agentID string) error {
+	if err := checkMemoryResourceName("agent", agentID); err != nil {
+		return err
+	}
+	if strings.Contains(agentID, "/") {
+		return errInvalidArgument("agent ID cannot hold '/'")
+	}
+	return nil
+}
+
 func readAgentRecord(r io.Reader) ([]byte, error) {
 	record, err := io.ReadAll(io.LimitReader(r, maxMemoryDocumentBytes+1))
 	if err != nil {
@@ -94,8 +109,9 @@ func readAgentRecord(r io.Reader) ([]byte, error) {
 
 // CreateCortexAgent creates the agent record agentID in cortex from record,
 // a JSON agent record whose id is agentID, and returns the credentials the server
-// minted for it. It fails with AgentAlreadyExists when the record exists and
-// AgentPurgePending while the server still reclaims a deleted agent of that id.
+// minted for it, which are empty when the record declares no mounts. It fails
+// with AgentAlreadyExists when the record exists and AgentPurgePending while
+// the server still reclaims a deleted agent of that id.
 //
 // The request is sent once: the secret key is returned by this response
 // alone, and a retry after a lost response would answer AgentAlreadyExists
@@ -104,7 +120,7 @@ func (c *Client) CreateCortexAgent(ctx context.Context, cortex, agentID string, 
 	if err := checkCortexName(cortex); err != nil {
 		return CreateCortexAgentResult{}, err
 	}
-	if err := checkMemoryResourceName("agent", agentID); err != nil {
+	if err := checkAgentID(agentID); err != nil {
 		return CreateCortexAgentResult{}, err
 	}
 	resp, err := c.executeMemoryMethod(ctx, memoryRequest{
@@ -118,14 +134,12 @@ func (c *Client) CreateCortexAgent(ctx context.Context, cortex, agentID string, 
 	}
 	defer closeMemoryResponse(resp)
 
+	// An agent without mounts is stored with no credential, so empty
+	// credentials are an answer, not a failure: the record exists, and a retry
+	// would fail with AgentAlreadyExists.
 	var result CreateCortexAgentResult
 	if err := decodeMemoryJSON(resp.Body, &result); err != nil {
 		return CreateCortexAgentResult{}, err
-	}
-	// The secret key is returned by this call alone; a response without one
-	// is a failure the caller must see, not an agent it cannot sign as.
-	if result.Credentials.AccessKey == "" || result.Credentials.SecretKey == "" {
-		return CreateCortexAgentResult{}, fmt.Errorf("creating agent %s returned no access key or secret key", agentID)
 	}
 	return result, nil
 }
@@ -135,7 +149,7 @@ func (c *Client) GetCortexAgent(ctx context.Context, cortex, agentID string) ([]
 	if err := checkCortexName(cortex); err != nil {
 		return nil, CortexAgentInfo{}, err
 	}
-	if err := checkMemoryResourceName("agent", agentID); err != nil {
+	if err := checkAgentID(agentID); err != nil {
 		return nil, CortexAgentInfo{}, err
 	}
 	resp, err := c.executeMemoryMethod(ctx, memoryRequest{
@@ -163,7 +177,7 @@ func (c *Client) UpdateCortexAgent(ctx context.Context, cortex, agentID string, 
 	if err := checkCortexName(cortex); err != nil {
 		return nil, CortexAgentInfo{}, err
 	}
-	if err := checkMemoryResourceName("agent", agentID); err != nil {
+	if err := checkAgentID(agentID); err != nil {
 		return nil, CortexAgentInfo{}, err
 	}
 	if opts.IfMatch == "" {
@@ -197,7 +211,7 @@ func (c *Client) RemoveCortexAgent(ctx context.Context, cortex, agentID string) 
 	if err := checkCortexName(cortex); err != nil {
 		return err
 	}
-	if err := checkMemoryResourceName("agent", agentID); err != nil {
+	if err := checkAgentID(agentID); err != nil {
 		return err
 	}
 	resp, err := c.executeMemoryMethod(ctx, memoryRequest{
