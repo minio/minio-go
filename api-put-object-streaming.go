@@ -95,6 +95,10 @@ type uploadPartReq struct {
 func (c *Client) putObjectMultipartStreamFromReadAt(ctx context.Context, bucketName, objectName string,
 	reader io.ReaderAt, size int64, opts PutObjectOptions,
 ) (info UploadInfo, err error) {
+	// Stop the workers when this returns, so none stays blocked on its send.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	// Input validation.
 	if err = s3utils.CheckValidBucketName(bucketName); err != nil {
 		return UploadInfo{}, err
