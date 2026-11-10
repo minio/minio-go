@@ -127,10 +127,11 @@ func (c *Client) PutObjectsSnowball(ctx context.Context, bucketName string, opts
 		name := f.Name()
 		tmpWriter = f
 		var once sync.Once
+		// Runs last: Windows cannot remove a file that is still open.
+		defer os.Remove(name)
 		defer once.Do(func() {
 			f.Close()
 		})
-		defer os.Remove(name)
 		getTmpReader = func() (readSeekCloser, int64, error) {
 			once.Do(func() {
 				f.Close()
