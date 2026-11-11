@@ -124,7 +124,8 @@ func readAgentRecord(r io.Reader) ([]byte, error) {
 //
 // The request is sent once: the secret key is returned by this response
 // alone, and a retry after a lost response would answer AgentAlreadyExists
-// with no way to recover it.
+// with no way to recover it. For the same reason, a response that omits the
+// stored record fails with the credentials it carried still in the result.
 func (c *Client) CreateCortexAgent(ctx context.Context, cortex, agentID string, record []byte) (CreateCortexAgentResult, error) {
 	if err := checkCortexName(cortex); err != nil {
 		return CreateCortexAgentResult{}, err
@@ -154,6 +155,12 @@ func (c *Client) CreateCortexAgent(ctx context.Context, cortex, agentID string, 
 	// the secret cannot be fetched again.
 	if (result.Credentials.AccessKey == "") != (result.Credentials.SecretKey == "") {
 		return CreateCortexAgentResult{}, fmt.Errorf("creating agent %s returned incomplete credentials", agentID)
+	}
+	// A response without the stored record is incomplete. The agent exists
+	// and its secret cannot be fetched again, so the credentials are returned
+	// with the error.
+	if agent := bytes.TrimSpace(result.Agent); len(agent) == 0 || agent[0] != '{' {
+		return result, fmt.Errorf("creating agent %s returned no agent record", agentID)
 	}
 	return result, nil
 }

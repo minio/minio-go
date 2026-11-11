@@ -471,6 +471,24 @@ func TestCreateCortexAgentWithoutMounts(t *testing.T) {
 			t.Fatalf("a create answering %s is an error", creds)
 		}
 	}
+
+	for _, body := range []string{`{}`, `{"credentials":{"accessKey":"","secretKey":""}}`, `{"agent":null}`, `{"agent":[]}`} {
+		c = newMemoryTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(body))
+		})
+		if _, err := c.CreateCortexAgent(context.Background(), "memories", "alpha", []byte(`{"id":"alpha"}`)); err == nil {
+			t.Fatalf("a create answering %s without an agent record is an error", body)
+		}
+	}
+
+	// The minted credentials survive a response that omits the record.
+	c = newMemoryTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"credentials":{"accessKey":"AK","secretKey":"SK"}}`))
+	})
+	res, err = c.CreateCortexAgent(context.Background(), "memories", "alpha", []byte(`{"id":"alpha"}`))
+	if err == nil || res.Credentials != (CortexAgentCredentials{AccessKey: "AK", SecretKey: "SK"}) {
+		t.Fatalf("a create without an agent record fails with its credentials, got %+v %v", res, err)
+	}
 }
 
 func TestCortexAgentRecordIsAJSONObject(t *testing.T) {
