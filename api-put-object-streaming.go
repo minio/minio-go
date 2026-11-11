@@ -775,8 +775,10 @@ func (c *Client) putObject(ctx context.Context, bucketName, objectName string, r
 
 	// A reader that cannot be rewound is sent as is. Make it report data past
 	// the declared size, instead of net/http's content length mismatch.
+	var sizeLimited bool
 	if _, ok := reader.(io.Seeker); !ok && size > 0 {
 		reader = &sizeLimitReader{reader: reader, size: size, left: size, bucketName: bucketName, objectName: objectName}
+		sizeLimited = true
 	}
 
 	// Update progress reader appropriately to the latest offset as we
@@ -788,10 +790,10 @@ func (c *Client) putObject(ctx context.Context, bucketName, objectName string, r
 	info, err = c.putObjectDo(ctx, bucketName, objectName, progressReader, md5Base64, "", size, opts)
 
 	// net/http wraps the error from reading the request body. Hand back the
-	// original one.
-	var errResp ErrorResponse
-	if errors.As(err, &errResp) && errResp.Code == EntityTooLarge {
-		err = errResp
+	// size error of the sizeLimitReader installed above as is; any other
+	// error is returned unchanged.
+	if sizeErr := errReaderTooLong(size, bucketName, objectName); sizeLimited && errors.Is(err, sizeErr) {
+		err = sizeErr
 	}
 	return info, err
 }

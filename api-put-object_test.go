@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -344,6 +345,7 @@ func TestPutObjectSingleLongerReader(t *testing.T) {
 		{"plain reader with Content-MD5", PutObjectOptions{SendContentMd5: true}, nil, 0},
 		{"read error at the end", PutObjectOptions{}, errReadFailed, 1},
 		{"read error at the end with Content-MD5", PutObjectOptions{SendContentMd5: true}, errReadFailed, 0},
+		{"read error wrapping EntityTooLarge", PutObjectOptions{}, fmt.Errorf("source: %w", ErrorResponse{Code: EntityTooLarge, Message: "read failed"}), 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var started, complete atomic.Int32
