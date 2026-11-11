@@ -237,6 +237,22 @@ func TestErrEntityTooLarge(t *testing.T) {
 	}
 }
 
+// Test validates 'errReaderTooLong' error response.
+func TestErrReaderTooLong(t *testing.T) {
+	msg := fmt.Sprintf("Input stream holds more than the size ‘%d’ given for it.", 100)
+	expectedResult := ErrorResponse{
+		StatusCode: http.StatusBadRequest,
+		Code:       EntityTooLarge,
+		Message:    msg,
+		BucketName: "minio-bucket",
+		Key:        "Asia/",
+	}
+	actualResult := errReaderTooLong(100, "minio-bucket", "Asia/")
+	if !reflect.DeepEqual(expectedResult, actualResult) {
+		t.Errorf("Expected result to be '%#v', but instead got '%#v'", expectedResult, actualResult)
+	}
+}
+
 // Test validates 'ErrEntityTooSmall' error response.
 func TestErrEntityTooSmall(t *testing.T) {
 	msg := fmt.Sprintf("Your proposed upload size ‘%d’ is below the minimum allowed object size ‘0B’ for single PUT operation.", -1)

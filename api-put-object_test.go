@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -305,8 +306,18 @@ func TestPutObjectMultipartStreamShortRead(t *testing.T) {
 				if !errors.Is(err, tc.readErr) {
 					t.Fatalf("error = %v, want %v", err, tc.readErr)
 				}
-			} else if code := ToErrorResponse(err).Code; code != UnexpectedEOF {
-				t.Fatalf("error code = %q, want %q (err: %v)", code, UnexpectedEOF, err)
+			} else {
+				wantCode := UnexpectedEOF
+				if int64(tc.avail) > declared {
+					wantCode = EntityTooLarge
+				}
+				errResp := ToErrorResponse(err)
+				if errResp.Code != wantCode {
+					t.Fatalf("error code = %q, want %q (err: %v)", errResp.Code, wantCode, err)
+				}
+				if wantCode == EntityTooLarge && !strings.Contains(errResp.Message, "given for it") {
+					t.Fatalf("error message = %q, want it to contain %q", errResp.Message, "given for it")
+				}
 			}
 			if n := completes.Load(); n != 0 {
 				t.Errorf("complete requests = %d, want 0", n)
@@ -319,8 +330,7 @@ func TestPutObjectMultipartStreamShortRead(t *testing.T) {
 }
 
 // A reader that holds more than the declared size must fail with
-// errUnexpectedEOF, not with net/http's content length mismatch, and the
-// server must never receive a complete body.
+// errReaderTooLong, and the server must never receive a complete body.
 func TestPutObjectSingleLongerReader(t *testing.T) {
 	// Below the multipart threshold, so PutObject sends a single PUT.
 	const size = 1 << 20
@@ -372,8 +382,14 @@ func TestPutObjectSingleLongerReader(t *testing.T) {
 				if !errors.Is(err, tc.readErr) {
 					t.Fatalf("error = %v, want %v", err, tc.readErr)
 				}
-			} else if code := ToErrorResponse(err).Code; code != UnexpectedEOF {
-				t.Fatalf("error code = %q, want %q (err: %v)", code, UnexpectedEOF, err)
+			} else {
+				errResp := ToErrorResponse(err)
+				if errResp.Code != EntityTooLarge {
+					t.Fatalf("error code = %q, want %q (err: %v)", errResp.Code, EntityTooLarge, err)
+				}
+				if !strings.Contains(errResp.Message, "given for it") {
+					t.Fatalf("error message = %q, want it to contain %q", errResp.Message, "given for it")
+				}
 			}
 			if n := complete.Load(); n != 0 {
 				t.Errorf("requests with a complete body = %d, want 0", n)

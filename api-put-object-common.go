@@ -201,7 +201,7 @@ func errIfMoreData(reader io.Reader, uploadedSize, totalPartsCount int64, bucket
 	return nil
 }
 
-// errIfLonger reports errUnexpectedEOF when reader still holds data after the
+// errIfLonger reports errReaderTooLong when reader still holds data after the
 // size bytes the caller declared were read from it. A read error other than
 // io.EOF is returned as is, so a reader that fails at its end does not
 // complete the upload.
@@ -209,7 +209,7 @@ func errIfLonger(reader io.Reader, size int64, bucketName, objectName string) er
 	var b [1]byte
 	n, err := readFull(reader, b[:])
 	if n > 0 {
-		return errUnexpectedEOF(size+1, size, bucketName, objectName)
+		return errReaderTooLong(size, bucketName, objectName)
 	}
 	if err != nil && err != io.EOF {
 		return err
@@ -218,7 +218,7 @@ func errIfLonger(reader io.Reader, size int64, bucketName, objectName string) er
 }
 
 // sizeLimitReader hands out the first size bytes of reader and fails with
-// errUnexpectedEOF when reader holds more, so the request body reports it
+// errReaderTooLong when reader holds more, so the request body reports it
 // instead of net/http's length check. The check runs as the last declared byte
 // is read, and fails that read: the bytes that would complete the body are
 // never handed out.

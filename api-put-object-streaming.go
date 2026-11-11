@@ -460,8 +460,9 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 // putObjectMultipartStreamParallel uploads opts.NumThreads parts in parallel.
 // This is expected to take opts.PartSize * opts.NumThreads * (GOGC / 100) bytes of buffer.
 // A negative size means the length of reader is unknown. With a known size, a
-// reader that holds fewer or more bytes fails with errUnexpectedEOF before the
-// part that would be wrong is sent.
+// reader that holds fewer bytes fails with errUnexpectedEOF and one that holds
+// more bytes fails with errReaderTooLong before the part that would be wrong
+// is sent.
 func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketName, objectName string,
 	reader io.Reader, size int64, opts PutObjectOptions,
 ) (info UploadInfo, err error) {
@@ -789,7 +790,7 @@ func (c *Client) putObject(ctx context.Context, bucketName, objectName string, r
 	// net/http wraps the error from reading the request body. Hand back the
 	// original one.
 	var errResp ErrorResponse
-	if errors.As(err, &errResp) && errResp.Code == UnexpectedEOF {
+	if errors.As(err, &errResp) && errResp.Code == EntityTooLarge {
 		err = errResp
 	}
 	return info, err

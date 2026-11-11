@@ -119,8 +119,18 @@ func TestPutObjectMultipartStreamParallelShortRead(t *testing.T) {
 				if !errors.Is(err, tc.readErr) {
 					t.Fatalf("error = %v, want %v", err, tc.readErr)
 				}
-			} else if code := ToErrorResponse(err).Code; code != UnexpectedEOF {
-				t.Fatalf("error code = %q, want %q (err: %v)", code, UnexpectedEOF, err)
+			} else {
+				wantCode := UnexpectedEOF
+				if int64(tc.avail) > tc.size {
+					wantCode = EntityTooLarge
+				}
+				errResp := ToErrorResponse(err)
+				if errResp.Code != wantCode {
+					t.Fatalf("error code = %q, want %q (err: %v)", errResp.Code, wantCode, err)
+				}
+				if wantCode == EntityTooLarge && !strings.Contains(errResp.Message, "given for it") {
+					t.Fatalf("error message = %q, want it to contain %q", errResp.Message, "given for it")
+				}
 			}
 			// In-flight parts may be canceled, but a part the reader could not
 			// fill must never be sent, nor the last part of a reader that holds
