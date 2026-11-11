@@ -214,6 +214,9 @@ func (c *Client) GetObjectAnnotation(ctx context.Context, bucketName, objectName
 		return nil, err
 	}
 	if len(payload) > maxAnnotationPayloadBytes {
+		// closeResponse would drain the rest, which can be of any length.
+		resp.Body.Close()
+		resp.Body = nil
 		return nil, fmt.Errorf("annotation %s exceeds the 1 MiB maximum", annotationName)
 	}
 	for t := ChecksumSHA256; t < checksumLast; t <<= 1 {

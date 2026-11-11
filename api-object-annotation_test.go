@@ -25,6 +25,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
@@ -110,6 +111,24 @@ func TestGetObjectAnnotationVerifiesChecksum(t *testing.T) {
 		if (err == nil) != tc.ok || tc.ok && string(body) != testAnnotationPayload {
 			t.Fatalf("%s: read %q, %v", tc.name, body, err)
 		}
+	}
+}
+
+// TestGetObjectAnnotationStopsOversizedBody checks that a read of a payload over
+// 1 MiB returns without reading the rest of the body, which can be of any length.
+func TestGetObjectAnnotationStopsOversizedBody(t *testing.T) {
+	c := annotationTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		chunk := make([]byte, 64<<10)
+		for {
+			if _, err := w.Write(chunk); err != nil {
+				return
+			}
+		}
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if _, err := c.GetObjectAnnotation(ctx, "bucket", "object", "a", GetObjectAnnotationOptions{}); err == nil || ctx.Err() != nil {
+		t.Fatalf("read of an endless body: %v, context %v", err, ctx.Err())
 	}
 }
 
