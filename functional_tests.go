@@ -77,6 +77,9 @@ const (
 	// TODO: remove when server supports the 2026 checksum types on latest release.
 	// Linux is fetched from edge, so supports new types.
 	ignore2026Checksums = runtime.GOOS != "linux"
+
+	// TODO: enable when an AIStor release stores and returns annotation checksums.
+	testAnnotationChecksums = false
 )
 
 func ignore2026ChecksumError(cs minio.ChecksumType, err error) bool {
@@ -2013,7 +2016,7 @@ func testObjectAnnotations() {
 	annPayload := []byte(`{"label":"cat","score":0.98}`)
 	args["annotationName"] = annName
 
-	_, err = c.PutObjectAnnotation(context.Background(), bucketName, objectName, annName, bytes.NewReader(annPayload), minio.PutObjectAnnotationOptions{})
+	_, err = c.PutObjectAnnotation(context.Background(), bucketName, objectName, annName, annPayload, minio.PutObjectAnnotationOptions{})
 	if err != nil {
 		if isErrNotImplemented(err) {
 			logIgnored(testName, function, args, startTime, "PutObjectAnnotation")
@@ -2035,15 +2038,9 @@ func testObjectAnnotations() {
 		return
 	}
 
-	annReader, err := c.GetObjectAnnotation(context.Background(), bucketName, objectName, annName, minio.GetObjectAnnotationOptions{})
+	got, err := c.GetObjectAnnotation(context.Background(), bucketName, objectName, annName, minio.GetObjectAnnotationOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObjectAnnotation failed", err)
-		return
-	}
-	got, err := io.ReadAll(annReader)
-	annReader.Close()
-	if err != nil {
-		logError(testName, function, args, startTime, "", "GetObjectAnnotation read failed", err)
 		return
 	}
 	if !bytes.Equal(got, annPayload) {
@@ -2056,48 +2053,14 @@ func testObjectAnnotations() {
 		logError(testName, function, args, startTime, "", "ListObjectAnnotations failed", err)
 		return
 	}
-	// A put without a checksum stores CRC64NVME.
-	if len(anns) != 1 || anns[0].Name != annName || anns[0].ChecksumAlgorithm != "CRC64NVME" {
+	if len(anns) != 1 || anns[0].Name != annName {
 		logError(testName, function, args, startTime, "", "ListObjectAnnotations unexpected result", fmt.Errorf("got %+v", anns))
 		return
 	}
 
-	// A checksum the client sends is kept, and a read in checksum mode
-	// verifies the payload against the stored one.
-	notesName := "model.notes"
-	_, err = c.PutObjectAnnotation(context.Background(), bucketName, objectName, notesName, bytes.NewReader(annPayload), minio.PutObjectAnnotationOptions{Checksum: minio.ChecksumSHA256})
-	if err != nil {
-		logError(testName, function, args, startTime, "", "PutObjectAnnotation with a checksum failed", err)
+	if err = c.RemoveObjectAnnotation(context.Background(), bucketName, objectName, annName, minio.RemoveObjectAnnotationOptions{}); err != nil {
+		logError(testName, function, args, startTime, "", "RemoveObjectAnnotation failed", err)
 		return
-	}
-	for _, name := range []string{annName, notesName} {
-		annReader, err = c.GetObjectAnnotation(context.Background(), bucketName, objectName, name, minio.GetObjectAnnotationOptions{Checksum: true})
-		if err != nil {
-			logError(testName, function, args, startTime, "", "GetObjectAnnotation in checksum mode failed", err)
-			return
-		}
-		got, err = io.ReadAll(annReader)
-		annReader.Close()
-		if err != nil || !bytes.Equal(got, annPayload) {
-			logError(testName, function, args, startTime, "", "GetObjectAnnotation in checksum mode read failed", fmt.Errorf("%s: %q, %w", name, got, err))
-			return
-		}
-	}
-	anns, err = c.ListObjectAnnotations(context.Background(), bucketName, objectName, minio.ListObjectAnnotationsOptions{Prefix: "model.n"})
-	if err != nil {
-		logError(testName, function, args, startTime, "", "ListObjectAnnotations with a prefix failed", err)
-		return
-	}
-	if len(anns) != 1 || anns[0].Name != notesName || anns[0].ChecksumAlgorithm != "SHA256" {
-		logError(testName, function, args, startTime, "", "ListObjectAnnotations with a prefix unexpected result", fmt.Errorf("got %+v", anns))
-		return
-	}
-
-	for _, name := range []string{annName, notesName} {
-		if err = c.RemoveObjectAnnotation(context.Background(), bucketName, objectName, name, minio.RemoveObjectAnnotationOptions{}); err != nil {
-			logError(testName, function, args, startTime, "", "RemoveObjectAnnotation failed", err)
-			return
-		}
 	}
 
 	anns, err = c.ListObjectAnnotations(context.Background(), bucketName, objectName, minio.ListObjectAnnotationsOptions{})
@@ -2107,6 +2070,95 @@ func testObjectAnnotations() {
 	}
 	if len(anns) != 0 {
 		logError(testName, function, args, startTime, "", "annotation not removed", fmt.Errorf("remaining %d", len(anns)))
+		return
+	}
+
+	logSuccess(testName, function, args, startTime)
+}
+
+// Tests that object annotations keep the checksum a client sends, XXH3 unless
+// it names another, that listings report its algorithm and take a prefix, and
+// that reads, which verify the payload against the stored checksum, succeed.
+func testObjectAnnotationChecksums() {
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "PutObjectAnnotation(Checksum)"
+	args := map[string]interface{}{}
+
+	c, err := NewClient(ClientConfig{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
+		return
+	}
+
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	args["bucketName"] = bucketName
+	args["objectName"] = objectName
+
+	if err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1"}); err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+	defer cleanupBucket(bucketName, c)
+
+	const parentContent = "annotation-parent-content"
+	if _, err = c.PutObject(context.Background(), bucketName, objectName, strings.NewReader(parentContent), int64(len(parentContent)), minio.PutObjectOptions{}); err != nil {
+		logError(testName, function, args, startTime, "", "PutObject (parent) failed", err)
+		return
+	}
+
+	// In name order, as listings return them.
+	anns := []struct {
+		name     string
+		payload  []byte
+		checksum minio.ChecksumType
+		want     string
+	}{
+		{"model.labels.json", []byte(`{"label":"cat","score":0.98}`), minio.ChecksumNone, "XXHASH3"},
+		{"model.notes", []byte(`{"notes":"reviewed"}`), minio.ChecksumSHA256, "SHA256"},
+	}
+	for _, a := range anns {
+		_, err = c.PutObjectAnnotation(context.Background(), bucketName, objectName, a.name, a.payload, minio.PutObjectAnnotationOptions{Checksum: a.checksum})
+		if err != nil {
+			if isErrNotImplemented(err) {
+				logIgnored(testName, function, args, startTime, "PutObjectAnnotation")
+				return
+			}
+			logError(testName, function, args, startTime, "", "PutObjectAnnotation failed", fmt.Errorf("%s: %w", a.name, err))
+			return
+		}
+	}
+	for _, a := range anns {
+		got, err := c.GetObjectAnnotation(context.Background(), bucketName, objectName, a.name, minio.GetObjectAnnotationOptions{})
+		if err != nil || !bytes.Equal(got, a.payload) {
+			logError(testName, function, args, startTime, "", "GetObjectAnnotation read failed", fmt.Errorf("%s: %q, %w", a.name, got, err))
+			return
+		}
+	}
+
+	listed, err := c.ListObjectAnnotations(context.Background(), bucketName, objectName, minio.ListObjectAnnotationsOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "ListObjectAnnotations failed", err)
+		return
+	}
+	if len(listed) != len(anns) {
+		logError(testName, function, args, startTime, "", "ListObjectAnnotations unexpected result", fmt.Errorf("got %+v", listed))
+		return
+	}
+	for i, a := range anns {
+		if listed[i].Name != a.name || listed[i].ChecksumAlgorithm != a.want {
+			logError(testName, function, args, startTime, "", "ListObjectAnnotations unexpected checksum", fmt.Errorf("got %+v, want %s with %s", listed[i], a.name, a.want))
+			return
+		}
+	}
+	listed, err = c.ListObjectAnnotations(context.Background(), bucketName, objectName, minio.ListObjectAnnotationsOptions{Prefix: "model.n"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "ListObjectAnnotations with a prefix failed", err)
+		return
+	}
+	if len(listed) != 1 || listed[0].Name != anns[1].name || listed[0].ChecksumAlgorithm != anns[1].want {
+		logError(testName, function, args, startTime, "", "ListObjectAnnotations with a prefix unexpected result", fmt.Errorf("got %+v", listed))
 		return
 	}
 
@@ -15923,6 +15975,9 @@ func main() {
 		testRemoveObjectsWithVersioning()
 		testObjectTaggingWithVersioning()
 		testObjectAnnotations()
+		if testAnnotationChecksums {
+			testObjectAnnotationChecksums()
+		}
 		testTrailingChecksums()
 		testPutObjectWithAutomaticChecksums()
 		testGetBucketTagging()

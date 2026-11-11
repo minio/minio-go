@@ -44,10 +44,12 @@ func annotationTestClient(t *testing.T, handler http.HandlerFunc) *Client {
 	return c
 }
 
-// The payload the annotation probe sent to AWS S3, and S3's CRC32 of it.
+// The payload the annotation probe sent to AWS S3, and S3's CRC32 and XXH3 of
+// it.
 const (
 	testAnnotationPayload = `{"label":"probe"}`
 	testAnnotationCRC32   = "tvaadQ=="
+	testAnnotationXXHash3 = "0ytq3XX6rZ0="
 )
 
 func TestPutObjectAnnotationSendsChecksum(t *testing.T) {
@@ -60,13 +62,29 @@ func TestPutObjectAnnotationSendsChecksum(t *testing.T) {
 		}
 		w.Header().Set("ETag", `"abc"`)
 	})
-	etag, err := c.PutObjectAnnotation(context.Background(), "bucket", "object", "a", strings.NewReader(testAnnotationPayload),
+	etag, err := c.PutObjectAnnotation(context.Background(), "bucket", "object", "a", []byte(testAnnotationPayload),
 		PutObjectAnnotationOptions{Checksum: ChecksumCRC32})
 	if err != nil || etag != "abc" {
 		t.Fatalf("got %q, %v", etag, err)
 	}
 	if v := got.Get("X-Amz-Checksum-Crc32"); v != testAnnotationCRC32 {
 		t.Fatalf("sent checksum %q, want %q", v, testAnnotationCRC32)
+	}
+
+	// Without a checksum type the client sends XXH3.
+	if _, err := c.PutObjectAnnotation(context.Background(), "bucket", "object", "a", []byte(testAnnotationPayload),
+		PutObjectAnnotationOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if v := got.Get("X-Amz-Checksum-Xxhash3"); v != testAnnotationXXHash3 {
+		t.Fatalf("sent default checksum %q, want XXH3 %q", v, testAnnotationXXHash3)
+	}
+
+	// Two algorithms at once name no checksum to send.
+	got = nil
+	if _, err := c.PutObjectAnnotation(context.Background(), "bucket", "object", "a", []byte(testAnnotationPayload),
+		PutObjectAnnotationOptions{Checksum: ChecksumCRC32 | ChecksumSHA256}); err == nil || got != nil {
+		t.Fatalf("a put with two checksum algorithms: %v, sent %v", err, got != nil)
 	}
 }
 
@@ -75,24 +93,21 @@ func TestGetObjectAnnotationVerifiesChecksum(t *testing.T) {
 		if r.Header.Get("X-Amz-Checksum-Mode") != "ENABLED" {
 			t.Errorf("checksum mode not asked for")
 		}
-		sum := testAnnotationCRC32
-		if r.URL.Query().Get("annotationName") == "bad" {
-			sum = "AAAAAA=="
+		switch r.URL.Query().Get("annotationName") {
+		case "good":
+			w.Header().Set("X-Amz-Checksum-Crc32", testAnnotationCRC32)
+		case "bad":
+			w.Header().Set("X-Amz-Checksum-Crc32", "AAAAAA==")
 		}
-		w.Header().Set("X-Amz-Checksum-Crc32", sum)
 		io.WriteString(w, testAnnotationPayload)
 	})
+	// A server that returns no checksum, as earlier ones, leaves nothing to verify.
 	for _, tc := range []struct {
 		name string
 		ok   bool
-	}{{"good", true}, {"bad", false}} {
-		rc, err := c.GetObjectAnnotation(context.Background(), "bucket", "object", tc.name, GetObjectAnnotationOptions{Checksum: true})
-		if err != nil {
-			t.Fatal(err)
-		}
-		body, err := io.ReadAll(rc)
-		rc.Close()
-		if (err == nil) != tc.ok || string(body) != testAnnotationPayload {
+	}{{"good", true}, {"bad", false}, {"none", true}} {
+		body, err := c.GetObjectAnnotation(context.Background(), "bucket", "object", tc.name, GetObjectAnnotationOptions{})
+		if (err == nil) != tc.ok || tc.ok && string(body) != testAnnotationPayload {
 			t.Fatalf("%s: read %q, %v", tc.name, body, err)
 		}
 	}
@@ -104,6 +119,8 @@ func TestListObjectAnnotationsPagesAndForms(t *testing.T) {
 		q := r.URL.Query()
 		prefixes = append(prefixes, q.Get("annotation-prefix"))
 		switch {
+		case q.Get("annotation-prefix") == "loop":
+			io.WriteString(w, `<ListObjectAnnotationsOutput><Annotations></Annotations><NextContinuationToken>same</NextContinuationToken></ListObjectAnnotationsOutput>`)
 		case q.Get("annotation-prefix") == "none":
 			io.WriteString(w, `<ListObjectAnnotationsOutput><Annotations></Annotations><AnnotationCount>0</AnnotationCount></ListObjectAnnotationsOutput>`)
 		case q.Get("annotation-prefix") == "flat":
@@ -139,7 +156,11 @@ func TestListObjectAnnotationsPagesAndForms(t *testing.T) {
 	if err != nil || anns == nil || len(anns) != 0 {
 		t.Fatalf("empty listing %#v, %v", anns, err)
 	}
-	if strings.Join(prefixes, ",") != ",,flat,none" {
+	// A token that does not move on is an error, not the end of the listing.
+	if _, err = c.ListObjectAnnotations(context.Background(), "bucket", "object", ListObjectAnnotationsOptions{Prefix: "loop"}); err == nil {
+		t.Fatal("a repeated continuation token ended the listing without an error")
+	}
+	if strings.Join(prefixes, ",") != ",,flat,none,loop,loop" {
 		t.Fatalf("sent prefixes %q", prefixes)
 	}
 }

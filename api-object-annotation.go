@@ -18,11 +18,10 @@
 package minio
 
 import (
+	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/xml"
 	"fmt"
-	"hash"
 	"io"
 	"net/http"
 	"net/url"
@@ -66,20 +65,14 @@ type PutObjectAnnotationOptions struct {
 	// IfMatch, when set, only applies the annotation if the parent object's
 	// ETag matches this value (sent as x-amz-object-if-match).
 	IfMatch string
-	// Checksum, when set, has the client send this checksum of the payload,
-	// which the server verifies and stores. Without one the server stores a
-	// CRC64NVME checksum.
+	// Checksum is the algorithm of the checksum of the payload the client
+	// sends, which the server verifies and stores. It defaults to XXH3.
 	Checksum ChecksumType
 }
 
 // GetObjectAnnotationOptions configures a GetObjectAnnotation request.
 type GetObjectAnnotationOptions struct {
 	VersionID string
-	// Checksum asks the server for the annotation's stored checksum and
-	// verifies the payload against it: reading the payload to its end returns
-	// an error when they differ. A server that returns no checksum fails the
-	// call.
-	Checksum bool
 }
 
 // ListObjectAnnotationsOptions configures a ListObjectAnnotations request.
@@ -136,11 +129,10 @@ func annotationQueryValues(name, versionID string) url.Values {
 }
 
 // PutObjectAnnotation creates or overwrites a named annotation on an object
-// version. The payload (1 byte to 1 MiB) is streamed directly from the supplied
-// ReadSeeker: its size is taken from a seek to the end, so the body is sent with
-// an exact Content-Length and never buffered in memory. It returns the
-// annotation's ETag. The parent object's ETag is never modified.
-func (c *Client) PutObjectAnnotation(ctx context.Context, bucketName, objectName, annotationName string, payload io.ReadSeeker, opts PutObjectAnnotationOptions) (string, error) {
+// version. The payload must be 1 byte to 1 MiB. It is sent with its checksum,
+// XXH3 unless opts names another, which the server verifies and stores. It
+// returns the annotation's ETag. The parent object's ETag is never modified.
+func (c *Client) PutObjectAnnotation(ctx context.Context, bucketName, objectName, annotationName string, payload []byte, opts PutObjectAnnotationOptions) (string, error) {
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return "", err
 	}
@@ -150,48 +142,32 @@ func (c *Client) PutObjectAnnotation(ctx context.Context, bucketName, objectName
 	if err := validateAnnotationName(annotationName); err != nil {
 		return "", err
 	}
-	if payload == nil {
-		return "", errInvalidArgument("annotation payload must not be nil")
-	}
-
-	// Derive the payload size from the seeker and enforce the limits before
-	// uploading; the server reads the body raw, so it is sent with UNSIGNED-PAYLOAD
-	// (no streaming-chunked signature) and streamed without buffering.
-	size, err := payload.Seek(0, io.SeekEnd)
-	if err != nil {
-		return "", err
-	}
-	if _, err := payload.Seek(0, io.SeekStart); err != nil {
-		return "", err
-	}
-	if size == 0 {
+	if len(payload) == 0 {
 		return "", errInvalidArgument("annotation payload must be at least 1 byte")
 	}
-	if size > maxAnnotationPayloadBytes {
+	if len(payload) > maxAnnotationPayloadBytes {
 		return "", errInvalidArgument("annotation payload exceeds the 1 MiB maximum")
+	}
+	checksum := opts.Checksum
+	if checksum == ChecksumNone {
+		checksum = ChecksumXXHash3
+	}
+	if !checksum.IsSet() {
+		return "", errInvalidArgument("annotation checksum must name exactly one algorithm")
 	}
 
 	headers := make(http.Header)
 	if opts.IfMatch != "" {
 		headers.Set(amzObjectIfMatchHeader, opts.IfMatch)
 	}
-	if opts.Checksum.IsSet() {
-		h := opts.Checksum.Hasher()
-		if _, err := io.Copy(h, payload); err != nil {
-			return "", err
-		}
-		if _, err := payload.Seek(0, io.SeekStart); err != nil {
-			return "", err
-		}
-		headers.Set(opts.Checksum.Key(), base64.StdEncoding.EncodeToString(h.Sum(nil)))
-	}
+	headers.Set(checksum.Key(), checksum.EncodeToString(payload))
 
 	resp, err := c.executeMethod(ctx, http.MethodPut, requestMetadata{
 		bucketName:    bucketName,
 		objectName:    objectName,
 		queryValues:   annotationQueryValues(annotationName, opts.VersionID),
-		contentBody:   payload,
-		contentLength: size,
+		contentBody:   bytes.NewReader(payload),
+		contentLength: int64(len(payload)),
 		customHeader:  headers,
 	})
 	defer closeResponse(resp)
@@ -204,12 +180,10 @@ func (c *Client) PutObjectAnnotation(ctx context.Context, bucketName, objectName
 	return trimEtag(resp.Header.Get("ETag")), nil
 }
 
-// GetObjectAnnotation returns the payload of a single named annotation as a
-// stream. The returned ReadCloser is the response body; the caller must Close it
-// once the payload has been read so the underlying connection can be reused. The
-// payload is server-capped at 1 MiB. With opts.Checksum, reading it to its end
-// fails when it does not match the checksum the server stored.
-func (c *Client) GetObjectAnnotation(ctx context.Context, bucketName, objectName, annotationName string, opts GetObjectAnnotationOptions) (io.ReadCloser, error) {
+// GetObjectAnnotation returns the payload of a single named annotation, at most
+// 1 MiB. It is verified against the checksum the server stored with it, when
+// the server returns one.
+func (c *Client) GetObjectAnnotation(ctx context.Context, bucketName, objectName, annotationName string, opts GetObjectAnnotationOptions) ([]byte, error) {
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return nil, err
 	}
@@ -221,53 +195,36 @@ func (c *Client) GetObjectAnnotation(ctx context.Context, bucketName, objectName
 	}
 
 	headers := make(http.Header)
-	if opts.Checksum {
-		headers.Set("x-amz-checksum-mode", "ENABLED")
-	}
+	headers.Set("x-amz-checksum-mode", "ENABLED")
 	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
 		bucketName:   bucketName,
 		objectName:   objectName,
 		queryValues:  annotationQueryValues(annotationName, opts.VersionID),
 		customHeader: headers,
 	})
+	defer closeResponse(resp)
 	if err != nil {
-		closeResponse(resp)
 		return nil, err
 	}
 	if resp != nil && resp.StatusCode != http.StatusOK {
-		defer closeResponse(resp)
 		return nil, httpRespToErrorResponse(resp, bucketName, objectName)
 	}
-	if !opts.Checksum {
-		return resp.Body, nil
+	payload, err := io.ReadAll(io.LimitReader(resp.Body, maxAnnotationPayloadBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(payload) > maxAnnotationPayloadBytes {
+		return nil, fmt.Errorf("annotation %s exceeds the 1 MiB maximum", annotationName)
 	}
 	for t := ChecksumSHA256; t < checksumLast; t <<= 1 {
 		if want := resp.Header.Get(t.Key()); want != "" {
-			return &annotationChecksumReader{ReadCloser: resp.Body, typ: t, h: t.Hasher(), want: want}, nil
+			if got := t.EncodeToString(payload); got != want {
+				return nil, fmt.Errorf("annotation %s %s checksum mismatch: got %s, want %s", annotationName, t, got, want)
+			}
+			break
 		}
 	}
-	closeResponse(resp)
-	return nil, fmt.Errorf("GetObjectAnnotation: the server returned no checksum for %s", annotationName)
-}
-
-// annotationChecksumReader verifies a payload against its checksum once read
-// to its end.
-type annotationChecksumReader struct {
-	io.ReadCloser
-	typ  ChecksumType
-	h    hash.Hash
-	want string
-}
-
-func (r *annotationChecksumReader) Read(p []byte) (int, error) {
-	n, err := r.ReadCloser.Read(p)
-	r.h.Write(p[:n])
-	if err == io.EOF {
-		if got := base64.StdEncoding.EncodeToString(r.h.Sum(nil)); got != r.want {
-			return n, fmt.Errorf("annotation %s checksum mismatch: got %s, want %s", r.typ, got, r.want)
-		}
-	}
-	return n, err
+	return payload, nil
 }
 
 // ListObjectAnnotations returns all annotations attached to an object version,
@@ -288,8 +245,11 @@ func (c *Client) ListObjectAnnotations(ctx context.Context, bucketName, objectNa
 			return nil, err
 		}
 		annotations = append(annotations, page...)
-		if next == "" || next == token {
+		if next == "" {
 			return annotations, nil
+		}
+		if next == token {
+			return nil, fmt.Errorf("listObjectAnnotations repeated continuationToken %q, %s S3 server is buggy", next, c.endpointURL)
 		}
 		token = next
 	}
