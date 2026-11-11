@@ -46,6 +46,37 @@ type ObjectBioOptions struct {
 type ObjectBioAnnotation struct {
 	Name string `json:"name"`
 	Size int64  `json:"size"`
+	// ChecksumAlgo is CRC32, CRC32C, CRC64NVME, SHA1, SHA256, SHA512,
+	// XXHASH64, XXHASH3 or XXHASH128. Empty if the annotation has none.
+	ChecksumAlgo string `json:"checksumAlgo,omitempty"`
+	// ChecksumValue is the Base64 encoded checksum.
+	ChecksumValue string `json:"checksum,omitempty"`
+}
+
+// bioChecksumTypes are the algorithms an annotation checksum can name.
+var bioChecksumTypes = []ChecksumType{
+	ChecksumCRC32, ChecksumCRC32C, ChecksumCRC64NVME, ChecksumSHA1, ChecksumSHA256,
+	ChecksumSHA512, ChecksumXXHash64, ChecksumXXHash3, ChecksumXXHash128,
+}
+
+// Checksum returns the annotation's checksum. It is not set, with no error,
+// when the annotation has none, and an error when the algorithm is unknown or
+// the value does not decode to a checksum of that algorithm.
+func (o ObjectBioAnnotation) Checksum() (Checksum, error) {
+	if o.ChecksumAlgo == "" && o.ChecksumValue == "" {
+		return Checksum{}, nil
+	}
+	for _, t := range bioChecksumTypes {
+		if t.String() != o.ChecksumAlgo {
+			continue
+		}
+		c := NewChecksumString(t, o.ChecksumValue)
+		if !c.IsSet() {
+			return Checksum{}, fmt.Errorf("annotation %q: %q is not a valid %s checksum", o.Name, o.ChecksumValue, o.ChecksumAlgo)
+		}
+		return c, nil
+	}
+	return Checksum{}, fmt.Errorf("annotation %q: unknown checksum algorithm %q", o.Name, o.ChecksumAlgo)
 }
 
 // ObjectBioEntry is one version of an object's history.

@@ -815,6 +815,44 @@ func TestGetObjectBio(t *testing.T) {
 	}
 }
 
+func TestObjectBioAnnotationChecksum(t *testing.T) {
+	stream := `{"type":"begin","key":"notes/a.json"}
+{"type":"version","version":{"version":"v1","current":true,"annotations":[{"name":"summary","size":5,"checksumAlgo":"CRC32","checksum":"NhCmhg=="},{"name":"plain","size":3}]}}
+{"type":"end","totalVersions":1}
+`
+	bio, err := readObjectBio(strings.NewReader(stream))
+	if err != nil {
+		t.Fatal(err)
+	}
+	anns := bio.Entries[0].Annotations
+	if len(anns) != 2 || anns[0].ChecksumAlgo != "CRC32" || anns[0].ChecksumValue != "NhCmhg==" {
+		t.Fatalf("unexpected annotations %+v", anns)
+	}
+	sum, err := anns[0].Checksum()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// NhCmhg== is the CRC32 of "hello".
+	if sum.Type != ChecksumCRC32 || sum.Encoded() != "NhCmhg==" {
+		t.Fatalf("checksum %v %s, want CRC32 NhCmhg==", sum.Type, sum.Encoded())
+	}
+	if sum, err := anns[1].Checksum(); err != nil || sum.IsSet() {
+		t.Fatalf("an annotation without a checksum gives an unset one and no error, got %v %v", sum, err)
+	}
+
+	for _, a := range []ObjectBioAnnotation{
+		{Name: "x", ChecksumAlgo: "MD4", ChecksumValue: "NhCmhg=="},
+		{Name: "x", ChecksumAlgo: "CRC32", ChecksumValue: "not base64"},
+		{Name: "x", ChecksumAlgo: "SHA256", ChecksumValue: "NhCmhg=="},
+		{Name: "x", ChecksumAlgo: "CRC32"},
+		{Name: "x", ChecksumValue: "NhCmhg=="},
+	} {
+		if _, err := a.Checksum(); err == nil {
+			t.Fatalf("%+v gives no error", a)
+		}
+	}
+}
+
 func TestRawPathRequestNamesNoBucket(t *testing.T) {
 	c := newMemoryTestClient(t, func(http.ResponseWriter, *http.Request) {})
 	_, err := c.newRequest(context.Background(), http.MethodGet, requestMetadata{rawPath: "/_mem/v1/cortexes", bucketName: "b"})
