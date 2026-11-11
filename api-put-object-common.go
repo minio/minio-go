@@ -201,15 +201,15 @@ func errIfMoreData(reader io.Reader, uploadedSize, totalPartsCount int64, bucket
 	return nil
 }
 
-// errIfLonger reports errReaderTooLong when reader still holds data after the
-// size bytes the caller declared were read from it. A read error other than
-// io.EOF is returned as is, so a reader that fails at its end does not
-// complete the upload.
-func errIfLonger(reader io.Reader, size int64, bucketName, objectName string) error {
+// errIfLonger returns tooLong when reader still holds data after the size bytes
+// the caller declared were read from it. A read error other than io.EOF is
+// returned as is, so a reader that fails at its end does not complete the
+// upload.
+func errIfLonger(reader io.Reader, tooLong error) error {
 	var b [1]byte
 	n, err := readFull(reader, b[:])
 	if n > 0 {
-		return errReaderTooLong(size, bucketName, objectName)
+		return tooLong
 	}
 	if err != nil && err != io.EOF {
 		return err
@@ -217,18 +217,21 @@ func errIfLonger(reader io.Reader, size int64, bucketName, objectName string) er
 	return nil
 }
 
+// sizeLimitError is the error a sizeLimitReader returns for data past its
+// size. putObject compares it by pointer, so an equal error returned by
+// the reader itself is not taken for it.
+type sizeLimitError struct{ error }
+
 // sizeLimitReader hands out the first size bytes of reader and fails with
-// errReaderTooLong when reader holds more, so the request body reports it
-// instead of net/http's length check. The check runs as the last declared byte
-// is read, and fails that read: the bytes that would complete the body are
-// never handed out.
+// tooLong when reader holds more, so the request body reports it instead of
+// net/http's length check. The check runs as the last declared byte is read,
+// and fails that read: the bytes that would complete the body are never
+// handed out.
 type sizeLimitReader struct {
-	reader     io.Reader
-	size       int64
-	left       int64
-	err        error
-	bucketName string
-	objectName string
+	reader  io.Reader
+	left    int64
+	tooLong error
+	err     error
 }
 
 // Read implements the io.Reader interface.
@@ -242,7 +245,7 @@ func (r *sizeLimitReader) Read(p []byte) (int, error) {
 	n, err := r.reader.Read(p[:min(int64(len(p)), r.left)])
 	r.left -= int64(n)
 	if err == nil && r.left == 0 {
-		if r.err = errIfLonger(r.reader, r.size, r.bucketName, r.objectName); r.err != nil {
+		if r.err = errIfLonger(r.reader, r.tooLong); r.err != nil {
 			return 0, r.err
 		}
 	}

@@ -346,6 +346,7 @@ func TestPutObjectSingleLongerReader(t *testing.T) {
 		{"read error at the end", PutObjectOptions{}, errReadFailed, 1},
 		{"read error at the end with Content-MD5", PutObjectOptions{SendContentMd5: true}, errReadFailed, 0},
 		{"read error wrapping EntityTooLarge", PutObjectOptions{}, fmt.Errorf("source: %w", ErrorResponse{Code: EntityTooLarge, Message: "read failed"}), 1},
+		{"read error wrapping the size error", PutObjectOptions{}, fmt.Errorf("source: %w", errReaderTooLong(size, "bucket", "object")), 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var started, complete atomic.Int32

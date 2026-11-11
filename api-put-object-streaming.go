@@ -368,7 +368,7 @@ func (c *Client) putObjectMultipartStreamOptionalChecksum(ctx context.Context, b
 		// The reader holds more than the declared size. Fail here, before the
 		// last part is sent.
 		if size > 0 && partNumber == totalPartsCount {
-			if err = errIfLonger(reader, size, bucketName, objectName); err != nil {
+			if err = errIfLonger(reader, errReaderTooLong(size, bucketName, objectName)); err != nil {
 				return UploadInfo{}, err
 			}
 		}
@@ -574,7 +574,7 @@ func (c *Client) putObjectMultipartStreamParallel(ctx context.Context, bucketNam
 		// The reader holds more than the declared size. Fail here, before the
 		// last part is sent.
 		if size >= 0 && partNumber == totalPartsCount {
-			if err = errIfLonger(reader, size, bucketName, objectName); err != nil {
+			if err = errIfLonger(reader, errReaderTooLong(size, bucketName, objectName)); err != nil {
 				cancel()
 				wg.Wait()
 				return UploadInfo{}, err
@@ -760,7 +760,7 @@ func (c *Client) putObject(ctx context.Context, bucketName, objectName string, r
 			}
 
 			if size > 0 {
-				if err := errIfLonger(reader, size, bucketName, objectName); err != nil {
+				if err := errIfLonger(reader, errReaderTooLong(size, bucketName, objectName)); err != nil {
 					return UploadInfo{}, err
 				}
 			}
@@ -775,10 +775,10 @@ func (c *Client) putObject(ctx context.Context, bucketName, objectName string, r
 
 	// A reader that cannot be rewound is sent as is. Make it report data past
 	// the declared size, instead of net/http's content length mismatch.
-	var sizeLimited bool
+	var tooLong *sizeLimitError
 	if _, ok := reader.(io.Seeker); !ok && size > 0 {
-		reader = &sizeLimitReader{reader: reader, size: size, left: size, bucketName: bucketName, objectName: objectName}
-		sizeLimited = true
+		tooLong = &sizeLimitError{errReaderTooLong(size, bucketName, objectName)}
+		reader = &sizeLimitReader{reader: reader, left: size, tooLong: tooLong}
 	}
 
 	// Update progress reader appropriately to the latest offset as we
@@ -789,11 +789,11 @@ func (c *Client) putObject(ctx context.Context, bucketName, objectName string, r
 	// Execute put object.
 	info, err = c.putObjectDo(ctx, bucketName, objectName, progressReader, md5Base64, "", size, opts)
 
-	// net/http wraps the error from reading the request body. Hand back the
-	// size error of the sizeLimitReader installed above as is; any other
-	// error is returned unchanged.
-	if sizeErr := errReaderTooLong(size, bucketName, objectName); sizeLimited && errors.Is(err, sizeErr) {
-		err = sizeErr
+	// net/http wraps the error from reading the request body. Hand back the size
+	// error of the sizeLimitReader installed above, matched by pointer so a reader
+	// error equal to it keeps its wrapping.
+	if tooLong != nil && errors.Is(err, tooLong) {
+		err = tooLong.error
 	}
 	return info, err
 }
