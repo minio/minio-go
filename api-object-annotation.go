@@ -18,11 +18,14 @@
 package minio
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/minio/minio-go/v7/pkg/s3utils"
@@ -62,6 +65,9 @@ type PutObjectAnnotationOptions struct {
 	// IfMatch, when set, only applies the annotation if the parent object's
 	// ETag matches this value (sent as x-amz-object-if-match).
 	IfMatch string
+	// Checksum is the algorithm of the checksum of the payload the client
+	// sends, which the server verifies and stores. It defaults to XXH3.
+	Checksum ChecksumType
 }
 
 // GetObjectAnnotationOptions configures a GetObjectAnnotation request.
@@ -72,6 +78,8 @@ type GetObjectAnnotationOptions struct {
 // ListObjectAnnotationsOptions configures a ListObjectAnnotations request.
 type ListObjectAnnotationsOptions struct {
 	VersionID string
+	// Prefix limits the listing to annotations whose names start with it.
+	Prefix string
 }
 
 // RemoveObjectAnnotationOptions configures a DeleteObjectAnnotation request.
@@ -86,17 +94,26 @@ type ObjectAnnotation struct {
 	Size         int64
 	ETag         string
 	LastModified time.Time
+	// ChecksumAlgorithm is the algorithm of the annotation's stored checksum.
+	ChecksumAlgorithm string
 }
 
-// listObjectAnnotationsOutput maps the ListObjectAnnotations XML response.
+type annotationEntryXML struct {
+	AnnotationName    string `xml:"AnnotationName"`
+	Size              int64  `xml:"Size"`
+	ETag              string `xml:"ETag"`
+	LastModified      string `xml:"LastModified"`
+	ChecksumAlgorithm string `xml:"ChecksumAlgorithm"`
+}
+
+// listObjectAnnotationsOutput maps the ListObjectAnnotations XML response. S3
+// wraps the entries in Annotations; earlier AIStor servers list them as
+// Annotation elements.
 type listObjectAnnotationsOutput struct {
-	XMLName     xml.Name `xml:"ListObjectAnnotationsOutput"`
-	Annotations []struct {
-		AnnotationName string `xml:"AnnotationName"`
-		Size           int64  `xml:"Size"`
-		ETag           string `xml:"ETag"`
-		LastModified   string `xml:"LastModified"`
-	} `xml:"Annotation"`
+	XMLName               xml.Name             `xml:"ListObjectAnnotationsOutput"`
+	Entries               []annotationEntryXML `xml:"Annotations>AnnotationEntry"`
+	Flat                  []annotationEntryXML `xml:"Annotation"`
+	NextContinuationToken string               `xml:"NextContinuationToken"`
 }
 
 func annotationQueryValues(name, versionID string) url.Values {
@@ -112,11 +129,10 @@ func annotationQueryValues(name, versionID string) url.Values {
 }
 
 // PutObjectAnnotation creates or overwrites a named annotation on an object
-// version. The payload (1 byte to 1 MiB) is streamed directly from the supplied
-// ReadSeeker: its size is taken from a seek to the end, so the body is sent with
-// an exact Content-Length and never buffered in memory. It returns the
-// annotation's ETag. The parent object's ETag is never modified.
-func (c *Client) PutObjectAnnotation(ctx context.Context, bucketName, objectName, annotationName string, payload io.ReadSeeker, opts PutObjectAnnotationOptions) (string, error) {
+// version. The payload must be 1 byte to 1 MiB. It is sent with its checksum,
+// XXH3 unless opts names another, which the server verifies and stores. It
+// returns the annotation's ETag. The parent object's ETag is never modified.
+func (c *Client) PutObjectAnnotation(ctx context.Context, bucketName, objectName, annotationName string, payload []byte, opts PutObjectAnnotationOptions) (string, error) {
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return "", err
 	}
@@ -126,38 +142,32 @@ func (c *Client) PutObjectAnnotation(ctx context.Context, bucketName, objectName
 	if err := validateAnnotationName(annotationName); err != nil {
 		return "", err
 	}
-	if payload == nil {
-		return "", errInvalidArgument("annotation payload must not be nil")
-	}
-
-	// Derive the payload size from the seeker and enforce the limits before
-	// uploading; the server reads the body raw, so it is sent with UNSIGNED-PAYLOAD
-	// (no streaming-chunked signature) and streamed without buffering.
-	size, err := payload.Seek(0, io.SeekEnd)
-	if err != nil {
-		return "", err
-	}
-	if _, err := payload.Seek(0, io.SeekStart); err != nil {
-		return "", err
-	}
-	if size == 0 {
+	if len(payload) == 0 {
 		return "", errInvalidArgument("annotation payload must be at least 1 byte")
 	}
-	if size > maxAnnotationPayloadBytes {
+	if len(payload) > maxAnnotationPayloadBytes {
 		return "", errInvalidArgument("annotation payload exceeds the 1 MiB maximum")
+	}
+	checksum := opts.Checksum
+	if checksum == ChecksumNone {
+		checksum = ChecksumXXHash3
+	}
+	if !checksum.IsSet() {
+		return "", errInvalidArgument("annotation checksum must name exactly one algorithm")
 	}
 
 	headers := make(http.Header)
 	if opts.IfMatch != "" {
 		headers.Set(amzObjectIfMatchHeader, opts.IfMatch)
 	}
+	headers.Set(checksum.Key(), checksum.EncodeToString(payload))
 
 	resp, err := c.executeMethod(ctx, http.MethodPut, requestMetadata{
 		bucketName:    bucketName,
 		objectName:    objectName,
 		queryValues:   annotationQueryValues(annotationName, opts.VersionID),
-		contentBody:   payload,
-		contentLength: size,
+		contentBody:   bytes.NewReader(payload),
+		contentLength: int64(len(payload)),
 		customHeader:  headers,
 	})
 	defer closeResponse(resp)
@@ -170,11 +180,10 @@ func (c *Client) PutObjectAnnotation(ctx context.Context, bucketName, objectName
 	return trimEtag(resp.Header.Get("ETag")), nil
 }
 
-// GetObjectAnnotation returns the payload of a single named annotation as a
-// stream. The returned ReadCloser is the response body; the caller must Close it
-// once the payload has been read so the underlying connection can be reused. The
-// payload is server-capped at 1 MiB.
-func (c *Client) GetObjectAnnotation(ctx context.Context, bucketName, objectName, annotationName string, opts GetObjectAnnotationOptions) (io.ReadCloser, error) {
+// GetObjectAnnotation returns the payload of a single named annotation, at most
+// 1 MiB. It is verified against the checksum the server stored with it, when
+// the server returns one.
+func (c *Client) GetObjectAnnotation(ctx context.Context, bucketName, objectName, annotationName string, opts GetObjectAnnotationOptions) ([]byte, error) {
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return nil, err
 	}
@@ -185,35 +194,13 @@ func (c *Client) GetObjectAnnotation(ctx context.Context, bucketName, objectName
 		return nil, err
 	}
 
+	headers := make(http.Header)
+	headers.Set("x-amz-checksum-mode", "ENABLED")
 	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
-		bucketName:  bucketName,
-		objectName:  objectName,
-		queryValues: annotationQueryValues(annotationName, opts.VersionID),
-	})
-	if err != nil {
-		closeResponse(resp)
-		return nil, err
-	}
-	if resp != nil && resp.StatusCode != http.StatusOK {
-		defer closeResponse(resp)
-		return nil, httpRespToErrorResponse(resp, bucketName, objectName)
-	}
-	return resp.Body, nil
-}
-
-// ListObjectAnnotations returns all annotations attached to an object version.
-func (c *Client) ListObjectAnnotations(ctx context.Context, bucketName, objectName string, opts ListObjectAnnotationsOptions) ([]ObjectAnnotation, error) {
-	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
-		return nil, err
-	}
-	if err := s3utils.CheckValidObjectName(objectName); err != nil {
-		return nil, err
-	}
-
-	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
-		bucketName:  bucketName,
-		objectName:  objectName,
-		queryValues: annotationQueryValues("", opts.VersionID),
+		bucketName:   bucketName,
+		objectName:   objectName,
+		queryValues:  annotationQueryValues(annotationName, opts.VersionID),
+		customHeader: headers,
 	})
 	defer closeResponse(resp)
 	if err != nil {
@@ -222,14 +209,87 @@ func (c *Client) ListObjectAnnotations(ctx context.Context, bucketName, objectNa
 	if resp != nil && resp.StatusCode != http.StatusOK {
 		return nil, httpRespToErrorResponse(resp, bucketName, objectName)
 	}
+	payload, err := io.ReadAll(io.LimitReader(resp.Body, maxAnnotationPayloadBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(payload) > maxAnnotationPayloadBytes {
+		// closeResponse would drain the rest, which can be of any length.
+		resp.Body.Close()
+		resp.Body = nil
+		return nil, fmt.Errorf("annotation %s exceeds the 1 MiB maximum", annotationName)
+	}
+	for t := ChecksumSHA256; t < checksumLast; t <<= 1 {
+		if want := resp.Header.Get(t.Key()); want != "" {
+			if got := t.EncodeToString(payload); got != want {
+				return nil, fmt.Errorf("annotation %s %s checksum mismatch: got %s, want %s", annotationName, t, got, want)
+			}
+			break
+		}
+	}
+	return payload, nil
+}
 
-	var out listObjectAnnotationsOutput
-	if err := xml.NewDecoder(resp.Body).Decode(&out); err != nil {
+// ListObjectAnnotations returns all annotations attached to an object version,
+// or those whose names start with opts.Prefix, following the listing's pages.
+func (c *Client) ListObjectAnnotations(ctx context.Context, bucketName, objectName string, opts ListObjectAnnotationsOptions) ([]ObjectAnnotation, error) {
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+		return nil, err
+	}
+	if err := s3utils.CheckValidObjectName(objectName); err != nil {
 		return nil, err
 	}
 
-	annotations := make([]ObjectAnnotation, 0, len(out.Annotations))
-	for _, a := range out.Annotations {
+	annotations := []ObjectAnnotation{}
+	token := ""
+	for {
+		page, next, err := c.listObjectAnnotationsPage(ctx, bucketName, objectName, opts, token)
+		if err != nil {
+			return nil, err
+		}
+		annotations = append(annotations, page...)
+		if next == "" {
+			return annotations, nil
+		}
+		if next == token {
+			return nil, fmt.Errorf("listObjectAnnotations repeated continuationToken %q, %s S3 server is buggy", next, c.endpointURL)
+		}
+		token = next
+	}
+}
+
+func (c *Client) listObjectAnnotationsPage(ctx context.Context, bucketName, objectName string, opts ListObjectAnnotationsOptions, token string) ([]ObjectAnnotation, string, error) {
+	query := annotationQueryValues("", opts.VersionID)
+	if opts.Prefix != "" {
+		query.Set("annotation-prefix", opts.Prefix)
+	}
+	if token != "" {
+		query.Set("continuation-token", token)
+	}
+	resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
+		bucketName:  bucketName,
+		objectName:  objectName,
+		queryValues: query,
+	})
+	defer closeResponse(resp)
+	if err != nil {
+		return nil, "", err
+	}
+	if resp != nil && resp.StatusCode != http.StatusOK {
+		return nil, "", httpRespToErrorResponse(resp, bucketName, objectName)
+	}
+
+	var out listObjectAnnotationsOutput
+	if err := xml.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, "", err
+	}
+
+	annotations := make([]ObjectAnnotation, 0, len(out.Entries)+len(out.Flat))
+	for _, a := range append(out.Entries, out.Flat...) {
+		// A server that ignores the prefix lists every annotation.
+		if !strings.HasPrefix(a.AnnotationName, opts.Prefix) {
+			continue
+		}
 		// LastModified is an RFC3339 timestamp. A malformed value from the
 		// server leaves LastModified as the zero time rather than failing the
 		// entire listing for one bad entry.
@@ -238,13 +298,14 @@ func (c *Client) ListObjectAnnotations(ctx context.Context, bucketName, objectNa
 			lastModified, _ = time.Parse(time.RFC3339, a.LastModified)
 		}
 		annotations = append(annotations, ObjectAnnotation{
-			Name:         a.AnnotationName,
-			Size:         a.Size,
-			ETag:         trimEtag(a.ETag),
-			LastModified: lastModified,
+			Name:              a.AnnotationName,
+			Size:              a.Size,
+			ETag:              trimEtag(a.ETag),
+			LastModified:      lastModified,
+			ChecksumAlgorithm: a.ChecksumAlgorithm,
 		})
 	}
-	return annotations, nil
+	return annotations, out.NextContinuationToken, nil
 }
 
 // RemoveObjectAnnotation permanently deletes a single named annotation. Deletion

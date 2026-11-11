@@ -1350,9 +1350,9 @@ if err != nil {
 
 <a name="PutObjectAnnotation"></a>
 
-### PutObjectAnnotation(ctx context.Context, bucketName, objectName, annotationName string, payload io.Reader, opts PutObjectAnnotationOptions) (string, error)
+### PutObjectAnnotation(ctx context.Context, bucketName, objectName, annotationName string, payload []byte, opts PutObjectAnnotationOptions) (string, error)
 
-Create or overwrite a named annotation on an object version. An annotation is a named payload (1 byte to 1 MiB of UTF-8 text) attached to a specific object version, independent of the object's data. Up to 1,000 annotations may be attached per object version. The parent object's ETag is not modified. Returns the annotation's ETag.
+Create or overwrite a named annotation on an object version. An annotation is a named payload (1 byte to 1 MiB of UTF-8 text) attached to a specific object version, independent of the object's data. Up to 1,000 annotations may be attached per object version. The payload is sent with a checksum, XXH3 unless `Checksum` names another, which the server verifies and stores. The parent object's ETag is not modified. Returns the annotation's ETag.
 
 **Parameters**
 
@@ -1362,13 +1362,13 @@ Create or overwrite a named annotation on an object version. An annotation is a 
 | `bucketName`     | _string_                     | Name of the bucket                                                   |
 | `objectName`     | _string_                     | Name of the object                                                   |
 | `annotationName` | _string_                     | Name of the annotation (1-512 bytes)                                 |
-| `payload`        | _io.Reader_                  | Annotation payload (1 byte to 1 MiB of valid UTF-8)                  |
-| `opts`           | _PutObjectAnnotationOptions_ | Options: `VersionID`, `IfMatch` (x-amz-object-if-match precondition) |
+| `payload`        | _[]byte_                     | Annotation payload (1 byte to 1 MiB of valid UTF-8)                  |
+| `opts`           | _PutObjectAnnotationOptions_ | Options: `VersionID`, `IfMatch` (x-amz-object-if-match precondition), `Checksum` (checksum algorithm, XXH3 by default) |
 
 **Example**
 
 ```go
-payload := strings.NewReader(`{"label":"cat","confidence":0.98}`)
+payload := []byte(`{"label":"cat","confidence":0.98}`)
 etag, err := minioClient.PutObjectAnnotation(context.Background(), bucketName, objectName, "model.labels.json", payload, minio.PutObjectAnnotationOptions{})
 if err != nil {
 	fmt.Println(err)
@@ -1378,9 +1378,9 @@ if err != nil {
 
 <a name="GetObjectAnnotation"></a>
 
-### GetObjectAnnotation(ctx context.Context, bucketName, objectName, annotationName string, opts GetObjectAnnotationOptions) (io.ReadCloser, error)
+### GetObjectAnnotation(ctx context.Context, bucketName, objectName, annotationName string, opts GetObjectAnnotationOptions) ([]byte, error)
 
-Return the payload of a single named annotation as a stream. The caller must Close the returned reader.
+Return the payload of a single named annotation. It is verified against the checksum the server stored with it, when the server returns one.
 
 **Parameters**
 
@@ -1395,23 +1395,19 @@ Return the payload of a single named annotation as a stream. The caller must Clo
 **Example**
 
 ```go
-body, err := minioClient.GetObjectAnnotation(context.Background(), bucketName, objectName, "model.labels.json", minio.GetObjectAnnotationOptions{})
+payload, err := minioClient.GetObjectAnnotation(context.Background(), bucketName, objectName, "model.labels.json", minio.GetObjectAnnotationOptions{})
 if err != nil {
 	fmt.Println(err)
 	return
 }
-defer body.Close()
-if _, err := io.Copy(os.Stdout, body); err != nil {
-	fmt.Println(err)
-	return
-}
+fmt.Println(string(payload))
 ```
 
 <a name="ListObjectAnnotations"></a>
 
 ### ListObjectAnnotations(ctx context.Context, bucketName, objectName string, opts ListObjectAnnotationsOptions) ([]ObjectAnnotation, error)
 
-Return all annotations attached to an object version. Each `ObjectAnnotation` has `Name`, `Size`, `ETag` and `LastModified`.
+Return all annotations attached to an object version, or those whose names start with `Prefix`, following the listing's pages. Each `ObjectAnnotation` has `Name`, `Size`, `ETag`, `LastModified` and `ChecksumAlgorithm`.
 
 **Parameters**
 
@@ -1420,7 +1416,7 @@ Return all annotations attached to an object version. Each `ObjectAnnotation` ha
 | `ctx`        | _context.Context_              | Custom context for timeout/cancellation of the call |
 | `bucketName` | _string_                       | Name of the bucket                                  |
 | `objectName` | _string_                       | Name of the object                                  |
-| `opts`       | _ListObjectAnnotationsOptions_ | Options: `VersionID`                                |
+| `opts`       | _ListObjectAnnotationsOptions_ | Options: `VersionID`, `Prefix`                      |
 
 **Example**
 
