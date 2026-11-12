@@ -433,6 +433,8 @@ func TestListCortexSecretsRefusesAMarkerCycle(t *testing.T) {
 	c := newMemoryTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		if calls.Add(1) > 10 {
 			t.Error("the listing does not end")
+			writeMemoryError(w, http.StatusBadRequest, InvalidArgument, "marker cycle")
+			return
 		}
 		_ = json.NewEncoder(w).Encode(pages[r.URL.Query().Get("marker")])
 	})
