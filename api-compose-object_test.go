@@ -171,15 +171,19 @@ func TestDestOptions(t *testing.T) {
 	r := make(http.Header)
 
 	dst := CopyDestOptions{
-		Bucket:          "bucket",
-		Object:          "object",
-		ReplaceMetadata: true,
-		UserMetadata:    userMetadata,
+		Bucket:              "bucket",
+		Object:              "object",
+		ReplaceMetadata:     true,
+		UserMetadata:        userMetadata,
+		AnnotationDirective: ExcludeAnnotationsDirective,
 	}
 	dst.Marshal(r)
 
 	if v := r.Get("x-amz-metadata-directive"); v != "REPLACE" {
 		t.Errorf("Test - metadata directive was expected but is missing")
+	}
+	if v := r.Get("x-amz-object-annotation-directive"); v != ExcludeAnnotationsDirective {
+		t.Errorf("annotation directive %q, want %q", v, ExcludeAnnotationsDirective)
 	}
 
 	for k := range r {

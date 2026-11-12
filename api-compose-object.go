@@ -96,7 +96,7 @@ type CopyDestOptions struct {
 	// AnnotationDirective controls whether the source object's annotations are
 	// copied to the destination. Valid values are CopyAnnotationsDirective
 	// ("COPY", the default when unset) and ExcludeAnnotationsDirective
-	// ("EXCLUDE"). Sent as the x-amz-annotation-directive header.
+	// ("EXCLUDE"). Sent as the x-amz-object-annotation-directive header.
 	AnnotationDirective string
 }
 
@@ -171,7 +171,7 @@ func (opts CopyDestOptions) Marshal(header http.Header) {
 	}
 
 	if opts.AnnotationDirective != "" {
-		header.Set("x-amz-annotation-directive", opts.AnnotationDirective)
+		header.Set("x-amz-object-annotation-directive", opts.AnnotationDirective)
 	}
 
 	if opts.ReplaceMetadata {
