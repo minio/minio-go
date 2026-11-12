@@ -843,6 +843,7 @@ func TestObjectBioAnnotationChecksum(t *testing.T) {
 	for _, a := range []ObjectBioAnnotation{
 		{Name: "x", ChecksumAlgo: "MD4", ChecksumValue: "NhCmhg=="},
 		{Name: "x", ChecksumAlgo: "CRC32", ChecksumValue: "not base64"},
+		{Name: "x", ChecksumAlgo: "CRC32", ChecksumValue: "NhCmhg==!"},
 		{Name: "x", ChecksumAlgo: "SHA256", ChecksumValue: "NhCmhg=="},
 		{Name: "x", ChecksumAlgo: "CRC32"},
 		{Name: "x", ChecksumValue: "NhCmhg=="},

@@ -21,6 +21,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -70,8 +71,11 @@ func (o ObjectBioAnnotation) Checksum() (Checksum, error) {
 		if t.String() != o.ChecksumAlgo {
 			continue
 		}
-		c := NewChecksumString(t, o.ChecksumValue)
-		if !c.IsSet() {
+		// NewChecksumString drops the decode error, and a value with trailing
+		// garbage still decodes to bytes of the right length.
+		b, err := base64.StdEncoding.DecodeString(o.ChecksumValue)
+		c := NewChecksum(t, b)
+		if err != nil || !c.IsSet() {
 			return Checksum{}, fmt.Errorf("annotation %q: %q is not a valid %s checksum", o.Name, o.ChecksumValue, o.ChecksumAlgo)
 		}
 		return c, nil
