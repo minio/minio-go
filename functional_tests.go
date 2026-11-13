@@ -4353,6 +4353,80 @@ func testPutObjectPreconditionOnNonExistent() {
 	logSuccess(testName, function, args, startTime)
 }
 
+// Test RemoveObject with an ETag condition, which a server that takes it
+// answers 412 to rather than removing an object written since it was read.
+func testRemoveObjectPrecondition() {
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "RemoveObject(bucketName, objectName, opts) with preconditions"
+	args := map[string]interface{}{
+		"bucketName": "",
+		"objectName": "",
+		"opts":       "minio.RemoveObjectOptions{SetMatchETag}",
+	}
+
+	c, err := NewClient(ClientConfig{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
+		return
+	}
+
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	defer cleanupBucket(bucketName, c)
+
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "test-object-")
+	args["objectName"] = objectName
+
+	body := []byte("the object the caller read")
+	info, err := c.PutObject(context.Background(), bucketName, objectName,
+		bytes.NewReader(body), int64(len(body)), minio.PutObjectOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject failed", err)
+		return
+	}
+
+	// An ETag no object under this name has: the removal must be refused and
+	// the object must still be there afterwards.
+	wrong := minio.RemoveObjectOptions{}
+	wrong.SetMatchETag("00000000000000000000000000000000")
+	err = c.RemoveObject(context.Background(), bucketName, objectName, wrong)
+	if err == nil {
+		logError(testName, function, args, startTime, "", "RemoveObject with a mismatching ETag should have failed", nil)
+		return
+	}
+	if code := minio.ToErrorResponse(err).Code; code != "PreconditionFailed" {
+		logError(testName, function, args, startTime, "", fmt.Sprintf("Expected PreconditionFailed, got %s", code), err)
+		return
+	}
+	if _, err = c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{}); err != nil {
+		logError(testName, function, args, startTime, "", "the object was removed by a condition that did not hold", err)
+		return
+	}
+
+	// The ETag the object does have: the removal is made.
+	right := minio.RemoveObjectOptions{}
+	right.SetMatchETag(info.ETag)
+	if err = c.RemoveObject(context.Background(), bucketName, objectName, right); err != nil {
+		logError(testName, function, args, startTime, "", "RemoveObject with the object's own ETag failed", err)
+		return
+	}
+	_, err = c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{})
+	if minio.ToErrorResponse(err).Code != "NoSuchKey" {
+		logError(testName, function, args, startTime, "", "the object is still there after a removal that reported success", err)
+		return
+	}
+
+	logSuccess(testName, function, args, startTime)
+}
+
 // Test get object seeker from the end, using whence set to '2'.
 func testGetObjectSeekEnd() {
 	// initialize logging params
@@ -15928,6 +16002,7 @@ func main() {
 		testPutObjectReadAt()
 		testPutObjectStreaming()
 		testPutObjectPreconditionOnNonExistent()
+		testRemoveObjectPrecondition()
 		testGetObjectSeekEnd()
 		testGetObjectClosedTwice()
 		testGetObjectS3Zip()

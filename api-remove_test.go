@@ -115,3 +115,66 @@ func TestRemoveObjectsInvalidXMLCharFailureReportedOnce(t *testing.T) {
 		t.Fatalf("expected 2 DELETE requests (one per object), got %d", n)
 	}
 }
+
+func TestRemoveObjectSendsTheConditionItWasGiven(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		etag  string
+		unset bool
+		want  string
+	}{
+		{name: "no condition", unset: true},
+		{name: "an etag as ObjectInfo carries it", etag: "d41d8cd98f00b204e9800998ecf8427e", want: `"d41d8cd98f00b204e9800998ecf8427e"`},
+		{name: "an etag already quoted", etag: `"d41d8cd98f00b204e9800998ecf8427e"`, want: `"d41d8cd98f00b204e9800998ecf8427e"`},
+		{name: "a multipart etag", etag: "d41d8cd98f00b204e9800998ecf8427e-7", want: `"d41d8cd98f00b204e9800998ecf8427e-7"`},
+		{name: "whatever etag the object has", etag: "*", want: "*"},
+		{name: "a weak etag, which carries its own quotes", etag: `W/"d41d8cd98f00b204e9800998ecf8427e"`, want: `W/"d41d8cd98f00b204e9800998ecf8427e"`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var got http.Header
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				got = r.Header.Clone()
+				w.WriteHeader(http.StatusNoContent)
+			}))
+			defer srv.Close()
+
+			clnt, err := New(srv.Listener.Addr().String(), &Options{Region: "us-east-1"})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			opts := RemoveObjectOptions{}
+			if !test.unset {
+				opts.SetMatchETag(test.etag)
+			}
+			if err := clnt.RemoveObject(context.Background(), "bucket", "object", opts); err != nil {
+				t.Fatalf("RemoveObject: %v", err)
+			}
+			if value := got.Get("If-Match"); value != test.want {
+				t.Errorf("If-Match = %q, want %q", value, test.want)
+			}
+		})
+	}
+}
+
+func TestRemoveObjectReportsAConditionThatDidNotHold(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusPreconditionFailed)
+	}))
+	defer srv.Close()
+
+	clnt, err := New(srv.Listener.Addr().String(), &Options{Region: "us-east-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	opts := RemoveObjectOptions{}
+	opts.SetMatchETag("d41d8cd98f00b204e9800998ecf8427e")
+	err = clnt.RemoveObject(context.Background(), "bucket", "object", opts)
+	if err == nil {
+		t.Fatal("a removal the server refused was reported as made")
+	}
+	if code := ToErrorResponse(err).Code; code != "PreconditionFailed" {
+		t.Errorf("code = %q, want %q", code, "PreconditionFailed")
+	}
+}

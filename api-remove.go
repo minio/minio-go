@@ -134,6 +134,16 @@ type RemoveObjectOptions struct {
 	GovernanceBypass bool
 	VersionID        string
 	Internal         AdvancedRemoveOptions
+
+	customHeaders http.Header
+}
+
+// SetMatchETag allows to remove object if ETag matches.
+func (opts *RemoveObjectOptions) SetMatchETag(etag string) {
+	if opts.customHeaders == nil {
+		opts.customHeaders = http.Header{}
+	}
+	opts.customHeaders.Set("If-Match", quoteETag(etag))
 }
 
 // RemoveObject removes an object from a bucket.
@@ -183,6 +193,11 @@ func (c *Client) removeObject(ctx context.Context, bucketName, objectName string
 	}
 	if opts.ForceDelete {
 		headers.Set(minIOForceDelete, "true")
+	}
+	for key, values := range opts.customHeaders {
+		for _, value := range values {
+			headers.Set(key, value)
+		}
 	}
 	// Execute DELETE on objectName.
 	resp, err := c.executeMethod(ctx, http.MethodDelete, requestMetadata{
