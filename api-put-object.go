@@ -131,7 +131,7 @@ func (opts *PutObjectOptions) SetMatchETag(etag string) {
 	if etag == "*" {
 		opts.customHeaders.Set("If-Match", "*")
 	} else {
-		opts.customHeaders.Set("If-Match", "\""+etag+"\"")
+		opts.customHeaders.Set("If-Match", quoteETag(etag))
 	}
 }
 
@@ -145,7 +145,7 @@ func (opts *PutObjectOptions) SetMatchETagExcept(etag string) {
 	if etag == "*" {
 		opts.customHeaders.Set("If-None-Match", "*")
 	} else {
-		opts.customHeaders.Set("If-None-Match", "\""+etag+"\"")
+		opts.customHeaders.Set("If-None-Match", quoteETag(etag))
 	}
 }
 

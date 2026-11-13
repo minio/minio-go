@@ -143,7 +143,7 @@ func (o *GetObjectOptions) SetMatchETag(etag string) error {
 	if etag == "" {
 		return errInvalidArgument("ETag cannot be empty.")
 	}
-	o.Set("If-Match", "\""+etag+"\"")
+	o.Set("If-Match", quoteETag(etag))
 	return nil
 }
 
@@ -152,7 +152,7 @@ func (o *GetObjectOptions) SetMatchETagExcept(etag string) error {
 	if etag == "" {
 		return errInvalidArgument("ETag cannot be empty.")
 	}
-	o.Set("If-None-Match", "\""+etag+"\"")
+	o.Set("If-None-Match", quoteETag(etag))
 	return nil
 }
 

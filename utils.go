@@ -51,6 +51,13 @@ func trimEtag(etag string) string {
 	return strings.TrimSuffix(etag, "\"")
 }
 
+func quoteETag(etag string) string {
+	if etag == "*" || strings.HasPrefix(etag, `W/"`) {
+		return etag
+	}
+	return `"` + trimEtag(etag) + `"`
+}
+
 var expirationRegex = regexp.MustCompile(`expiry-date="(.*?)", rule-id="(.*?)"`)
 
 func amzExpirationToExpiryDateRuleID(expiration string) (time.Time, string) {

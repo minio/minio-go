@@ -709,3 +709,23 @@ func TestToObjectInfoChecksumAlgorithm(t *testing.T) {
 		})
 	}
 }
+
+func TestQuoteETag(t *testing.T) {
+	for _, test := range []struct {
+		etag, want string
+	}{
+		{"d41d8cd98f00b204e9800998ecf8427e", `"d41d8cd98f00b204e9800998ecf8427e"`},
+		{`"d41d8cd98f00b204e9800998ecf8427e"`, `"d41d8cd98f00b204e9800998ecf8427e"`},
+		{"d41d8cd98f00b204e9800998ecf8427e-7", `"d41d8cd98f00b204e9800998ecf8427e-7"`},
+		{"*", "*"},
+		{`W/"d41d8cd98f00b204e9800998ecf8427e"`, `W/"d41d8cd98f00b204e9800998ecf8427e"`},
+		// Quoted on one side only, which is malformed either way it is read:
+		// quoted once it is at least a header a server can parse.
+		{`"d41d8cd98f00b204e9800998ecf8427e`, `"d41d8cd98f00b204e9800998ecf8427e"`},
+		{`d41d8cd98f00b204e9800998ecf8427e"`, `"d41d8cd98f00b204e9800998ecf8427e"`},
+	} {
+		if got := quoteETag(test.etag); got != test.want {
+			t.Errorf("quoteETag(%q) = %q, want %q", test.etag, got, test.want)
+		}
+	}
+}
