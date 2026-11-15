@@ -404,8 +404,8 @@ func (tags *tagSet) parseTags(tgs string) (err error) {
 			}
 			continue
 		}
-		if err = tags.set(key, value, true); err != nil {
-			return err
+		if err1 = tags.set(key, value, true); err1 != nil {
+			return err1
 		}
 	}
 	return err

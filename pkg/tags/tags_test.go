@@ -70,6 +70,12 @@ func TestParseTags(t *testing.T) {
 			0,
 		},
 		{
+			// An invalid escape must not be forgotten when a later pair is valid.
+			"key1=%zz&key2=value2",
+			true,
+			0,
+		},
+		{
 			fmt.Sprintf("%0128d=%0257d", 1, 1),
 			true,
 			0,
