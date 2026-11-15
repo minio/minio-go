@@ -23,7 +23,6 @@ package main
 import (
 	"context"
 	"log"
-	"strings"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -41,13 +40,14 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	// The annotation payload is any byte stream (JSON/XML/YAML/plain), 1 byte to
-	// 1 MiB, supplied as an io.ReadSeeker so it can be streamed without buffering.
-	payload := strings.NewReader(`{"label":"cat","confidence":0.98}`)
+	// The annotation payload is UTF-8 text (JSON/XML/YAML/plain) of 1 byte to
+	// 1 MiB. It is sent with an XXH3 checksum, which the server verifies.
+	payload := []byte(`{"label":"cat","confidence":0.98}`)
 
 	etag, err := s3Client.PutObjectAnnotation(context.Background(), "my-bucketname", "my-objectname", "model.labels.json", payload, minio.PutObjectAnnotationOptions{
 		// VersionID: "target a specific object version",
 		// IfMatch:   "only write if the object's ETag matches",
+		// Checksum:  minio.ChecksumSHA256,
 	})
 	if err != nil {
 		log.Fatalln(err)

@@ -395,6 +395,7 @@ type SelectResults struct {
 	resp       *http.Response
 	stats      *StatsMessage
 	progress   *ProgressMessage
+	done       chan struct{} // closed when the stream goroutine has released resp
 }
 
 // ProgressMessage is a struct for progress xml message.
@@ -487,6 +488,7 @@ func NewSelectResults(resp *http.Response, bucketName string) (*SelectResults, e
 		stats:      &StatsMessage{},
 		progress:   &ProgressMessage{},
 		pipeReader: pipeReader,
+		done:       make(chan struct{}),
 	}
 	streamer.start(pipeWriter)
 	return streamer, nil
@@ -494,8 +496,12 @@ func NewSelectResults(resp *http.Response, bucketName string) (*SelectResults, e
 
 // Close - closes the underlying response body and the stream reader.
 func (s *SelectResults) Close() error {
-	defer closeResponse(s.resp)
-	return s.pipeReader.Close()
+	err := s.pipeReader.Close()
+	// The stream goroutine owns resp: it drains and closes the body on
+	// every exit path. Draining it here as well would read the body
+	// concurrently, which panics with decompressing transports.
+	<-s.done
+	return err
 }
 
 // Read - is a reader compatible implementation for SelectObjectContent records.
@@ -517,6 +523,7 @@ func (s *SelectResults) Progress() *ProgressMessage {
 // several events that are sent through the eventstream.
 func (s *SelectResults) start(pipeWriter *io.PipeWriter) {
 	go func() {
+		defer close(s.done)
 		for {
 			var prelude preludeInfo
 			headers := make(http.Header)
