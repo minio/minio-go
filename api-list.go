@@ -817,9 +817,10 @@ func (o *ListObjectsOptions) Set(key, value string) {
 //	    fmt.Println(object)
 //	}
 //
-// If caller cancels the context, then the last entry on the 'chan ObjectInfo' will be the context.Error()
-// caller must drain the channel entirely and wait until channel is closed before proceeding, without
-// waiting on the channel to be closed completely you might leak goroutines.
+// If the caller cancels the context, the last entry delivered is the context error, best effort: a
+// caller that stopped reading may miss it and can check ctx.Err() after the channel is closed.
+// Callers must drain the channel entirely and wait until it is closed before proceeding, otherwise
+// they might leak goroutines.
 func (c *Client) ListObjects(ctx context.Context, bucketName string, opts ListObjectsOptions) <-chan ObjectInfo {
 	objectStatCh := make(chan ObjectInfo, 1)
 	go func() {
@@ -851,7 +852,11 @@ func (c *Client) ListObjects(ctx context.Context, bucketName string, opts ListOb
 		for obj := range objIter {
 			select {
 			case <-ctx.Done():
-				objectStatCh <- ObjectInfo{Err: ctx.Err()}
+				// Do not block: the consumer may have stopped reading.
+				select {
+				case objectStatCh <- ObjectInfo{Err: ctx.Err()}:
+				default:
+				}
 				return
 			case objectStatCh <- obj:
 			}
@@ -945,6 +950,11 @@ func (c *Client) ListUnsorted(ctx context.Context, bucketName string, opts ListO
 //	for message := range api.ListIncompleteUploads(context.Background(), "mytestbucket", "starthere", recursive) {
 //	    fmt.Println(message)
 //	}
+//
+// If the caller cancels the context, the last entry delivered is the context error, best effort: a
+// caller that stopped reading may miss it and can check ctx.Err() after the channel is closed.
+// Callers must drain the channel entirely and wait until it is closed before proceeding, otherwise
+// they might leak goroutines.
 func (c *Client) ListIncompleteUploads(ctx context.Context, bucketName, objectPrefix string, recursive bool) <-chan ObjectMultipartInfo {
 	return c.listIncompleteUploads(ctx, bucketName, objectPrefix, recursive)
 }
@@ -988,8 +998,12 @@ func (c *Client) listIncompleteUploads(ctx context.Context, bucketName, objectPr
 	go func(objectMultipartStatCh chan<- ObjectMultipartInfo) {
 		defer func() {
 			if contextCanceled(ctx) {
-				objectMultipartStatCh <- ObjectMultipartInfo{
+				// Do not block: the consumer may have stopped reading.
+				select {
+				case objectMultipartStatCh <- ObjectMultipartInfo{
 					Err: ctx.Err(),
+				}:
+				default:
 				}
 			}
 			close(objectMultipartStatCh)
@@ -1002,8 +1016,12 @@ func (c *Client) listIncompleteUploads(ctx context.Context, bucketName, objectPr
 			// list all multipart uploads.
 			result, err := c.listMultipartUploadsQuery(ctx, bucketName, objectMarker, uploadIDMarker, objectPrefix, delimiter, 0)
 			if err != nil {
-				objectMultipartStatCh <- ObjectMultipartInfo{
+				// Do not block: the consumer may have stopped reading.
+				select {
+				case objectMultipartStatCh <- ObjectMultipartInfo{
 					Err: err,
+				}:
+				default:
 				}
 				return
 			}
