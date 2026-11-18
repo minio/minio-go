@@ -20,6 +20,8 @@ package credentials
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -97,6 +99,105 @@ const (
 	TokenTTL                    = "21600"
 	TokenRequestHeader          = "X-aws-ec2-metadata-token"
 )
+
+// stsEndpointFromEnv returns the STS endpoint configured through the
+// environment, following the precedence of the AWS SDKs for
+// service-specific endpoints: AWS_ENDPOINT_URL_STS, then
+// AWS_ENDPOINT_URL. It returns an empty string when neither is set or
+// when AWS_IGNORE_CONFIGURED_ENDPOINT_URLS is true.
+// See https://docs.aws.amazon.com/sdkref/latest/guide/feature-ss-endpoints.html
+func stsEndpointFromEnv() string {
+	if strings.EqualFold(os.Getenv("AWS_IGNORE_CONFIGURED_ENDPOINT_URLS"), "true") {
+		return ""
+	}
+	return os.Getenv("AWS_ENDPOINT_URL_STS")
+}
+
+// libraryOwnedClient reports whether client was created by minio-go rather
+// than supplied by the caller: either a minio.Client's own client (marked
+// in the CredContext) or http.DefaultClient without a custom transport.
+func libraryOwnedClient(cc *CredContext, client *http.Client) bool {
+	if cc != nil && cc.LibraryOwnedClient && client == cc.Client {
+		return true
+	}
+	return client == http.DefaultClient && client.Transport == nil
+}
+
+// clientWithCABundle returns a copy of client whose transport also trusts
+// the PEM certificates in caBundle, as AWS_CA_BUNDLE does in the AWS SDKs.
+// The certificates are added to the transport's existing root CAs, or to
+// the system pool when none are configured.
+// See https://docs.aws.amazon.com/sdkref/latest/guide/feature-gen-config.html
+func clientWithCABundle(client *http.Client, caBundle string) (*http.Client, error) {
+	pem, err := os.ReadFile(caBundle)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read AWS_CA_BUNDLE: %w", err)
+	}
+
+	// Only a plain *http.Transport can be given extra root CAs. A wrapped
+	// RoundTripper (tracing, metrics, hedging, egress policy) is never
+	// replaced, because that would silently bypass the wrapper; the caller
+	// has to configure TLS on IAM.Client instead.
+	rt := client.Transport
+	if rt == nil {
+		rt = http.DefaultTransport
+	}
+	transport, ok := rt.(*http.Transport)
+	if ok && transport == nil {
+		return nil, errors.New("AWS_CA_BUNDLE is set, but the HTTP client transport is a nil *http.Transport")
+	}
+	if !ok {
+		return nil, fmt.Errorf("AWS_CA_BUNDLE is set, but the HTTP client transport %T cannot be given extra root CAs; set IAM.Client to a client that trusts the bundle", rt)
+	}
+	orig := transport
+	transport = orig.Clone()
+
+	// The clone must not share connection pools with the original, or a
+	// connection verified against the bundle could serve other requests.
+	// Clone first runs the original's HTTP/2 setup. If the original uses
+	// HTTP/2, it now has h2 TLSNextProto callbacks pointing at its own pool:
+	// net/http's (not copied to the clone, but its "h2" ALPN entry is) or
+	// ones registered with golang.org/x/net/http2.ConfigureTransport (copied).
+	// Either way the clone gets its own HTTP/2 pool: drop any copied
+	// callbacks and set ForceAttemptHTTP2, which also keeps HTTP/2 on
+	// despite the TLS config added below. "unencrypted_http2" is the key
+	// net/http and x/net/http2 use for HTTP/2 without TLS. Any other protocol
+	// handler cannot be reproduced on the clone. An original without HTTP/2
+	// (including an empty TLSNextProto map) is copied as is.
+	//
+	// Handlers registered with RegisterProtocol are not copied by Clone and
+	// cannot be inspected. That is why the bundle is only applied to
+	// clients minio-go created itself, never to a caller-supplied transport.
+	for proto := range orig.TLSNextProto {
+		if proto != "h2" && proto != "unencrypted_http2" {
+			return nil, fmt.Errorf("AWS_CA_BUNDLE is set, but the HTTP client transport has a custom %q protocol handler that cannot be kept with extra root CAs; set IAM.Client to a client that trusts the bundle", proto)
+		}
+	}
+	if _, usesHTTP2 := orig.TLSNextProto["h2"]; usesHTTP2 {
+		transport.TLSNextProto = nil
+		transport.ForceAttemptHTTP2 = true
+	}
+
+	if transport.TLSClientConfig == nil {
+		transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+	}
+	pool := transport.TLSClientConfig.RootCAs
+	if pool == nil {
+		if pool, err = x509.SystemCertPool(); err != nil {
+			pool = x509.NewCertPool()
+		}
+	} else {
+		pool = pool.Clone()
+	}
+	if !pool.AppendCertsFromPEM(pem) {
+		return nil, fmt.Errorf("AWS_CA_BUNDLE %q contains no PEM certificates", caBundle)
+	}
+	transport.TLSClientConfig.RootCAs = pool
+
+	clone := *client
+	clone.Transport = transport
+	return &clone, nil
+}
 
 // NewIAM returns a pointer to a new Credentials object wrapping the IAM.
 func NewIAM(endpoint string) *Credentials {
@@ -177,6 +278,11 @@ func (m *IAM) RetrieveWithCredContext(cc *CredContext) (Value, error) {
 
 	switch {
 	case identityFile != "":
+		endpointFromEnv := false
+		if len(endpoint) == 0 {
+			endpoint = stsEndpointFromEnv()
+			endpointFromEnv = endpoint != ""
+		}
 		if len(endpoint) == 0 {
 			if region != "" {
 				if strings.HasPrefix(region, "cn-") {
@@ -186,6 +292,24 @@ func (m *IAM) RetrieveWithCredContext(cc *CredContext) (Value, error) {
 				}
 			} else {
 				endpoint = DefaultSTSRoleEndpoint
+			}
+		}
+
+		// AWS_CA_BUNDLE is opt-in together with AWS_ENDPOINT_URL_STS: it is
+		// not read for an explicit IAM.Endpoint or the AWS default, so
+		// machines that set it for other AWS tools see no change. It is
+		// only applied to a client minio-go created itself; a caller that
+		// supplies its own transport configures the trust on IAM.Client.
+		if endpointFromEnv && m.Client == nil {
+			if caBundle := os.Getenv("AWS_CA_BUNDLE"); caBundle != "" {
+				if !libraryOwnedClient(cc, client) {
+					return Value{}, errors.New("AWS_CA_BUNDLE is set, but the HTTP client was supplied by the caller and is not modified; set IAM.Client to a client that trusts the bundle")
+				}
+				client, err = clientWithCABundle(client, caBundle)
+				if err != nil {
+					return Value{}, err
+				}
+				defer client.CloseIdleConnections()
 			}
 		}
 

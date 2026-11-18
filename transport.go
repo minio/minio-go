@@ -25,6 +25,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"reflect"
 	"time"
 )
 
@@ -40,7 +41,17 @@ func mustGetSystemCertPool() *x509.CertPool {
 // DefaultTransport - this default transport is similar to
 // http.DefaultTransport but with additional param  DisableCompression
 // is set to true to avoid decompressing content with 'gzip' encoding.
-var DefaultTransport = func(secure bool) (*http.Transport, error) {
+var DefaultTransport = defaultTransport
+
+// isBuiltinDefaultTransport reports whether DefaultTransport is still the
+// built-in constructor. A replacement may return a transport with request
+// policy (for example RegisterProtocol handlers) that a clone would lose, so
+// New does not treat its transport as library-owned.
+func isBuiltinDefaultTransport() bool {
+	return reflect.ValueOf(DefaultTransport).Pointer() == reflect.ValueOf(defaultTransport).Pointer()
+}
+
+func defaultTransport(secure bool) (*http.Transport, error) {
 	tr := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{

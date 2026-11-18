@@ -53,6 +53,11 @@ import (
 type Client struct {
 	//  Standard options.
 
+	// ownedTransport is the transport New created itself with the built-in
+	// DefaultTransport, because Options.Transport was nil. It is nil when the
+	// caller supplied the transport or replaced DefaultTransport.
+	ownedTransport http.RoundTripper
+
 	// Parsed endpoint url provided by the user.
 	endpointURL *url.URL
 
@@ -287,9 +292,13 @@ func privateNew(endpoint string, opts *Options) (*Client, error) {
 
 	transport := opts.Transport
 	if transport == nil {
+		builtin := isBuiltinDefaultTransport()
 		transport, err = DefaultTransport(opts.Secure)
 		if err != nil {
 			return nil, err
+		}
+		if builtin {
+			clnt.ownedTransport = transport
 		}
 	}
 
@@ -1295,9 +1304,17 @@ func (c *Client) CredContext() *credentials.CredContext {
 		httpClient = http.DefaultClient
 	}
 	return &credentials.CredContext{
-		Client:   httpClient,
-		Endpoint: c.endpointURL.String(),
+		Client:             httpClient,
+		Endpoint:           c.endpointURL.String(),
+		LibraryOwnedClient: c.ownsHTTPClientTransport(),
 	}
+}
+
+// ownsHTTPClientTransport reports whether the HTTP client still uses the
+// transport that New created. A transport replaced after New, for example
+// through CredContext().Client.Transport, is treated as caller-supplied.
+func (c *Client) ownsHTTPClientTransport() bool {
+	return c.httpClient != nil && c.ownedTransport != nil && c.httpClient.Transport == c.ownedTransport
 }
 
 // credContext returns the client's CredContext with ctx attached as the
