@@ -120,7 +120,9 @@ var (
 // NewArnFromString parses string representation of ARN into Arn object.
 // Returns an error if the string format is incorrect.
 func NewArnFromString(arn string) (Arn, error) {
-	parts := strings.Split(arn, ":")
+	// The resource is the last field and may itself contain colons,
+	// e.g. arn:aws:lambda:us-east-1:123456789012:function:my-function.
+	parts := strings.SplitN(arn, ":", 6)
 	if len(parts) != 6 {
 		return Arn{}, ErrInvalidArnFormat
 	}
