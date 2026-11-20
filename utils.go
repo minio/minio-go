@@ -521,7 +521,7 @@ var readFull = func(r io.Reader, buf []byte) (n int, err error) {
 }
 
 // regCred matches credential string in HTTP header
-var regCred = regexp.MustCompile("Credential=([A-Z0-9]+)/")
+var regCred = regexp.MustCompile("Credential=([^/]+)/")
 
 // regCred matches signature string in HTTP header
 var regSign = regexp.MustCompile("Signature=([[0-9a-f]+)")
