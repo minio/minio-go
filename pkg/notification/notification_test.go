@@ -1419,6 +1419,20 @@ func TestNewArnFromString(t *testing.T) {
 		}
 	})
 
+	t.Run("valid ARN with colons in resource", func(t *testing.T) {
+		arnString := "arn:aws:lambda:us-east-1:123456789012:function:my-function"
+		arnFromString, err := NewArnFromString(arnString)
+		if err != nil {
+			t.Fatalf("did not expect an error, but got %v", err)
+		}
+		if arnFromString.Resource != "function:my-function" {
+			t.Errorf("expected resource %q, but got %q", "function:my-function", arnFromString.Resource)
+		}
+		if arnFromString.String() != arnString {
+			t.Errorf("expected ARNs to be equal, but they are not: arnFromString = %s, arn = %s", arnFromString.String(), arnString)
+		}
+	})
+
 	t.Run("invalid ARN format", func(t *testing.T) {
 		_, err := NewArnFromString("arn:only:four:parts")
 		if err != ErrInvalidArnFormat {
