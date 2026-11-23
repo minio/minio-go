@@ -202,7 +202,7 @@ func (p *FileAWSCredentials) retrieve(cc *CredContext) (Value, error) {
 	credentialProcess := strings.TrimSpace(iniProfile.Key("credential_process").String())
 	if !hasStaticKeys && credentialProcess != "" {
 		args := strings.Fields(credentialProcess)
-		if len(args) <= 1 {
+		if len(args) == 0 {
 			return Value{}, errors.New("invalid credential process args")
 		}
 		cmd := exec.Command(args[0], args[1:]...)

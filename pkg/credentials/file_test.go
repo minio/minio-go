@@ -778,6 +778,35 @@ credential_process = /bin/cat `+filepath.Join(wd, "credentials.json")+`
 		}
 	})
 
+	t.Run("credential-process-without-arguments", func(t *testing.T) {
+		// A command that takes no arguments is a valid credential_process.
+		if runtime.GOOS == "windows" {
+			t.Skip("needs a POSIX shell")
+		}
+		wd, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		home := t.TempDir()
+		script := filepath.Join(home, "get-creds")
+		// Escape single quotes so a checkout path containing one stays valid for /bin/sh.
+		quotedPath := "'" + strings.ReplaceAll(filepath.Join(wd, "credentials.json"), "'", `'\''`) + "'"
+		if err := os.WriteFile(script, []byte("#!/bin/sh\ncat "+quotedPath+"\n"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		writeAWSFile(t, home, "config", `[profile dev]
+credential_process = `+script+`
+`)
+		setHome(t, home)
+		credValues, err := New(&FileAWSCredentials{Profile: "dev"}).GetWithContext(defaultCredContext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if credValues.AccessKeyID != "accessKey" {
+			t.Errorf("Expected 'accessKey', got %s", credValues.AccessKeyID)
+		}
+	})
+
 	t.Run("incomplete-sso-account-id-only-errors", func(t *testing.T) {
 		// A profile carrying any SSO marker without sso_role_name errors
 		// instead of returning anonymous credentials, like aws-sdk-go-v2's
