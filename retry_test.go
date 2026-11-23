@@ -46,6 +46,24 @@ func TestRetryTimer(t *testing.T) {
 		}
 	})
 
+	t.Run("noOverflow", func(t *testing.T) {
+		t.Parallel()
+		c := &Client{random: rand.New(rand.NewSource(42))}
+		ctx := context.Background()
+		// The exponential backoff must stay at maxSleep for high attempt
+		// numbers instead of overflowing to a zero or negative delay.
+		maxSleep := 2 * time.Millisecond
+		for _, base := range []time.Duration{DefaultRetryUnit, 10 * time.Second} {
+			prev := time.Now()
+			for i := range c.newRetryTimer(ctx, 70, base, maxSleep, 0.0) {
+				if d := time.Since(prev); i > 0 && d < maxSleep {
+					t.Errorf("base %s, attempt %d: expected to sleep for at least %s, slept %s", base, i, maxSleep, d)
+				}
+				prev = time.Now()
+			}
+		}
+	})
+
 	t.Run("withBreak", func(t *testing.T) {
 		t.Parallel()
 		c := &Client{random: rand.New(rand.NewSource(42))}

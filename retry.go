@@ -62,10 +62,16 @@ func (c *Client) newRetryTimer(ctx context.Context, maxRetry int, baseSleep, max
 		}
 
 		// sleep = random_between(0, min(maxSleep, base * 2 ** attempt))
-		sleep := baseSleep * time.Duration(1<<uint(attempt))
-		if sleep > maxSleep {
-			sleep = maxSleep
+		// Double step by step and stop at maxSleep, so the value cannot overflow.
+		sleep := baseSleep
+		for i := 0; i < attempt && sleep > 0 && sleep < maxSleep; i++ {
+			if sleep > maxSleep/2 {
+				sleep = maxSleep
+				break
+			}
+			sleep *= 2
 		}
+		sleep = min(sleep, maxSleep)
 		if math.Abs(jitter-NoJitter) > 1e-9 {
 			sleep -= time.Duration(c.random.Float64() * float64(sleep) * jitter)
 		}
