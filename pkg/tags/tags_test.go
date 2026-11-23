@@ -18,6 +18,7 @@
 package tags
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 )
@@ -138,6 +139,49 @@ func TestSetExistingKeyAtLimit(t *testing.T) {
 			}
 			if err = tt.Set("another", "value"); err == nil {
 				t.Error("Expected adding a tag beyond the limit to fail but found success")
+			}
+		})
+	}
+}
+
+func TestTagsJSON(t *testing.T) {
+	// A zero Tags value has no tag set, it must encode as an empty object.
+	data, err := json.Marshal(struct {
+		Tags Tags `json:"tags"`
+	}{})
+	if err != nil {
+		t.Fatalf("Expected success but failed with %v", err)
+	}
+	if string(data) != `{"tags":{}}` {
+		t.Errorf("Expected %s, got %s", `{"tags":{}}`, data)
+	}
+
+	testCases := []struct {
+		data  string
+		count int
+	}{
+		{`{"tags":{"key1":"value1","key2":"value2"}}`, 2},
+		{`{"tags":{}}`, 0},
+		{`{"tags":null}`, 0},
+	}
+
+	for i, testCase := range testCases {
+		t.Run(fmt.Sprintf("Test%d", i), func(t *testing.T) {
+			var v struct {
+				Tags Tags `json:"tags"`
+			}
+			if err := json.Unmarshal([]byte(testCase.data), &v); err != nil {
+				t.Fatalf("Expected success but failed with %v", err)
+			}
+			if v.Tags.Count() != testCase.count {
+				t.Errorf("Expected count %d, got %d", testCase.count, v.Tags.Count())
+			}
+			// Decoded tags must stay usable.
+			if err := v.Tags.Set("another", "value"); err != nil {
+				t.Fatalf("Expected success but failed with %v", err)
+			}
+			if got := v.Tags.ToMap()["another"]; got != "value" {
+				t.Errorf("Expected value %q, got %q", "value", got)
 			}
 		})
 	}

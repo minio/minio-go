@@ -299,6 +299,9 @@ func (tags Tags) ToMap() map[string]string {
 
 // MarshalJSON encodes Tags as a flat JSON object {"key":"value",...}.
 func (tags Tags) MarshalJSON() ([]byte, error) {
+	if tags.TagSet == nil {
+		return []byte("{}"), nil
+	}
 	return json.Marshal(tags.ToMap())
 }
 
@@ -308,10 +311,12 @@ func (tags *Tags) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &m); err != nil {
 		return err
 	}
+	if m == nil {
+		// JSON null, keep the map usable for Set().
+		m = make(map[string]string)
+	}
 	if tags.TagSet == nil {
-		tags.TagSet = &tagSet{
-			tagMap: make(map[string]string),
-		}
+		tags.TagSet = &tagSet{}
 	}
 	tags.TagSet.tagMap = m
 	return nil
