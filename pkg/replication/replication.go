@@ -71,7 +71,7 @@ func (opts Options) Tags() ([]Tag, error) {
 	tagTokens := strings.Split(opts.TagString, "&")
 	for _, tok := range tagTokens {
 		if tok == "" {
-			break
+			continue
 		}
 		kv := strings.SplitN(tok, "=", 2)
 		if len(kv) != 2 {

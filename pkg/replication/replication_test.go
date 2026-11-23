@@ -18,8 +18,23 @@
 package replication
 
 import (
+	"slices"
 	"testing"
 )
+
+// Tests that an empty token in the tag string does not drop the tags after it.
+func TestOptionsTagsEmptyToken(t *testing.T) {
+	want := []Tag{{Key: "k1", Value: "v1"}, {Key: "k2", Value: "v2"}}
+	for _, tagString := range []string{"k1=v1&k2=v2", "k1=v1&k2=v2&", "&k1=v1&k2=v2", "k1=v1&&k2=v2"} {
+		got, err := Options{TagString: tagString}.Tags()
+		if err != nil {
+			t.Fatalf("%q: %v", tagString, err)
+		}
+		if !slices.Equal(got, want) {
+			t.Errorf("%q: expected %v, got %v", tagString, want, got)
+		}
+	}
+}
 
 // Tests replication rule addition.
 func TestAddReplicationRule(t *testing.T) {
