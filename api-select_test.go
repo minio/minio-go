@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"sync/atomic"
 	"testing"
+	"testing/iotest"
 	"time"
 )
 
@@ -126,5 +127,36 @@ func TestSelectResultsCloseDoesNotReadConcurrently(t *testing.T) {
 		if n := body.r.Len(); n != 0 {
 			t.Fatalf("run %d: %d bytes of the response body were left unread", i, n)
 		}
+	}
+}
+
+// TestSelectResultsShortReads verifies that the event stream is parsed
+// correctly when the response body returns fewer bytes than requested, as a
+// network connection does when a message is split across reads.
+func TestSelectResultsShortReads(t *testing.T) {
+	var stream bytes.Buffer
+	stream.Write(encodeSelectMessage(map[string]string{
+		"message-type": "event",
+		"event-type":   "Records",
+		"content-type": "application/octet-stream",
+	}, []byte("row\n")))
+	stream.Write(encodeSelectMessage(map[string]string{
+		"message-type": "event",
+		"event-type":   "End",
+	}, nil))
+
+	body := io.NopCloser(iotest.OneByteReader(&stream))
+	res, err := NewSelectResults(&http.Response{StatusCode: http.StatusOK, Body: body}, "bucket")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Close()
+
+	got, err := io.ReadAll(res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "row\n" {
+		t.Fatalf("expected %q, got %q", "row\n", got)
 	}
 }
