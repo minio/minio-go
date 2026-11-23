@@ -279,12 +279,25 @@ type Configuration struct {
 	QueueConfigs  []QueueConfig  `xml:"QueueConfiguration"`
 }
 
+// equalFilter tells whether a and b carry the same filter rules,
+// a nil filter is the same as a filter without rules.
+func equalFilter(a, b *Filter) bool {
+	var rulesA, rulesB []FilterRule
+	if a != nil {
+		rulesA = a.S3Key.FilterRules
+	}
+	if b != nil {
+		rulesB = b.S3Key.FilterRules
+	}
+	return EqualFilterRuleList(rulesA, rulesB)
+}
+
 // AddTopic adds a given topic config to the general bucket notification config
 func (b *Configuration) AddTopic(topicConfig Config) bool {
 	newTopicConfig := TopicConfig{Config: topicConfig, Topic: topicConfig.Arn.String()}
 	for _, n := range b.TopicConfigs {
 		// If new config matches existing one
-		if n.Topic == newTopicConfig.Arn.String() && newTopicConfig.Filter == n.Filter {
+		if n.Topic == newTopicConfig.Arn.String() && equalFilter(newTopicConfig.Filter, n.Filter) {
 			existingConfig := set.NewStringSet()
 			for _, v := range n.Events {
 				existingConfig.Add(string(v))
@@ -308,7 +321,7 @@ func (b *Configuration) AddTopic(topicConfig Config) bool {
 func (b *Configuration) AddQueue(queueConfig Config) bool {
 	newQueueConfig := QueueConfig{Config: queueConfig, Queue: queueConfig.Arn.String()}
 	for _, n := range b.QueueConfigs {
-		if n.Queue == newQueueConfig.Arn.String() && newQueueConfig.Filter == n.Filter {
+		if n.Queue == newQueueConfig.Arn.String() && equalFilter(newQueueConfig.Filter, n.Filter) {
 			existingConfig := set.NewStringSet()
 			for _, v := range n.Events {
 				existingConfig.Add(string(v))
@@ -332,7 +345,7 @@ func (b *Configuration) AddQueue(queueConfig Config) bool {
 func (b *Configuration) AddLambda(lambdaConfig Config) bool {
 	newLambdaConfig := LambdaConfig{Config: lambdaConfig, Lambda: lambdaConfig.Arn.String()}
 	for _, n := range b.LambdaConfigs {
-		if n.Lambda == newLambdaConfig.Arn.String() && newLambdaConfig.Filter == n.Filter {
+		if n.Lambda == newLambdaConfig.Arn.String() && equalFilter(newLambdaConfig.Filter, n.Filter) {
 			existingConfig := set.NewStringSet()
 			for _, v := range n.Events {
 				existingConfig.Add(string(v))
