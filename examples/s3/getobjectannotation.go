@@ -22,7 +22,6 @@ package main
 
 import (
 	"context"
-	"io"
 	"log"
 	"os"
 
@@ -42,14 +41,13 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	// GetObjectAnnotation returns a stream; read it and close it when done.
-	body, err := s3Client.GetObjectAnnotation(context.Background(), "my-bucketname", "my-objectname", "model.labels.json", minio.GetObjectAnnotationOptions{})
+	// The payload is verified against the checksum the server stored with it.
+	payload, err := s3Client.GetObjectAnnotation(context.Background(), "my-bucketname", "my-objectname", "model.labels.json", minio.GetObjectAnnotationOptions{})
 	if err != nil {
 		log.Fatalln(err)
 	}
-	defer body.Close()
 
-	if _, err := io.Copy(os.Stdout, body); err != nil {
+	if _, err := os.Stdout.Write(payload); err != nil {
 		log.Fatalln(err)
 	}
 }

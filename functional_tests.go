@@ -77,6 +77,9 @@ const (
 	// TODO: remove when server supports the 2026 checksum types on latest release.
 	// Linux is fetched from edge, so supports new types.
 	ignore2026Checksums = runtime.GOOS != "linux"
+
+	// TODO: enable when an AIStor release stores and returns annotation checksums.
+	testAnnotationChecksums = false
 )
 
 func ignore2026ChecksumError(cs minio.ChecksumType, err error) bool {
@@ -2013,7 +2016,7 @@ func testObjectAnnotations() {
 	annPayload := []byte(`{"label":"cat","score":0.98}`)
 	args["annotationName"] = annName
 
-	_, err = c.PutObjectAnnotation(context.Background(), bucketName, objectName, annName, bytes.NewReader(annPayload), minio.PutObjectAnnotationOptions{})
+	_, err = c.PutObjectAnnotation(context.Background(), bucketName, objectName, annName, annPayload, minio.PutObjectAnnotationOptions{})
 	if err != nil {
 		if isErrNotImplemented(err) {
 			logIgnored(testName, function, args, startTime, "PutObjectAnnotation")
@@ -2035,15 +2038,9 @@ func testObjectAnnotations() {
 		return
 	}
 
-	annReader, err := c.GetObjectAnnotation(context.Background(), bucketName, objectName, annName, minio.GetObjectAnnotationOptions{})
+	got, err := c.GetObjectAnnotation(context.Background(), bucketName, objectName, annName, minio.GetObjectAnnotationOptions{})
 	if err != nil {
 		logError(testName, function, args, startTime, "", "GetObjectAnnotation failed", err)
-		return
-	}
-	got, err := io.ReadAll(annReader)
-	annReader.Close()
-	if err != nil {
-		logError(testName, function, args, startTime, "", "GetObjectAnnotation read failed", err)
 		return
 	}
 	if !bytes.Equal(got, annPayload) {
@@ -2073,6 +2070,95 @@ func testObjectAnnotations() {
 	}
 	if len(anns) != 0 {
 		logError(testName, function, args, startTime, "", "annotation not removed", fmt.Errorf("remaining %d", len(anns)))
+		return
+	}
+
+	logSuccess(testName, function, args, startTime)
+}
+
+// Tests that object annotations keep the checksum a client sends, XXH3 unless
+// it names another, that listings report its algorithm and take a prefix, and
+// that reads, which verify the payload against the stored checksum, succeed.
+func testObjectAnnotationChecksums() {
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "PutObjectAnnotation(Checksum)"
+	args := map[string]interface{}{}
+
+	c, err := NewClient(ClientConfig{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
+		return
+	}
+
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "")
+	args["bucketName"] = bucketName
+	args["objectName"] = objectName
+
+	if err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1"}); err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+	defer cleanupBucket(bucketName, c)
+
+	const parentContent = "annotation-parent-content"
+	if _, err = c.PutObject(context.Background(), bucketName, objectName, strings.NewReader(parentContent), int64(len(parentContent)), minio.PutObjectOptions{}); err != nil {
+		logError(testName, function, args, startTime, "", "PutObject (parent) failed", err)
+		return
+	}
+
+	// In name order, as listings return them.
+	anns := []struct {
+		name     string
+		payload  []byte
+		checksum minio.ChecksumType
+		want     string
+	}{
+		{"model.labels.json", []byte(`{"label":"cat","score":0.98}`), minio.ChecksumNone, "XXHASH3"},
+		{"model.notes", []byte(`{"notes":"reviewed"}`), minio.ChecksumSHA256, "SHA256"},
+	}
+	for _, a := range anns {
+		_, err = c.PutObjectAnnotation(context.Background(), bucketName, objectName, a.name, a.payload, minio.PutObjectAnnotationOptions{Checksum: a.checksum})
+		if err != nil {
+			if isErrNotImplemented(err) {
+				logIgnored(testName, function, args, startTime, "PutObjectAnnotation")
+				return
+			}
+			logError(testName, function, args, startTime, "", "PutObjectAnnotation failed", fmt.Errorf("%s: %w", a.name, err))
+			return
+		}
+	}
+	for _, a := range anns {
+		got, err := c.GetObjectAnnotation(context.Background(), bucketName, objectName, a.name, minio.GetObjectAnnotationOptions{})
+		if err != nil || !bytes.Equal(got, a.payload) {
+			logError(testName, function, args, startTime, "", "GetObjectAnnotation read failed", fmt.Errorf("%s: %q, %w", a.name, got, err))
+			return
+		}
+	}
+
+	listed, err := c.ListObjectAnnotations(context.Background(), bucketName, objectName, minio.ListObjectAnnotationsOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "ListObjectAnnotations failed", err)
+		return
+	}
+	if len(listed) != len(anns) {
+		logError(testName, function, args, startTime, "", "ListObjectAnnotations unexpected result", fmt.Errorf("got %+v", listed))
+		return
+	}
+	for i, a := range anns {
+		if listed[i].Name != a.name || listed[i].ChecksumAlgorithm != a.want {
+			logError(testName, function, args, startTime, "", "ListObjectAnnotations unexpected checksum", fmt.Errorf("got %+v, want %s with %s", listed[i], a.name, a.want))
+			return
+		}
+	}
+	listed, err = c.ListObjectAnnotations(context.Background(), bucketName, objectName, minio.ListObjectAnnotationsOptions{Prefix: "model.n"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "ListObjectAnnotations with a prefix failed", err)
+		return
+	}
+	if len(listed) != 1 || listed[0].Name != anns[1].name || listed[0].ChecksumAlgorithm != anns[1].want {
+		logError(testName, function, args, startTime, "", "ListObjectAnnotations with a prefix unexpected result", fmt.Errorf("got %+v", listed))
 		return
 	}
 
@@ -4261,6 +4347,80 @@ func testPutObjectPreconditionOnNonExistent() {
 	errResp = minio.ToErrorResponse(err)
 	if errResp.Code != "NoSuchKey" {
 		logError(testName, function, args, startTime, "", fmt.Sprintf("Expected NoSuchKey error (AWS standard for non-existent objects) for multipart, got %s", errResp.Code), err)
+		return
+	}
+
+	logSuccess(testName, function, args, startTime)
+}
+
+// Test RemoveObject with an ETag condition, which a server that takes it
+// answers 412 to rather than removing an object written since it was read.
+func testRemoveObjectPrecondition() {
+	startTime := time.Now()
+	testName := getFuncName()
+	function := "RemoveObject(bucketName, objectName, opts) with preconditions"
+	args := map[string]interface{}{
+		"bucketName": "",
+		"objectName": "",
+		"opts":       "minio.RemoveObjectOptions{SetMatchETag}",
+	}
+
+	c, err := NewClient(ClientConfig{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MinIO client object creation failed", err)
+		return
+	}
+
+	bucketName := randString(60, rand.NewSource(time.Now().UnixNano()), "minio-go-test-")
+	args["bucketName"] = bucketName
+
+	err = c.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: "us-east-1"})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "MakeBucket failed", err)
+		return
+	}
+
+	defer cleanupBucket(bucketName, c)
+
+	objectName := randString(60, rand.NewSource(time.Now().UnixNano()), "test-object-")
+	args["objectName"] = objectName
+
+	body := []byte("the object the caller read")
+	info, err := c.PutObject(context.Background(), bucketName, objectName,
+		bytes.NewReader(body), int64(len(body)), minio.PutObjectOptions{})
+	if err != nil {
+		logError(testName, function, args, startTime, "", "PutObject failed", err)
+		return
+	}
+
+	// An ETag no object under this name has: the removal must be refused and
+	// the object must still be there afterwards.
+	wrong := minio.RemoveObjectOptions{}
+	wrong.SetMatchETag("00000000000000000000000000000000")
+	err = c.RemoveObject(context.Background(), bucketName, objectName, wrong)
+	if err == nil {
+		logError(testName, function, args, startTime, "", "RemoveObject with a mismatching ETag should have failed", nil)
+		return
+	}
+	if code := minio.ToErrorResponse(err).Code; code != "PreconditionFailed" {
+		logError(testName, function, args, startTime, "", fmt.Sprintf("Expected PreconditionFailed, got %s", code), err)
+		return
+	}
+	if _, err = c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{}); err != nil {
+		logError(testName, function, args, startTime, "", "the object was removed by a condition that did not hold", err)
+		return
+	}
+
+	// The ETag the object does have: the removal is made.
+	right := minio.RemoveObjectOptions{}
+	right.SetMatchETag(info.ETag)
+	if err = c.RemoveObject(context.Background(), bucketName, objectName, right); err != nil {
+		logError(testName, function, args, startTime, "", "RemoveObject with the object's own ETag failed", err)
+		return
+	}
+	_, err = c.StatObject(context.Background(), bucketName, objectName, minio.StatObjectOptions{})
+	if minio.ToErrorResponse(err).Code != "NoSuchKey" {
+		logError(testName, function, args, startTime, "", "the object is still there after a removal that reported success", err)
 		return
 	}
 
@@ -15842,6 +16002,7 @@ func main() {
 		testPutObjectReadAt()
 		testPutObjectStreaming()
 		testPutObjectPreconditionOnNonExistent()
+		testRemoveObjectPrecondition()
 		testGetObjectSeekEnd()
 		testGetObjectClosedTwice()
 		testGetObjectS3Zip()
@@ -15889,6 +16050,9 @@ func main() {
 		testRemoveObjectsWithVersioning()
 		testObjectTaggingWithVersioning()
 		testObjectAnnotations()
+		if testAnnotationChecksums {
+			testObjectAnnotationChecksums()
+		}
 		testTrailingChecksums()
 		testPutObjectWithAutomaticChecksums()
 		testGetBucketTagging()
