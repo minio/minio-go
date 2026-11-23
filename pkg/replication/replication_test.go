@@ -348,3 +348,32 @@ func TestEditReplicationRule(t *testing.T) {
 		}
 	}
 }
+
+// Tests that per-target transfer stats are summed per target across nodes.
+func TestReplQueueStatsTargetXferStats(t *testing.T) {
+	node := func(arn1, arn2 float64) ReplQNodeStats {
+		return ReplQNodeStats{
+			XferStats: map[MetricName]XferStats{
+				Total: {AvgRate: arn1 + arn2, CurrRate: arn1 + arn2, PeakRate: arn1 + arn2},
+			},
+			TgtXferStats: map[string]map[MetricName]XferStats{
+				"arn1": {Total: {AvgRate: arn1, CurrRate: arn1, PeakRate: arn1}},
+				"arn2": {Total: {AvgRate: arn2, CurrRate: arn2, PeakRate: arn2}},
+			},
+		}
+	}
+	stats := ReplQueueStats{Nodes: []ReplQNodeStats{node(1, 100), node(2, 200)}}.QStats()
+
+	expected := map[string]XferStats{
+		"arn1": {AvgRate: 3, CurrRate: 3, PeakRate: 2},
+		"arn2": {AvgRate: 300, CurrRate: 300, PeakRate: 200},
+	}
+	for arn, want := range expected {
+		if got := stats.TgtXferStats[arn][Total]; got != want {
+			t.Errorf("%s: expected %+v, got %+v", arn, want, got)
+		}
+	}
+	if got, want := stats.XferStats[Total], (XferStats{AvgRate: 303, CurrRate: 303, PeakRate: 202}); got != want {
+		t.Errorf("cluster: expected %+v, got %+v", want, got)
+	}
+}
