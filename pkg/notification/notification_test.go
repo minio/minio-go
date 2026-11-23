@@ -1447,3 +1447,76 @@ func TestNewArnFromString(t *testing.T) {
 		}
 	})
 }
+
+func TestConfiguration_AddDuplicate(t *testing.T) {
+	arn := NewArn("minio", "sqs", "us-east-1", "1", "postgresql")
+	newConfig := func(prefix string, events ...EventType) Config {
+		c := NewConfig(arn)
+		c.AddEvents(events...)
+		if prefix != "" {
+			c.AddFilterPrefix(prefix)
+		}
+		return c
+	}
+
+	tests := []struct {
+		name     string
+		existing Config
+		added    Config
+		want     bool
+	}{
+		{
+			name:     "same events, no filter",
+			existing: newConfig("", ObjectCreatedAll),
+			added:    newConfig("", ObjectCreatedAll),
+			want:     false,
+		},
+		{
+			name:     "same events, same prefix",
+			existing: newConfig("photos/", ObjectCreatedAll),
+			added:    newConfig("photos/", ObjectCreatedAll),
+			want:     false,
+		},
+		{
+			name:     "overlapping events, same prefix",
+			existing: newConfig("photos/", ObjectCreatedAll, ObjectRemovedAll),
+			added:    newConfig("photos/", ObjectRemovedAll),
+			want:     false,
+		},
+		{
+			name:     "existing config without filter element",
+			existing: Config{Arn: arn, Events: []EventType{ObjectCreatedAll}},
+			added:    newConfig("", ObjectCreatedAll),
+			want:     false,
+		},
+		{
+			name:     "same events, different prefix",
+			existing: newConfig("photos/", ObjectCreatedAll),
+			added:    newConfig("videos/", ObjectCreatedAll),
+			want:     true,
+		},
+		{
+			name:     "different events, same prefix",
+			existing: newConfig("photos/", ObjectCreatedAll),
+			added:    newConfig("photos/", ObjectRemovedAll),
+			want:     true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var topics, queues, lambdas Configuration
+			topics.AddTopic(tt.existing)
+			if got := topics.AddTopic(tt.added); got != tt.want {
+				t.Errorf("AddTopic() = %v, want %v", got, tt.want)
+			}
+			queues.AddQueue(tt.existing)
+			if got := queues.AddQueue(tt.added); got != tt.want {
+				t.Errorf("AddQueue() = %v, want %v", got, tt.want)
+			}
+			lambdas.AddLambda(tt.existing)
+			if got := lambdas.AddLambda(tt.added); got != tt.want {
+				t.Errorf("AddLambda() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
