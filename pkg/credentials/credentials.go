@@ -92,6 +92,13 @@ type CredContext struct {
 	// to fetch credentials, in addition to any provider-level timeout
 	// bound. A nil Context means no caller cancellation applies.
 	Context context.Context
+
+	// LibraryOwnedClient reports that Client and its transport were created
+	// by minio-go itself rather than supplied by the caller. Providers only
+	// extend such a client with extra trust, such as AWS_CA_BUNDLE, because
+	// a caller-supplied transport may enforce request policy that a modified
+	// copy would lose.
+	LibraryOwnedClient bool
 }
 
 // requestContext returns the caller context carried by cc, or

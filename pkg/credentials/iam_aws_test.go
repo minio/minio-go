@@ -56,27 +56,6 @@ const credsRespEcsTaskTmpl = `{
 	"Expiration" : "%s"
 }`
 
-const credsRespStsImpl = `<AssumeRoleWithWebIdentityResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
-<AssumeRoleWithWebIdentityResult>
-  <SubjectFromWebIdentityToken>amzn1.account.AF6RHO7KZU5XRVQJGXK6HB56KR2A</SubjectFromWebIdentityToken>
-  <Audience>client.5498841531868486423.1548@apps.example.com</Audience>
-  <AssumedRoleUser>
-	<Arn>arn:aws:sts::123456789012:assumed-role/FederatedWebIdentityRole/app1</Arn>
-	<AssumedRoleId>AROACLKWSDQRAOEXAMPLE:app1</AssumedRoleId>
-  </AssumedRoleUser>
-  <Credentials>
-	<SessionToken>token</SessionToken>
-	<SecretAccessKey>secret</SecretAccessKey>
-	<Expiration>%s</Expiration>
-	<AccessKeyId>accessKey</AccessKeyId>
-  </Credentials>
-  <Provider>www.amazon.com</Provider>
-</AssumeRoleWithWebIdentityResult>
-<ResponseMetadata>
-  <RequestId>ad4156e9-bce1-11e2-82e6-6b6efEXAMPLE</RequestId>
-</ResponseMetadata>
-</AssumeRoleWithWebIdentityResponse>`
-
 func initTestFailServer() *httptest.Server {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "Not allowed", http.StatusBadRequest)
