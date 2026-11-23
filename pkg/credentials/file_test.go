@@ -789,7 +789,9 @@ credential_process = /bin/cat `+filepath.Join(wd, "credentials.json")+`
 		}
 		home := t.TempDir()
 		script := filepath.Join(home, "get-creds")
-		if err := os.WriteFile(script, []byte("#!/bin/sh\ncat '"+filepath.Join(wd, "credentials.json")+"'\n"), 0o700); err != nil {
+		// Escape single quotes so a checkout path containing one stays valid for /bin/sh.
+		quotedPath := "'" + strings.ReplaceAll(filepath.Join(wd, "credentials.json"), "'", `'\''`) + "'"
+		if err := os.WriteFile(script, []byte("#!/bin/sh\ncat "+quotedPath+"\n"), 0o700); err != nil {
 			t.Fatal(err)
 		}
 		writeAWSFile(t, home, "config", `[profile dev]
