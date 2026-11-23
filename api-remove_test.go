@@ -178,3 +178,45 @@ func TestRemoveObjectReportsAConditionThatDidNotHold(t *testing.T) {
 		t.Errorf("code = %q, want %q", code, "PreconditionFailed")
 	}
 }
+
+// TestRemoveObjectsWithIterReportsErrorIn200Response checks that a bulk delete
+// which the server answers with 200 OK and an error document in the body is
+// reported as failed for every object in the batch.
+func TestRemoveObjectsWithIterReportsErrorIn200Response(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>` +
+			`<Error><Code>InternalError</Code><Message>We encountered an internal error. Please try again.</Message>` +
+			`<BucketName>bucket</BucketName><RequestId>1</RequestId><HostId>h</HostId></Error>`))
+	}))
+	defer srv.Close()
+
+	clnt, err := New(srv.Listener.Addr().String(), &Options{Region: "us-east-1", MaxRetries: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	keys := []string{"a", "b"}
+	objects := func(yield func(ObjectInfo) bool) {
+		for _, key := range keys {
+			if !yield(ObjectInfo{Key: key}) {
+				return
+			}
+		}
+	}
+
+	results, err := clnt.RemoveObjectsWithIter(context.Background(), "bucket", objects, RemoveObjectsOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var got []string
+	for res := range results {
+		if code := ToErrorResponse(res.Err).Code; code != "InternalError" {
+			t.Errorf("object %q: err = %v, want code %q", res.ObjectName, res.Err, "InternalError")
+		}
+		got = append(got, res.ObjectName)
+	}
+	if len(got) != len(keys) {
+		t.Fatalf("failed objects = %q, want %q", got, keys)
+	}
+}
