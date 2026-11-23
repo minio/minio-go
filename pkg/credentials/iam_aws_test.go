@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -337,6 +338,51 @@ func TestEcsTaskFullURI(t *testing.T) {
 	if !p.IsExpired() {
 		t.Error("Expected creds to be expired.")
 	}
+}
+
+func TestEcsTaskFullURIContainerToken(t *testing.T) {
+	var gotAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		fmt.Fprintf(w, credsRespEcsTaskTmpl, "2014-12-16T01:51:37Z")
+	}))
+	defer server.Close()
+
+	// Use the Container fields regardless of the ambient environment.
+	t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", "")
+	t.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "")
+	t.Setenv("AWS_CONTAINER_CREDENTIALS_FULL_URI", "")
+	t.Setenv("AWS_CONTAINER_AUTHORIZATION_TOKEN", "")
+	t.Setenv("AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE", "")
+
+	tokenFile := filepath.Join(t.TempDir(), "token")
+	if err := os.WriteFile(tokenFile, []byte("file-token"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("token file", func(t *testing.T) {
+		p := &IAM{}
+		p.Container.CredentialsFullURI = server.URL
+		p.Container.AuthorizationTokenFile = tokenFile
+		if _, err := p.RetrieveWithCredContext(defaultCredContext); err != nil {
+			t.Fatalf("Unexpected failure %s", err)
+		}
+		if gotAuth != "file-token" {
+			t.Errorf("Expected Authorization \"file-token\", got %q", gotAuth)
+		}
+	})
+
+	t.Run("static token", func(t *testing.T) {
+		p := &IAM{}
+		p.Container.CredentialsFullURI = server.URL
+		p.Container.AuthorizationToken = "static-token"
+		if _, err := p.RetrieveWithCredContext(defaultCredContext); err != nil {
+			t.Fatalf("Unexpected failure %s", err)
+		}
+		if gotAuth != "static-token" {
+			t.Errorf("Expected Authorization \"static-token\", got %q", gotAuth)
+		}
+	})
 }
 
 func TestSts(t *testing.T) {

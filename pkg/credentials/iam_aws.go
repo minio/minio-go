@@ -127,7 +127,7 @@ func (m *IAM) RetrieveWithCredContext(cc *CredContext) (Value, error) {
 
 	tokenFile := os.Getenv("AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE")
 	if tokenFile == "" {
-		tokenFile = m.Container.AuthorizationToken
+		tokenFile = m.Container.AuthorizationTokenFile
 	}
 
 	relativeURI := os.Getenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI")
