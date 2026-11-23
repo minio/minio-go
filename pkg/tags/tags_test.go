@@ -107,6 +107,42 @@ func TestParseTags(t *testing.T) {
 	}
 }
 
+func TestSetExistingKeyAtLimit(t *testing.T) {
+	testCases := []struct {
+		name     string
+		isObject bool
+		limit    int
+	}{
+		{"object", true, maxObjectTagCount},
+		{"bucket", false, maxTagCount},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			tagMap := make(map[string]string, testCase.limit)
+			for i := 0; i < testCase.limit; i++ {
+				tagMap[fmt.Sprintf("key%d", i)] = "value"
+			}
+			tt, err := NewTags(tagMap, testCase.isObject)
+			if err != nil {
+				t.Fatalf("Expected success but failed with %v", err)
+			}
+			if err = tt.Set("key0", "updated"); err != nil {
+				t.Errorf("Expected updating an existing key to succeed but failed with %v", err)
+			}
+			if got := tt.ToMap()["key0"]; got != "updated" {
+				t.Errorf("Expected value %q, got %q", "updated", got)
+			}
+			if tt.Count() != testCase.limit {
+				t.Errorf("Expected count %d, got %d", testCase.limit, tt.Count())
+			}
+			if err = tt.Set("another", "value"); err == nil {
+				t.Error("Expected adding a tag beyond the limit to fail but found success")
+			}
+		})
+	}
+}
+
 func BenchmarkParseTags(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()

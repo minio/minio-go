@@ -192,12 +192,15 @@ func (tags *tagSet) set(key, value string, failOnExist bool) error {
 		return err
 	}
 
-	if tags.isObject {
-		if len(tags.tagMap) == maxObjectTagCount {
-			return errTooManyObjectTags
+	// Replacing the value of an existing key does not add a tag.
+	if _, found := tags.tagMap[key]; !found {
+		if tags.isObject {
+			if len(tags.tagMap) == maxObjectTagCount {
+				return errTooManyObjectTags
+			}
+		} else if len(tags.tagMap) == maxTagCount {
+			return errTooManyTags
 		}
-	} else if len(tags.tagMap) == maxTagCount {
-		return errTooManyTags
 	}
 
 	tags.tagMap[key] = value
