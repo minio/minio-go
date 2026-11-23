@@ -711,7 +711,7 @@ func extractHeaderValue(body io.Reader) (string, error) {
 // extracts a string from byte array of a particular number of bytes.
 func extractString(source io.Reader, lenBytes int) (string, error) {
 	myVal := make([]byte, lenBytes)
-	_, err := source.Read(myVal)
+	_, err := readFull(source, myVal)
 	if err != nil {
 		return "", err
 	}
