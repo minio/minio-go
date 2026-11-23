@@ -18,10 +18,14 @@
 package minio
 
 import (
+	"context"
+	"encoding/base64"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/minio/minio-go/v7/pkg/encrypt"
 )
 
@@ -456,5 +460,54 @@ func TestPostPolicySetEncryption(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestPresignedPostPolicyReuse verifies that presigning the same policy more
+// than once does not carry the signing conditions of an earlier call over.
+func TestPresignedPostPolicyReuse(t *testing.T) {
+	pp := NewPostPolicy()
+	if err := pp.SetBucket("test-bucket"); err != nil {
+		t.Fatal(err)
+	}
+	if err := pp.SetKey("obj"); err != nil {
+		t.Fatal(err)
+	}
+	if err := pp.SetExpires(time.Now().UTC().Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, accessKey := range []string{"first-access-key", "second-access-key"} {
+		clnt := newTestClient(t, credentials.NewStaticV4(accessKey, "secret", ""), nil)
+		_, formData, err := clnt.PresignedPostPolicy(context.Background(), pp)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		policyJSON, err := base64.StdEncoding.DecodeString(formData["policy"])
+		if err != nil {
+			t.Fatal(err)
+		}
+		var policy struct {
+			Conditions [][]any `json:"conditions"`
+		}
+		if err = json.Unmarshal(policyJSON, &policy); err != nil {
+			t.Fatalf("invalid policy %s: %v", policyJSON, err)
+		}
+
+		// S3 checks the form fields against every condition, so each
+		// signing field must have exactly one condition, matching the
+		// value sent in the form.
+		for _, field := range []string{"x-amz-date", "x-amz-algorithm", "x-amz-credential"} {
+			var values []any
+			for _, cond := range policy.Conditions {
+				if len(cond) == 3 && cond[1] == "$"+field {
+					values = append(values, cond[2])
+				}
+			}
+			if len(values) != 1 || values[0] != formData[field] {
+				t.Errorf("%s: want conditions on %s to be [%s], got %v", accessKey, field, formData[field], values)
+			}
+		}
 	}
 }

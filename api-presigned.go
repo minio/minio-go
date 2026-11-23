@@ -22,6 +22,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"slices"
 	"time"
 
 	"github.com/minio/minio-go/v7/pkg/s3utils"
@@ -174,8 +175,13 @@ func (c *Client) PresignedPostPolicy(ctx context.Context, p *PostPolicy) (u *url
 		return u, p.formData, nil
 	}
 
+	// The conditions added below belong to this call only, add them to a
+	// copy so that the same policy can be presigned again.
+	signed := *p
+	signed.conditions = slices.Clone(p.conditions)
+
 	// Add date policy.
-	if err = p.addNewPolicy(policyCondition{
+	if err = signed.addNewPolicy(policyCondition{
 		matchType: "eq",
 		condition: "$x-amz-date",
 		value:     t.Format(iso8601DateFormat),
@@ -184,7 +190,7 @@ func (c *Client) PresignedPostPolicy(ctx context.Context, p *PostPolicy) (u *url
 	}
 
 	// Add algorithm policy.
-	if err = p.addNewPolicy(policyCondition{
+	if err = signed.addNewPolicy(policyCondition{
 		matchType: "eq",
 		condition: "$x-amz-algorithm",
 		value:     signV4Algorithm,
@@ -194,7 +200,7 @@ func (c *Client) PresignedPostPolicy(ctx context.Context, p *PostPolicy) (u *url
 
 	// Add a credential policy.
 	credential := signer.GetCredential(accessKeyID, location, t, signer.ServiceTypeS3)
-	if err = p.addNewPolicy(policyCondition{
+	if err = signed.addNewPolicy(policyCondition{
 		matchType: "eq",
 		condition: "$x-amz-credential",
 		value:     credential,
@@ -203,7 +209,7 @@ func (c *Client) PresignedPostPolicy(ctx context.Context, p *PostPolicy) (u *url
 	}
 
 	if sessionToken != "" {
-		if err = p.addNewPolicy(policyCondition{
+		if err = signed.addNewPolicy(policyCondition{
 			matchType: "eq",
 			condition: "$x-amz-security-token",
 			value:     sessionToken,
@@ -213,7 +219,7 @@ func (c *Client) PresignedPostPolicy(ctx context.Context, p *PostPolicy) (u *url
 	}
 
 	// Get base64 encoded policy.
-	policyBase64 := p.base64()
+	policyBase64 := signed.base64()
 
 	// Fill in the form data.
 	p.formData["policy"] = policyBase64
