@@ -314,3 +314,47 @@ func TestComposeObjectParallelPartFailure(t *testing.T) {
 		t.Errorf("expected remaining parts to be canceled, but all %d were copied", s.copied)
 	}
 }
+
+// TestCopyReportsErrorIn200Response checks that a copy request which the
+// server answers with 200 OK and an error document in the body is reported
+// as failed.
+func TestCopyReportsErrorIn200Response(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>` +
+			`<Error><Code>InternalError</Code><Message>We encountered an internal error. Please try again.</Message></Error>`))
+	}))
+	defer srv.Close()
+
+	clnt, err := New(srv.Listener.Addr().String(), &Options{Region: "us-east-1", MaxRetries: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	core := Core{Client: clnt}
+	ctx := context.Background()
+
+	for _, tc := range []struct {
+		name string
+		copy func() error
+	}{
+		{"uploadPartCopy", func() error {
+			h := http.Header{}
+			h.Set("x-amz-copy-source", "bucket/src")
+			_, err := clnt.uploadPartCopy(ctx, "bucket", "dst", "upload-1", 1, h)
+			return err
+		}},
+		{"CopyObjectPart", func() error {
+			_, err := core.CopyObjectPart(ctx, "bucket", "src", "bucket", "dst", "upload-1", 1, 0, -1, nil)
+			return err
+		}},
+		{"CopyObject", func() error {
+			_, err := core.CopyObject(ctx, "bucket", "src", "bucket", "dst", nil, CopySrcOptions{}, PutObjectOptions{})
+			return err
+		}},
+	} {
+		err := tc.copy()
+		var errResp ErrorResponse
+		if !errors.As(err, &errResp) || errResp.Code != "InternalError" {
+			t.Errorf("%s: expected InternalError, got %v", tc.name, err)
+		}
+	}
+}

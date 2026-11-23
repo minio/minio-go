@@ -300,9 +300,10 @@ func (c *Client) copyObjectDo(ctx context.Context, srcBucket, srcObject, destBuc
 	}
 
 	reqMetadata := requestMetadata{
-		bucketName:   destBucket,
-		objectName:   destObject,
-		customHeader: headers,
+		bucketName:           destBucket,
+		objectName:           destObject,
+		customHeader:         headers,
+		expect200OKWithError: true,
 	}
 	if dstOpts.Internal.SourceVersionID != "" {
 		if dstOpts.Internal.SourceVersionID != nullVersionID {
@@ -371,10 +372,11 @@ func (c *Client) copyObjectPartDo(ctx context.Context, srcBucket, srcObject, des
 	queryValues.Set("uploadId", uploadID)
 
 	resp, err := c.executeMethod(ctx, http.MethodPut, requestMetadata{
-		bucketName:   destBucket,
-		objectName:   destObject,
-		customHeader: headers,
-		queryValues:  queryValues,
+		bucketName:           destBucket,
+		objectName:           destObject,
+		customHeader:         headers,
+		queryValues:          queryValues,
+		expect200OKWithError: true,
 	})
 	defer closeResponse(resp)
 	if err != nil {
@@ -410,10 +412,11 @@ func (c *Client) uploadPartCopy(ctx context.Context, bucket, object, uploadID st
 
 	// Send upload-part-copy request
 	resp, err := c.executeMethod(ctx, http.MethodPut, requestMetadata{
-		bucketName:   bucket,
-		objectName:   object,
-		customHeader: headers,
-		queryValues:  urlValues,
+		bucketName:           bucket,
+		objectName:           object,
+		customHeader:         headers,
+		queryValues:          urlValues,
+		expect200OKWithError: true,
 	})
 	defer closeResponse(resp)
 	if err != nil {
