@@ -521,8 +521,9 @@ var readFull = func(r io.Reader, buf []byte) (n int, err error) {
 }
 
 // regCred matches credential string in HTTP header. The access key runs up
-// to the credential scope, so a key that contains '/' is matched in full.
-var regCred = regexp.MustCompile("Credential=(?:.+?(/[0-9]{8}/[^/]+/[^/]+/aws4_request)|[^/]+)")
+// to the last credential scope, so a key that contains '/' is matched in
+// full. Without a scope the whole credential value is matched.
+var regCred = regexp.MustCompile("Credential=(?:.*(/[0-9]{8}/[^/,]+/[^/,]+/aws4_request)|[^,]*)")
 
 // regCred matches signature string in HTTP header
 var regSign = regexp.MustCompile("Signature=([[0-9a-f]+)")

@@ -97,6 +97,16 @@ func TestRedactSignature(t *testing.T) {
 			authValue:                 "AWS4-HMAC-SHA256 Credential=/minio/admin/20170613/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=02131231312313213",
 			expectedRedactedAuthValue: "AWS4-HMAC-SHA256 Credential=**REDACTED**/20170613/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=**REDACTED**",
 		},
+		{
+			// An access key that itself contains a scope shaped part.
+			authValue:                 "AWS4-HMAC-SHA256 Credential=key/20200101/us-east-1/s3/aws4_request/suffix/20170613/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=02131231312313213",
+			expectedRedactedAuthValue: "AWS4-HMAC-SHA256 Credential=**REDACTED**/20170613/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=**REDACTED**",
+		},
+		{
+			// Without a credential scope the whole value is redacted.
+			authValue:                 "AWS4-HMAC-SHA256 Credential=minio/admin, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=02131231312313213",
+			expectedRedactedAuthValue: "AWS4-HMAC-SHA256 Credential=**REDACTED**, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=**REDACTED**",
+		},
 	}
 
 	for i, testCase := range testCases {
