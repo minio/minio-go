@@ -977,10 +977,7 @@ func (q ReplQueueStats) QStats() (r ReplQStats) {
 				xmap = make(map[MetricName]XferStats)
 			}
 			for m, v := range xmap {
-				st, ok := r.XferStats[m]
-				if !ok {
-					st = XferStats{}
-				}
+				st := r.TgtXferStats[arn][m]
 				st.AvgRate += v.AvgRate
 				st.CurrRate += v.CurrRate
 				st.PeakRate = math.Max(st.PeakRate, v.PeakRate)
