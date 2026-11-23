@@ -277,6 +277,18 @@ func errUploadTooLarge(uploadedSize, totalPartsCount int64, bucketName, objectNa
 	}
 }
 
+// errReaderTooLong - The reader holds more data than the size given for it.
+func errReaderTooLong(size int64, bucketName, objectName string) error {
+	msg := fmt.Sprintf("Input stream holds more than the size ‘%d’ given for it.", size)
+	return ErrorResponse{
+		StatusCode: http.StatusBadRequest,
+		Code:       EntityTooLarge,
+		Message:    msg,
+		BucketName: bucketName,
+		Key:        objectName,
+	}
+}
+
 // errEntityTooSmall - Input size is smaller than supported minimum.
 func errEntityTooSmall(totalSize int64, bucketName, objectName string) error {
 	msg := fmt.Sprintf("Your proposed upload size ‘%d’ is below the minimum allowed object size ‘0B’ for single PUT operation.", totalSize)
