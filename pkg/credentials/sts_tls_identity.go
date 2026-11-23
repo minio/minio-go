@@ -151,6 +151,9 @@ func (i *STSCertificateIdentity) RetrieveWithCredContext(cc *CredContext) (Value
 
 	// Clone the HTTP transport (patch the TLS client certificate)
 	trCopy := tr.Clone()
+	if trCopy.TLSClientConfig == nil {
+		trCopy.TLSClientConfig = &tls.Config{}
+	}
 	trCopy.TLSClientConfig.Certificates = []tls.Certificate{i.Certificate}
 
 	// Clone the HTTP client (patch the HTTP transport)
