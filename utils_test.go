@@ -92,6 +92,11 @@ func TestRedactSignature(t *testing.T) {
 			authValue:                 "AWS4-HMAC-SHA256 Credential=minio-Admin_1/20170613/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=02131231312313213",
 			expectedRedactedAuthValue: "AWS4-HMAC-SHA256 Credential=**REDACTED**/20170613/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=**REDACTED**",
 		},
+		{
+			// A '/' inside or at the start of the access key is part of the key.
+			authValue:                 "AWS4-HMAC-SHA256 Credential=/minio/admin/20170613/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=02131231312313213",
+			expectedRedactedAuthValue: "AWS4-HMAC-SHA256 Credential=**REDACTED**/20170613/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=**REDACTED**",
+		},
 	}
 
 	for i, testCase := range testCases {
