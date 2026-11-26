@@ -18,6 +18,8 @@
 package minio
 
 import (
+	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -456,5 +458,39 @@ func TestPostPolicySetEncryption(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestPostPolicyEscapesJSON(t *testing.T) {
+	pp := NewPostPolicy()
+	if err := pp.SetExpires(time.Date(2023, time.March, 2, 15, 4, 5, 0, time.UTC)); err != nil {
+		t.Fatal(err)
+	}
+	key := `dir\sub "quoted" <name>`
+	if err := pp.SetKey(key); err != nil {
+		t.Fatal(err)
+	}
+	disposition := `attachment; filename="report.pdf"`
+	if err := pp.SetContentDisposition(disposition); err != nil {
+		t.Fatal(err)
+	}
+	tagging := `<Tagging xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><TagSet><Tag><Key>k</Key><Value>v</Value></Tag></TagSet></Tagging>`
+	if err := pp.SetTagging(tagging); err != nil {
+		t.Fatal(err)
+	}
+
+	var policy struct {
+		Conditions [][]string `json:"conditions"`
+	}
+	if err := json.Unmarshal([]byte(pp.String()), &policy); err != nil {
+		t.Fatalf("policy is not valid JSON: %v: %s", err, pp.String())
+	}
+	want := [][]string{
+		{"eq", "$key", key},
+		{"eq", "$Content-Disposition", disposition},
+		{"eq", "$tagging", tagging},
+	}
+	if !reflect.DeepEqual(policy.Conditions, want) {
+		t.Errorf("want conditions %q, got %q", want, policy.Conditions)
 	}
 }
