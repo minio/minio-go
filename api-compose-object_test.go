@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -312,5 +313,162 @@ func TestComposeObjectParallelPartFailure(t *testing.T) {
 	}
 	if s.copied >= numParts {
 		t.Errorf("expected remaining parts to be canceled, but all %d were copied", s.copied)
+	}
+}
+
+// TestDestOptionsKeepsUserMetaNamedLikeAHeader checks that a user metadata key
+// whose own name is a header name survives a server-side copy.
+//
+// The key is classified as it was given. Taking the `x-amz-meta-` prefix off
+// first made `x-amz-meta-cache-control` read as Cache-Control and go out as a
+// real header, and `x-amz-meta-content-type` land on the Content-Type Marshal
+// sets from its own field, where one silently took the other's place. Either
+// way the object came back under a name the caller never asked for.
+func TestDestOptionsKeepsUserMetaNamedLikeAHeader(t *testing.T) {
+	header := make(http.Header)
+	CopyDestOptions{
+		Bucket:          "bucket",
+		Object:          "object",
+		ContentType:     "text/plain",
+		ReplaceMetadata: true,
+		UserMetadata: map[string]string{
+			"x-amz-meta-cache-control": "no-store",
+			"X-Amz-Meta-Content-Type":  "application/json",
+			"x-amz-meta-expires":       "Thu, 01 Jan 2037 00:00:00 GMT",
+			"x-amz-meta-owner":         "payments",
+			"owner-team":               "payments",
+			"x-amz-acl":                "public-read-write",
+			"X-Amz-Storage-Class":      "rrs",
+		},
+	}.Marshal(header)
+
+	for name, want := range map[string]string{
+		// Kept as user metadata, prefix and all.
+		"X-Amz-Meta-Cache-Control": "no-store",
+		"X-Amz-Meta-Content-Type":  "application/json",
+		"X-Amz-Meta-Expires":       "Thu, 01 Jan 2037 00:00:00 GMT",
+		"X-Amz-Meta-Owner":         "payments",
+		// A name without the prefix still gets one.
+		"X-Amz-Meta-Owner-Team": "payments",
+		// And a real header is still a real header.
+		"Content-Type":        "text/plain",
+		"X-Amz-Acl":           "public-read-write",
+		"X-Amz-Storage-Class": "rrs",
+	} {
+		if got := header.Get(name); got != want {
+			t.Errorf("%s = %q, want %q", name, got, want)
+		}
+	}
+
+	// The names a stripped key would have been sent under.
+	for _, name := range []string{"Cache-Control", "Expires"} {
+		if got := header.Get(name); got != "" {
+			t.Errorf("user metadata went out as the header %s = %q", name, got)
+		}
+	}
+}
+
+// TestDestOptionsMatchesPutObject checks that a server-side copy sends a
+// UserMetadata map under exactly the names PutObject would.
+//
+// The two classify by one shared rule now. They did not: the copy path took
+// an `x-amz-meta-` prefix off first and then asked what the remainder was, so
+// the same map reached the server one way on an upload and another on a copy.
+func TestDestOptionsMatchesPutObject(t *testing.T) {
+	userMetadata := map[string]string{
+		"x-amz-meta-cache-control": "no-store",
+		"X-Amz-Meta-Content-Type":  "application/json",
+		"x-amz-meta-expires":       "Thu, 01 Jan 2037 00:00:00 GMT",
+		"x-amz-meta-owner":         "payments",
+		"owner-team":               "payments",
+		"x-amz-acl":                "public-read-write",
+		"X-Amz-Storage-Class":      "rrs",
+	}
+
+	// Named on both, so the comparison is about how UserMetadata keys are
+	// classified and not about PutObject defaulting a Content-Type.
+	const contentType = "text/plain"
+
+	put := PutObjectOptions{ContentType: contentType, UserMetadata: userMetadata}.Header()
+
+	copied := make(http.Header)
+	CopyDestOptions{
+		Bucket: "bucket", Object: "object", ContentType: contentType,
+		ReplaceMetadata: true, UserMetadata: userMetadata,
+	}.Marshal(copied)
+	// Set by the copy alone, so not a difference in how names are classified.
+	copied.Del("x-amz-metadata-directive")
+
+	for name, want := range put {
+		if got := copied[name]; !slices.Equal(got, want) {
+			t.Errorf("copy sends %s = %q, PutObject sends %q", name, got, want)
+		}
+	}
+	for name, got := range copied {
+		if _, sent := put[name]; !sent {
+			t.Errorf("copy sends %s = %q, which PutObject does not send at all", name, got)
+		}
+	}
+
+	// And the names a stripped key used to be sent under.
+	for _, name := range []string{"Cache-Control", "Expires"} {
+		if got := copied.Get(name); got != "" {
+			t.Errorf("user metadata went out as the header %s = %q", name, got)
+		}
+	}
+}
+
+// TestDestOptionsValidatesLikePutObject checks that a server-side copy refuses
+// the same UserMetadata names PutObject refuses.
+//
+// Both send the map as headers, so both have the same names to reject: one
+// that is not a valid header name at all, and one these options already carry
+// in a field of their own. The copy path checked none of it, so a malformed
+// name failed inside net/http with no mention of the key, and a name the
+// server reserves failed only once the server saw it.
+func TestDestOptionsValidatesLikePutObject(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		meta    map[string]string
+		wantErr bool
+	}{
+		{name: "a plain user name", meta: map[string]string{"owner": "payments"}},
+		{name: "a prefixed user name", meta: map[string]string{"x-amz-meta-owner": "payments"}},
+		{name: "an amz header", meta: map[string]string{"x-amz-acl": "public-read"}},
+		{name: "a standard header", meta: map[string]string{"Cache-Control": "no-store"}, wantErr: true},
+		{name: "an sse header", meta: map[string]string{"X-Amz-Server-Side-Encryption": "AES256"}, wantErr: true},
+		{name: "a storage class header", meta: map[string]string{"X-Amz-Storage-Class": "rrs"}, wantErr: true},
+		{name: "a minio header", meta: map[string]string{"X-Minio-Internal-Thing": "on"}, wantErr: true},
+		{name: "a name that is no header name", meta: map[string]string{"bad name": "v"}, wantErr: true},
+		{name: "a value no header can carry", meta: map[string]string{"owner": "line\nbreak"}, wantErr: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			copied := CopyDestOptions{
+				Bucket: "bucket", Object: "object",
+				ReplaceMetadata: true, UserMetadata: test.meta,
+			}.validate()
+			put := PutObjectOptions{UserMetadata: test.meta}.validate(nil)
+
+			if (copied != nil) != test.wantErr {
+				t.Errorf("copy validate() = %v, wantErr %v", copied, test.wantErr)
+			}
+			// Whatever the verdict, it has to be the same verdict.
+			if (copied != nil) != (put != nil) {
+				t.Errorf("copy validate() = %v, PutObject validate() = %v", copied, put)
+			}
+			if copied != nil && put != nil && copied.Error() != put.Error() {
+				t.Errorf("copy says %q, PutObject says %q", copied, put)
+			}
+
+			// Without ReplaceMetadata the map is not sent at all, and the
+			// copy preserves the source's metadata. Refusing it would fail a
+			// request that has always been fine.
+			ignored := CopyDestOptions{
+				Bucket: "bucket", Object: "object", UserMetadata: test.meta,
+			}.validate()
+			if ignored != nil {
+				t.Errorf("validate() = %v for a map ReplaceMetadata leaves unsent", ignored)
+			}
+		})
 	}
 }

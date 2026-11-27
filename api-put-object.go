@@ -244,11 +244,7 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 	}
 
 	for k, v := range opts.UserMetadata {
-		if isAmzHeader(k) || isStandardHeader(k) || isStorageClassHeader(k) || isMinioHeader(k) {
-			header.Set(k, v)
-		} else {
-			header.Set("x-amz-meta-"+k, v)
-		}
+		header.Set(userMetadataHeader(k), v)
 	}
 
 	// set any other additional custom headers.
@@ -259,15 +255,37 @@ func (opts PutObjectOptions) Header() (header http.Header) {
 	return header
 }
 
-// validate() checks if the UserMetadata map has standard headers or and raises an error if so.
-func (opts PutObjectOptions) validate(c *Client) (err error) {
-	for k, v := range opts.UserMetadata {
+// userMetadataHeader is the header a UserMetadata key is sent under: its own
+// name where that is already a header these APIs set, and the user metadata
+// name built from it otherwise. One rule for PutObject and for a server-side
+// copy, which have to agree or the same key means two things.
+func userMetadataHeader(k string) string {
+	if isAmzHeader(k) || isStandardHeader(k) || isStorageClassHeader(k) || isMinioHeader(k) {
+		return k
+	}
+	return "x-amz-meta-" + k
+}
+
+// validateUserMetadata checks that every key is a name this API will send as
+// user metadata: a valid header name, and not one of the headers these
+// options carry in fields of their own. One rule for PutObject and for a
+// server-side copy, which have to agree or the same map is taken two ways.
+func validateUserMetadata(userMeta map[string]string) error {
+	for k, v := range userMeta {
 		if !httpguts.ValidHeaderFieldName(k) || isStandardHeader(k) || isSSEHeader(k) || isStorageClassHeader(k) || isMinioHeader(k) {
 			return errInvalidArgument(k + " unsupported user defined metadata name")
 		}
 		if !httpguts.ValidHeaderFieldValue(v) {
 			return errInvalidArgument(v + " unsupported user defined metadata value")
 		}
+	}
+	return nil
+}
+
+// validate() checks if the UserMetadata map has standard headers or and raises an error if so.
+func (opts PutObjectOptions) validate(c *Client) (err error) {
+	if err = validateUserMetadata(opts.UserMetadata); err != nil {
+		return err
 	}
 	if opts.Mode != "" && !opts.Mode.IsValid() {
 		return errInvalidArgument(opts.Mode.String() + " unsupported retention mode")

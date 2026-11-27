@@ -108,23 +108,6 @@ const (
 	ExcludeAnnotationsDirective = "EXCLUDE"
 )
 
-// Process custom-metadata to remove a `x-amz-meta-` prefix if
-// present and validate that keys are distinct (after this
-// prefix removal).
-func filterCustomMeta(userMeta map[string]string) map[string]string {
-	m := make(map[string]string)
-	for k, v := range userMeta {
-		if strings.HasPrefix(strings.ToLower(k), "x-amz-meta-") {
-			k = k[len("x-amz-meta-"):]
-		}
-		if _, ok := m[k]; ok {
-			continue
-		}
-		m[k] = v
-	}
-	return m
-}
-
 // Marshal converts all the CopyDestOptions into their
 // equivalent HTTP header representation
 func (opts CopyDestOptions) Marshal(header http.Header) {
@@ -176,12 +159,14 @@ func (opts CopyDestOptions) Marshal(header http.Header) {
 
 	if opts.ReplaceMetadata {
 		header.Set("x-amz-metadata-directive", replaceDirective)
-		for k, v := range filterCustomMeta(opts.UserMetadata) {
-			if isAmzHeader(k) || isStandardHeader(k) || isStorageClassHeader(k) || isMinioHeader(k) {
-				header.Set(k, v)
-			} else {
-				header.Set("x-amz-meta-"+k, v)
-			}
+		// Keys are classified as they were given, by the same rule PutObject
+		// uses. Taking an `x-amz-meta-` prefix off first made a key the caller
+		// meant as user metadata read as the header named inside it:
+		// `x-amz-meta-cache-control` went out as a real Cache-Control, and
+		// `x-amz-meta-content-type` landed on the Content-Type set above, one
+		// of the two silently taking the other's place.
+		for k, v := range opts.UserMetadata {
+			header.Set(userMetadataHeader(k), v)
 		}
 	}
 }
@@ -197,6 +182,14 @@ func (opts CopyDestOptions) validate() (err error) {
 	}
 	if opts.Progress != nil && opts.Size < 0 {
 		return errInvalidArgument("For progress bar effective size needs to be specified")
+	}
+	// Only where it will be sent. UserMetadata is read under this flag alone,
+	// and refusing a map the copy is documented to ignore would fail a request
+	// that has always been fine.
+	if opts.ReplaceMetadata {
+		if err = validateUserMetadata(opts.UserMetadata); err != nil {
+			return err
+		}
 	}
 	return nil
 }
