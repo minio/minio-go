@@ -197,10 +197,11 @@ type composeTestServer struct {
 	srcSize  int64
 	failPart int
 
-	mu        sync.Mutex
-	copied    int
-	completed []int
-	aborted   bool
+	mu           sync.Mutex
+	copied       int
+	completed    []int
+	aborted      bool
+	uploadHeader http.Header
 
 	inflight, maxInflight atomic.Int32
 }
@@ -213,6 +214,9 @@ func (s *composeTestServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("ETag", `"src"`)
 		w.Header().Set("Last-Modified", "Wed, 21 Oct 2015 07:28:00 GMT")
 	case r.Method == http.MethodPost && q.Has("uploads"):
+		s.mu.Lock()
+		s.uploadHeader = r.Header.Clone()
+		s.mu.Unlock()
 		w.Write([]byte(`<InitiateMultipartUploadResult><UploadId>upload-1</UploadId></InitiateMultipartUploadResult>`))
 	case r.Method == http.MethodPut && q.Has("partNumber"):
 		n := s.inflight.Add(1)
@@ -312,5 +316,86 @@ func TestComposeObjectParallelPartFailure(t *testing.T) {
 	}
 	if s.copied >= numParts {
 		t.Errorf("expected remaining parts to be canceled, but all %d were copied", s.copied)
+	}
+}
+
+// TestComposeObjectSendsTheDestinationHeaders checks that a compose which
+// splits into parts sets the destination headers the options name.
+//
+// Only the single-copy path serialized them, through CopyDestOptions.Marshal.
+// A compose large enough to go multipart initiates the upload from a
+// PutObjectOptions literal instead, and that literal carried none of them, so
+// every one was dropped on exactly the objects too large to copy in one call.
+func TestComposeObjectSendsTheDestinationHeaders(t *testing.T) {
+	s := &composeTestServer{srcSize: 2 * defaultMinPartSize}
+	srv := httptest.NewServer(s)
+	defer srv.Close()
+
+	clnt, err := New(srv.Listener.Addr().String(), &Options{Region: "us-east-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expires := time.Date(2037, 1, 1, 0, 0, 0, 0, time.UTC)
+	if _, err = clnt.ComposeObject(context.Background(), CopyDestOptions{
+		Bucket: "bucket", Object: "dst", PartSize: defaultMinPartSize,
+		ContentType:             "text/plain",
+		ContentEncoding:         "gzip",
+		ContentDisposition:      `attachment; filename="x.txt"`,
+		ContentLanguage:         "en-us",
+		CacheControl:            "no-store",
+		Expires:                 expires,
+		StorageClass:            "REDUCED_REDUNDANCY",
+		WebsiteRedirectLocation: "/elsewhere",
+	}, CopySrcOptions{Bucket: "bucket", Object: "src"}); err != nil {
+		t.Fatal(err)
+	}
+
+	s.mu.Lock()
+	header := s.uploadHeader
+	s.mu.Unlock()
+	if header == nil {
+		t.Fatal("the multipart upload was never initiated")
+	}
+
+	for name, want := range map[string]string{
+		"Content-Type":                    "text/plain",
+		"Content-Encoding":                "gzip",
+		"Content-Disposition":             `attachment; filename="x.txt"`,
+		"Content-Language":                "en-us",
+		"Cache-Control":                   "no-store",
+		"Expires":                         expires.Format(http.TimeFormat),
+		"X-Amz-Storage-Class":             "REDUCED_REDUNDANCY",
+		"X-Amz-Website-Redirect-Location": "/elsewhere",
+	} {
+		if got := header.Get(name); got != want {
+			t.Errorf("the multipart upload sends %s = %q, want %q", name, got, want)
+		}
+	}
+}
+
+// TestDestOptionsSendsStorageClass checks that a single server-side copy sets
+// the destination tier the options name.
+//
+// Without a field of its own the only way to name one was UserMetadata, where
+// the key is a header this API sends rather than metadata the object keeps.
+func TestDestOptionsSendsStorageClass(t *testing.T) {
+	header := make(http.Header)
+	CopyDestOptions{
+		Bucket: "bucket", Object: "object",
+		StorageClass:            "REDUCED_REDUNDANCY",
+		WebsiteRedirectLocation: "/elsewhere",
+	}.Marshal(header)
+
+	if got := header.Get("X-Amz-Storage-Class"); got != "REDUCED_REDUNDANCY" {
+		t.Errorf("X-Amz-Storage-Class = %q, want REDUCED_REDUNDANCY", got)
+	}
+	if got := header.Get("X-Amz-Website-Redirect-Location"); got != "/elsewhere" {
+		t.Errorf("X-Amz-Website-Redirect-Location = %q, want /elsewhere", got)
+	}
+	// Unset names no tier, rather than naming an empty one.
+	header = make(http.Header)
+	CopyDestOptions{Bucket: "bucket", Object: "object"}.Marshal(header)
+	if _, found := header["X-Amz-Storage-Class"]; found {
+		t.Error("an unset storage class was sent as a header")
 	}
 }
