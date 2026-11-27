@@ -81,6 +81,14 @@ type CopyDestOptions struct {
 	ContentLanguage    string
 	CacheControl       string
 
+	// StorageClass is the tier the destination object is written to, and
+	// WebsiteRedirectLocation where a request for it is sent instead. Without
+	// fields of their own a copy had no way to name either but `UserMetadata`,
+	// where the key is a header this API sends rather than metadata the
+	// object keeps.
+	StorageClass            string
+	WebsiteRedirectLocation string
+
 	Size int64 // Needs to be specified if progress bar is specified.
 	// Progress of the entire copy operation will be sent here.
 	Progress io.Reader
@@ -165,6 +173,12 @@ func (opts CopyDestOptions) Marshal(header http.Header) {
 	}
 	if !opts.Expires.IsZero() {
 		header.Set("Expires", opts.Expires.UTC().Format(http.TimeFormat))
+	}
+	if opts.StorageClass != "" {
+		header.Set(amzStorageClass, opts.StorageClass)
+	}
+	if opts.WebsiteRedirectLocation != "" {
+		header.Set(amzWebsiteRedirectLocation, opts.WebsiteRedirectLocation)
 	}
 	if opts.ChecksumType.IsSet() {
 		header.Set(amzChecksumAlgo, opts.ChecksumType.String())
@@ -575,13 +589,23 @@ func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ..
 		userMeta = meta
 	}
 
+	// The destination's own headers, which only the single-copy path sent:
+	// a compose that split into parts dropped every one of them.
 	uploadID, err := c.newUploadID(ctx, dst.Bucket, dst.Object, PutObjectOptions{
-		ServerSideEncryption: dst.Encryption,
-		UserMetadata:         userMeta,
-		UserTags:             userTags,
-		Mode:                 dst.Mode,
-		RetainUntilDate:      dst.RetainUntilDate,
-		LegalHold:            dst.LegalHold,
+		ServerSideEncryption:    dst.Encryption,
+		UserMetadata:            userMeta,
+		UserTags:                userTags,
+		Mode:                    dst.Mode,
+		RetainUntilDate:         dst.RetainUntilDate,
+		LegalHold:               dst.LegalHold,
+		ContentType:             dst.ContentType,
+		ContentEncoding:         dst.ContentEncoding,
+		ContentDisposition:      dst.ContentDisposition,
+		ContentLanguage:         dst.ContentLanguage,
+		CacheControl:            dst.CacheControl,
+		Expires:                 dst.Expires,
+		StorageClass:            dst.StorageClass,
+		WebsiteRedirectLocation: dst.WebsiteRedirectLocation,
 	})
 	if err != nil {
 		return UploadInfo{}, err
